@@ -23,7 +23,6 @@ export default function App() {
   const [order, setOrder] = useState<OrderMode>(() => loadSetting('order', 'fifths'));
   const [wholeToneOnly, setWholeToneOnly] = useState(() => loadSetting('wholeToneOnly', false));
 
-  // Persist settings
   useEffect(() => { saveSetting('guitarString', guitarString); }, [guitarString]);
   useEffect(() => { saveSetting('time', time); }, [time]);
   useEffect(() => { saveSetting('fretFrom', fretFrom); }, [fretFrom]);
@@ -63,7 +62,6 @@ export default function App() {
     return noteSet;
   }, [guitarString, fretFrom, fretTo, wholeToneOnly]);
 
-  // Fret dots (standard guitar markers)
   const fretDots = useMemo(() => {
     const dotFrets = [3, 5, 7, 9, 12, 15, 17];
     const result: Record<string, number[]> = {};
@@ -83,41 +81,28 @@ export default function App() {
     if (countdownRef.current) clearInterval(countdownRef.current);
   };
 
-  // Smart fret selection: weight towards notes user struggles with
   const pickSmartFret = useCallback((validFrets: number[]) => {
     if (history.length < 5 || validFrets.length <= 1) {
-      // Not enough data, pick random (avoiding repeat)
       const filtered = validFrets.filter(f => notes[guitarString - 1][f] !== lastNoteRef.current);
-      return filtered.length > 0
-        ? filtered[Math.floor(Math.random() * filtered.length)]
-        : validFrets[0];
+      return filtered.length > 0 ? filtered[Math.floor(Math.random() * filtered.length)] : validFrets[0];
     }
-
-    // Build weights: notes with lower correct rate get higher weight
     const byNote: Record<string, { correct: number; total: number }> = {};
     history.forEach(h => {
       if (!byNote[h.note]) byNote[h.note] = { correct: 0, total: 0 };
       byNote[h.note].total++;
       if (h.correct === true) byNote[h.note].correct++;
     });
-
     const weights = validFrets
       .filter(f => notes[guitarString - 1][f] !== lastNoteRef.current)
       .map(f => {
         const note = notes[guitarString - 1][f];
         const stat = byNote[note];
-        if (!stat || stat.total === 0) return { fret: f, weight: 3 }; // unseen = high priority
-        const rate = stat.correct / stat.total;
-        // Lower rate = higher weight (1 to 4)
-        return { fret: f, weight: 1 + (1 - rate) * 3 };
+        if (!stat || stat.total === 0) return { fret: f, weight: 3 };
+        return { fret: f, weight: 1 + (1 - stat.correct / stat.total) * 3 };
       });
-
     const totalWeight = weights.reduce((s, w) => s + w.weight, 0);
     let rand = Math.random() * totalWeight;
-    for (const w of weights) {
-      rand -= w.weight;
-      if (rand <= 0) return w.fret;
-    }
+    for (const w of weights) { rand -= w.weight; if (rand <= 0) return w.fret; }
     return weights[weights.length - 1].fret;
   }, [guitarString, history]);
 
@@ -127,7 +112,6 @@ export default function App() {
       runningRef.current = false;
       return;
     }
-
     const newCount = countRef.current + 1;
     countRef.current = newCount;
     setCount(newCount);
@@ -143,7 +127,6 @@ export default function App() {
     setCurrentFret(fret);
     setRemaining(time);
     questionStartRef.current = Date.now();
-
     playNote(guitarString, fret);
 
     let rem = time;
@@ -169,10 +152,7 @@ export default function App() {
   }, [guitarString, fretFrom, fretTo, time, accidental, order, wholeToneOnly, pickSmartFret]);
 
   const start = () => {
-    if (!preloaded) {
-      preloadAllSamples().then(() => setPreloaded(true));
-      setPreloaded(true);
-    }
+    if (!preloaded) { preloadAllSamples().then(() => setPreloaded(true)); setPreloaded(true); }
     setRunning(true);
     setPaused(false);
     runningRef.current = true;
@@ -208,27 +188,13 @@ export default function App() {
   const resume = () => {
     setPaused(false);
     runningRef.current = true;
-
-    if (answered) {
-      // Was between questions, just go next
-      setTimeout(next, 100);
-      return;
-    }
-
-    // Resume countdown from where it left off
+    if (answered) { setTimeout(next, 100); return; }
     const rem = pausedTimeRef.current;
     setRemaining(rem);
     questionStartRef.current = Date.now() - (time - rem) * 1000;
-
     if (currentFret !== null) playNote(guitarString, currentFret);
-
     let r = rem;
-    countdownRef.current = window.setInterval(() => {
-      r--;
-      setRemaining(r);
-      if (r <= 0 && countdownRef.current) clearInterval(countdownRef.current);
-    }, 1000);
-
+    countdownRef.current = window.setInterval(() => { r--; setRemaining(r); if (r <= 0 && countdownRef.current) clearInterval(countdownRef.current); }, 1000);
     timerRef.current = window.setTimeout(() => {
       if (answeredRef.current) return;
       answeredRef.current = true;
@@ -250,30 +216,25 @@ export default function App() {
     setAnswered(true);
     clearTimers();
     stopPlayback();
-
     const correctNote = notes[guitarString - 1][currentFret];
     const cof = getCofNotes(accidental, order, wholeToneOnly);
     const isCorrect = notesMatch(selectedNote, correctNote);
     setCorrectCofNote(getCorrectCofNote(correctNote, cof));
     if (!isCorrect) setWrongCofNote(selectedNote);
-
     const elapsed = (Date.now() - questionStartRef.current) / 1000;
     setHistory(prev => [...prev, { note: correctNote, fret: currentFret!, string: guitarString, seconds: Math.round(elapsed * 10) / 10, skipped: false, correct: isCorrect }]);
     setFeedback(isCorrect ? '✓ Correct!' : `✗ It was ${displayNote(correctNote, accidental)}`);
-
     const waitForSound = () => {
-      if (isSoundPlaying()) {
-        setTimeout(waitForSound, 100);
-      } else {
-        setTimeout(() => { if (runningRef.current) next(); }, 400);
-      }
+      if (isSoundPlaying()) { setTimeout(waitForSound, 100); }
+      else { setTimeout(() => { if (runningRef.current) next(); }, 400); }
     };
     setTimeout(waitForSound, 800);
   };
 
   const clearStats = () => setHistory([]);
-
   useEffect(() => () => clearTimers(), []);
+
+  const isPlaying = running && !paused;
 
   return (
     <div className="app">
@@ -296,42 +257,66 @@ export default function App() {
       )}
 
       <div className="game-row">
-        {(running || paused) ? (
-          <div className="question-col">
-            <div className="fret-display">{currentFret !== null ? currentFret : '—'}</div>
-            {!paused && <div className="countdown">{remaining > 0 ? remaining : ''}</div>}
-            {paused && <div className="countdown paused-text">⏸ Paused</div>}
-            <div className="info">Q {count} — String {guitarString}</div>
-            <div className={`feedback ${feedback.startsWith('✓') ? 'good' : feedback.startsWith('✗') ? 'bad' : 'warn'}`}>
-              {feedback}
-            </div>
-            <div className="controls">
-              {!paused
-                ? <button className="pause-btn" onClick={pause}>⏸ Pause</button>
-                : <button className="start-btn" onClick={resume}>▶ Continue</button>
-              }
-              <button className="stop-btn" onClick={stop}>⏹ Stop</button>
-            </div>
-          </div>
-        ) : (
-          <div className="question-col">
-            {history.length > 0 ? (
-              <StatsPanel history={history} maxTime={time} />
+        <div className="question-col">
+          {/* Show question only while actively playing (not paused, not stopped) */}
+          {isPlaying && (
+            <>
+              <div className="fret-display">{currentFret !== null ? currentFret : '—'}</div>
+              <div className="countdown">{remaining > 0 ? remaining : ''}</div>
+              <div className="info">Q {count} — String {guitarString}</div>
+              <div className={`feedback ${feedback.startsWith('✓') ? 'good' : feedback.startsWith('✗') ? 'bad' : 'warn'}`}>
+                {feedback}
+              </div>
+            </>
+          )}
+
+          {/* Show stats when stopped or paused (if there's history) */}
+          {!isPlaying && history.length > 0 && (
+            <StatsPanel history={history} maxTime={time} />
+          )}
+
+          {/* Show dash when idle with no history */}
+          {!running && !paused && history.length === 0 && (
+            <div className="fret-display">—</div>
+          )}
+
+          {/* Paused indicator */}
+          {paused && <div className="paused-text">⏸ Paused</div>}
+
+          {/* Controls */}
+          <div className="controls">
+            {!running && !paused ? (
+              <>
+                <button className="icon-btn play-btn" onClick={start} title="Start">
+                  <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
+                </button>
+                {history.length > 0 && (
+                  <button className="clear-btn" onClick={clearStats}>Clear</button>
+                )}
+              </>
             ) : (
-              <div className="fret-display">—</div>
+              <>
+                {!paused ? (
+                  <button className="icon-btn pause-btn" onClick={pause} title="Pause">
+                    <svg viewBox="0 0 24 24" width="24" height="24"><rect x="5" y="4" width="4" height="16" fill="currentColor"/><rect x="15" y="4" width="4" height="16" fill="currentColor"/></svg>
+                  </button>
+                ) : (
+                  <button className="icon-btn play-btn" onClick={resume} title="Continue">
+                    <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
+                  </button>
+                )}
+                <button className="icon-btn stop-btn-icon" onClick={stop} title="Stop">
+                  <svg viewBox="0 0 24 24" width="24" height="24"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/></svg>
+                </button>
+              </>
             )}
-            <div className="controls">
-              <button className="start-btn" onClick={start}>▶ Start</button>
-              {history.length > 0 && (
-                <button className="clear-btn" onClick={clearStats}>Clear Stats</button>
-              )}
-            </div>
           </div>
-        )}
+        </div>
+
         <NoteCircle
           notes={cofList}
           activeNotes={activeNotes}
-          active={running && !paused && !answered}
+          active={isPlaying && !answered}
           correctNote={correctCofNote}
           wrongNote={wrongCofNote}
           onSelect={selectAnswer}

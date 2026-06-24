@@ -55,47 +55,42 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
   };
 
   return (
-    <div className="circle-wrapper">
-      <div className="circle-title">
-        {notes.length <= 7 ? 'Whole Tones' : notes.length === 12 ? 'Notes' : 'Notes'}
-      </div>
-      <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
-        {notes.map((note, i) => {
-          const angle = i * step - Math.PI / 2;
-          const x = cx + r * Math.cos(angle) - btnSize / 2;
-          const y = cy + r * Math.sin(angle) - btnSize / 2;
-          const isCorrect = correctNote !== null && notesMatch(note, correctNote);
-          const isWrong = wrongNote !== null && notesMatch(note, wrongNote);
-          const inRange = isNoteInRange(note);
-          const dots = hasDot(note);
-          const isGlowing = glowNote === note;
+    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+      {notes.map((note, i) => {
+        const angle = i * step - Math.PI / 2;
+        const x = cx + r * Math.cos(angle) - btnSize / 2;
+        const y = cy + r * Math.sin(angle) - btnSize / 2;
+        const isCorrect = correctNote !== null && notesMatch(note, correctNote);
+        const isWrong = wrongNote !== null && notesMatch(note, wrongNote);
+        const inRange = isNoteInRange(note);
+        const dots = hasDot(note);
+        const isGlowing = glowNote === note;
 
-          let bg = '#2a2a4a';
-          let border = '#555';
-          if (isCorrect) { bg = '#0a0'; border = '#0f0'; }
-          else if (isWrong) { bg = '#a00'; border = '#f00'; }
+        let bg = '#2a2a4a';
+        let border = '#555';
+        if (isCorrect) { bg = '#0a0'; border = '#0f0'; }
+        else if (isWrong) { bg = '#a00'; border = '#f00'; }
 
-          return (
-            <button
-              key={note}
-              onClick={() => handleClick(note)}
-              disabled={!inRange}
-              className={`note-btn ${isGlowing ? 'note-glow' : ''}`}
-              style={{
-                position: 'absolute', left: x, top: y,
-                width: btnSize, height: btnSize, borderRadius: '50%',
-                background: bg, border: `2px solid ${border}`,
-                color: '#fff', fontWeight: 'bold', fontSize: 15,
-                cursor: inRange ? 'pointer' : 'default',
-                opacity: inRange ? (active ? 1 : 0.7) : 0.25,
-              }}
-            >
-              {note}
-              {dots && <span className="fret-dot">{'●'.repeat(Math.min(dots.length, 2))}</span>}
-            </button>
-          );
-        })}
-      </div>
+        return (
+          <button
+            key={note}
+            onClick={() => handleClick(note)}
+            disabled={!inRange}
+            className={`note-btn ${isGlowing ? 'note-glow' : ''}`}
+            style={{
+              position: 'absolute', left: x, top: y,
+              width: btnSize, height: btnSize, borderRadius: '50%',
+              background: bg, border: `2px solid ${border}`,
+              color: '#fff', fontWeight: 'bold', fontSize: 15,
+              cursor: inRange ? 'pointer' : 'default',
+              opacity: inRange ? (active ? 1 : 0.7) : 0.25,
+            }}
+          >
+            {note}
+            {dots && <span className="fret-dot">{'●'.repeat(Math.min(dots.length, 2))}</span>}
+          </button>
+        );
+      })}
     </div>
   );
 }

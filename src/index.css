@@ -23,9 +23,14 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   margin-bottom: 10px;
 }
 
+/* Settings */
 .settings { margin-bottom: 12px; }
-.setting-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; justify-content: center; }
-.setting-label { color: #aaa; font-size: 12px; margin-right: 4px; min-width: 50px; text-align: left; }
+.setting-group { margin-bottom: 10px; }
+.group-title {
+  display: block; color: #888; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 1px; margin-bottom: 4px;
+}
+.setting-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; }
 
 .chip {
   padding: 8px 14px; border-radius: 18px; border: 1px solid #555;
@@ -41,40 +46,46 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 }
 .range-val { color: #eee; font-size: 15px; margin: 0 6px; }
 
+/* Game layout */
 .game-row {
   display: flex; align-items: center; justify-content: center; gap: 24px;
   margin: 12px 0;
 }
-.question-col { display: flex; flex-direction: column; align-items: center; }
+.question-col { display: flex; flex-direction: column; align-items: center; min-width: 240px; }
 
 .fret-display { font-size: 5rem; color: #0ff; line-height: 1; }
 .countdown { font-size: 1.5rem; color: #ff0; height: 2rem; }
-.paused-text { color: #f90; }
+.paused-text { color: #f90; font-size: 1.2rem; margin: 8px 0; }
 .info { font-size: 0.9rem; color: #aaa; margin-bottom: 4px; }
 .feedback { font-size: 1.2rem; min-height: 1.6rem; margin: 4px 0; }
 .good { color: #0f0; }
 .bad { color: #f55; }
 .warn { color: #f90; }
 
-.controls { margin: 12px 0; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-.start-btn, .stop-btn, .pause-btn {
-  padding: 14px 28px; border: none; border-radius: 10px;
-  font-size: 1rem; font-weight: bold; cursor: pointer;
+/* Icon buttons - circular cyan */
+.controls { margin: 12px 0; display: flex; gap: 14px; justify-content: center; align-items: center; }
+
+.icon-btn {
+  width: 56px; height: 56px; border-radius: 50%;
+  border: 2px solid #0ff; background: transparent;
+  color: #0ff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
 }
-.start-btn { background: #0ff; color: #1a1a2e; }
-.stop-btn { background: #f55; color: #fff; }
-.pause-btn { background: #f90; color: #1a1a2e; }
+.icon-btn:active { transform: scale(0.9); }
+.play-btn:hover { background: rgba(0, 255, 255, 0.1); }
+.pause-btn { border-color: #0ff; color: #0ff; }
+.pause-btn:hover { background: rgba(0, 255, 255, 0.1); }
+.stop-btn-icon { border-color: #0ff; color: #0ff; }
+.stop-btn-icon:hover { background: rgba(0, 255, 255, 0.1); }
 
 .clear-btn {
-  padding: 12px 20px; border: 1px solid #555; border-radius: 10px;
-  background: none; color: #aaa; font-size: 0.9rem; cursor: pointer;
+  padding: 10px 18px; border: 1px solid #555; border-radius: 10px;
+  background: none; color: #aaa; font-size: 0.85rem; cursor: pointer;
 }
 .clear-btn:hover { border-color: #f55; color: #f55; }
 
-/* Note Circle */
-.circle-wrapper { display: flex; flex-direction: column; align-items: center; }
-.circle-title { color: #888; font-size: 12px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; }
-
+/* Note buttons */
 .note-btn {
   transition: all 0.2s, box-shadow 0.6s;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
