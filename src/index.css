@@ -1,0 +1,101 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #1a1a2e;
+  color: #eee;
+  min-height: 100dvh;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 16px;
+  text-align: center;
+}
+
+h1 { font-size: 1.4rem; margin-bottom: 12px; }
+
+.toggle-btn {
+  background: none; border: 1px solid #555; color: #0ff;
+  padding: 6px 14px; border-radius: 16px; font-size: 13px; cursor: pointer;
+  margin-bottom: 10px;
+}
+
+.settings { margin-bottom: 12px; }
+.setting-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; justify-content: center; }
+.setting-label { color: #aaa; font-size: 12px; margin-right: 4px; min-width: 50px; text-align: left; }
+
+.chip {
+  padding: 6px 12px; border-radius: 16px; border: 1px solid #555;
+  background: #2a2a4a; color: #ccc; font-size: 12px; cursor: pointer;
+  transition: all 0.15s;
+}
+.chip-active { background: #0aa; border-color: #0ff; color: #1a1a2e; font-weight: bold; }
+
+.adj-btn {
+  width: 28px; height: 28px; border-radius: 50%; border: none;
+  background: #2a2a4a; color: #0ff; font-size: 18px; font-weight: bold;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.range-val { color: #eee; font-size: 14px; margin: 0 4px; }
+
+.game-row {
+  display: flex; align-items: center; justify-content: center; gap: 30px;
+  margin: 16px 0;
+}
+.question-col { display: flex; flex-direction: column; align-items: center; }
+
+.fret-display { font-size: 5rem; color: #0ff; line-height: 1; }
+.countdown { font-size: 1.5rem; color: #ff0; height: 2rem; }
+.info { font-size: 0.9rem; color: #aaa; margin-bottom: 4px; }
+.feedback { font-size: 1.2rem; min-height: 1.6rem; margin: 4px 0; }
+.good { color: #0f0; }
+.bad { color: #f55; }
+.warn { color: #f90; }
+
+.controls { margin: 12px 0; display: flex; gap: 8px; justify-content: center; }
+.start-btn, .stop-btn {
+  padding: 12px 36px; border: none; border-radius: 8px;
+  font-size: 1.1rem; font-weight: bold; cursor: pointer;
+}
+.start-btn { background: #0ff; color: #1a1a2e; }
+.stop-btn { background: #f55; color: #fff; }
+
+.clear-btn {
+  padding: 10px 24px; border: 1px solid #555; border-radius: 8px;
+  background: none; color: #aaa; font-size: 0.9rem; cursor: pointer;
+}
+.clear-btn:hover { border-color: #f55; color: #f55; }
+
+.stats-panel {
+  background: #0d0d1a; border-radius: 10px; padding: 14px;
+  text-align: left; min-width: 260px;
+}
+.stats-panel p { font-size: 0.85rem; margin: 3px 0; }
+
+.filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.filter-chip {
+  padding: 4px 10px; border-radius: 12px; border: 1px solid #444;
+  background: #1a1a2e; color: #aaa; font-size: 11px; cursor: pointer;
+}
+.filter-active { background: #0aa; border-color: #0ff; color: #1a1a2e; font-weight: bold; }
+
+.score-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.score { font-size: 2rem; font-weight: bold; color: #0ff; }
+.encouragement { font-size: 0.9rem; color: #ccc; }
+
+.stat-group { margin-bottom: 8px; }
+.note-stats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.note-stat {
+  background: #1a1a2e; border: 1px solid #333; border-radius: 8px;
+  padding: 3px 8px; font-size: 12px; color: #ddd;
+}
+
+.solid { color: #7bf; }
+.improving { color: #f90; }
+
+@media (max-width: 600px) {
+  .game-row { flex-direction: column; gap: 10px; }
+}
