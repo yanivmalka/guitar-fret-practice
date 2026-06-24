@@ -18,7 +18,6 @@ export default function StatsPanel({ history }: Props) {
   const wrong = history.filter(h => h.correct === false).length;
   const timedOut = history.filter(h => h.skipped).length;
 
-  // Generous score
   const score = Math.round(((correct * 1.0 + timedOut * 0.3) / total) * 100);
 
   let encouragement = '';
@@ -38,32 +37,36 @@ export default function StatsPanel({ history }: Props) {
 
   const noteEntries = Object.entries(byNote);
 
-  // Categorize: mastered (>= 75% correct), solid (>= 40%), growing (< 40%)
-  const mastered = noteEntries.filter(([, v]) => {
-    const t = v.correct + v.wrong + v.timeout;
-    return v.correct / t >= 0.75;
-  });
+  // Categorize based on correct rate
+  const mastered = noteEntries.filter(([, v]) => v.correct / (v.correct + v.wrong + v.timeout) >= 0.75);
   const solid = noteEntries.filter(([, v]) => {
-    const t = v.correct + v.wrong + v.timeout;
-    const rate = v.correct / t;
+    const rate = v.correct / (v.correct + v.wrong + v.timeout);
     return rate >= 0.4 && rate < 0.75;
   });
-  const growing = noteEntries.filter(([, v]) => {
-    const t = v.correct + v.wrong + v.timeout;
-    return v.correct / t < 0.4;
-  });
+  const growing = noteEntries.filter(([, v]) => v.correct / (v.correct + v.wrong + v.timeout) < 0.4);
 
-  const renderGroup = (entries: [string, { correct: number; wrong: number; timeout: number }][], filterType: Filter) => {
-    return entries.map(([note, v]) => {
-      const noteTotal = v.correct + v.wrong + v.timeout;
-      let display = '';
-      if (filterType === 'correct') display = `${v.correct}/${total}`;
-      else if (filterType === 'wrong') display = `${v.wrong}/${total}`;
-      else if (filterType === 'timeout') display = `${v.timeout}/${total}`;
-      else display = `${noteTotal}/${total}`;
-      return <span key={note} className="note-stat">{note}: {display}</span>;
-    });
+  // Render note with count based on filter
+  const renderNote = (note: string, v: { correct: number; wrong: number; timeout: number }) => {
+    const noteTotal = v.correct + v.wrong + v.timeout;
+    let display: string;
+    if (filter === 'correct') display = `${v.correct}/${noteTotal}`;
+    else if (filter === 'wrong') display = `${v.wrong}/${noteTotal}`;
+    else if (filter === 'timeout') display = `${v.timeout}/${noteTotal}`;
+    else display = `${noteTotal}`;
+    return <span key={note} className="note-stat">{note}: {display}</span>;
   };
+
+  // Filter: show group only if it has notes matching the filter
+  const shouldShowNote = (v: { correct: number; wrong: number; timeout: number }) => {
+    if (filter === 'correct') return v.correct > 0;
+    if (filter === 'wrong') return v.wrong > 0;
+    if (filter === 'timeout') return v.timeout > 0;
+    return true;
+  };
+
+  const filteredMastered = mastered.filter(([, v]) => shouldShowNote(v));
+  const filteredSolid = solid.filter(([, v]) => shouldShowNote(v));
+  const filteredGrowing = growing.filter(([, v]) => shouldShowNote(v));
 
   return (
     <div className="stats-panel">
@@ -80,22 +83,22 @@ export default function StatsPanel({ history }: Props) {
         ))}
       </div>
 
-      {(filter === 'all' || filter === 'correct') && mastered.length > 0 && (
+      {filteredMastered.length > 0 && (
         <div className="stat-group">
-          <p className="good">🏆 Mastered:</p>
-          <div className="note-stats">{renderGroup(mastered, filter)}</div>
+          <p className="stat-group-title good">🏆 Mastered</p>
+          <div className="note-stats">{filteredMastered.map(([n, v]) => renderNote(n, v))}</div>
         </div>
       )}
-      {(filter === 'all' || filter === 'correct' || filter === 'wrong') && solid.length > 0 && (
+      {filteredSolid.length > 0 && (
         <div className="stat-group">
-          <p className="solid">📈 Solid:</p>
-          <div className="note-stats">{renderGroup(solid, filter)}</div>
+          <p className="stat-group-title solid">📈 Solid</p>
+          <div className="note-stats">{filteredSolid.map(([n, v]) => renderNote(n, v))}</div>
         </div>
       )}
-      {(filter === 'all' || filter === 'wrong' || filter === 'timeout') && growing.length > 0 && (
+      {filteredGrowing.length > 0 && (
         <div className="stat-group">
-          <p className="improving">🌱 Growing:</p>
-          <div className="note-stats">{renderGroup(growing, filter)}</div>
+          <p className="stat-group-title improving">🌱 Growing</p>
+          <div className="note-stats">{filteredGrowing.map(([n, v]) => renderNote(n, v))}</div>
         </div>
       )}
     </div>

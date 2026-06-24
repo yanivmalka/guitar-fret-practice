@@ -11,11 +11,11 @@ body {
 .app {
   max-width: 900px;
   margin: 0 auto;
-  padding: 16px;
+  padding: 12px;
   text-align: center;
 }
 
-h1 { font-size: 1.4rem; margin-bottom: 12px; }
+h1 { font-size: 1.3rem; margin-bottom: 10px; }
 
 .toggle-btn {
   background: none; border: 1px solid #555; color: #0ff;
@@ -28,47 +28,76 @@ h1 { font-size: 1.4rem; margin-bottom: 12px; }
 .setting-label { color: #aaa; font-size: 12px; margin-right: 4px; min-width: 50px; text-align: left; }
 
 .chip {
-  padding: 6px 12px; border-radius: 16px; border: 1px solid #555;
-  background: #2a2a4a; color: #ccc; font-size: 12px; cursor: pointer;
+  padding: 8px 14px; border-radius: 18px; border: 1px solid #555;
+  background: #2a2a4a; color: #ccc; font-size: 13px; cursor: pointer;
   transition: all 0.15s;
 }
 .chip-active { background: #0aa; border-color: #0ff; color: #1a1a2e; font-weight: bold; }
 
 .adj-btn {
-  width: 28px; height: 28px; border-radius: 50%; border: none;
-  background: #2a2a4a; color: #0ff; font-size: 18px; font-weight: bold;
+  width: 34px; height: 34px; border-radius: 50%; border: none;
+  background: #2a2a4a; color: #0ff; font-size: 20px; font-weight: bold;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
 }
-.range-val { color: #eee; font-size: 14px; margin: 0 4px; }
+.range-val { color: #eee; font-size: 15px; margin: 0 6px; }
 
 .game-row {
-  display: flex; align-items: center; justify-content: center; gap: 30px;
-  margin: 16px 0;
+  display: flex; align-items: center; justify-content: center; gap: 24px;
+  margin: 12px 0;
 }
 .question-col { display: flex; flex-direction: column; align-items: center; }
 
 .fret-display { font-size: 5rem; color: #0ff; line-height: 1; }
 .countdown { font-size: 1.5rem; color: #ff0; height: 2rem; }
+.paused-text { color: #f90; }
 .info { font-size: 0.9rem; color: #aaa; margin-bottom: 4px; }
 .feedback { font-size: 1.2rem; min-height: 1.6rem; margin: 4px 0; }
 .good { color: #0f0; }
 .bad { color: #f55; }
 .warn { color: #f90; }
 
-.controls { margin: 12px 0; display: flex; gap: 8px; justify-content: center; }
-.start-btn, .stop-btn {
-  padding: 12px 36px; border: none; border-radius: 8px;
-  font-size: 1.1rem; font-weight: bold; cursor: pointer;
+.controls { margin: 12px 0; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.start-btn, .stop-btn, .pause-btn {
+  padding: 14px 28px; border: none; border-radius: 10px;
+  font-size: 1rem; font-weight: bold; cursor: pointer;
 }
 .start-btn { background: #0ff; color: #1a1a2e; }
 .stop-btn { background: #f55; color: #fff; }
+.pause-btn { background: #f90; color: #1a1a2e; }
 
 .clear-btn {
-  padding: 10px 24px; border: 1px solid #555; border-radius: 8px;
+  padding: 12px 20px; border: 1px solid #555; border-radius: 10px;
   background: none; color: #aaa; font-size: 0.9rem; cursor: pointer;
 }
 .clear-btn:hover { border-color: #f55; color: #f55; }
 
+/* Note Circle */
+.circle-wrapper { display: flex; flex-direction: column; align-items: center; }
+.circle-title { color: #888; font-size: 12px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; }
+
+.note-btn {
+  transition: all 0.2s, box-shadow 0.6s;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px;
+}
+.note-btn:active { transform: scale(0.92); }
+
+.note-glow {
+  box-shadow: 0 0 16px 6px rgba(0, 255, 255, 0.7) !important;
+  border-color: #0ff !important;
+  animation: glow-fade 0.6s ease-out forwards;
+}
+
+@keyframes glow-fade {
+  0% { box-shadow: 0 0 16px 6px rgba(0, 255, 255, 0.7); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 255, 255, 0); }
+}
+
+.fret-dot {
+  font-size: 6px; color: #ff0; line-height: 1; display: block; margin-top: -2px;
+}
+
+/* Stats */
 .stats-panel {
   background: #0d0d1a; border-radius: 10px; padding: 14px;
   text-align: left; min-width: 260px;
@@ -77,8 +106,8 @@ h1 { font-size: 1.4rem; margin-bottom: 12px; }
 
 .filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .filter-chip {
-  padding: 4px 10px; border-radius: 12px; border: 1px solid #444;
-  background: #1a1a2e; color: #aaa; font-size: 11px; cursor: pointer;
+  padding: 6px 12px; border-radius: 14px; border: 1px solid #444;
+  background: #1a1a2e; color: #aaa; font-size: 12px; cursor: pointer;
 }
 .filter-active { background: #0aa; border-color: #0ff; color: #1a1a2e; font-weight: bold; }
 
@@ -86,11 +115,12 @@ h1 { font-size: 1.4rem; margin-bottom: 12px; }
 .score { font-size: 2rem; font-weight: bold; color: #0ff; }
 .encouragement { font-size: 0.9rem; color: #ccc; }
 
-.stat-group { margin-bottom: 8px; }
-.note-stats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.stat-group { margin-bottom: 10px; }
+.stat-group-title { font-size: 0.85rem; font-weight: bold; margin-bottom: 4px; }
+.note-stats { display: flex; flex-wrap: wrap; gap: 6px; }
 .note-stat {
-  background: #1a1a2e; border: 1px solid #333; border-radius: 8px;
-  padding: 3px 8px; font-size: 12px; color: #ddd;
+  background: #1a1a2e; border: 1px solid #333; border-radius: 10px;
+  padding: 4px 10px; font-size: 13px; color: #ddd;
 }
 
 .solid { color: #7bf; }
@@ -98,4 +128,5 @@ h1 { font-size: 1.4rem; margin-bottom: 12px; }
 
 @media (max-width: 600px) {
   .game-row { flex-direction: column; gap: 10px; }
+  .fret-display { font-size: 4rem; }
 }
