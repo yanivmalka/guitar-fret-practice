@@ -22,6 +22,7 @@ export default function App() {
   const [accidental, setAccidental] = useState<AccidentalMode>(() => loadSetting('accidental', 'sharps'));
   const [order, setOrder] = useState<OrderMode>(() => loadSetting('order', 'fifths'));
   const [wholeToneOnly, setWholeToneOnly] = useState(() => loadSetting('wholeToneOnly', false));
+  const [byString, setByString] = useState(() => loadSetting('byString', false));
 
   useEffect(() => { saveSetting('guitarString', guitarString); }, [guitarString]);
   useEffect(() => { saveSetting('time', time); }, [time]);
@@ -30,6 +31,7 @@ export default function App() {
   useEffect(() => { saveSetting('accidental', accidental); }, [accidental]);
   useEffect(() => { saveSetting('order', order); }, [order]);
   useEffect(() => { saveSetting('wholeToneOnly', wholeToneOnly); }, [wholeToneOnly]);
+  useEffect(() => { saveSetting('byString', byString); }, [byString]);
 
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -53,7 +55,7 @@ export default function App() {
   const lastNoteRef = useRef<string | null>(null);
   const pausedTimeRef = useRef(0);
 
-  const cofList = getCofNotes(accidental, order, wholeToneOnly);
+  const cofList = getCofNotes(accidental, order, wholeToneOnly, guitarString - 1, byString);
 
   const activeNotes = useMemo(() => {
     const validFrets = getValidFrets(guitarString - 1, fretFrom, fretTo, wholeToneOnly);
@@ -142,14 +144,14 @@ export default function App() {
       setAnswered(true);
       beep();
       const correctNote = notes[guitarString - 1][fret];
-      const cof = getCofNotes(accidental, order, wholeToneOnly);
+      const cof = getCofNotes(accidental, order, wholeToneOnly, guitarString - 1, byString);
       setCorrectCofNote(getCorrectCofNote(correctNote, cof));
       const elapsed = (Date.now() - questionStartRef.current) / 1000;
       setHistory(prev => [...prev, { note: correctNote, fret, string: guitarString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null }]);
       setFeedback(`⏱ ${displayNote(correctNote, accidental)} (Fret ${fret})`);
       setTimeout(() => { if (runningRef.current) next(); }, 1500);
     }, time * 1000);
-  }, [guitarString, fretFrom, fretTo, time, accidental, order, wholeToneOnly, pickSmartFret]);
+  }, [guitarString, fretFrom, fretTo, time, accidental, order, wholeToneOnly, byString, pickSmartFret]);
 
   const start = () => {
     if (!preloaded) { preloadAllSamples().then(() => setPreloaded(true)); setPreloaded(true); }
@@ -201,7 +203,7 @@ export default function App() {
       setAnswered(true);
       beep();
       const correctNote = notes[guitarString - 1][currentFret!];
-      const cof = getCofNotes(accidental, order, wholeToneOnly);
+      const cof = getCofNotes(accidental, order, wholeToneOnly, guitarString - 1, byString);
       setCorrectCofNote(getCorrectCofNote(correctNote, cof));
       const elapsed = (Date.now() - questionStartRef.current) / 1000;
       setHistory(prev => [...prev, { note: correctNote, fret: currentFret!, string: guitarString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null }]);
@@ -217,7 +219,7 @@ export default function App() {
     clearTimers();
     stopPlayback();
     const correctNote = notes[guitarString - 1][currentFret];
-    const cof = getCofNotes(accidental, order, wholeToneOnly);
+    const cof = getCofNotes(accidental, order, wholeToneOnly, guitarString - 1, byString);
     const isCorrect = notesMatch(selectedNote, correctNote);
     setCorrectCofNote(getCorrectCofNote(correctNote, cof));
     if (!isCorrect) setWrongCofNote(selectedNote);
@@ -253,6 +255,7 @@ export default function App() {
           accidental={accidental} setAccidental={setAccidental}
           order={order} setOrder={setOrder}
           wholeToneOnly={wholeToneOnly} setWholeToneOnly={setWholeToneOnly}
+          byString={byString} setByString={setByString}
         />
       )}
 

@@ -38,6 +38,8 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   transition: all 0.15s;
 }
 .chip-active { background: #0aa; border-color: #0ff; color: #1a1a2e; font-weight: bold; }
+.chip-toggle-active { background: transparent; border-color: #0ff; color: #0ff; font-weight: bold; }
+.chip-disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
 
 .adj-btn {
   width: 34px; height: 34px; border-radius: 50%; border: none;

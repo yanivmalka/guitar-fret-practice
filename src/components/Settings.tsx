@@ -15,11 +15,19 @@ interface Props {
   setOrder: (v: OrderMode) => void;
   wholeToneOnly: boolean;
   setWholeToneOnly: (v: boolean) => void;
+  byString: boolean;
+  setByString: (v: boolean) => void;
 }
 
-function Chip({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
+function Chip({ label, selected, onClick, disabled, toggle }: { label: string; selected: boolean; onClick: () => void; disabled?: boolean; toggle?: boolean }) {
   return (
-    <button className={`chip ${selected ? 'chip-active' : ''}`} onClick={onClick}>{label}</button>
+    <button
+      className={`chip ${selected ? (toggle ? 'chip-toggle-active' : 'chip-active') : ''} ${disabled ? 'chip-disabled' : ''}`}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -53,13 +61,16 @@ export default function Settings(p: Props) {
         </div>
       </div>
       <div className="setting-group">
-        <span className="group-title">Mode</span>
+        <span className="group-title">Order</span>
         <div className="setting-row">
-          <Chip label="♯ Sharps" selected={p.accidental === 'sharps'} onClick={() => p.setAccidental('sharps')} />
-          <Chip label="♭ Flats" selected={p.accidental === 'flats'} onClick={() => p.setAccidental('flats')} />
+          <Chip label="By String" selected={p.byString} onClick={() => p.setByString(!p.byString)} toggle />
           <Chip label="Fifths" selected={p.order === 'fifths'} onClick={() => p.setOrder('fifths')} />
           <Chip label="Alpha" selected={p.order === 'alphabet'} onClick={() => p.setOrder('alphabet')} />
-          <Chip label="Whole only" selected={p.wholeToneOnly} onClick={() => p.setWholeToneOnly(!p.wholeToneOnly)} />
+        </div>
+        <div className="setting-row" style={{ marginTop: 6 }}>
+          <Chip label="Whole only" selected={p.wholeToneOnly} onClick={() => p.setWholeToneOnly(!p.wholeToneOnly)} toggle />
+          <Chip label="♯ Sharps" selected={!p.wholeToneOnly && p.accidental === 'sharps'} onClick={() => p.setAccidental('sharps')} disabled={p.wholeToneOnly} />
+          <Chip label="♭ Flats" selected={!p.wholeToneOnly && p.accidental === 'flats'} onClick={() => p.setAccidental('flats')} disabled={p.wholeToneOnly} />
         </div>
       </div>
     </div>

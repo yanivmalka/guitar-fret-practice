@@ -30,10 +30,23 @@ export interface HistoryEntry {
   correct: boolean | null;
 }
 
-export function getCofNotes(accidental: AccidentalMode, order: OrderMode, wholeToneOnly: boolean): string[] {
-  if (wholeToneOnly) return order === 'alphabet' ? wholeTonesAlpha : wholeTonesFifths;
-  if (order === 'alphabet') return accidental === 'sharps' ? alphaNotesSharp : alphaNotesFlat;
-  return accidental === 'sharps' ? cofNotesSharp : cofNotesFlat;
+export function getCofNotes(accidental: AccidentalMode, order: OrderMode, wholeToneOnly: boolean, stringIdx?: number, byString?: boolean): string[] {
+  if (order === 'alphabet') {
+    const base = wholeToneOnly ? wholeTonesAlpha : (accidental === 'sharps' ? alphaNotesSharp : alphaNotesFlat);
+    if (byString && stringIdx !== undefined) {
+      const openNote = notes[stringIdx][0];
+      const startIdx = base.findIndex(n => notesMatch(n, openNote));
+      if (startIdx > 0) return [...base.slice(startIdx), ...base.slice(0, startIdx)];
+    }
+    return base;
+  }
+  const base = wholeToneOnly ? wholeTonesFifths : (accidental === 'sharps' ? cofNotesSharp : cofNotesFlat);
+  if (byString && stringIdx !== undefined) {
+    const openNote = notes[stringIdx][0];
+    const startIdx = base.findIndex(n => notesMatch(n, openNote));
+    if (startIdx > 0) return [...base.slice(startIdx), ...base.slice(0, startIdx)];
+  }
+  return base;
 }
 
 export function displayNote(note: string, mode: AccidentalMode): string {
