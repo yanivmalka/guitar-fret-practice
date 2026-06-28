@@ -325,6 +325,7 @@ export default function App() {
           onSelect={selectAnswer}
           guitarString={guitarString}
           fretDots={fretDots}
+          byString={byString}
         />
       </div>
     </div>
