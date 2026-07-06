@@ -1,5 +1,5 @@
 import { playNoteSingle } from '../utils/audio';
-import { notes, notesMatch } from '../utils/music';
+import { notes } from '../utils/music';
 
 interface Props {
   fretFrom: number;
@@ -47,7 +47,7 @@ export default function FretGrid({ fretFrom, fretTo, guitarString, validFrets, a
             className={cls}
             disabled={(!active && !isCorrectReveal) || isFound || isDisabled}
             onClick={() => handleClick(f)}
-            title={notesMatch ? noteName : ''}
+            title={noteName}
           >
             <span className="fret-btn-num">{f}</span>
             {dot && <span className="fret-btn-dot">{dot}</span>}
