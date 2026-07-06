@@ -12,6 +12,7 @@ interface Props {
   guitarString: number;
   fretDots: Record<string, number[]>;
   byString: boolean;
+  startIndex: number;
 }
 
 function findFretForNote(note: string, stringIdx: number): number {
@@ -22,12 +23,11 @@ function findFretForNote(note: string, stringIdx: number): number {
   return 0;
 }
 
-// Smooth deceleration easing (ease-out cubic)
 function easeOut(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
-export default function NoteCircle({ notes, activeNotes, active, correctNote, wrongNote, onSelect, guitarString, fretDots, byString }: Props) {
+export default function NoteCircle({ notes, activeNotes, active, correctNote, wrongNote, onSelect, guitarString, fretDots, byString, startIndex }: Props) {
   const size = 340;
   const cx = size / 2;
   const cy = size / 2;
@@ -37,70 +37,62 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
   const degPerStep = 360 / notes.length;
 
   const [glowNote, setGlowNote] = useState<string | null>(null);
-  // wheelAngle: accumulated rotation in degrees applied to the whole wheel
-  const wheelAngleRef = useRef(0);
   const [wheelAngle, setWheelAngle] = useState(0);
-  const prevFirstNoteRef = useRef(notes[0]);
-  const prevNotesLengthRef = useRef(notes.length);
+  const wheelAngleRef = useRef(0);
+  const prevStartIndexRef = useRef(startIndex);
   const animFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const firstNoteChanged = prevFirstNoteRef.current !== notes[0];
-    const lengthChanged = prevNotesLengthRef.current !== notes.length;
-
-    // Only animate rotation when byString is on and string changes (first note changes)
-    if (byString && firstNoteChanged && !lengthChanged) {
-      const prevFirst = prevFirstNoteRef.current;
-      const nextFirst = notes[0];
-
-      // Find index of prevFirst and nextFirst in current notes array
-      const prevIdx = notes.findIndex(n => notesMatch(n, prevFirst));
-      const nextIdx = 0; // nextFirst is always at index 0
-
-      // Angular distance: how many steps to rotate
-      // prevIdx tells us where the old top note now sits — we need to spin it back to top (index 0)
-      // If prevFirst is now at index prevIdx, we need to rotate by -prevIdx steps to bring it back
-      // But we want nextFirst at top, which means spinning by prevIdx steps (each step = degPerStep)
-      let steps = prevIdx; // positive = clockwise
-      if (steps === 0) {
-        prevFirstNoteRef.current = notes[0];
-        prevNotesLengthRef.current = notes.length;
-        return;
+    if (!byString) {
+      // Animate back to 0 if byString turned off
+      if (wheelAngleRef.current !== 0) {
+        animateTo(0);
       }
-
-      // Shortest direction: if steps > half the circle, go the other way
-      const half = notes.length / 2;
-      if (steps > half) steps = steps - notes.length; // negative = counterclockwise
-
-      const totalDeg = steps * degPerStep;
-      const startAngle = wheelAngleRef.current;
-      const targetAngle = startAngle + totalDeg;
-      const DURATION = 500;
-      const start = performance.now();
-
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-
-      const animate = (now: number) => {
-        const t = Math.min((now - start) / DURATION, 1);
-        const eased = easeOut(t);
-        const current = startAngle + totalDeg * eased;
-        wheelAngleRef.current = current;
-        setWheelAngle(current);
-        if (t < 1) {
-          animFrameRef.current = requestAnimationFrame(animate);
-        } else {
-          wheelAngleRef.current = targetAngle;
-          setWheelAngle(targetAngle);
-        }
-      };
-      animFrameRef.current = requestAnimationFrame(animate);
+      prevStartIndexRef.current = 0;
+      return;
     }
 
-    prevFirstNoteRef.current = notes[0];
-    prevNotesLengthRef.current = notes.length;
+    const prevIdx = prevStartIndexRef.current;
+    const nextIdx = startIndex;
+    prevStartIndexRef.current = nextIdx;
 
-    return () => { if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current); };
-  }, [notes[0], notes.length, byString]);
+    if (prevIdx === nextIdx) return;
+
+    // Target angle: -startIndex * degPerStep (rotate so startIndex note is at top)
+    const target = -nextIdx * degPerStep;
+    animateTo(target);
+  }, [startIndex, byString]);
+
+  function animateTo(target: number) {
+    // Normalize to shortest path from current angle
+    const current = wheelAngleRef.current;
+    let delta = target - current;
+    // Shortest path
+    const full = 360;
+    while (delta > full / 2) delta -= full;
+    while (delta < -full / 2) delta += full;
+
+    const from = current;
+    const to = current + delta;
+    const DURATION = 500;
+    const start = performance.now();
+
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+
+    const animate = (now: number) => {
+      const t = Math.min((now - start) / DURATION, 1);
+      const val = from + delta * easeOut(t);
+      wheelAngleRef.current = val;
+      setWheelAngle(val);
+      if (t < 1) {
+        animFrameRef.current = requestAnimationFrame(animate);
+      } else {
+        wheelAngleRef.current = to;
+        setWheelAngle(to);
+      }
+    };
+    animFrameRef.current = requestAnimationFrame(animate);
+  }
 
   const isNoteInRange = (note: string) => {
     for (const an of activeNotes) { if (notesMatch(an, note)) return true; }
@@ -125,7 +117,6 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
 
   return (
     <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
-      {/* Rotating wheel */}
       <div style={{
         position: 'absolute', width: size, height: size,
         transform: `rotate(${wheelAngle}deg)`,
@@ -160,8 +151,6 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
                 cursor: inRange ? 'pointer' : 'default',
                 opacity: inRange ? (active ? 1 : 0.7) : 0.25,
                 flexDirection: 'column', gap: 0,
-                // counter-rotate each button so text stays upright
-                transform: `rotate(${-wheelAngle}deg)`,
               }}
             >
               <span style={{ lineHeight: 1.1 }}>{note}</span>

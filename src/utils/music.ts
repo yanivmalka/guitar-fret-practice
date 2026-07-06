@@ -30,23 +30,21 @@ export interface HistoryEntry {
   correct: boolean | null;
 }
 
-export function getCofNotes(accidental: AccidentalMode, order: OrderMode, wholeToneOnly: boolean, stringIdx?: number, byString?: boolean): string[] {
+export function getCofNotes(accidental: AccidentalMode, order: OrderMode, wholeToneOnly: boolean): string[] {
   if (order === 'alphabet') {
     const base = wholeToneOnly ? wholeTonesAlpha : (accidental === 'sharps' ? alphaNotesSharp : alphaNotesFlat);
-    if (byString && stringIdx !== undefined) {
-      const openNote = notes[stringIdx][0];
-      const startIdx = base.findIndex(n => notesMatch(n, openNote));
-      if (startIdx > 0) return [...base.slice(startIdx), ...base.slice(0, startIdx)];
-    }
     return base;
   }
   const base = wholeToneOnly ? wholeTonesFifths : (accidental === 'sharps' ? cofNotesSharp : cofNotesFlat);
-  if (byString && stringIdx !== undefined) {
-    const openNote = notes[stringIdx][0];
-    const startIdx = base.findIndex(n => notesMatch(n, openNote));
-    if (startIdx > 0) return [...base.slice(startIdx), ...base.slice(0, startIdx)];
-  }
   return base;
+}
+
+// Returns the index in cofList that should appear at 12 o'clock for the given string
+export function getStringStartIndex(accidental: AccidentalMode, order: OrderMode, wholeToneOnly: boolean, stringIdx: number): number {
+  const base = getCofNotes(accidental, order, wholeToneOnly);
+  const openNote = notes[stringIdx][0];
+  const idx = base.findIndex(n => notesMatch(n, openNote));
+  return idx >= 0 ? idx : 0;
 }
 
 export function displayNote(note: string, mode: AccidentalMode): string {

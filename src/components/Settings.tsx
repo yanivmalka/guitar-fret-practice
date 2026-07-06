@@ -17,6 +17,8 @@ interface Props {
   setWholeToneOnly: (v: boolean) => void;
   byString: boolean;
   setByString: (v: boolean) => void;
+  byNote: boolean;
+  setByNote: (v: boolean) => void;
 }
 
 function Chip({ label, selected, onClick, disabled, toggle }: { label: string; selected: boolean; onClick: () => void; disabled?: boolean; toggle?: boolean }) {
@@ -58,6 +60,13 @@ export default function Settings(p: Props) {
           <button className="adj-btn" onClick={() => p.setFretTo(Math.max(p.fretFrom, p.fretTo - 1))}>−</button>
           <span className="range-val">{p.fretTo}</span>
           <button className="adj-btn" onClick={() => p.setFretTo(Math.min(18, p.fretTo + 1))}>+</button>
+        </div>
+      </div>
+      <div className="setting-group">
+        <span className="group-title">Question Type</span>
+        <div className="setting-row">
+          <Chip label="By Fret" selected={!p.byNote} onClick={() => p.setByNote(false)} />
+          <Chip label="By Note" selected={p.byNote} onClick={() => p.setByNote(true)} />
         </div>
       </div>
       <div className="setting-group">

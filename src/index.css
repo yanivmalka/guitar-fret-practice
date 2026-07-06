@@ -143,3 +143,31 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   .game-row { flex-direction: column; gap: 10px; }
   .fret-display { font-size: 4rem; }
 }
+
+/* By Note mode */
+.note-display { font-size: 5rem; color: #0ff; line-height: 1; }
+
+.fret-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  width: 280px;
+  flex-shrink: 0;
+}
+
+.fret-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 56px; border-radius: 10px;
+  background: #2a2a4a; border: 2px solid #555;
+  color: #eee; cursor: pointer; transition: all 0.15s;
+}
+.fret-btn:disabled { opacity: 0.4; cursor: default; }
+.fret-btn:not(:disabled):hover { border-color: #0ff; background: #3a3a6a; }
+.fret-btn:active:not(:disabled) { transform: scale(0.93); }
+
+.fret-btn-num { font-size: 18px; font-weight: bold; line-height: 1; }
+.fret-btn-dot { font-size: 8px; color: #ff0; line-height: 1; }
+
+.fret-found { background: #0a0 !important; border-color: #0f0 !important; }
+.fret-wrong { background: #a00 !important; border-color: #f00 !important; }
+.fret-reveal { background: #555 !important; border-color: #0ff !important; color: #0ff !important; }
