@@ -92,6 +92,31 @@ export async function playNoteSingle(stringNum: number, fret: number) {
   soundEndTime = Date.now() + 400;
 }
 
+export async function playNoteSequence(stringNum: number, frets: number[], totalMs: number) {
+  stopPlayback();
+  const ctx = getCtx();
+  if (ctx.state === 'suspended') await ctx.resume();
+  const slotSec = totalMs / frets.length / 1000;
+  const buffers = await Promise.all(frets.map(f => loadSample(openMidi[stringNum - 1] + f)));
+  frets.forEach((_f, i) => {
+    const buffer = buffers[i];
+    if (!buffer) return;
+    const offset = i * slotSec;
+    const dur = Math.min(slotSec * 0.9, 0.6);
+    const src = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    src.buffer = buffer;
+    src.connect(gain);
+    gain.connect(ctx.destination);
+    gain.gain.setValueAtTime(0.6, ctx.currentTime + offset);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + offset + dur);
+    src.start(ctx.currentTime + offset);
+    src.stop(ctx.currentTime + offset + dur);
+    activeSources.push(src);
+  });
+  soundEndTime = Date.now() + totalMs;
+}
+
 export async function preloadAllSamples(): Promise<void> {
   const promises: Promise<unknown>[] = [];
   for (let s = 0; s < 6; s++)

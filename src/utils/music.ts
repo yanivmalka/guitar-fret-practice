@@ -64,9 +64,11 @@ export function getCorrectCofNote(correctNote: string, cofList: string[]): strin
   return cofList.find(n => notesMatch(n, correctNote)) || correctNote;
 }
 
-export function getValidFrets(stringIdx: number, fromFret: number, toFret: number, wholeToneOnly: boolean): number[] {
+export function getValidFrets(stringIdx: number, fromFret: number, toFret: number, wholeToneOnly: boolean, dotsOnly?: boolean): number[] {
+  const dotAndOpenFrets = [0, 3, 5, 7, 9, 12, 15, 17];
   const valid: number[] = [];
   for (let f = fromFret; f <= toFret; f++) {
+    if (dotsOnly && !dotAndOpenFrets.includes(f)) continue;
     if (!wholeToneOnly || wholeTones.includes(notes[stringIdx][f])) valid.push(f);
   }
   return valid.length > 0 ? valid : [fromFret];

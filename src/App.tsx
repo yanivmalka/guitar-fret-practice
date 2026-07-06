@@ -23,6 +23,7 @@ export default function App() {
   const [accidental, setAccidental] = useState<AccidentalMode>(() => loadSetting('accidental', 'sharps'));
   const [order, setOrder] = useState<OrderMode>(() => loadSetting('order', 'fifths'));
   const [wholeToneOnly, setWholeToneOnly] = useState(() => loadSetting('wholeToneOnly', false));
+  const [dotsOnly, setDotsOnly] = useState(() => loadSetting('dotsOnly', false));
   const [byString, setByString] = useState(() => loadSetting('byString', false));
   const [byNote, setByNote] = useState(() => loadSetting('byNote', false));
 
@@ -33,6 +34,7 @@ export default function App() {
   useEffect(() => { saveSetting('accidental', accidental); }, [accidental]);
   useEffect(() => { saveSetting('order', order); }, [order]);
   useEffect(() => { saveSetting('wholeToneOnly', wholeToneOnly); }, [wholeToneOnly]);
+  useEffect(() => { saveSetting('dotsOnly', dotsOnly); }, [dotsOnly]);
   useEffect(() => { saveSetting('byString', byString); }, [byString]);
   useEffect(() => { saveSetting('byNote', byNote); }, [byNote]);
 
@@ -69,16 +71,16 @@ export default function App() {
   const startIndex = byString ? getStringStartIndex(accidental, order, wholeToneOnly, guitarString - 1) : 0;
 
   const activeNotes = useMemo(() => {
-    const validFrets = getValidFrets(guitarString - 1, fretFrom, fretTo, wholeToneOnly);
+    const validFrets = getValidFrets(guitarString - 1, fretFrom, fretTo, wholeToneOnly, dotsOnly);
     const noteSet = new Set<string>();
     validFrets.forEach(f => noteSet.add(notes[guitarString - 1][f]));
     return noteSet;
-  }, [guitarString, fretFrom, fretTo, wholeToneOnly]);
+  }, [guitarString, fretFrom, fretTo, wholeToneOnly, dotsOnly]);
 
   const fretDots = useMemo(() => {
     const dotFrets = [3, 5, 7, 9, 12, 15, 17];
     const result: Record<string, number[]> = {};
-    const validFrets = getValidFrets(guitarString - 1, fretFrom, fretTo, wholeToneOnly);
+    const validFrets = getValidFrets(guitarString - 1, fretFrom, fretTo, wholeToneOnly, dotsOnly);
     validFrets.forEach(f => {
       if (dotFrets.includes(f)) {
         const note = notes[guitarString - 1][f];
@@ -87,7 +89,19 @@ export default function App() {
       }
     });
     return result;
-  }, [guitarString, fretFrom, fretTo, wholeToneOnly]);
+  }, [guitarString, fretFrom, fretTo, wholeToneOnly, dotsOnly]);
+
+  // All valid frets per note — for multi-fret sound playback and dot coloring
+  const noteFrets = useMemo(() => {
+    const result: Record<string, number[]> = {};
+    const validFrets = getValidFrets(guitarString - 1, fretFrom, fretTo, wholeToneOnly, dotsOnly);
+    validFrets.forEach(f => {
+      const note = notes[guitarString - 1][f];
+      if (!result[note]) result[note] = [];
+      result[note].push(f);
+    });
+    return result;
+  }, [guitarString, fretFrom, fretTo, wholeToneOnly, dotsOnly]);
 
   const clearTimers = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -144,7 +158,7 @@ export default function App() {
     setFoundFrets([]);
 
     // Pick a note (unique from last)
-    const validFrets = getValidFrets(guitarString - 1, fretFrom, fretTo, wholeToneOnly);
+    const validFrets = getValidFrets(guitarString - 1, fretFrom, fretTo, wholeToneOnly, dotsOnly);
     const fret = pickSmartFret(validFrets);
     const note = notes[guitarString - 1][fret];
     lastNoteRef.current = note;
@@ -170,7 +184,7 @@ export default function App() {
       setFeedback(`⏱ Frets: ${remainingFretsRef.current.join(', ')}`);
       setTimeout(() => { if (runningRef.current) nextByNote(); }, 1800);
     });
-  }, [guitarString, fretFrom, fretTo, time, wholeToneOnly, pickSmartFret]);
+  }, [guitarString, fretFrom, fretTo, time, wholeToneOnly, dotsOnly, pickSmartFret]);
 
   const selectFret = (selectedFret: number) => {
     if (!running || paused || answered) return;
@@ -234,7 +248,7 @@ export default function App() {
     setCorrectCofNote(null);
     setWrongCofNote(null);
 
-    const validFrets = getValidFrets(guitarString - 1, fretFrom, fretTo, wholeToneOnly);
+    const validFrets = getValidFrets(guitarString - 1, fretFrom, fretTo, wholeToneOnly, dotsOnly);
     const fret = pickSmartFret(validFrets);
     lastNoteRef.current = notes[guitarString - 1][fret];
     setCurrentFret(fret);
@@ -255,7 +269,7 @@ export default function App() {
       setFeedback(`⏱ ${displayNote(correctNote, accidental)} (Fret ${fret})`);
       setTimeout(() => { if (runningRef.current) next(); }, 1500);
     });
-  }, [guitarString, fretFrom, fretTo, time, accidental, order, wholeToneOnly, pickSmartFret]);
+  }, [guitarString, fretFrom, fretTo, time, accidental, order, wholeToneOnly, dotsOnly, pickSmartFret]);
 
   const selectAnswer = (selectedNote: string) => {
     if (!running || paused || answeredRef.current || currentFret === null) return;
@@ -371,7 +385,8 @@ export default function App() {
           fretTo={fretTo} setFretTo={setFretTo}
           accidental={accidental} setAccidental={setAccidental}
           order={order} setOrder={setOrder}
-          wholeToneOnly={wholeToneOnly} setWholeToneOnly={setWholeToneOnly}
+          wholeToneOnly={wholeToneOnly} setWholeToneOnly={(v) => { setWholeToneOnly(v); if (v) setDotsOnly(false); }}
+          dotsOnly={dotsOnly} setDotsOnly={(v) => { setDotsOnly(v); if (v) setWholeToneOnly(false); }}
           byString={byString} setByString={setByString}
           byNote={byNote} setByNote={setByNote}
         />
@@ -443,6 +458,7 @@ export default function App() {
             onSelect={selectAnswer}
             guitarString={guitarString}
             fretDots={fretDots}
+            noteFrets={noteFrets}
             byString={byString}
             startIndex={startIndex}
           />

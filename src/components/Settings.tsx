@@ -15,6 +15,8 @@ interface Props {
   setOrder: (v: OrderMode) => void;
   wholeToneOnly: boolean;
   setWholeToneOnly: (v: boolean) => void;
+  dotsOnly: boolean;
+  setDotsOnly: (v: boolean) => void;
   byString: boolean;
   setByString: (v: boolean) => void;
   byNote: boolean;
@@ -77,6 +79,7 @@ export default function Settings(p: Props) {
           <Chip label="Alpha" selected={p.order === 'alphabet'} onClick={() => p.setOrder('alphabet')} />
         </div>
         <div className="setting-row" style={{ marginTop: 6 }}>
+          <Chip label="Dots only" selected={p.dotsOnly} onClick={() => p.setDotsOnly(!p.dotsOnly)} toggle />
           <Chip label="Whole only" selected={p.wholeToneOnly} onClick={() => p.setWholeToneOnly(!p.wholeToneOnly)} toggle />
           <Chip label="♯ Sharps" selected={!p.wholeToneOnly && p.accidental === 'sharps'} onClick={() => p.setAccidental('sharps')} disabled={p.wholeToneOnly} />
           <Chip label="♭ Flats" selected={!p.wholeToneOnly && p.accidental === 'flats'} onClick={() => p.setAccidental('flats')} disabled={p.wholeToneOnly} />

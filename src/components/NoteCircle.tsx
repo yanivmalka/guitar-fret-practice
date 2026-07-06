@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { notesMatch, notes as allNotes } from '../utils/music';
-import { playNoteSingle, stopPlayback } from '../utils/audio';
+import { playNoteSequence, stopPlayback } from '../utils/audio';
 
 interface Props {
   notes: string[];
@@ -10,24 +10,17 @@ interface Props {
   wrongNote: string | null;
   onSelect: (note: string) => void;
   guitarString: number;
-  fretDots: Record<string, number[]>;
+  fretDots: Record<string, number[]>;   // physical dot frets per note
+  noteFrets: Record<string, number[]>;  // all valid frets per note (for playback)
   byString: boolean;
   startIndex: number;
-}
-
-function findFretForNote(note: string, stringIdx: number): number {
-  const stringNotes = allNotes[stringIdx];
-  for (let f = 0; f < stringNotes.length; f++) {
-    if (notesMatch(stringNotes[f], note)) return f;
-  }
-  return 0;
 }
 
 function easeOut(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
-export default function NoteCircle({ notes, activeNotes, active, correctNote, wrongNote, onSelect, guitarString, fretDots, byString, startIndex }: Props) {
+export default function NoteCircle({ notes, activeNotes, active, correctNote, wrongNote, onSelect, guitarString, fretDots, noteFrets, byString, startIndex }: Props) {
   const size = 340;
   const cx = size / 2;
   const cy = size / 2;
@@ -99,19 +92,41 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
     return false;
   };
 
-  const hasDot = (note: string): string | null => {
+  const hasDot = (note: string): { dots: string; color: string } | null => {
+    let dotFrets: number[] | null = null;
     for (const [n, frets] of Object.entries(fretDots)) {
-      if (notesMatch(n, note)) return frets.includes(12) ? '●●' : '●';
+      if (notesMatch(n, note)) { dotFrets = frets; break; }
     }
-    return null;
+    if (!dotFrets) return null;
+    // count all valid frets for this note (including open) for color
+    let totalFrets = 1;
+    for (const [n, frets] of Object.entries(noteFrets)) {
+      if (notesMatch(n, note)) { totalFrets = frets.length; break; }
+    }
+    const dotStr = dotFrets.includes(12) ? '●●' : '●';
+    const color = totalFrets === 1 ? '#ff0' : totalFrets === 2 ? '#f90' : '#f44';
+    return { dots: dotStr, color };
+  };
+
+  const getPlayFrets = (note: string): number[] => {
+    for (const [n, frets] of Object.entries(noteFrets)) {
+      if (notesMatch(n, note)) return frets;
+    }
+    // fallback: find first fret
+    const stringNotes = allNotes[guitarString - 1];
+    for (let f = 0; f < stringNotes.length; f++) {
+      if (notesMatch(stringNotes[f], note)) return [f];
+    }
+    return [0];
   };
 
   const handleClick = (note: string) => {
     stopPlayback();
-    const fret = findFretForNote(note, guitarString - 1);
-    playNoteSingle(guitarString, fret);
+    const frets = getPlayFrets(note);
+    const totalMs = Math.min(frets.length * 600, 1800);
+    playNoteSequence(guitarString, frets, totalMs);
     setGlowNote(note);
-    setTimeout(() => setGlowNote(null), 600);
+    setTimeout(() => setGlowNote(null), totalMs);
     if (active) onSelect(note);
   };
 
@@ -129,7 +144,7 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
           const isCorrect = correctNote !== null && notesMatch(note, correctNote);
           const isWrong = wrongNote !== null && notesMatch(note, wrongNote);
           const inRange = isNoteInRange(note);
-          const dots = hasDot(note);
+          const dotInfo = hasDot(note);
           const isGlowing = glowNote === note;
 
           let bg = '#2a2a4a';
@@ -154,8 +169,7 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
               }}
             >
               <span style={{ lineHeight: 1.1 }}>{note}</span>
-              {dots && <span className="fret-dot">{dots}</span>}
-            </button>
+              {dotInfo && <span className="fret-dot" style={{ color: dotInfo.color }}>{dotInfo.dots}</span>}            </button>
           );
         })}
       </div>
