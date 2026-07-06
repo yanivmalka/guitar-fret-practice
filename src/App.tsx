@@ -5,26 +5,26 @@ import Settings from './components/Settings';
 import StatsPanel from './components/StatsPanel';
 import { notes, getCofNotes, getStringStartIndex, displayNote, notesMatch, getCorrectCofNote, getValidFrets } from './utils/music';
 import type { AccidentalMode, OrderMode, HistoryEntry } from './utils/music';
-import { playNote, stopPlayback, beep, isSoundPlaying, preloadAllSamples } from './utils/audio';
+import { playNote, playNoteSingle, stopPlayback, beep, isSoundPlaying, preloadAllSamples } from './utils/audio';
 
 function loadSetting<T>(key: string, fallback: T): T {
-  try { const v = sessionStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
+  try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
   catch { return fallback; }
 }
 function saveSetting(key: string, value: unknown) {
-  sessionStorage.setItem(key, JSON.stringify(value));
+  localStorage.setItem(key, JSON.stringify(value));
 }
 
 export default function App() {
-  const [guitarString, setGuitarString] = useState(() => loadSetting('guitarString', 1));
+  const [guitarString, setGuitarString] = useState(() => loadSetting('guitarString', 6));
   const [time, setTime] = useState(() => loadSetting('time', 5));
   const [fretFrom, setFretFrom] = useState(() => loadSetting('fretFrom', 0));
-  const [fretTo, setFretTo] = useState(() => loadSetting('fretTo', 18));
+  const [fretTo, setFretTo] = useState(() => loadSetting('fretTo', 12));
   const [accidental, setAccidental] = useState<AccidentalMode>(() => loadSetting('accidental', 'sharps'));
-  const [order, setOrder] = useState<OrderMode>(() => loadSetting('order', 'fifths'));
+  const [order, setOrder] = useState<OrderMode>(() => loadSetting('order', 'alphabet'));
   const [wholeToneOnly, setWholeToneOnly] = useState(() => loadSetting('wholeToneOnly', false));
   const [dotsOnly, setDotsOnly] = useState(() => loadSetting('dotsOnly', false));
-  const [byString, setByString] = useState(() => loadSetting('byString', false));
+  const [byString, setByString] = useState(() => loadSetting('byString', true));
   const [byNote, setByNote] = useState(() => loadSetting('byNote', false));
 
   useEffect(() => { saveSetting('guitarString', guitarString); }, [guitarString]);
@@ -49,7 +49,7 @@ export default function App() {
   const [wrongCofNote, setWrongCofNote] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [answered, setAnswered] = useState(false);
-  const [showSettings, setShowSettings] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
   const [preloaded, setPreloaded] = useState(false);
 
   // byNote mode state
@@ -66,6 +66,7 @@ export default function App() {
   const lastNoteRef = useRef<string | null>(null);
   const pausedTimeRef = useRef(0);
   const remainingFretsRef = useRef<number[]>([]);
+  const askedFretRef = useRef<number>(0); // the specific fret that was asked in byNote
 
   const cofList = getCofNotes(accidental, order, wholeToneOnly);
   const startIndex = byString ? getStringStartIndex(accidental, order, wholeToneOnly, guitarString - 1) : 0;
@@ -162,6 +163,7 @@ export default function App() {
     const fret = pickSmartFret(validFrets);
     const note = notes[guitarString - 1][fret];
     lastNoteRef.current = note;
+    askedFretRef.current = fret;
 
     // Find ALL frets in range that have this note
     const allFretsForNote = validFrets.filter(f => notesMatch(notes[guitarString - 1][f], note));
@@ -180,8 +182,10 @@ export default function App() {
       setAnswered(true);
       beep();
       const elapsed = (Date.now() - questionStartRef.current) / 1000;
-      setHistory(prev => [...prev, { note, fret: remainingFretsRef.current[0] ?? fret, string: guitarString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null }]);
+      setHistory(prev => [...prev, { note, fret: askedFretRef.current, string: guitarString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null }]);
       setFeedback(`⏱ Frets: ${remainingFretsRef.current.join(', ')}`);
+      // replay the asked fret so user hears what they missed
+      playNoteSingle(guitarString, askedFretRef.current);
       setTimeout(() => { if (runningRef.current) nextByNote(); }, 1800);
     });
   }, [guitarString, fretFrom, fretTo, time, wholeToneOnly, dotsOnly, pickSmartFret]);
@@ -219,6 +223,7 @@ export default function App() {
           const elapsed2 = (Date.now() - questionStartRef.current) / 1000;
           setHistory(prev => [...prev, { note: currentNote!, fret: remainingFretsRef.current[0], string: guitarString, seconds: Math.round(elapsed2 * 10) / 10, skipped: true, correct: null }]);
           setFeedback(`⏱ Also on: ${remainingFretsRef.current.join(', ')}`);
+          playNoteSingle(guitarString, remainingFretsRef.current[0]);
           setTimeout(() => { if (runningRef.current) nextByNote(); }, 1800);
         });
       }
