@@ -30,8 +30,9 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
   const degPerStep = 360 / notes.length;
 
   const [glowNote, setGlowNote] = useState<string | null>(null);
-  const [wheelAngle, setWheelAngle] = useState(0);
-  const wheelAngleRef = useRef(0);
+  const initialAngle = byString ? -startIndex * (360 / notes.length) : 0;
+  const [wheelAngle, setWheelAngle] = useState(initialAngle);
+  const wheelAngleRef = useRef(initialAngle);
   const prevStartIndexRef = useRef(startIndex);
   const animFrameRef = useRef<number | null>(null);
 
