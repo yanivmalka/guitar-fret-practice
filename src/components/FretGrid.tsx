@@ -1,6 +1,11 @@
+import { playNoteSingle } from '../utils/audio';
+import { notes, notesMatch } from '../utils/music';
+
 interface Props {
   fretFrom: number;
   fretTo: number;
+  guitarString: number;
+  validFrets: Set<number>;
   active: boolean;
   correctFrets: number[];
   wrongFret: number | null;
@@ -10,8 +15,13 @@ interface Props {
 
 const DOT_FRETS = new Set([3, 5, 7, 9, 12, 15, 17]);
 
-export default function FretGrid({ fretFrom, fretTo, active, correctFrets, wrongFret, foundFrets, onSelect }: Props) {
+export default function FretGrid({ fretFrom, fretTo, guitarString, validFrets, active, correctFrets, wrongFret, foundFrets, onSelect }: Props) {
   const frets = Array.from({ length: fretTo - fretFrom + 1 }, (_, i) => fretFrom + i);
+
+  const handleClick = (f: number) => {
+    playNoteSingle(guitarString, f);
+    onSelect(f);
+  };
 
   return (
     <div className="fret-grid">
@@ -19,20 +29,25 @@ export default function FretGrid({ fretFrom, fretTo, active, correctFrets, wrong
         const isFound = foundFrets.includes(f);
         const isWrong = wrongFret === f;
         const isCorrectReveal = correctFrets.includes(f) && !active && !isFound;
+        const isDisabled = !validFrets.has(f);
 
         let cls = 'fret-btn';
         if (isFound) cls += ' fret-found';
         else if (isWrong) cls += ' fret-wrong';
         else if (isCorrectReveal) cls += ' fret-reveal';
+        else if (isDisabled) cls += ' fret-disabled';
 
         const dot = DOT_FRETS.has(f) ? (f === 12 ? '●●' : '●') : '';
+        // show note name for disabled frets so player knows why it's greyed
+        const noteName = isDisabled ? notes[guitarString - 1][f] : '';
 
         return (
           <button
             key={f}
             className={cls}
-            disabled={!active || isFound}
-            onClick={() => onSelect(f)}
+            disabled={(!active && !isCorrectReveal) || isFound || isDisabled}
+            onClick={() => handleClick(f)}
+            title={notesMatch ? noteName : ''}
           >
             <span className="fret-btn-num">{f}</span>
             {dot && <span className="fret-btn-dot">{dot}</span>}

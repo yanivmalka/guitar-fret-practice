@@ -162,7 +162,8 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   color: #eee; cursor: pointer; transition: all 0.15s;
 }
 .fret-btn:disabled { opacity: 0.4; cursor: default; }
-.fret-btn:not(:disabled):hover { border-color: #0ff; background: #3a3a6a; }
+.fret-btn.fret-disabled { opacity: 0.2; cursor: not-allowed; }
+.fret-btn:not(:disabled):not(.fret-disabled):hover { border-color: #0ff; background: #3a3a6a; }
 .fret-btn:active:not(:disabled) { transform: scale(0.93); }
 
 .fret-btn-num { font-size: 18px; font-weight: bold; line-height: 1; }

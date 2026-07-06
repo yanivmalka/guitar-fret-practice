@@ -442,6 +442,8 @@ export default function App() {
           <FretGrid
             fretFrom={fretFrom}
             fretTo={fretTo}
+            guitarString={guitarString}
+            validFrets={new Set(Object.values(noteFrets).flat())}
             active={isPlaying && !answered}
             correctFrets={remainingFrets}
             wrongFret={wrongFret}
