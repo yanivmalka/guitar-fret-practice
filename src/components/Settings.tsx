@@ -1,4 +1,5 @@
 import type { AccidentalMode, OrderMode } from '../utils/music';
+import { displayNote } from '../utils/music';
 
 interface Props {
   guitarString: number;
@@ -21,6 +22,7 @@ interface Props {
   setByString: (v: boolean) => void;
   byNote: boolean;
   setByNote: (v: boolean) => void;
+  activeNotes: Set<string>;
 }
 
 function Chip({ label, selected, onClick, disabled, toggle }: { label: string; selected: boolean; onClick: () => void; disabled?: boolean; toggle?: boolean }) {
@@ -79,14 +81,24 @@ export default function Settings(p: Props) {
           <Chip label="Fifths" selected={p.order === 'fifths'} onClick={() => p.setOrder('fifths')} />
           <Chip label="Alpha" selected={p.order === 'alphabet'} onClick={() => p.setOrder('alphabet')} />
         </div>
-        <div className="setting-row" style={{ marginTop: 6 }}>
+      </div>
+      )}
+      <div className="setting-group">
+        <span className="group-title">{p.byNote ? 'Note Filter' : 'Filter'}</span>
+        <div className="setting-row">
           <Chip label="Dots only" selected={p.dotsOnly} onClick={() => p.setDotsOnly(!p.dotsOnly)} toggle />
           <Chip label="Whole only" selected={p.wholeToneOnly} onClick={() => p.setWholeToneOnly(!p.wholeToneOnly)} toggle />
           <Chip label="♯ Sharps" selected={!p.wholeToneOnly && p.accidental === 'sharps'} onClick={() => p.setAccidental('sharps')} disabled={p.wholeToneOnly} />
           <Chip label="♭ Flats" selected={!p.wholeToneOnly && p.accidental === 'flats'} onClick={() => p.setAccidental('flats')} disabled={p.wholeToneOnly} />
         </div>
+        {p.byNote && p.activeNotes.size > 0 && (
+          <div className="setting-row" style={{ marginTop: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+            {[...p.activeNotes].map(n => (
+              <span key={n} className="note-preview-chip">{displayNote(n, p.accidental)}</span>
+            ))}
+          </div>
+        )}
       </div>
-      )}
     </div>
   );
 }

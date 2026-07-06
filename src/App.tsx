@@ -393,6 +393,7 @@ export default function App() {
           dotsOnly={dotsOnly} setDotsOnly={(v) => { setDotsOnly(v); if (v) setWholeToneOnly(false); }}
           byString={byString} setByString={setByString}
           byNote={byNote} setByNote={setByNote}
+          activeNotes={activeNotes}
         />
       )}
 

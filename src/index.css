@@ -124,6 +124,11 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 }
 .filter-active { background: #0aa; border-color: #0ff; color: #1a1a2e; font-weight: bold; }
 
+.note-preview-chip {
+  padding: 4px 10px; border-radius: 12px; border: 1px solid #0ff;
+  background: #1a1a2e; color: #0ff; font-size: 12px; font-weight: bold;
+}
+
 .score-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .score { font-size: 2rem; font-weight: bold; color: #0ff; }
 .encouragement { font-size: 0.9rem; color: #ccc; }
