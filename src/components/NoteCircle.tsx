@@ -168,8 +168,13 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
                 flexDirection: 'column', gap: 0,
               }}
             >
-              <span style={{ display: 'inline-block', transform: `rotate(${-wheelAngle}deg)`, lineHeight: 1.1 }}>{note}</span>
-              {dotInfo && <span className="fret-dot" style={{ color: dotInfo.color, display: 'inline-block', transform: `rotate(${-wheelAngle}deg)` }}>{dotInfo.dots}</span>}            </button>
+              <span style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0,
+                transform: `rotate(${-wheelAngle}deg)`,
+              }}>
+                <span style={{ lineHeight: 1.1 }}>{note}</span>
+                {dotInfo && <span className="fret-dot" style={{ color: dotInfo.color }}>{dotInfo.dots}</span>}
+              </span>            </button>
           );
         })}
       </div>

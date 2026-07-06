@@ -20,8 +20,11 @@ export default function FretGrid({ fretFrom, fretTo, guitarString, validFrets, a
 
   const handleClick = (f: number) => {
     playNoteSingle(guitarString, f);
-    onSelect(f);
+    // only call game handler when actively playing and fret is valid
+    if (active && !isDisabledFilter(f)) onSelect(f);
   };
+
+  const isDisabledFilter = (f: number) => !validFrets.has(f);
 
   return (
     <div className="fret-grid">
@@ -29,23 +32,22 @@ export default function FretGrid({ fretFrom, fretTo, guitarString, validFrets, a
         const isFound = foundFrets.includes(f);
         const isWrong = wrongFret === f;
         const isCorrectReveal = correctFrets.includes(f) && !active && !isFound;
-        const isDisabled = !validFrets.has(f);
+        const isFilterDisabled = isDisabledFilter(f);
 
         let cls = 'fret-btn';
         if (isFound) cls += ' fret-found';
         else if (isWrong) cls += ' fret-wrong';
         else if (isCorrectReveal) cls += ' fret-reveal';
-        else if (isDisabled) cls += ' fret-disabled';
+        else if (isFilterDisabled) cls += ' fret-disabled';
 
         const dot = DOT_FRETS.has(f) ? (f === 12 ? '●●' : '●') : '';
-        // show note name for disabled frets so player knows why it's greyed
-        const noteName = isDisabled ? notes[guitarString - 1][f] : '';
+        const noteName = isFilterDisabled ? notes[guitarString - 1][f] : '';
 
         return (
           <button
             key={f}
             className={cls}
-            disabled={(!active && !isCorrectReveal) || isFound || isDisabled}
+            disabled={isFilterDisabled || isFound}
             onClick={() => handleClick(f)}
             title={noteName}
           >
