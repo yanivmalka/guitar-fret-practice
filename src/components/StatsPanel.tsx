@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import type { HistoryEntry } from '../utils/music';
+import type { HistoryEntry, AccidentalMode } from '../utils/music';
+import { displayNote } from '../utils/music';
 
 interface Props {
   history: HistoryEntry[];
   maxTime: number;
+  accidental: AccidentalMode;
 }
 
 type Filter = 'all' | 'correct' | 'wrong' | 'timeout';
 
-export default function StatsPanel({ history }: Props) {
+export default function StatsPanel({ history, accidental }: Props) {
   const [filter, setFilter] = useState<Filter>('all');
 
   if (history.length === 0) return null;
@@ -48,12 +50,13 @@ export default function StatsPanel({ history }: Props) {
   // Render note with count based on filter
   const renderNote = (note: string, v: { correct: number; wrong: number; timeout: number }) => {
     const noteTotal = v.correct + v.wrong + v.timeout;
+    const label = displayNote(note, accidental);
     let display: string;
     if (filter === 'correct') display = `${v.correct}/${noteTotal}`;
     else if (filter === 'wrong') display = `${v.wrong}/${noteTotal}`;
     else if (filter === 'timeout') display = `${v.timeout}/${noteTotal}`;
     else display = `${noteTotal}`;
-    return <span key={note} className="note-stat">{note}: {display}</span>;
+    return <span key={note} className="note-stat">{label}: {display}</span>;
   };
 
   // Filter: show group only if it has notes matching the filter

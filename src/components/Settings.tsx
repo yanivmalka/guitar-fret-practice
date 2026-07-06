@@ -71,6 +71,7 @@ export default function Settings(p: Props) {
           <Chip label="By Note" selected={p.byNote} onClick={() => p.setByNote(true)} />
         </div>
       </div>
+      {!p.byNote && (
       <div className="setting-group">
         <span className="group-title">Order</span>
         <div className="setting-row">
@@ -85,6 +86,7 @@ export default function Settings(p: Props) {
           <Chip label="♭ Flats" selected={!p.wholeToneOnly && p.accidental === 'flats'} onClick={() => p.setAccidental('flats')} disabled={p.wholeToneOnly} />
         </div>
       </div>
+      )}
     </div>
   );
 }

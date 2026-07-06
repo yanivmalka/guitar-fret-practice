@@ -320,6 +320,10 @@ export default function App() {
     runningRef.current = false;
     setCurrentFret(null);
     setCurrentNote(null);
+    setCorrectCofNote(null);
+    setWrongCofNote(null);
+    setFoundFrets([]);
+    setWrongFret(null);
     stopPlayback();
   };
 
@@ -408,7 +412,7 @@ export default function App() {
             </>
           )}
 
-          {!isPlaying && history.length > 0 && <StatsPanel history={history} maxTime={time} />}
+          {!isPlaying && history.length > 0 && <StatsPanel history={history} maxTime={time} accidental={accidental} />}
           {!running && !paused && history.length === 0 && <div className="fret-display">—</div>}
           {paused && <div className="paused-text">⏸ Paused</div>}
 
