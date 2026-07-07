@@ -177,3 +177,12 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 .fret-found { background: #0a0 !important; border-color: #0f0 !important; }
 .fret-wrong { background: #a00 !important; border-color: #f00 !important; }
 .fret-reveal { background: #555 !important; border-color: #0ff !important; color: #0ff !important; }
+.fret-glow {
+  box-shadow: 0 0 14px 5px rgba(0, 255, 255, 0.7) !important;
+  border-color: #0ff !important;
+  animation: fret-glow-fade 0.5s ease-out forwards;
+}
+@keyframes fret-glow-fade {
+  0%   { box-shadow: 0 0 14px 5px rgba(0, 255, 255, 0.7); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 255, 255, 0); }
+}

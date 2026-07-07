@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { playNoteSingle } from '../utils/audio';
 import { notes } from '../utils/music';
 
@@ -17,14 +18,16 @@ const DOT_FRETS = new Set([3, 5, 7, 9, 12, 15, 17]);
 
 export default function FretGrid({ fretFrom, fretTo, guitarString, validFrets, active, correctFrets, wrongFret, foundFrets, onSelect }: Props) {
   const frets = Array.from({ length: fretTo - fretFrom + 1 }, (_, i) => fretFrom + i);
+  const [glowFret, setGlowFret] = useState<number | null>(null);
+
+  const isDisabledFilter = (f: number) => !validFrets.has(f);
 
   const handleClick = (f: number) => {
     playNoteSingle(guitarString, f);
-    // only call game handler when actively playing and fret is valid
+    setGlowFret(f);
+    setTimeout(() => setGlowFret(null), 500);
     if (active && !isDisabledFilter(f)) onSelect(f);
   };
-
-  const isDisabledFilter = (f: number) => !validFrets.has(f);
 
   return (
     <div className="fret-grid">
@@ -33,12 +36,14 @@ export default function FretGrid({ fretFrom, fretTo, guitarString, validFrets, a
         const isWrong = wrongFret === f;
         const isCorrectReveal = correctFrets.includes(f) && !active && !isFound;
         const isFilterDisabled = isDisabledFilter(f);
+        const isGlowing = glowFret === f;
 
         let cls = 'fret-btn';
         if (isFound) cls += ' fret-found';
         else if (isWrong) cls += ' fret-wrong';
         else if (isCorrectReveal) cls += ' fret-reveal';
         else if (isFilterDisabled) cls += ' fret-disabled';
+        if (isGlowing) cls += ' fret-glow';
 
         const dot = DOT_FRETS.has(f) ? (f === 12 ? '●●' : '●') : '';
         const noteName = isFilterDisabled ? notes[guitarString - 1][f] : '';
