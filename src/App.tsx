@@ -382,7 +382,7 @@ export default function App() {
     <div className="app">
       <h1>🎸 Guitar Fret Practice</h1>
 
-      <button className="toggle-btn" onClick={() => setShowSettings(!showSettings)}>
+      <button className="toggle-btn" onClick={() => { if (running || paused) stop(); setShowSettings(!showSettings); }}>
         {showSettings ? '▲ Hide Settings' : '⚙ Settings'}
       </button>
 
