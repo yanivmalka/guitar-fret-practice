@@ -14,7 +14,7 @@ interface Props {
   onSelect: (fret: number) => void;
 }
 
-const DOT_FRETS = new Set([3, 5, 7, 9, 12, 15, 17]);
+const DOT_FRETS = new Set([3, 5, 7, 9, 12, 15, 17, 19, 21]);
 
 export default function FretGrid({ fretFrom, fretTo, guitarString, validFrets, active, correctFrets, wrongFret, foundFrets, onSelect }: Props) {
   const frets = Array.from({ length: fretTo - fretFrom + 1 }, (_, i) => fretFrom + i);

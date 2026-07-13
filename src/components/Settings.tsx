@@ -63,7 +63,7 @@ export default function Settings(p: Props) {
           <span className="range-val">to</span>
           <button className="adj-btn" onClick={() => p.setFretTo(Math.max(p.fretFrom, p.fretTo - 1))}>−</button>
           <span className="range-val">{p.fretTo}</span>
-          <button className="adj-btn" onClick={() => p.setFretTo(Math.min(18, p.fretTo + 1))}>+</button>
+          <button className="adj-btn" onClick={() => p.setFretTo(Math.min(21, p.fretTo + 1))}>+</button>
         </div>
       </div>
       <div className="setting-group">

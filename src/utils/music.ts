@@ -1,10 +1,10 @@
 export const notes: string[][] = [
-  ['E','F','F#','G','G#','A','A#','B','C','C#','D','D#','E','F','F#','G','G#','A','A#'],
-  ['B','C','C#','D','D#','E','F','F#','G','G#','A','A#','B','C','C#','D','D#','E','F'],
-  ['G','G#','A','A#','B','C','C#','D','D#','E','F','F#','G','G#','A','A#','B','C','C#'],
-  ['D','D#','E','F','F#','G','G#','A','A#','B','C','C#','D','D#','E','F','F#','G','G#'],
-  ['A','A#','B','C','C#','D','D#','E','F','F#','G','G#','A','A#','B','C','C#','D','D#'],
-  ['E','F','F#','G','G#','A','A#','B','C','C#','D','D#','E','F','F#','G','G#','A','A#'],
+  ['E','F','F#','G','G#','A','A#','B','C','C#','D','D#','E','F','F#','G','G#','A','A#','B','C','C#'],
+  ['B','C','C#','D','D#','E','F','F#','G','G#','A','A#','B','C','C#','D','D#','E','F','F#','G','G#'],
+  ['G','G#','A','A#','B','C','C#','D','D#','E','F','F#','G','G#','A','A#','B','C','C#','D','D#','E'],
+  ['D','D#','E','F','F#','G','G#','A','A#','B','C','C#','D','D#','E','F','F#','G','G#','A','A#','B'],
+  ['A','A#','B','C','C#','D','D#','E','F','F#','G','G#','A','A#','B','C','C#','D','D#','E','F','F#'],
+  ['E','F','F#','G','G#','A','A#','B','C','C#','D','D#','E','F','F#','G','G#','A','A#','B','C','C#'],
 ];
 
 export const cofNotesSharp = ['C','G','D','A','E','B','F#','C#','G#','D#','A#','F'];
@@ -65,7 +65,7 @@ export function getCorrectCofNote(correctNote: string, cofList: string[]): strin
 }
 
 export function getValidFrets(stringIdx: number, fromFret: number, toFret: number, wholeToneOnly: boolean, dotsOnly?: boolean): number[] {
-  const dotAndOpenFrets = [0, 3, 5, 7, 9, 12, 15, 17];
+  const dotAndOpenFrets = [0, 3, 5, 7, 9, 12, 15, 17, 19, 21];
   const valid: number[] = [];
   for (let f = fromFret; f <= toFret; f++) {
     if (dotsOnly && !dotAndOpenFrets.includes(f)) continue;

@@ -79,7 +79,7 @@ export default function App() {
   }, [guitarString, fretFrom, fretTo, wholeToneOnly, dotsOnly]);
 
   const fretDots = useMemo(() => {
-    const dotFrets = [3, 5, 7, 9, 12, 15, 17];
+    const dotFrets = [3, 5, 7, 9, 12, 15, 17, 19, 21];
     const result: Record<string, number[]> = {};
     const validFrets = getValidFrets(guitarString - 1, fretFrom, fretTo, wholeToneOnly, dotsOnly);
     validFrets.forEach(f => {

@@ -121,13 +121,18 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
     return [0];
   };
 
+  // Clear glow when a new question starts
+  useEffect(() => { setGlowNote(null); }, [correctNote, wrongNote]);
+
   const handleClick = (note: string) => {
     stopPlayback();
     const frets = getPlayFrets(note);
     const totalMs = Math.min(frets.length * 600, 1800);
     playNoteSequence(guitarString, frets, totalMs);
-    setGlowNote(note);
-    setTimeout(() => setGlowNote(null), totalMs);
+    if (!active) {
+      setGlowNote(note);
+      setTimeout(() => setGlowNote(null), totalMs);
+    }
     if (active) onSelect(note);
   };
 
@@ -146,7 +151,7 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
           const isWrong = wrongNote !== null && notesMatch(note, wrongNote);
           const inRange = isNoteInRange(note);
           const dotInfo = hasDot(note);
-          const isGlowing = glowNote === note;
+          const isGlowing = !isCorrect && !isWrong && glowNote === note;
 
           let bg = '#2a2a4a';
           let border = '#555';
