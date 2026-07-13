@@ -144,7 +144,10 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 .solid { color: #7bf; }
 .improving { color: #f90; }
 
-@media (max-width: 600px) {
+.build-info {
+  font-size: 10px; color: #444; margin-top: 16px; font-family: monospace;
+}
+
   .game-row { flex-direction: column; gap: 10px; }
   .fret-display { font-size: 4rem; }
 }

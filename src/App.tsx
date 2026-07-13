@@ -476,6 +476,7 @@ export default function App() {
           />
         )}
       </div>
+      <div className="build-info">{__COMMIT_HASH__} · {__COMMIT_DATE__.slice(0, 16)}</div>
     </div>
   );
 }
