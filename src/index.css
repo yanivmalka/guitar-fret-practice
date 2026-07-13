@@ -141,6 +141,15 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   padding: 4px 10px; font-size: 13px; color: #ddd;
 }
 
+.note-stat-split {
+  display: inline-flex; align-items: center; gap: 0;
+  background: #1a1a2e; border: 1px solid #333; border-radius: 10px;
+  overflow: hidden; font-size: 13px; padding: 0;
+}
+.note-stat-label { padding: 4px 7px; color: #ddd; }
+.note-stat-good { padding: 4px 7px; background: #0a3a0a; color: #0f0; border-left: 1px solid #333; }
+.note-stat-bad  { padding: 4px 7px; background: #3a0a0a; color: #f55; border-left: 1px solid #333; }
+
 .solid { color: #7bf; }
 .improving { color: #f90; }
 

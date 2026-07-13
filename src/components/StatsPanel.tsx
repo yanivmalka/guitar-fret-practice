@@ -39,24 +39,33 @@ export default function StatsPanel({ history, accidental }: Props) {
 
   const noteEntries = Object.entries(byNote);
 
-  // Categorize based on correct rate
-  const mastered = noteEntries.filter(([, v]) => v.correct / (v.correct + v.wrong + v.timeout) >= 0.75);
+  // Categorize: only count correct vs (wrong+timeout) — never master if failures dominate
+  const mastered = noteEntries.filter(([, v]) => {
+    const attempts = v.correct + v.wrong + v.timeout;
+    return v.correct / attempts >= 0.75 && v.correct >= v.wrong + v.timeout;
+  });
   const solid = noteEntries.filter(([, v]) => {
     const rate = v.correct / (v.correct + v.wrong + v.timeout);
     return rate >= 0.4 && rate < 0.75;
   });
   const growing = noteEntries.filter(([, v]) => v.correct / (v.correct + v.wrong + v.timeout) < 0.4);
 
-  // Render note with count based on filter
+  // Render note pill
   const renderNote = (note: string, v: { correct: number; wrong: number; timeout: number }) => {
-    const noteTotal = v.correct + v.wrong + v.timeout;
     const label = displayNote(note, accidental);
-    let display: string;
-    if (filter === 'correct') display = `${v.correct}/${noteTotal}`;
-    else if (filter === 'wrong') display = `${v.wrong}/${noteTotal}`;
-    else if (filter === 'timeout') display = `${v.timeout}/${noteTotal}`;
-    else display = `${noteTotal}`;
-    return <span key={note} className="note-stat">{label}: {display}</span>;
+    const fails = v.wrong + v.timeout;
+    if (filter === 'all') {
+      return (
+        <span key={note} className="note-stat note-stat-split">
+          <span className="note-stat-label">{label}</span>
+          <span className="note-stat-good">✓{v.correct}</span>
+          {fails > 0 && <span className="note-stat-bad">✗{fails}</span>}
+        </span>
+      );
+    }
+    const count = filter === 'correct' ? v.correct : filter === 'wrong' ? v.wrong : v.timeout;
+    const total = v.correct + v.wrong + v.timeout;
+    return <span key={note} className="note-stat">{label}: {count}/{total}</span>;
   };
 
   // Filter: show group only if it has notes matching the filter
