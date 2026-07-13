@@ -148,6 +148,7 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   font-size: 10px; color: #444; margin-top: 16px; font-family: monospace;
 }
 
+@media (max-width: 600px) {
   .game-row { flex-direction: column; gap: 10px; }
   .fret-display { font-size: 4rem; }
 }
