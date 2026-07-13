@@ -22,6 +22,8 @@ interface Props {
   setByString: (v: boolean) => void;
   byNote: boolean;
   setByNote: (v: boolean) => void;
+  multiStrings: number[];
+  setMultiStrings: (v: number[]) => void;
   activeNotes: Set<string>;
 }
 
@@ -39,13 +41,34 @@ function Chip({ label, selected, onClick, disabled, toggle }: { label: string; s
 
 export default function Settings(p: Props) {
   const strings = ['1(E)', '2(B)', '3(G)', '4(D)', '5(A)', '6(E)'];
+  const isMulti = p.multiStrings.length > 0;
+
+  const toggleMultiString = (i: number) => {
+    const s = i + 1;
+    if (p.multiStrings.includes(s)) {
+      if (p.multiStrings.length === 1) return; // keep at least one
+      p.setMultiStrings(p.multiStrings.filter(x => x !== s));
+    } else {
+      p.setMultiStrings([...p.multiStrings, s]);
+    }
+  };
 
   return (
     <div className="settings">
       <div className="setting-group">
         <span className="group-title">String</span>
         <div className="setting-row">
-          {strings.map((s, i) => <Chip key={i} label={s} selected={p.guitarString === i + 1} onClick={() => p.setGuitarString(i + 1)} />)}
+          {strings.map((s, i) => (
+            <Chip key={i} label={s}
+              selected={isMulti ? p.multiStrings.includes(i + 1) : p.guitarString === i + 1}
+              onClick={() => isMulti ? toggleMultiString(i) : p.setGuitarString(i + 1)}
+              toggle={isMulti}
+            />
+          ))}
+          <span style={{ width: 8 }} />
+          <Chip label="Multi" selected={isMulti} toggle
+            onClick={() => p.setMultiStrings(isMulti ? [] : [p.guitarString])}
+          />
         </div>
       </div>
       <div className="setting-group">
