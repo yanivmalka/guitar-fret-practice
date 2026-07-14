@@ -481,6 +481,7 @@ export default function App() {
             noteFrets={noteFrets}
             byString={byString}
             startIndex={startIndex}
+            showDots={!isMulti || isPlaying}
           />
         )}
       </div>

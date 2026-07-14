@@ -14,13 +14,14 @@ interface Props {
   noteFrets: Record<string, number[]>;  // all valid frets per note (for playback)
   byString: boolean;
   startIndex: number;
+  showDots: boolean;
 }
 
 function easeOut(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
-export default function NoteCircle({ notes, activeNotes, active, correctNote, wrongNote, onSelect, guitarString, fretDots, noteFrets, byString, startIndex }: Props) {
+export default function NoteCircle({ notes, activeNotes, active, correctNote, wrongNote, onSelect, guitarString, fretDots, noteFrets, byString, startIndex, showDots }: Props) {
   const size = 340;
   const cx = size / 2;
   const cy = size / 2;
@@ -179,7 +180,7 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
                 transform: `rotate(${-wheelAngle}deg)`,
               }}>
                 <span style={{ lineHeight: 1.1 }}>{note}</span>
-                {dotInfo && <span className="fret-dot" style={{ color: dotInfo.color }}>{dotInfo.dots}</span>}
+                {showDots && dotInfo && <span className="fret-dot" style={{ color: dotInfo.color }}>{dotInfo.dots}</span>}
               </span>            </button>
           );
         })}
