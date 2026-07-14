@@ -85,6 +85,13 @@ export default function App() {
     return noteSet;
   }, [activeStrings.join(','), fretFrom, fretTo, wholeToneOnly, dotsOnly]);
 
+  // During a question in multi mode, restrict enabled notes to the asked string only
+  const questionActiveNotes = useMemo(() => {
+    const noteSet = new Set<string>();
+    getValidFrets(guitarString - 1, fretFrom, fretTo, wholeToneOnly, dotsOnly).forEach(f => noteSet.add(notes[guitarString - 1][f]));
+    return noteSet;
+  }, [guitarString, fretFrom, fretTo, wholeToneOnly, dotsOnly]);
+
   const fretDots = useMemo(() => {
     const dotFrets = [3, 5, 7, 9, 12, 15, 17, 19, 21];
     const result: Record<string, number[]> = {};
@@ -471,7 +478,7 @@ export default function App() {
         ) : (
           <NoteCircle
             notes={cofList}
-            activeNotes={activeNotes}
+            activeNotes={isMulti && isPlaying ? questionActiveNotes : activeNotes}
             active={isPlaying && !answered}
             correctNote={correctCofNote}
             wrongNote={wrongCofNote}
