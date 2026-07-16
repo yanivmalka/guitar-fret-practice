@@ -3,9 +3,11 @@ import NoteCircle from './components/NoteCircle';
 import FretGrid from './components/FretGrid';
 import Settings from './components/Settings';
 import StatsPanel from './components/StatsPanel';
+import StageNav from './components/StageNav';
 import { notes, getCofNotes, getStringStartIndex, displayNote, notesMatch, getCorrectCofNote, getValidFrets } from './utils/music';
 import type { AccidentalMode, OrderMode, HistoryEntry } from './utils/music';
 import { playNote, playNoteSingle, stopPlayback, beep, isSoundPlaying, preloadAllSamples } from './utils/audio';
+import { STAGES } from './utils/stages';
 
 function loadSetting<T>(key: string, fallback: T): T {
   try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
@@ -15,47 +17,90 @@ function saveSetting(key: string, value: unknown) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
-export default function App() {
-  const [guitarString, setGuitarString] = useState(() => loadSetting('guitarString', 6));
-  const [time, setTime] = useState(() => loadSetting('time', 5));
-  const [fretFrom, setFretFrom] = useState(() => loadSetting('fretFrom', 0));
-  const [fretTo, setFretTo] = useState(() => loadSetting('fretTo', 12));
-  const [accidental, setAccidental] = useState<AccidentalMode>(() => loadSetting('accidental', 'sharps'));
-  const [order, setOrder] = useState<OrderMode>(() => loadSetting('order', 'alphabet'));
-  const [wholeToneOnly, setWholeToneOnly] = useState(() => loadSetting('wholeToneOnly', false));
-  const [dotsOnly, setDotsOnly] = useState(() => loadSetting('dotsOnly', false));
-  const [byString, setByString] = useState(() => loadSetting('byString', true));
-  const [byNote, setByNote] = useState(() => loadSetting('byNote', false));
-  const [multiStrings, setMultiStrings] = useState<number[]>(() => loadSetting('multiStrings', []));
+function computeSuggestion(history: HistoryEntry[]): 'next' | 'prev' | null {
+  if (history.length < 10) return null;
+  const correct = history.filter(h => h.correct === true).length;
+  const rate = correct / history.length;
+  if (rate >= 0.85) return 'next';
+  if (rate < 0.35) return 'prev';
+  return null;
+}
 
-  useEffect(() => { saveSetting('guitarString', guitarString); }, [guitarString]);
-  useEffect(() => { saveSetting('time', time); }, [time]);
-  useEffect(() => { saveSetting('fretFrom', fretFrom); }, [fretFrom]);
-  useEffect(() => { saveSetting('fretTo', fretTo); }, [fretTo]);
-  useEffect(() => { saveSetting('accidental', accidental); }, [accidental]);
-  useEffect(() => { saveSetting('order', order); }, [order]);
-  useEffect(() => { saveSetting('wholeToneOnly', wholeToneOnly); }, [wholeToneOnly]);
-  useEffect(() => { saveSetting('dotsOnly', dotsOnly); }, [dotsOnly]);
-  useEffect(() => { saveSetting('byString', byString); }, [byString]);
-  useEffect(() => { saveSetting('byNote', byNote); }, [byNote]);
-  useEffect(() => { saveSetting('multiStrings', multiStrings); }, [multiStrings]);
+const STRING_DISPLAY: Record<number, string> = {
+  1: 'String 1 · high E', 2: 'String 2 · B', 3: 'String 3 · G',
+  4: 'String 4 · D', 5: 'String 5 · A', 6: 'String 6 · low E',
+};
+
+export default function App() {
+  const [stageIndex, setStageIndex] = useState(() => loadSetting('stageIndex', 0));
+  const stage = STAGES[stageIndex];
+
+  const [guitarString, setGuitarString] = useState(stage.string);
+  const [time, setTime] = useState(stage.time);
+  const [fretFrom, setFretFrom] = useState(stage.fretFrom);
+  const [fretTo, setFretTo] = useState(stage.fretTo);
+  const [accidental, setAccidental] = useState<AccidentalMode>(stage.accidental);
+  const [order, setOrder] = useState<OrderMode>(stage.order);
+  const [wholeToneOnly, setWholeToneOnly] = useState(stage.wholeToneOnly);
+  const [dotsOnly, setDotsOnly] = useState(stage.dotsOnly);
+  const [byString, setByString] = useState(true);
+  const [byNote, setByNote] = useState(stage.byNote);
+  const [multiStrings, setMultiStrings] = useState<number[]>(stage.multiStrings);
+
+  useEffect(() => { saveSetting('stageIndex', stageIndex); }, [stageIndex]);
+
+  const applyStage = useCallback((idx: number) => {
+    const s = STAGES[idx];
+    setGuitarString(s.string);
+    setTime(s.time);
+    setFretFrom(s.fretFrom);
+    setFretTo(s.fretTo);
+    setAccidental(s.accidental);
+    setOrder(s.order);
+    setWholeToneOnly(s.wholeToneOnly);
+    setDotsOnly(s.dotsOnly);
+    setByNote(s.byNote);
+    setMultiStrings(s.multiStrings);
+    setByString(true);
+  }, []);
+
+  const goToStage = useCallback((idx: number) => {
+    if (idx < 0 || idx >= STAGES.length) return;
+    setStageIndex(idx);
+    applyStage(idx);
+  }, [applyStage]);
+
+  // Ref so game-loop callbacks always read the current `time` value
+  const timeRef = useRef(time);
+  useEffect(() => { timeRef.current = time; }, [time]);
 
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
-  const [count, setCount] = useState(0);
+  const [, setCount] = useState(0);
   const [currentFret, setCurrentFret] = useState<number | null>(null);
-  const [currentNote, setCurrentNote] = useState<string | null>(null); // for byNote mode
+  const [currentNote, setCurrentNote] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(0);
   const [feedback, setFeedback] = useState('');
   const [correctCofNote, setCorrectCofNote] = useState<string | null>(null);
   const [wrongCofNote, setWrongCofNote] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  // Per-stage history retained across stage switches, keyed by stage id
+  const [allHistory, setAllHistory] = useState<Record<number, HistoryEntry[]>>({});
+
+  // Append an entry to current session history AND persist it into allHistory
+  const stageIdRef = useRef(stage.id);
+  useEffect(() => { stageIdRef.current = stage.id; }, [stage.id]);
+  const addEntry = useCallback((entry: HistoryEntry) => {
+    setHistory(prev => [...prev, entry]);
+    setAllHistory(prev => {
+      const sid = stageIdRef.current;
+      return { ...prev, [sid]: [...(prev[sid] ?? []), entry] };
+    });
+  }, []);
   const [answered, setAnswered] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [preloaded, setPreloaded] = useState(false);
-
-  // byNote mode state
-  const [remainingFrets, setRemainingFrets] = useState<number[]>([]); // frets still to find
+  const [remainingFrets, setRemainingFrets] = useState<number[]>([]);
   const [foundFrets, setFoundFrets] = useState<number[]>([]);
   const [wrongFret, setWrongFret] = useState<number | null>(null);
 
@@ -83,9 +128,9 @@ export default function App() {
       getValidFrets(s - 1, fretFrom, fretTo, wholeToneOnly, dotsOnly).forEach(f => noteSet.add(notes[s - 1][f]));
     });
     return noteSet;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeStrings.join(','), fretFrom, fretTo, wholeToneOnly, dotsOnly]);
 
-  // During a question in multi mode, restrict enabled notes to the asked string only
   const questionActiveNotes = useMemo(() => {
     const noteSet = new Set<string>();
     getValidFrets(guitarString - 1, fretFrom, fretTo, wholeToneOnly, dotsOnly).forEach(f => noteSet.add(notes[guitarString - 1][f]));
@@ -114,6 +159,8 @@ export default function App() {
     });
     return result;
   }, [guitarString, fretFrom, fretTo, wholeToneOnly, dotsOnly]);
+
+  const suggestion = useMemo(() => computeSuggestion(allHistory[stage.id] ?? []), [allHistory, stage.id]);
 
   const clearTimers = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -158,7 +205,7 @@ export default function App() {
 
   // ── BY NOTE MODE ──────────────────────────────────────────────
   const nextByNote = useCallback(() => {
-    if (!runningRef.current || countRef.current >= 60) {
+    if (!runningRef.current || countRef.current >= maxQuestionsRef.current) {
       setRunning(false); runningRef.current = false; return;
     }
     countRef.current++;
@@ -194,7 +241,7 @@ export default function App() {
       setAnswered(true);
       beep();
       const elapsed = (Date.now() - questionStartRef.current) / 1000;
-      setHistory(prev => [...prev, { note, fret: askedFretRef.current, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null }]);
+      addEntry({ note, fret: askedFretRef.current, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null });
       setFeedback(`⏱ Frets: ${remainingFretsRef.current.join(', ')}`);
       playNoteSingle(qString, askedFretRef.current);
       setTimeout(() => { if (runningRef.current) nextByNote(); }, 1800);
@@ -213,7 +260,7 @@ export default function App() {
       setRemainingFrets(newRem);
       setFoundFrets(prev => [...prev, selectedFret]);
       const elapsed = (Date.now() - questionStartRef.current) / 1000;
-      setHistory(prev => [...prev, { note: currentNote!, fret: selectedFret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: false, correct: true }]);
+      addEntry({ note: currentNote!, fret: selectedFret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: false, correct: true });
 
       if (newRem.length === 0) {
         clearTimers();
@@ -231,7 +278,7 @@ export default function App() {
           setAnswered(true);
           beep();
           const elapsed2 = (Date.now() - questionStartRef.current) / 1000;
-          setHistory(prev => [...prev, { note: currentNote!, fret: remainingFretsRef.current[0], string: qString, seconds: Math.round(elapsed2 * 10) / 10, skipped: true, correct: null }]);
+          addEntry({ note: currentNote!, fret: remainingFretsRef.current[0], string: qString, seconds: Math.round(elapsed2 * 10) / 10, skipped: true, correct: null });
           setFeedback(`⏱ Also on: ${remainingFretsRef.current.join(', ')}`);
           playNoteSingle(qString, remainingFretsRef.current[0]);
           setTimeout(() => { if (runningRef.current) nextByNote(); }, 1800);
@@ -243,7 +290,7 @@ export default function App() {
       setAnswered(true);
       setWrongFret(selectedFret);
       const elapsed = (Date.now() - questionStartRef.current) / 1000;
-      setHistory(prev => [...prev, { note: currentNote!, fret: selectedFret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: false, correct: false }]);
+      addEntry({ note: currentNote!, fret: selectedFret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: false, correct: false });
       setFeedback(`✗ Correct: ${rem.join(', ')}`);
       setTimeout(() => { if (runningRef.current) nextByNote(); }, 1800);
     }
@@ -251,7 +298,7 @@ export default function App() {
 
   // ── BY FRET MODE ──────────────────────────────────────────────
   const next = useCallback(() => {
-    if (!runningRef.current || countRef.current >= 60) {
+    if (!runningRef.current || countRef.current >= maxQuestionsRef.current) {
       setRunning(false); runningRef.current = false; return;
     }
     countRef.current++;
@@ -283,7 +330,7 @@ export default function App() {
       const cof = getCofNotes(accidental, order, wholeToneOnly);
       setCorrectCofNote(getCorrectCofNote(correctNote, cof));
       const elapsed = (Date.now() - questionStartRef.current) / 1000;
-      setHistory(prev => [...prev, { note: correctNote, fret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null }]);
+      addEntry({ note: correctNote, fret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null });
       setFeedback(`⏱ ${displayNote(correctNote, accidental)} (Fret ${fret})`);
       setTimeout(() => { if (runningRef.current) next(); }, 1500);
     });
@@ -302,7 +349,7 @@ export default function App() {
     setCorrectCofNote(getCorrectCofNote(correctNote, cof));
     if (!isCorrect) setWrongCofNote(selectedNote);
     const elapsed = (Date.now() - questionStartRef.current) / 1000;
-    setHistory(prev => [...prev, { note: correctNote, fret: currentFret!, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: false, correct: isCorrect }]);
+    addEntry({ note: correctNote, fret: currentFret!, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: false, correct: isCorrect });
     setFeedback(isCorrect ? '✓ Correct!' : `✗ It was ${displayNote(correctNote, accidental)}`);
     const waitForSound = () => {
       if (isSoundPlaying()) { setTimeout(waitForSound, 100); }
@@ -310,6 +357,43 @@ export default function App() {
     };
     setTimeout(waitForSound, 800);
   };
+
+  // switchStage: keep playing, preserve allHistory, load existing history for new stage
+  const switchStage = useCallback((idx: number) => {
+    if (idx < 0 || idx >= STAGES.length) return;
+    clearTimers();
+    stopPlayback();
+    const s = STAGES[idx];
+    maxQuestionsRef.current = s.maxQuestions;
+    countRef.current = 0;
+    lastNoteRef.current = null;
+    answeredRef.current = false;
+    setStageIndex(idx);
+    saveSetting('stageIndex', idx);
+    // Load existing history for the new stage (don't wipe allHistory)
+    setHistory(prev => {
+      void prev; // suppress unused warning
+      return [];
+    });
+    setFeedback('');
+    setCorrectCofNote(null);
+    setWrongCofNote(null);
+    setFoundFrets([]);
+    setWrongFret(null);
+    setAnswered(false);
+    setGuitarString(s.string);
+    setTime(s.time);
+    setFretFrom(s.fretFrom);
+    setFretTo(s.fretTo);
+    setAccidental(s.accidental);
+    setOrder(s.order);
+    setWholeToneOnly(s.wholeToneOnly);
+    setDotsOnly(s.dotsOnly);
+    setByNote(s.byNote);
+    setMultiStrings(s.multiStrings);
+    setByString(true);
+    setTimeout(() => { if (runningRef.current) { s.byNote ? nextByNote() : next(); } }, 150);
+  }, [nextByNote, next]);
 
   // ── CONTROLS ──────────────────────────────────────────────────
   const start = () => {
@@ -380,21 +464,36 @@ export default function App() {
         const cof = getCofNotes(accidental, order, wholeToneOnly);
         setCorrectCofNote(getCorrectCofNote(correctNote, cof));
         const elapsed = (Date.now() - questionStartRef.current) / 1000;
-        setHistory(prev => [...prev, { note: correctNote, fret: currentFret!, string: guitarString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null }]);
+        addEntry({ note: correctNote, fret: currentFret!, string: guitarString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null });
         setFeedback(`⏱ ${displayNote(correctNote, accidental)} (Fret ${currentFret!})`);
         setTimeout(() => { if (runningRef.current) next(); }, 1500);
       }
     }, rem * 1000);
   };
 
-  const clearStats = () => setHistory([]);
+  const clearStats = () => {
+    setHistory([]);
+    setAllHistory(prev => { const updated = { ...prev }; delete updated[stage.id]; return updated; });
+  };
   useEffect(() => () => clearTimers(), []);
 
   const isPlaying = running && !paused;
+  const isStopped = !running && !paused;
+  const [descExpanded, setDescExpanded] = useState(false);
+  const liveSuggestion = (allHistory[stage.id]?.length ?? 0) >= 10 ? suggestion : null;
 
   return (
     <div className="app">
       <h1>🎸 Guitar Fret Practice</h1>
+
+      <StageNav
+        stage={stage}
+        stageIndex={stageIndex}
+        onPrev={() => isPlaying ? switchStage(stageIndex - 1) : (stop(), goToStage(stageIndex - 1))}
+        onNext={() => isPlaying ? switchStage(stageIndex + 1) : (stop(), goToStage(stageIndex + 1))}
+        isPlaying={isPlaying}
+        suggestion={liveSuggestion}
+      />
 
       <button className="toggle-btn" onClick={() => { if (running || paused) stop(); setShowSettings(!showSettings); }}>
         {showSettings ? '▲ Hide Settings' : '⚙ Settings'}
@@ -421,20 +520,40 @@ export default function App() {
         <div className="question-col">
           {isPlaying && (
             <>
+              <div className="string-label">{STRING_DISPLAY[guitarString]}</div>
               {byNote
                 ? <div className="note-display">{currentNote ? displayNote(currentNote, accidental) : '—'}</div>
                 : <div className="fret-display">{currentFret !== null ? currentFret : '—'}</div>
               }
               <div className="countdown">{remaining > 0 ? remaining : ''}</div>
-              <div className="info">Q {count} — String {guitarString}</div>
               <div className={`feedback ${feedback.startsWith('✓') ? 'good' : feedback.startsWith('✗') ? 'bad' : 'warn'}`}>
                 {feedback}
               </div>
             </>
           )}
 
-          {!isPlaying && history.length > 0 && <StatsPanel history={history} maxTime={time} accidental={accidental} />}
-          {!running && !paused && history.length === 0 && <div className="fret-display">—</div>}
+          {isStopped && (
+            <>
+              <StatsPanel history={allHistory[stage.id] ?? []} maxTime={time} accidental={accidental} />
+              {liveSuggestion === 'next' && stageIndex < STAGES.length - 1 && (
+                <div className="stage-suggestion stage-suggestion-next">
+                  🔥 Great job! Ready for the next stage?
+                  <button className="stage-suggest-btn" onClick={() => goToStage(stageIndex + 1)}>
+                    Go to {STAGES[stageIndex + 1].label} ▶
+                  </button>
+                </div>
+              )}
+              {liveSuggestion === 'prev' && stageIndex > 0 && (
+                <div className="stage-suggestion stage-suggestion-prev">
+                  💡 Try the previous stage to build a stronger base.
+                  <button className="stage-suggest-btn" onClick={() => goToStage(stageIndex - 1)}>
+                    ◀ Go to {STAGES[stageIndex - 1].label}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
           {paused && <div className="paused-text">⏸ Paused</div>}
 
           <div className="controls">
@@ -443,7 +562,7 @@ export default function App() {
                 <button className="icon-btn play-btn" onClick={start} title="Start">
                   <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
                 </button>
-                {history.length > 0 && <button className="clear-btn" onClick={clearStats}>Clear</button>}
+                {(allHistory[stage.id]?.length ?? 0) > 0 && <button className="clear-btn" onClick={clearStats}>Clear</button>}
               </>
             ) : (
               <>
@@ -492,6 +611,19 @@ export default function App() {
           />
         )}
       </div>
+
+      <div className="stage-description">
+        <span className="stage-desc-filter">
+          {stage.dotsOnly ? '🎯 Dots Only' : stage.wholeToneOnly ? '🎵 Natural Notes' : '🎸 Full Chromatic'}
+        </span>
+        {' · '}
+        {descExpanded ? stage.description : stage.shortDesc}
+        {' '}
+        <button className="desc-toggle-btn" onClick={() => setDescExpanded(v => !v)}>
+          {descExpanded ? 'less ▲' : 'more ▼'}
+        </button>
+      </div>
+
       <div className="build-info">{__COMMIT_HASH__} · {__COMMIT_DATE__.slice(0, 16)}</div>
     </div>
   );
