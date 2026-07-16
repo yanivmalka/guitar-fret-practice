@@ -46,7 +46,7 @@ export function useGameEngine(
   historyOps: HistoryOps,
   saveSetting: (key: string, value: unknown) => void,
 ) {
-  const { guitarString, fretFrom, fretTo, wholeToneOnly, dotsOnly, byNote,
+  const { guitarString, fretFrom, fretTo, wholeToneOnly, dotsOnly,
           isMulti, activeStrings, time, accidental, order } = settings;
   const { addEntry, markPlayed, resetSession, history } = historyOps;
 
@@ -77,7 +77,6 @@ export function useGameEngine(
   const currentQuestionStringRef = useRef<number>(guitarString);
   const questionStartRef = useRef(0);
   // Live refs for values used inside timer callbacks
-  const timeRef = useRef(time);
   const maxQuestionsRef = useRef(STAGES[0].maxQuestions);
   const sessionRef = useRef(0); // incremented on start/switchStage to cancel stale callbacks
 

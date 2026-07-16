@@ -115,6 +115,7 @@ export default function App() {
   const remainingFretsRef = useRef<number[]>([]);
   const askedFretRef = useRef<number>(0);
   const currentQuestionStringRef = useRef<number>(guitarString);
+  const maxQuestionsRef = useRef(stage.maxQuestions);
 
   const isMulti = multiStrings.length > 0;
   const activeStrings = isMulti ? multiStrings : [guitarString];
