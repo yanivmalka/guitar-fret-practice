@@ -16,8 +16,9 @@ export function useDerivedNotes(
   const isMulti = multiStrings.length > 0;
   const activeStrings = isMulti ? multiStrings : [guitarString];
 
-  const cofList = getCofNotes(accidental, order, wholeToneOnly);
-  const startIndex = byString ? getStringStartIndex(accidental, order, wholeToneOnly, guitarString - 1) : 0;
+  // Always show full note list on circle — wholeToneOnly only disables non-whole notes, not hides them
+  const cofList = getCofNotes(accidental, order, false);
+  const startIndex = byString ? getStringStartIndex(accidental, order, false, guitarString - 1) : 0;
 
   const activeNotes = useMemo(() => {
     const noteSet = new Set<string>();

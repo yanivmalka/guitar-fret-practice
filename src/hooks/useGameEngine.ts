@@ -260,7 +260,7 @@ export function useGameEngine(
       setAnswered(true);
       beep();
       const correctNote = notes[qString - 1][fret];
-      const cof = getCofNotes(accidental, order, wholeToneOnly);
+      const cof = getCofNotes(accidental, order, false);
       setCorrectCofNote(getCorrectCofNote(correctNote, cof));
       const elapsed = (Date.now() - questionStartRef.current) / 1000;
       addEntry({ note: correctNote, fret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null });
@@ -278,7 +278,7 @@ export function useGameEngine(
     stopPlayback();
     const qString = currentQuestionStringRef.current;
     const correctNote = notes[qString - 1][currentFret];
-    const cof = getCofNotes(accidental, order, wholeToneOnly);
+    const cof = getCofNotes(accidental, order, false);
     const isCorrect = notesMatch(selectedNote, correctNote);
     setCorrectCofNote(getCorrectCofNote(correctNote, cof));
     if (!isCorrect) setWrongCofNote(selectedNote);
@@ -402,7 +402,7 @@ export function useGameEngine(
       } else {
         if (curFret === null) return;
         const correctNote = notes[curGuitarString - 1][curFret];
-        const cof = getCofNotes(accidental, order, wholeToneOnly);
+        const cof = getCofNotes(accidental, order, false);
         setCorrectCofNote(getCorrectCofNote(correctNote, cof));
         const elapsed = (Date.now() - questionStartRef.current) / 1000;
         addEntry({ note: correctNote, fret: curFret, string: curGuitarString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null });
