@@ -282,35 +282,39 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 
 .stage-levels-row {
   display: flex;
-  gap: 8px;
+  gap: 3px;
   justify-content: center;
   align-items: center;
-  margin-bottom: 5px;
+  flex-wrap: wrap;
+  max-width: 220px;
+  margin-top: 6px;
+  margin-bottom: 4px;
 }
-/* Each dash = one group in current level, colored by success */
 .stage-level-dash {
   display: block;
-  width: 14px;
+  width: 9px;
   height: 4px;
   border-radius: 2px;
-  border: 1px solid;
-  transition: background 0.3s, border-color 0.3s;
+  opacity: 0.35;
+  transition: opacity 0.2s, box-shadow 0.2s;
 }
-.stage-level-dash-current {
-  box-shadow: 0 0 6px 2px rgba(0,255,255,0.7);
+.stage-level-dash-active {
+  opacity: 1;
+  box-shadow: 0 0 6px 2px rgba(0,255,255,0.8);
   outline: 1px solid #0ff;
 }
 
-/* Dots row — only current group */
+/* Dots row — only current level */
 .stage-dots-row {
   display: flex;
   gap: 4px;
   justify-content: center;
   align-items: center;
+  flex-wrap: wrap;
+  max-width: 200px;
   min-height: 10px;
-  margin-top: 2px;
+  margin-bottom: 2px;
 }
-
 .stage-dot {
   width: 6px;
   height: 6px;
@@ -319,14 +323,14 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   display: inline-block;
   transition: background 0.2s;
 }
-.stage-dot-done { background: #0aa; }
+.stage-dot-done   { background: #0aa; }
 .stage-dot-active { background: #0ff; box-shadow: 0 0 4px #0ff; }
 
 .stage-group-label {
   font-size: 10px;
   color: #0ff;
   opacity: 0.7;
-  margin-top: 3px;
+  margin-top: 2px;
   letter-spacing: 0.5px;
 }
 
