@@ -282,47 +282,34 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 
 .stage-levels-row {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   justify-content: center;
+  align-items: center;
   margin-bottom: 5px;
 }
-.stage-level-seg {
+/* Each dash = one group in current level, colored by success */
+.stage-level-dash {
   display: block;
-  width: 22px;
-  height: 3px;
+  width: 14px;
+  height: 4px;
   border-radius: 2px;
-  background: #2a2a4a;
-  transition: background 0.2s;
+  border: 1px solid;
+  transition: background 0.3s, border-color 0.3s;
 }
-.stage-level-seg-active {
-  background: #0ff;
-  box-shadow: 0 0 5px #0ff;
+.stage-level-dash-current {
+  box-shadow: 0 0 6px 2px rgba(0,255,255,0.7);
+  outline: 1px solid #0ff;
 }
 
-.stage-groups-row {
+/* Dots row — only current group */
+.stage-dots-row {
   display: flex;
-  align-items: center;
-  gap: 5px;
+  gap: 4px;
   justify-content: center;
-  margin-top: 4px;
-}
-
-/* Each group is either a dash (inactive) or a row of dots (active) */
-.stage-group-seg {
-  display: flex;
   align-items: center;
-  gap: 3px;
+  min-height: 10px;
+  margin-top: 2px;
 }
-
-.stage-group-dash {
-  display: block;
-  width: 10px;
-  height: 2px;
-  background: #333;
-  border-radius: 1px;
-}
-
-.stage-group-seg-active .stage-group-dash { background: #0ff; }
 
 .stage-dot {
   width: 6px;

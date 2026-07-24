@@ -99,6 +99,7 @@ export default function App() {
         onNext={() => isPlaying ? switchStage(stageIndex + 1) : (stop(), goToStage(stageIndex + 1))}
         isPlaying={isPlaying}
         suggestion={liveSuggestion}
+        allHistory={allHistory}
       />
 
       <button className="toggle-btn" onClick={() => { if (running || paused) stop(); setShowSettings(!showSettings); }}>

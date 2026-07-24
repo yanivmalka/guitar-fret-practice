@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { Stage } from '../utils/stages';
-import { TOTAL_STAGES, getStageGroups } from '../utils/stages';
+import { STAGES, TOTAL_STAGES, getStageGroups, getStageLevels } from '../utils/stages';
+import type { HistoryEntry } from '../utils/music';
 
 interface Props {
   stage: Stage;
@@ -9,24 +10,33 @@ interface Props {
   onNext: () => void;
   isPlaying: boolean;
   suggestion: 'next' | 'prev' | null;
+  allHistory: Record<number, HistoryEntry[]>;
 }
 
 const GROUPS = getStageGroups();
+const LEVELS = getStageLevels();
 
-// Level = frets 0-12 groups, frets 12-21 groups, all-strings group
-const LEVELS: { label: string; groupIndices: number[] }[] = [
-  { label: 'Frets 0–12',  groupIndices: GROUPS.map((g, i) => ({ g, i })).filter(({ g }) => g.label.includes('0–12')).map(({ i }) => i) },
-  { label: 'Frets 12–21', groupIndices: GROUPS.map((g, i) => ({ g, i })).filter(({ g }) => g.label.includes('12–21')).map(({ i }) => i) },
-  { label: 'Full Neck',   groupIndices: GROUPS.map((g, i) => ({ g, i })).filter(({ g }) => g.label.includes('All Strings')).map(({ i }) => i) },
-];
+// For a group, compute success rate across all its stages
+function groupSuccessColor(groupIndices: number[], allHistory: Record<number, HistoryEntry[]>): string {
+  let correct = 0, total = 0;
+  groupIndices.forEach(idx => {
+    const stageId = STAGES[idx].id;
+    const h = allHistory[stageId] ?? [];
+    h.forEach(e => { total++; if (e.correct === true) correct++; });
+  });
+  if (total === 0) return '#555';
+  const rate = correct / total;
+  if (rate >= 0.75) return '#0f0';
+  if (rate >= 0.45) return '#7bf';
+  return '#f90';
+}
 
-export default function StageNav({ stage, stageIndex, onPrev, onNext, isPlaying, suggestion }: Props) {
+export default function StageNav({ stage, stageIndex, onPrev, onNext, isPlaying, suggestion, allHistory }: Props) {
   const onPrevRef = useRef(onPrev);
   const onNextRef = useRef(onNext);
   onPrevRef.current = onPrev;
   onNextRef.current = onNext;
 
-  // Full-page swipe on document
   useEffect(() => {
     let startX: number | null = null;
     const onTouchStart = (e: TouchEvent) => { startX = e.touches[0].clientX; };
@@ -51,16 +61,16 @@ export default function StageNav({ stage, stageIndex, onPrev, onNext, isPlaying,
   const prevSuggested = suggestion === 'prev' && !isFirst;
   const nextSuggested = suggestion === 'next' && !isLast;
 
-  // Find which group the current stage belongs to
   const currentGroupIdx = GROUPS.findIndex(g => g.indices.includes(stageIndex));
   const currentGroup = GROUPS[currentGroupIdx];
+  const currentLevelIdx = LEVELS.findIndex(lv => lv.groupLabels.includes(currentGroup?.label ?? ''));
+  const currentLevel = LEVELS[currentLevelIdx];
 
   return (
     <div className="stage-nav">
       <button
         className={`stage-arrow ${prevSuggested ? 'stage-arrow-blinking' : ''}`}
-        onClick={onPrev}
-        disabled={isFirst}
+        onClick={onPrev} disabled={isFirst}
         title={isPlaying ? 'Switch to easier stage' : 'Previous stage'}
         aria-label="Previous stage"
       >
@@ -73,34 +83,33 @@ export default function StageNav({ stage, stageIndex, onPrev, onNext, isPlaying,
         <div className="stage-label">{stage.label}</div>
         <div className="stage-title">{stage.title}</div>
 
-        {/* Level separator row */}
+        {/* Level row: one dash per group in current level only */}
         <div className="stage-levels-row">
-          {LEVELS.map((lv, li) => {
-            const isCurrent = lv.groupIndices.includes(currentGroupIdx);
+          {currentLevel?.groupLabels.map(gl => {
+            const grp = GROUPS.find(g => g.label === gl)!;
+            const color = groupSuccessColor(grp.indices, allHistory);
+            const isCurrentGroup = grp.label === currentGroup?.label;
             return (
-              <span key={li} className={`stage-level-seg ${isCurrent ? 'stage-level-seg-active' : ''}`} />
+              <span
+                key={gl}
+                className={`stage-level-dash ${isCurrentGroup ? 'stage-level-dash-current' : ''}`}
+                style={{ background: color, borderColor: color }}
+              />
             );
           })}
         </div>
 
-        {/* Current-group dots only */}
-        <div className="stage-groups-row">
-          {GROUPS.map((g, gi) => {
-            const isCurrent = gi === currentGroupIdx;
-            return (
-              <span key={g.label} className={`stage-group-seg ${isCurrent ? 'stage-group-seg-active' : ''}`}>
-                {isCurrent
-                  ? g.indices.map(idx => (
-                      <span
-                        key={idx}
-                        className={`stage-dot ${idx === stageIndex ? 'stage-dot-active' : idx < stageIndex ? 'stage-dot-done' : ''}`}
-                      />
-                    ))
-                  : <span className="stage-group-dash" />
-                }
-              </span>
-            );
-          })}
+        {/* Dots row: only current level's stages */}
+        <div className="stage-dots-row">
+          {currentLevel?.groupLabels.flatMap(gl => {
+            const grp = GROUPS.find(g => g.label === gl)!;
+            return grp.indices;
+          }).map(idx => (
+            <span
+              key={idx}
+              className={`stage-dot ${idx === stageIndex ? 'stage-dot-active' : idx < stageIndex ? 'stage-dot-done' : ''}`}
+            />
+          ))}
         </div>
 
         {currentGroup && (
@@ -110,8 +119,7 @@ export default function StageNav({ stage, stageIndex, onPrev, onNext, isPlaying,
 
       <button
         className={`stage-arrow ${nextSuggested ? 'stage-arrow-blinking' : ''}`}
-        onClick={onNext}
-        disabled={isLast}
+        onClick={onNext} disabled={isLast}
         title={isPlaying ? 'Switch to harder stage' : 'Next stage'}
         aria-label="Next stage"
       >

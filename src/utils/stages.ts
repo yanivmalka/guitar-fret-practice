@@ -115,13 +115,12 @@ function makePairStage(strA: number, strB: number, byNote: boolean, fretFrom: nu
 function makeLevel(fretFrom: number, fretTo: number): Stage[] {
   const stages: Stage[] = [];
   const rangeLabel = `${fretFrom}–${fretTo}`;
-  // pair belongs to the lower string's group
   const triplets: [number, number][] = [[6, 5], [4, 3], [2, 1]];
   triplets.forEach(([a, b]) => {
     stages.push(...makeStagesForString(a, fretFrom, fretTo));
-    // pair stages go into String B's group
-    const pairGroup = `String ${b} · Frets ${rangeLabel}`;
     stages.push(...makeStagesForString(b, fretFrom, fretTo));
+    // pair gets its own group
+    const pairGroup = `Strings ${a}+${b} · Frets ${rangeLabel}`;
     stages.push({ ...makePairStage(a, b, false, fretFrom, fretTo), group: pairGroup });
     stages.push({ ...makePairStage(a, b, true,  fretFrom, fretTo), group: pairGroup });
   });
@@ -171,4 +170,30 @@ export function getStageGroups(): StageGroup[] {
     map.get(s.group)!.push(i);
   });
   return Array.from(map.entries()).map(([label, indices]) => ({ label, indices }));
+}
+
+// Level = a named collection of consecutive groups
+export interface StageLevel { label: string; groupLabels: string[] }
+export function getStageLevels(): StageLevel[] {
+  const groups = getStageGroups();
+  const levels: StageLevel[] = [];
+  const pairRanges: Array<[string, Array<[number, number]>]> = [
+    ['0\u201312',  [[6,5],[4,3],[2,1]]],
+    ['12\u201321', [[6,5],[4,3],[2,1]]],
+  ];
+  for (const [range, pairs] of pairRanges) {
+    for (const [a, b] of pairs) {
+      const gl = groups
+        .filter(g => g.label.includes(range) && (
+          g.label.startsWith(`String ${a}`) ||
+          g.label.startsWith(`String ${b}`) ||
+          g.label.startsWith(`Strings ${a}+${b}`)
+        ))
+        .map(g => g.label);
+      levels.push({ label: `Strings ${a}+${b} \u00b7 ${range}`, groupLabels: gl });
+    }
+  }
+  const allGroups = groups.filter(g => g.label.includes('All Strings'));
+  levels.push({ label: 'Full Neck', groupLabels: allGroups.map(g => g.label) });
+  return levels;
 }
