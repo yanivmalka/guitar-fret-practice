@@ -54,7 +54,7 @@ export default function App() {
   const { cofList, startIndex, activeNotes, questionActiveNotes, fretDots, noteFrets, isMulti, activeStrings } = derived;
 
   const historyOps = useHistory(stage.id);
-  const { allHistory, addEntry, markPlayed, clearStage, resetSession } = historyOps;
+  const { allHistory, addEntry, markPlayed, clearStage, resetSession, everPlayed } = historyOps;
 
   const engine = useGameEngine(
     { guitarString, fretFrom, fretTo, wholeToneOnly, dotsOnly, byNote, isMulti, activeStrings, time, accidental, order },
