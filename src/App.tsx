@@ -71,6 +71,13 @@ export default function App() {
   const [preloaded, setPreloaded] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
+  const descTimerRef = useState<ReturnType<typeof setTimeout> | null>(null);
+
+  const showDesc = () => {
+    setDescExpanded(true);
+    if (descTimerRef[0]) clearTimeout(descTimerRef[0]);
+    descTimerRef[0] = setTimeout(() => setDescExpanded(false), 3000);
+  };
 
   const suggestion = useMemo(() => computeSuggestion(historyOps.history), [historyOps.history]);
   const liveSuggestion = historyOps.history.length >= 10 ? suggestion : null;
@@ -106,17 +113,16 @@ export default function App() {
         {showSettings ? '▲ Hide Settings' : '⚙ Settings'}
       </button>
 
-      <div className="stage-description">
-        <span className="stage-desc-filter">
-          {stage.dotsOnly ? '🎯 Dots Only' : stage.wholeToneOnly ? '🎵 Natural Notes' : '🎸 Full Chromatic'}
-        </span>
-        {' · '}
-        {descExpanded ? stage.description : stage.shortDesc}
-        {' '}
-        <button className="desc-toggle-btn" onClick={() => setDescExpanded(v => !v)}>
-          {descExpanded ? 'less ▲' : 'ℹ?'}
-        </button>
-      </div>
+      {!descExpanded
+        ? <button className="desc-question-btn" onClick={showDesc}>?</button>
+        : <div className="stage-description">
+            <span className="stage-desc-filter">
+              {stage.dotsOnly ? '🎯 Dots Only' : stage.wholeToneOnly ? '🎵 Natural Notes' : '🎸 Full Chromatic'}
+            </span>
+            {' · '}
+            {stage.shortDesc}
+          </div>
+      }
 
       {showSettings && (
         <Settings

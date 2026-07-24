@@ -427,16 +427,20 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 }
 
 /* ── Description toggle button ────────────────────────────── */
-.desc-toggle-btn {
+.desc-question-btn {
   background: none;
-  border: none;
+  border: 1px solid #444;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
   color: #0ff;
-  font-size: 11px;
+  font-size: 14px;
+  font-weight: bold;
   cursor: pointer;
-  padding: 0 2px;
-  opacity: 0.8;
+  margin: 4px 0 6px;
+  transition: all 0.15s;
 }
-.desc-toggle-btn:hover { opacity: 1; }
+.desc-question-btn:hover { border-color: #0ff; background: rgba(0,255,255,0.1); }
 
 /* ── Stats tabs ───────────────────────────────────────────── */
 .stats-tabs {
