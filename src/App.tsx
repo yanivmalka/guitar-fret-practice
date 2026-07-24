@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import NoteCircle from './components/NoteCircle';
 import FretGrid from './components/FretGrid';
 import Settings from './components/Settings';
@@ -71,12 +71,16 @@ export default function App() {
   const [preloaded, setPreloaded] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
-  const descTimerRef = useState<ReturnType<typeof setTimeout> | null>(null);
+  const descTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showDesc = () => {
     setDescExpanded(true);
-    if (descTimerRef[0]) clearTimeout(descTimerRef[0]);
-    descTimerRef[0] = setTimeout(() => setDescExpanded(false), 3000);
+    if (descTimerRef.current) clearTimeout(descTimerRef.current);
+    descTimerRef.current = setTimeout(() => setDescExpanded(false), 3000);
+  };
+  const hideDesc = () => {
+    if (descTimerRef.current) clearTimeout(descTimerRef.current);
+    setDescExpanded(false);
   };
 
   const suggestion = useMemo(() => computeSuggestion(historyOps.history), [historyOps.history]);
@@ -115,7 +119,7 @@ export default function App() {
 
       {!descExpanded
         ? <button className="desc-question-btn" onClick={showDesc}>?</button>
-        : <div className="stage-description">
+        : <div className="stage-description" onClick={hideDesc} style={{ cursor: 'pointer' }}>
             <span className="stage-desc-filter">
               {stage.dotsOnly ? '🎯 Dots Only' : stage.wholeToneOnly ? '🎵 Natural Notes' : '🎸 Full Chromatic'}
             </span>
@@ -123,6 +127,14 @@ export default function App() {
             {stage.shortDesc}
           </div>
       }
+
+      {!byNote && !showSettings && (
+        <div className="order-switcher">
+          <button className={`order-chip${byString ? ' order-chip-active' : ''}`} onClick={() => setByString(!byString)}>By String</button>
+          <button className={`order-chip${!byString && order === 'fifths' ? ' order-chip-active' : ''}`} onClick={() => { setByString(false); setOrder('fifths'); }}>Fifths</button>
+          <button className={`order-chip${!byString && order === 'alphabet' ? ' order-chip-active' : ''}`} onClick={() => { setByString(false); setOrder('alphabet'); }}>Alpha</button>
+        </div>
+      )}
 
       {showSettings && (
         <Settings
@@ -138,6 +150,7 @@ export default function App() {
           byNote={byNote} setByNote={setByNote}
           multiStrings={multiStrings} setMultiStrings={setMultiStrings}
           activeNotes={activeNotes}
+          showOrderSwitcher={!byNote}
         />
       )}
 
@@ -236,14 +249,6 @@ export default function App() {
           />
         )}
       </div>
-
-      {!byNote && (
-        <div className="order-switcher">
-          <button className={`order-chip${byString ? ' order-chip-active' : ''}`} onClick={() => setByString(!byString)}>By String</button>
-          <button className={`order-chip${!byString && order === 'fifths' ? ' order-chip-active' : ''}`} onClick={() => { setByString(false); setOrder('fifths'); }}>Fifths</button>
-          <button className={`order-chip${!byString && order === 'alphabet' ? ' order-chip-active' : ''}`} onClick={() => { setByString(false); setOrder('alphabet'); }}>Alpha</button>
-        </div>
-      )}
 
       <div className="build-info">{__COMMIT_HASH__} · {__COMMIT_DATE__.slice(0, 16)}</div>
     </div>

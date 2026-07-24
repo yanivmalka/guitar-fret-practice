@@ -25,6 +25,7 @@ interface Props {
   multiStrings: number[];
   setMultiStrings: (v: number[]) => void;
   activeNotes: Set<string>;
+  showOrderSwitcher: boolean;
 }
 
 function Chip({ label, selected, onClick, disabled, toggle }: { label: string; selected: boolean; onClick: () => void; disabled?: boolean; toggle?: boolean }) {
@@ -46,7 +47,7 @@ export default function Settings(p: Props) {
   const toggleMultiString = (i: number) => {
     const s = i + 1;
     if (p.multiStrings.includes(s)) {
-      if (p.multiStrings.length === 1) return; // keep at least one
+      if (p.multiStrings.length === 1) return;
       p.setMultiStrings(p.multiStrings.filter(x => x !== s));
     } else {
       p.setMultiStrings([...p.multiStrings, s]);
@@ -55,6 +56,16 @@ export default function Settings(p: Props) {
 
   return (
     <div className="settings">
+      {p.showOrderSwitcher && (
+        <div className="setting-group">
+          <span className="group-title">Circle Order</span>
+          <div className="setting-row">
+            <Chip label="By String" selected={p.byString} onClick={() => p.setByString(!p.byString)} toggle />
+            <Chip label="Fifths" selected={!p.byString && p.order === 'fifths'} onClick={() => { p.setByString(false); p.setOrder('fifths'); }} />
+            <Chip label="Alpha" selected={!p.byString && p.order === 'alphabet'} onClick={() => { p.setByString(false); p.setOrder('alphabet'); }} />
+          </div>
+        </div>
+      )}
       <div className="setting-group">
         <span className="group-title">String</span>
         <div className="setting-row">
