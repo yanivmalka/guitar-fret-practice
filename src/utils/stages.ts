@@ -30,14 +30,14 @@ const CONFIGS = [
     dotsOnly: true, wholeToneOnly: false, byNote: false,
     titleSuffix: 'Anchor Frets',
     short: (f: number, t: number) => `🎯 Dot frets ${f}–${t} · See fret → name the note`,
-    desc: (str: number, f: number, t: number) =>
+    desc: (str: number, f: number, _t: number) =>
       `Dot frets (${f === 0 ? '0, 3, 5, 7, 9, 12' : '12, 15, 17, 19, 21'}) on string ${STRING_NAMES[str]}. Landmark anchors for this range.`,
   },
   {
     dotsOnly: true, wholeToneOnly: false, byNote: true,
     titleSuffix: 'Anchor Recall',
     short: (f: number, t: number) => `🎯 Dot frets ${f}–${t} · See note → find the fret`,
-    desc: (str: number, f: number, t: number) =>
+    desc: (str: number, f: number, _t: number) =>
       `Dot frets (${f === 0 ? '0–12' : '12–21'}) on string ${STRING_NAMES[str]}. Active recall: see the note, find the fret.`,
   },
   {
