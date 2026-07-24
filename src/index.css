@@ -200,6 +200,28 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   100% { box-shadow: 0 0 0 0 rgba(0, 255, 255, 0); }
 }
 
+/* ── Order switcher (always-visible in play area) ─────────── */
+.order-switcher {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.order-chip {
+  padding: 5px 12px;
+  border-radius: 14px;
+  border: 1px solid #444;
+  background: #1a1a2e;
+  color: #aaa;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.order-chip-active {
+  border-color: #0ff;
+  color: #0ff;
+  font-weight: bold;
+}
+
 /* ── Stage Navigation ─────────────────────────────────────── */
 .stage-nav {
   display: flex;
@@ -258,13 +280,30 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   text-align: center;
 }
 
-.stage-progress-dots {
+.stage-groups-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
+  align-items: center;
+  gap: 5px;
   justify-content: center;
-  max-width: 200px;
+  margin-top: 4px;
 }
+
+/* Each group is either a dash (inactive) or a row of dots (active) */
+.stage-group-seg {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.stage-group-dash {
+  display: block;
+  width: 10px;
+  height: 2px;
+  background: #333;
+  border-radius: 1px;
+}
+
+.stage-group-seg-active .stage-group-dash { background: #0ff; }
 
 .stage-dot {
   width: 6px;
@@ -276,6 +315,14 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 }
 .stage-dot-done { background: #0aa; }
 .stage-dot-active { background: #0ff; box-shadow: 0 0 4px #0ff; }
+
+.stage-group-label {
+  font-size: 10px;
+  color: #0ff;
+  opacity: 0.7;
+  margin-top: 3px;
+  letter-spacing: 0.5px;
+}
 
 /* ── String label (prominent during game) ─────────────────── */
 .string-label {

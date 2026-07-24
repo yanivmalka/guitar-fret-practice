@@ -96,16 +96,6 @@ export default function Settings(p: Props) {
           <Chip label="By Note" selected={p.byNote} onClick={() => p.setByNote(true)} />
         </div>
       </div>
-      {!p.byNote && (
-      <div className="setting-group">
-        <span className="group-title">Order</span>
-        <div className="setting-row">
-          <Chip label="By String" selected={p.byString} onClick={() => p.setByString(!p.byString)} toggle />
-          <Chip label="Fifths" selected={p.order === 'fifths'} onClick={() => p.setOrder('fifths')} />
-          <Chip label="Alpha" selected={p.order === 'alphabet'} onClick={() => p.setOrder('alphabet')} />
-        </div>
-      </div>
-      )}
       <div className="setting-group">
         <span className="group-title">{p.byNote ? 'Note Filter' : 'Filter'}</span>
         <div className="setting-row">

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { Stage } from '../utils/stages';
-import { TOTAL_STAGES } from '../utils/stages';
+import { TOTAL_STAGES, getStageGroups } from '../utils/stages';
 
 interface Props {
   stage: Stage;
@@ -11,37 +11,45 @@ interface Props {
   suggestion: 'next' | 'prev' | null;
 }
 
-export default function StageNav({ stage, stageIndex, onPrev, onNext, isPlaying, suggestion }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const touchStartX = useRef<number | null>(null);
+const GROUPS = getStageGroups();
 
+export default function StageNav({ stage, stageIndex, onPrev, onNext, isPlaying, suggestion }: Props) {
+  const onPrevRef = useRef(onPrev);
+  const onNextRef = useRef(onNext);
+  onPrevRef.current = onPrev;
+  onNextRef.current = onNext;
+
+  // Full-page swipe on document
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const onTouchStart = (e: TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
+    let startX: number | null = null;
+    const onTouchStart = (e: TouchEvent) => { startX = e.touches[0].clientX; };
     const onTouchEnd = (e: TouchEvent) => {
-      if (touchStartX.current === null) return;
-      const dx = e.changedTouches[0].clientX - touchStartX.current;
-      touchStartX.current = null;
-      if (Math.abs(dx) < 40) return;
-      if (dx < 0) onNext();
-      else onPrev();
+      if (startX === null) return;
+      const dx = e.changedTouches[0].clientX - startX;
+      startX = null;
+      if (Math.abs(dx) < 50) return;
+      if (dx < 0) onNextRef.current();
+      else onPrevRef.current();
     };
-    el.addEventListener('touchstart', onTouchStart, { passive: true });
-    el.addEventListener('touchend', onTouchEnd, { passive: true });
+    document.addEventListener('touchstart', onTouchStart, { passive: true });
+    document.addEventListener('touchend', onTouchEnd, { passive: true });
     return () => {
-      el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchend', onTouchEnd);
+      document.removeEventListener('touchstart', onTouchStart);
+      document.removeEventListener('touchend', onTouchEnd);
     };
-  }, [onPrev, onNext]);
+  }, []);
 
   const isFirst = stageIndex === 0;
   const isLast = stageIndex === TOTAL_STAGES - 1;
   const prevSuggested = suggestion === 'prev' && !isFirst;
   const nextSuggested = suggestion === 'next' && !isLast;
 
+  // Find which group the current stage belongs to
+  const currentGroupIdx = GROUPS.findIndex(g => g.indices.includes(stageIndex));
+  const currentGroup = GROUPS[currentGroupIdx];
+
   return (
-    <div className="stage-nav" ref={containerRef}>
+    <div className="stage-nav">
       <button
         className={`stage-arrow ${prevSuggested ? 'stage-arrow-blinking' : ''}`}
         onClick={onPrev}
@@ -57,14 +65,30 @@ export default function StageNav({ stage, stageIndex, onPrev, onNext, isPlaying,
       <div className="stage-info">
         <div className="stage-label">{stage.label}</div>
         <div className="stage-title">{stage.title}</div>
-        <div className="stage-progress-dots">
-          {Array.from({ length: TOTAL_STAGES }).map((_, i) => (
-            <span
-              key={i}
-              className={`stage-dot ${i === stageIndex ? 'stage-dot-active' : i < stageIndex ? 'stage-dot-done' : ''}`}
-            />
-          ))}
+
+        {/* Group separators + current-group dots */}
+        <div className="stage-groups-row">
+          {GROUPS.map((g, gi) => {
+            const isCurrent = gi === currentGroupIdx;
+            return (
+              <span key={g.label} className={`stage-group-seg ${isCurrent ? 'stage-group-seg-active' : ''}`}>
+                {isCurrent
+                  ? g.indices.map(idx => (
+                      <span
+                        key={idx}
+                        className={`stage-dot ${idx === stageIndex ? 'stage-dot-active' : idx < stageIndex ? 'stage-dot-done' : ''}`}
+                      />
+                    ))
+                  : <span className="stage-group-dash" />
+                }
+              </span>
+            );
+          })}
         </div>
+
+        {currentGroup && (
+          <div className="stage-group-label">{currentGroup.label}</div>
+        )}
       </div>
 
       <button

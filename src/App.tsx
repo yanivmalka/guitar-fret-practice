@@ -162,6 +162,13 @@ export default function App() {
 
           {paused && <div className="paused-text">⏸ Paused</div>}
 
+          {!byNote && (
+            <div className="order-switcher">
+              <button className={`order-chip${byString ? ' order-chip-active' : ''}`} onClick={() => setByString(!byString)}>By String</button>
+              <button className={`order-chip${!byString && order === 'fifths' ? ' order-chip-active' : ''}`} onClick={() => { setByString(false); setOrder('fifths'); }}>Fifths</button>
+              <button className={`order-chip${!byString && order === 'alphabet' ? ' order-chip-active' : ''}`} onClick={() => { setByString(false); setOrder('alphabet'); }}>Alpha</button>
+            </div>
+          )}
           <div className="controls">
             {!running && !paused ? (
               <>
