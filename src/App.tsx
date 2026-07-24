@@ -153,7 +153,7 @@ export default function App() {
               {liveSuggestion === 'prev' && stageIndex > 0 && (
                 <div className="stage-suggestion stage-suggestion-prev">
                   💡 Try the previous stage to build a stronger base.
-                  <button className="stage-suggest-btn" onClick={() => goToStage(stageIndex - 1)}>
+                  <button className="stage-suggest-btn" onClick={() => { clearStage(stage.id); goToStage(stageIndex - 1); }}>
                     ◀ Go to {STAGES[stageIndex - 1].label}
                   </button>
                 </div>
