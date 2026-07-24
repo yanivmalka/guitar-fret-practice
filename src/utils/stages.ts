@@ -114,12 +114,16 @@ function makePairStage(strA: number, strB: number, byNote: boolean, fretFrom: nu
 // One "level" block: str6 → str5 → 6+5, str4 → str3 → 4+3, str2 → str1 → 2+1
 function makeLevel(fretFrom: number, fretTo: number): Stage[] {
   const stages: Stage[] = [];
-  const triplets: [number, number, number][] = [[6, 5, 0], [4, 3, 1], [2, 1, 2]];
+  const rangeLabel = `${fretFrom}–${fretTo}`;
+  // pair belongs to the lower string's group
+  const triplets: [number, number][] = [[6, 5], [4, 3], [2, 1]];
   triplets.forEach(([a, b]) => {
     stages.push(...makeStagesForString(a, fretFrom, fretTo));
+    // pair stages go into String B's group
+    const pairGroup = `String ${b} · Frets ${rangeLabel}`;
     stages.push(...makeStagesForString(b, fretFrom, fretTo));
-    stages.push(makePairStage(a, b, false, fretFrom, fretTo));
-    stages.push(makePairStage(a, b, true, fretFrom, fretTo));
+    stages.push({ ...makePairStage(a, b, false, fretFrom, fretTo), group: pairGroup });
+    stages.push({ ...makePairStage(a, b, true,  fretFrom, fretTo), group: pairGroup });
   });
   return stages;
 }

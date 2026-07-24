@@ -280,6 +280,25 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   text-align: center;
 }
 
+.stage-levels-row {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-bottom: 5px;
+}
+.stage-level-seg {
+  display: block;
+  width: 22px;
+  height: 3px;
+  border-radius: 2px;
+  background: #2a2a4a;
+  transition: background 0.2s;
+}
+.stage-level-seg-active {
+  background: #0ff;
+  box-shadow: 0 0 5px #0ff;
+}
+
 .stage-groups-row {
   display: flex;
   align-items: center;

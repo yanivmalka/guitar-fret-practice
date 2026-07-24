@@ -13,6 +13,13 @@ interface Props {
 
 const GROUPS = getStageGroups();
 
+// Level = frets 0-12 groups, frets 12-21 groups, all-strings group
+const LEVELS: { label: string; groupIndices: number[] }[] = [
+  { label: 'Frets 0–12',  groupIndices: GROUPS.map((g, i) => ({ g, i })).filter(({ g }) => g.label.includes('0–12')).map(({ i }) => i) },
+  { label: 'Frets 12–21', groupIndices: GROUPS.map((g, i) => ({ g, i })).filter(({ g }) => g.label.includes('12–21')).map(({ i }) => i) },
+  { label: 'Full Neck',   groupIndices: GROUPS.map((g, i) => ({ g, i })).filter(({ g }) => g.label.includes('All Strings')).map(({ i }) => i) },
+];
+
 export default function StageNav({ stage, stageIndex, onPrev, onNext, isPlaying, suggestion }: Props) {
   const onPrevRef = useRef(onPrev);
   const onNextRef = useRef(onNext);
@@ -66,7 +73,17 @@ export default function StageNav({ stage, stageIndex, onPrev, onNext, isPlaying,
         <div className="stage-label">{stage.label}</div>
         <div className="stage-title">{stage.title}</div>
 
-        {/* Group separators + current-group dots */}
+        {/* Level separator row */}
+        <div className="stage-levels-row">
+          {LEVELS.map((lv, li) => {
+            const isCurrent = lv.groupIndices.includes(currentGroupIdx);
+            return (
+              <span key={li} className={`stage-level-seg ${isCurrent ? 'stage-level-seg-active' : ''}`} />
+            );
+          })}
+        </div>
+
+        {/* Current-group dots only */}
         <div className="stage-groups-row">
           {GROUPS.map((g, gi) => {
             const isCurrent = gi === currentGroupIdx;
