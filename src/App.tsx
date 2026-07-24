@@ -72,8 +72,8 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
 
-  const suggestion = useMemo(() => computeSuggestion(allHistory[stage.id] ?? []), [allHistory, stage.id]);
-  const liveSuggestion = (allHistory[stage.id]?.length ?? 0) >= 10 ? suggestion : null;
+  const suggestion = useMemo(() => computeSuggestion(historyOps.history), [historyOps.history]);
+  const liveSuggestion = historyOps.history.length >= 10 ? suggestion : null;
 
   const isPlaying = running && !paused;
   const isStopped = !running && !paused;
@@ -105,6 +105,18 @@ export default function App() {
       <button className="toggle-btn" onClick={() => { if (running || paused) stop(); setShowSettings(!showSettings); }}>
         {showSettings ? '▲ Hide Settings' : '⚙ Settings'}
       </button>
+
+      <div className="stage-description">
+        <span className="stage-desc-filter">
+          {stage.dotsOnly ? '🎯 Dots Only' : stage.wholeToneOnly ? '🎵 Natural Notes' : '🎸 Full Chromatic'}
+        </span>
+        {' · '}
+        {descExpanded ? stage.description : stage.shortDesc}
+        {' '}
+        <button className="desc-toggle-btn" onClick={() => setDescExpanded(v => !v)}>
+          {descExpanded ? 'less ▲' : 'ℹ?'}
+        </button>
+      </div>
 
       {showSettings && (
         <Settings
@@ -163,13 +175,6 @@ export default function App() {
 
           {paused && <div className="paused-text">⏸ Paused</div>}
 
-          {!byNote && (
-            <div className="order-switcher">
-              <button className={`order-chip${byString ? ' order-chip-active' : ''}`} onClick={() => setByString(!byString)}>By String</button>
-              <button className={`order-chip${!byString && order === 'fifths' ? ' order-chip-active' : ''}`} onClick={() => { setByString(false); setOrder('fifths'); }}>Fifths</button>
-              <button className={`order-chip${!byString && order === 'alphabet' ? ' order-chip-active' : ''}`} onClick={() => { setByString(false); setOrder('alphabet'); }}>Alpha</button>
-            </div>
-          )}
           <div className="controls">
             {!running && !paused ? (
               <>
@@ -226,17 +231,13 @@ export default function App() {
         )}
       </div>
 
-      <div className="stage-description">
-        <span className="stage-desc-filter">
-          {stage.dotsOnly ? '🎯 Dots Only' : stage.wholeToneOnly ? '🎵 Natural Notes' : '🎸 Full Chromatic'}
-        </span>
-        {' · '}
-        {descExpanded ? stage.description : stage.shortDesc}
-        {' '}
-        <button className="desc-toggle-btn" onClick={() => setDescExpanded(v => !v)}>
-          {descExpanded ? 'less ▲' : 'more ▼'}
-        </button>
-      </div>
+      {!byNote && (
+        <div className="order-switcher">
+          <button className={`order-chip${byString ? ' order-chip-active' : ''}`} onClick={() => setByString(!byString)}>By String</button>
+          <button className={`order-chip${!byString && order === 'fifths' ? ' order-chip-active' : ''}`} onClick={() => { setByString(false); setOrder('fifths'); }}>Fifths</button>
+          <button className={`order-chip${!byString && order === 'alphabet' ? ' order-chip-active' : ''}`} onClick={() => { setByString(false); setOrder('alphabet'); }}>Alpha</button>
+        </div>
+      )}
 
       <div className="build-info">{__COMMIT_HASH__} · {__COMMIT_DATE__.slice(0, 16)}</div>
     </div>
