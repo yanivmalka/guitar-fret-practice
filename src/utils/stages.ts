@@ -172,32 +172,55 @@ export function getStageGroups(): StageGroup[] {
   return Array.from(map.entries()).map(([label, indices]) => ({ label, indices }));
 }
 
-// 19 levels in order
+// 7 classes × 2 parts = levels. Part = fret range (0-12 or 12-21)
 export interface StageLevel { label: string; stageIndices: number[] }
+export interface StagePart  { label: string; classIndices: number[] }
+
 export function getStageLevels(): StageLevel[] {
-  const seq: { label: string; match: (s: Stage) => boolean }[] = [
-    { label: 'Str 6 · 0–12',   match: s => s.fretFrom===0  && s.fretTo===12 && s.multiStrings.length===0 && s.string===6 },
-    { label: 'Str 5 · 0–12',   match: s => s.fretFrom===0  && s.fretTo===12 && s.multiStrings.length===0 && s.string===5 },
-    { label: '6+5 · 0–12',    match: s => s.fretFrom===0  && s.fretTo===12 && s.multiStrings.length===2 && s.multiStrings.includes(6) },
-    { label: 'Str 4 · 0–12',   match: s => s.fretFrom===0  && s.fretTo===12 && s.multiStrings.length===0 && s.string===4 },
-    { label: 'Str 3 · 0–12',   match: s => s.fretFrom===0  && s.fretTo===12 && s.multiStrings.length===0 && s.string===3 },
-    { label: '4+3 · 0–12',    match: s => s.fretFrom===0  && s.fretTo===12 && s.multiStrings.length===2 && s.multiStrings.includes(4) },
-    { label: 'Str 2 · 0–12',   match: s => s.fretFrom===0  && s.fretTo===12 && s.multiStrings.length===0 && s.string===2 },
-    { label: 'Str 1 · 0–12',   match: s => s.fretFrom===0  && s.fretTo===12 && s.multiStrings.length===0 && s.string===1 },
-    { label: '2+1 · 0–12',    match: s => s.fretFrom===0  && s.fretTo===12 && s.multiStrings.length===2 && s.multiStrings.includes(2) },
-    { label: 'Str 6 · 12–21',  match: s => s.fretFrom===12 && s.fretTo===21 && s.multiStrings.length===0 && s.string===6 },
-    { label: 'Str 5 · 12–21',  match: s => s.fretFrom===12 && s.fretTo===21 && s.multiStrings.length===0 && s.string===5 },
-    { label: '6+5 · 12–21',   match: s => s.fretFrom===12 && s.fretTo===21 && s.multiStrings.length===2 && s.multiStrings.includes(6) },
-    { label: 'Str 4 · 12–21',  match: s => s.fretFrom===12 && s.fretTo===21 && s.multiStrings.length===0 && s.string===4 },
-    { label: 'Str 3 · 12–21',  match: s => s.fretFrom===12 && s.fretTo===21 && s.multiStrings.length===0 && s.string===3 },
-    { label: '4+3 · 12–21',   match: s => s.fretFrom===12 && s.fretTo===21 && s.multiStrings.length===2 && s.multiStrings.includes(4) },
-    { label: 'Str 2 · 12–21',  match: s => s.fretFrom===12 && s.fretTo===21 && s.multiStrings.length===0 && s.string===2 },
-    { label: 'Str 1 · 12–21',  match: s => s.fretFrom===12 && s.fretTo===21 && s.multiStrings.length===0 && s.string===1 },
-    { label: '2+1 · 12–21',   match: s => s.fretFrom===12 && s.fretTo===21 && s.multiStrings.length===2 && s.multiStrings.includes(2) },
-    { label: 'Full Neck',      match: s => s.multiStrings.length===6 },
+  const classes: { label: string; match: (s: Stage) => boolean }[] = [
+    { label: 'Str 6+5',   match: s => s.multiStrings.length===0 && (s.string===6||s.string===5) },
+    { label: '6+5',       match: s => s.multiStrings.length===2 && s.multiStrings.includes(6) },
+    { label: 'Str 4+3',   match: s => s.multiStrings.length===0 && (s.string===4||s.string===3) },
+    { label: '4+3',       match: s => s.multiStrings.length===2 && s.multiStrings.includes(4) },
+    { label: 'Str 2+1',   match: s => s.multiStrings.length===0 && (s.string===2||s.string===1) },
+    { label: '2+1',       match: s => s.multiStrings.length===2 && s.multiStrings.includes(2) },
+    { label: 'Full Neck', match: s => s.multiStrings.length===6 },
   ];
-  return seq.map(({ label, match }) => ({
-    label,
-    stageIndices: STAGES.map((s, i) => match(s) ? i : -1).filter(i => i !== -1),
+  // For each class, split into part1 (0-12) and part2 (12-21), full neck is one level
+  const levels: StageLevel[] = [];
+  classes.forEach(c => {
+    if (c.label === 'Full Neck') {
+      levels.push({ label: 'Full Neck', stageIndices: STAGES.map((s,i) => c.match(s) ? i : -1).filter(i=>i!==-1) });
+    } else {
+      ['0–12','12–21'].forEach(part => {
+        const from = part === '0–12' ? 0 : 12;
+        const to   = part === '0–12' ? 12 : 21;
+        levels.push({
+          label: `${c.label} · ${part}`,
+          stageIndices: STAGES.map((s,i) => c.match(s) && s.fretFrom===from && s.fretTo===to ? i : -1).filter(i=>i!==-1),
+        });
+      });
+    }
+  });
+  return levels;
+}
+
+// 7 classes (dashes) — each contains its part1 + part2 level indices
+export function getStageClasses(): { label: string; levelIndices: number[] }[] {
+  const levels = getStageLevels();
+  const classLabels = ['Str 6+5','6+5','Str 4+3','4+3','Str 2+1','2+1','Full Neck'];
+  return classLabels.map(cl => ({
+    label: cl,
+    levelIndices: levels.map((lv,i) => lv.label.startsWith(cl) ? i : -1).filter(i=>i!==-1),
   }));
+}
+
+// 2 parts
+export function getStageParts(): StagePart[] {
+  const levels = getStageLevels();
+  return [
+    { label: 'Part 1 · 0–12',  classIndices: levels.map((lv,i) => lv.label.includes('0–12')  ? i : -1).filter(i=>i!==-1) },
+    { label: 'Part 2 · 12–21', classIndices: levels.map((lv,i) => lv.label.includes('12–21') ? i : -1).filter(i=>i!==-1) },
+    { label: 'Full Neck',       classIndices: levels.map((lv,i) => lv.label === 'Full Neck'  ? i : -1).filter(i=>i!==-1) },
+  ];
 }

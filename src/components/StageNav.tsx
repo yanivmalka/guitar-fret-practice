@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { Stage } from '../utils/stages';
-import { STAGES, TOTAL_STAGES, getStageLevels } from '../utils/stages';
+import { STAGES, TOTAL_STAGES, getStageLevels, getStageClasses, getStageParts } from '../utils/stages';
 import type { HistoryEntry } from '../utils/music';
 
 interface Props {
@@ -13,18 +13,19 @@ interface Props {
   allHistory: Record<number, HistoryEntry[]>;
 }
 
-const LEVELS = getStageLevels();
+const LEVELS  = getStageLevels();   // 13 levels (6 classes × 2 parts + Full Neck)
+const CLASSES = getStageClasses();  // 7 class dashes
+const PARTS   = getStageParts();    // 3 part segments (Part1, Part2, Full Neck)
 
-function levelColor(stageIndices: number[], allHistory: Record<number, HistoryEntry[]>): string {
+function successColor(stageIndices: number[], allHistory: Record<number, HistoryEntry[]>): string {
   let correct = 0, total = 0;
   stageIndices.forEach(idx => {
-    const h = allHistory[STAGES[idx].id] ?? [];
-    h.forEach(e => { total++; if (e.correct === true) correct++; });
+    (allHistory[STAGES[idx].id] ?? []).forEach(e => { total++; if (e.correct === true) correct++; });
   });
   if (total === 0) return '#333';
-  const rate = correct / total;
-  if (rate >= 0.75) return '#0f0';
-  if (rate >= 0.45) return '#7bf';
+  const r = correct / total;
+  if (r >= 0.75) return '#0f0';
+  if (r >= 0.45) return '#7bf';
   return '#f90';
 }
 
@@ -54,12 +55,15 @@ export default function StageNav({ stage, stageIndex, onPrev, onNext, isPlaying,
   }, []);
 
   const isFirst = stageIndex === 0;
-  const isLast = stageIndex === TOTAL_STAGES - 1;
+  const isLast  = stageIndex === TOTAL_STAGES - 1;
   const prevSuggested = suggestion === 'prev' && !isFirst;
   const nextSuggested = suggestion === 'next' && !isLast;
 
+  // Find current level, class, part
   const currentLevelIdx = LEVELS.findIndex(lv => lv.stageIndices.includes(stageIndex));
-  const currentLevel = LEVELS[currentLevelIdx];
+  const currentLevel    = LEVELS[currentLevelIdx];
+  const currentClassIdx = CLASSES.findIndex(cl => cl.levelIndices.includes(currentLevelIdx));
+  const currentPartIdx  = PARTS.findIndex(pt => pt.classIndices.includes(currentLevelIdx));
 
   return (
     <div className="stage-nav">
@@ -78,23 +82,34 @@ export default function StageNav({ stage, stageIndex, onPrev, onNext, isPlaying,
         <div className="stage-label">{stage.label}</div>
         <div className="stage-title">{stage.title}</div>
 
-        {/* 19 level dashes — all visible, current glows */}
+        {/* Row 1: Part bar — 3 segments */}
+        <div className="stage-parts-row">
+          {PARTS.map((pt, pi) => (
+            <span
+              key={pi}
+              className={`stage-part-seg ${pi === currentPartIdx ? 'stage-part-seg-active' : ''}`}
+              title={pt.label}
+            />
+          ))}
+        </div>
+
+        {/* Row 2: 7 class dashes — all visible, colored by success */}
         <div className="stage-levels-row">
-          {LEVELS.map((lv, li) => {
-            const isCurrent = li === currentLevelIdx;
-            const color = levelColor(lv.stageIndices, allHistory);
+          {CLASSES.map((cl, ci) => {
+            const allIndices = cl.levelIndices.flatMap(li => LEVELS[li].stageIndices);
+            const color = successColor(allIndices, allHistory);
             return (
               <span
-                key={li}
-                className={`stage-level-dash ${isCurrent ? 'stage-level-dash-active' : ''}`}
+                key={ci}
+                className={`stage-level-dash ${ci === currentClassIdx ? 'stage-level-dash-active' : ''}`}
                 style={{ background: color }}
-                title={lv.label}
+                title={cl.label}
               />
             );
           })}
         </div>
 
-        {/* Dots for current level's stages only */}
+        {/* Row 3: dots for current level's stages only */}
         <div className="stage-dots-row">
           {currentLevel?.stageIndices.map(idx => (
             <span

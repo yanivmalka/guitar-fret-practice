@@ -280,22 +280,41 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   text-align: center;
 }
 
+.stage-parts-row {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  margin-top: 6px;
+  margin-bottom: 3px;
+}
+.stage-part-seg {
+  display: block;
+  width: 28px;
+  height: 3px;
+  border-radius: 2px;
+  background: #333;
+  opacity: 0.4;
+  transition: opacity 0.2s;
+}
+.stage-part-seg-active {
+  background: #0ff;
+  opacity: 1;
+  box-shadow: 0 0 5px #0ff;
+}
+
 .stage-levels-row {
   display: flex;
-  gap: 3px;
+  gap: 4px;
   justify-content: center;
   align-items: center;
-  flex-wrap: wrap;
-  max-width: 220px;
-  margin-top: 6px;
   margin-bottom: 4px;
 }
 .stage-level-dash {
   display: block;
-  width: 9px;
+  width: 16px;
   height: 4px;
   border-radius: 2px;
-  opacity: 0.35;
+  opacity: 0.4;
   transition: opacity 0.2s, box-shadow 0.2s;
 }
 .stage-level-dash-active {
@@ -304,7 +323,6 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   outline: 1px solid #0ff;
 }
 
-/* Dots row — only current level */
 .stage-dots-row {
   display: flex;
   gap: 4px;
