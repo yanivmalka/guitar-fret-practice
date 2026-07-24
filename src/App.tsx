@@ -141,7 +141,7 @@ export default function App() {
 
           {isStopped && (
             <>
-              <StatsPanel history={allHistory[stage.id] ?? []} maxTime={time} accidental={accidental} />
+              <StatsPanel history={allHistory[stage.id] ?? []} maxTime={time} accidental={accidental} everPlayed={everPlayed.has(stage.id)} />
               {liveSuggestion === 'next' && stageIndex < STAGES.length - 1 && (
                 <div className="stage-suggestion stage-suggestion-next">
                   🔥 Great job! Ready for the next stage?

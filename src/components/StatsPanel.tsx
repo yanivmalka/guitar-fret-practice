@@ -6,6 +6,7 @@ interface Props {
   history: HistoryEntry[];
   maxTime: number;
   accidental: AccidentalMode;
+  everPlayed: boolean;
 }
 
 type MainTab = 'notes' | 'strings';
@@ -63,11 +64,12 @@ function GroupSection({ title, cls, items, filter, accidental }: {
   );
 }
 
-export default function StatsPanel({ history, accidental }: Props) {
+export default function StatsPanel({ history, accidental, everPlayed }: Props) {
   const [tab, setTab] = useState<MainTab>('notes');
   const [filter, setFilter] = useState<Filter>('all');
 
   if (history.length === 0) {
+    if (!everPlayed) return null;
     return (
       <div className="stats-empty">
         <span>No stats yet for this stage.</span>
