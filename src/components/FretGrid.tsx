@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { playNoteSingle } from '../utils/audio';
 import { notes } from '../utils/music';
 
@@ -19,6 +19,9 @@ const DOT_FRETS = new Set([3, 5, 7, 9, 12, 15, 17, 19, 21]);
 export default function FretGrid({ fretFrom, fretTo, guitarString, validFrets, active, correctFrets, wrongFret, foundFrets, onSelect }: Props) {
   const frets = Array.from({ length: fretTo - fretFrom + 1 }, (_, i) => fretFrom + i);
   const [glowFret, setGlowFret] = useState<number | null>(null);
+
+  // Clear glow when a new question starts (active flips back to true)
+  useEffect(() => { if (active) setGlowFret(null); }, [active]);
 
   const isDisabledFilter = (f: number) => !validFrets.has(f);
 

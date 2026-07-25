@@ -177,6 +177,7 @@ export function useGameEngine(
   // ── SELECT FRET (by note mode) ────────────────────────────────
   const selectFret = useCallback((selectedFret: number) => {
     if (!runningRef.current || paused || answeredRef.current) return;
+    stopPlayback(); // stop question sound immediately on user input
     const mySession = sessionRef.current;
     const qString = currentQuestionStringRef.current;
     const rem = remainingFretsRef.current;
