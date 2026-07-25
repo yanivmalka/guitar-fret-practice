@@ -46,6 +46,8 @@ export default function FretGrid({
   const handleClick = (f: number) => {
     playNoteSingle(guitarString, f);
     flashGlow(f);
+    // Blur immediately so browser focus ring doesn't linger
+    btnRefs.current.get(f)?.blur();
     if (active && !isDisabledFilter(f)) onSelect(f);
   };
 

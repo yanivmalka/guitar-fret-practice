@@ -178,7 +178,10 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   height: 56px; border-radius: 10px;
   background: #2a2a4a; border: 2px solid #555;
   color: #eee; cursor: pointer; transition: all 0.15s;
+  outline: none;
 }
+.fret-btn:focus { outline: none; }
+.fret-btn:focus-visible { outline: none; }
 .fret-btn:disabled { opacity: 0.4; cursor: default; }
 .fret-btn.fret-disabled { opacity: 0.2; cursor: not-allowed; }
 .fret-btn:not(:disabled):not(.fret-disabled):hover { border-color: #0ff; background: #3a3a6a; }
