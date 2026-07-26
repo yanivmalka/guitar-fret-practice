@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { notesMatch, notes as allNotes } from '../utils/music';
+import { notesMatch, notes as allNotes, displayNote } from '../utils/music';
+import type { AccidentalMode, NotationMode } from '../utils/music';
 import { playNoteSequence, stopPlayback } from '../utils/audio';
 
 interface Props {
@@ -15,13 +16,15 @@ interface Props {
   byString: boolean;
   startIndex: number;
   showDots: boolean;
+  accidental: AccidentalMode;
+  notation: NotationMode;
 }
 
 function easeOut(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
-export default function NoteCircle({ notes, activeNotes, active, correctNote, wrongNote, onSelect, guitarString, fretDots, noteFrets, byString, startIndex, showDots }: Props) {
+export default function NoteCircle({ notes, activeNotes, active, correctNote, wrongNote, onSelect, guitarString, fretDots, noteFrets, byString, startIndex, showDots, accidental, notation }: Props) {
   const size = 340;
   const cx = size / 2;
   const cy = size / 2;
@@ -179,7 +182,7 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0,
                 transform: `rotate(${-wheelAngle}deg)`,
               }}>
-                <span style={{ lineHeight: 1.1 }}>{note}</span>
+                <span style={{ lineHeight: 1.1 }}>{displayNote(note, accidental, notation)}</span>
                 {showDots && dotInfo && <span className="fret-dot" style={{ color: dotInfo.color }}>{dotInfo.dots}</span>}
               </span>            </button>
           );

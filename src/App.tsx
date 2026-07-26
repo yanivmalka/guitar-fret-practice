@@ -248,6 +248,8 @@ export default function App() {
             byString={byString}
             startIndex={startIndex}
             showDots={!(isMulti && multiStrings.length > 1) || isPlaying}
+            accidental={accidental}
+            notation={notation}
           />
         )}
       </div>
