@@ -177,15 +177,20 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   height: 56px; border-radius: 10px;
   background: #2a2a4a; border: 2px solid #555;
-  color: #eee; cursor: pointer; transition: all 0.15s;
+  color: #eee; cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.15s;
   outline: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: none;
+  user-select: none;
+  touch-action: manipulation;
 }
-.fret-btn:focus { outline: none; }
+.fret-btn:focus { outline: none; box-shadow: none; border-color: #555; background: #2a2a4a; }
 .fret-btn:focus-visible { outline: none; }
+.fret-btn:active:not(:disabled) { transform: scale(0.93); background: #2a2a4a; border-color: #555; }
 .fret-btn:disabled { opacity: 0.4; cursor: default; }
 .fret-btn.fret-disabled { opacity: 0.2; cursor: not-allowed; }
 .fret-btn:not(:disabled):not(.fret-disabled):hover { border-color: #0ff; background: #3a3a6a; }
-.fret-btn:active:not(:disabled) { transform: scale(0.93); }
 
 .fret-btn-num { font-size: 18px; font-weight: bold; line-height: 1; }
 .fret-btn-dot { font-size: 8px; color: #ff0; line-height: 1; }
@@ -195,8 +200,7 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 .fret-reveal { background: #555 !important; border-color: #0ff !important; color: #0ff !important; }
 .fret-glow {
   box-shadow: 0 0 14px 5px rgba(0, 255, 255, 0.7) !important;
-  border-color: #0ff !important;
-  animation: fret-glow-fade 0.5s ease-out forwards;
+  animation: fret-glow-fade 0.4s ease-out forwards;
 }
 @keyframes fret-glow-fade {
   0%   { box-shadow: 0 0 14px 5px rgba(0, 255, 255, 0.7); }
