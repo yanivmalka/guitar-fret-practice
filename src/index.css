@@ -190,7 +190,10 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 .fret-btn:active:not(:disabled) { transform: scale(0.93); background: #2a2a4a; border-color: #555; }
 .fret-btn:disabled { opacity: 0.4; cursor: default; }
 .fret-btn.fret-disabled { opacity: 0.2; cursor: not-allowed; }
-.fret-btn:not(:disabled):not(.fret-disabled):hover { border-color: #0ff; background: #3a3a6a; }
+.fret-btn:not(:disabled):not(.fret-disabled):hover { background: #3a3a6a; }
+@media (hover: hover) {
+  .fret-btn:not(:disabled):not(.fret-disabled):hover { border-color: #0ff; }
+}
 
 .fret-btn-num { font-size: 18px; font-weight: bold; line-height: 1; }
 .fret-btn-dot { font-size: 8px; color: #ff0; line-height: 1; }
