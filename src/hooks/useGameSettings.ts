@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { loadSetting, saveSetting } from '../utils/settings';
 import { STAGES } from '../utils/stages';
-import type { AccidentalMode, OrderMode } from '../utils/music';
+import type { AccidentalMode, OrderMode, NotationMode } from '../utils/music';
 
 export function useGameSettings() {
   const [stageIndex, setStageIndex] = useState(() => loadSetting('stageIndex', 0));
@@ -18,6 +18,8 @@ export function useGameSettings() {
   const [byString, setByString] = useState(true);
   const [byNote, setByNote] = useState(stage.byNote);
   const [multiStrings, setMultiStrings] = useState<number[]>(stage.multiStrings);
+  const [notation, setNotation] = useState<NotationMode>(() => loadSetting<NotationMode>('notation', 'alpha'));
+  useEffect(() => { saveSetting('notation', notation); }, [notation]);
 
   useEffect(() => { saveSetting('stageIndex', stageIndex); }, [stageIndex]);
 
@@ -56,6 +58,7 @@ export function useGameSettings() {
     byString, setByString,
     byNote, setByNote,
     multiStrings, setMultiStrings,
+    notation, setNotation,
     applyStage,
     goToStage,
   };

@@ -18,8 +18,20 @@ export const wholeTones = ['C','D','E','F','G','A','B'];
 export const sharpToFlat: Record<string, string> = {'C#':'Db','D#':'Eb','F#':'Gb','G#':'Ab','A#':'Bb'};
 export const flatToSharp: Record<string, string> = {'Db':'C#','Eb':'D#','Gb':'F#','Ab':'G#','Bb':'A#'};
 
+// Solfege mapping (using Italian/Spanish standard: Do Re Mi Fa Sol La Si)
+const alphaToSolfege: Record<string, string> = {
+  'C':'Do', 'C#':'Do#', 'Db':'Dob',
+  'D':'Re', 'D#':'Re#', 'Eb':'Reb',
+  'E':'Mi',
+  'F':'Fa', 'F#':'Fa#', 'Gb':'Fab',
+  'G':'Sol', 'G#':'Sol#', 'Ab':'Solb',
+  'A':'La', 'A#':'La#', 'Bb':'Lab',
+  'B':'Si',
+};
+
 export type AccidentalMode = 'sharps' | 'flats';
 export type OrderMode = 'fifths' | 'alphabet';
+export type NotationMode = 'alpha' | 'solfege';
 
 export interface HistoryEntry {
   note: string;
@@ -47,10 +59,14 @@ export function getStringStartIndex(accidental: AccidentalMode, order: OrderMode
   return idx >= 0 ? idx : 0;
 }
 
-export function displayNote(note: string, mode: AccidentalMode): string {
-  if (mode === 'flats') return sharpToFlat[note] || note;
-  if (mode === 'sharps') return flatToSharp[note] || note;
-  return note;
+export function displayNote(note: string, mode: AccidentalMode, notation: NotationMode = 'alpha'): string {
+  // First resolve accidental
+  let resolved = note;
+  if (mode === 'flats') resolved = sharpToFlat[note] || note;
+  if (mode === 'sharps') resolved = flatToSharp[note] || note;
+  // Then apply notation
+  if (notation === 'solfege') return alphaToSolfege[resolved] || resolved;
+  return resolved;
 }
 
 export function notesMatch(a: string, b: string): boolean {

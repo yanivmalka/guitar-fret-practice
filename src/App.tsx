@@ -43,6 +43,7 @@ export default function App() {
     byString, setByString,
     byNote, setByNote,
     multiStrings, setMultiStrings,
+    notation, setNotation,
     setStageIndex,
     goToStage,
   } = settings;
@@ -151,6 +152,7 @@ export default function App() {
           multiStrings={multiStrings} setMultiStrings={setMultiStrings}
           activeNotes={activeNotes}
           showOrderSwitcher={!byNote}
+          notation={notation} setNotation={setNotation}
         />
       )}
 
@@ -160,7 +162,7 @@ export default function App() {
             <>
               <div className="string-label">{STRING_DISPLAY[guitarString]}</div>
               {byNote
-                ? <div className="note-display">{currentNote ? displayNote(currentNote, accidental) : '—'}</div>
+                ? <div className="note-display">{currentNote ? displayNote(currentNote, accidental, notation) : '—'}</div>
                 : <div className="fret-display">{currentFret !== null ? currentFret : '—'}</div>
               }
               <div className="countdown">{remaining > 0 ? remaining : ''}</div>
@@ -172,7 +174,7 @@ export default function App() {
 
           {isStopped && (
             <>
-              <StatsPanel history={allHistory[stage.id] ?? []} maxTime={time} accidental={accidental} everPlayed={everPlayed.has(stage.id)} />
+              <StatsPanel history={allHistory[stage.id] ?? []} maxTime={time} accidental={accidental} notation={notation} everPlayed={everPlayed.has(stage.id)} />
               {liveSuggestion === 'next' && stageIndex < STAGES.length - 1 && (
                 <div className="stage-suggestion stage-suggestion-next">
                   🔥 Great job! Ready for the next stage?

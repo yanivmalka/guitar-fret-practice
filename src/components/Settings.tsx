@@ -1,4 +1,4 @@
-import type { AccidentalMode, OrderMode } from '../utils/music';
+import type { AccidentalMode, OrderMode, NotationMode } from '../utils/music';
 import { displayNote } from '../utils/music';
 
 interface Props {
@@ -26,6 +26,8 @@ interface Props {
   setMultiStrings: (v: number[]) => void;
   activeNotes: Set<string>;
   showOrderSwitcher: boolean;
+  notation: NotationMode;
+  setNotation: (v: NotationMode) => void;
 }
 
 function Chip({ label, selected, onClick, disabled, toggle }: { label: string; selected: boolean; onClick: () => void; disabled?: boolean; toggle?: boolean }) {
@@ -118,10 +120,17 @@ export default function Settings(p: Props) {
         {p.byNote && p.activeNotes.size > 0 && (
           <div className="setting-row" style={{ marginTop: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
             {[...p.activeNotes].map(n => (
-              <span key={n} className="note-preview-chip">{displayNote(n, p.accidental)}</span>
+              <span key={n} className="note-preview-chip">{displayNote(n, p.accidental, p.notation)}</span>
             ))}
           </div>
         )}
+      </div>
+      <div className="setting-group">
+        <span className="group-title">Note Names</span>
+        <div className="setting-row">
+          <Chip label="A B C" selected={p.notation === 'alpha'} onClick={() => p.setNotation('alpha')} />
+          <Chip label="Do Re Mi" selected={p.notation === 'solfege'} onClick={() => p.setNotation('solfege')} />
+        </div>
       </div>
     </div>
   );

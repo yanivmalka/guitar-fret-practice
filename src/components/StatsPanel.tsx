@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import type { HistoryEntry, AccidentalMode } from '../utils/music';
+import type { HistoryEntry, AccidentalMode, NotationMode } from '../utils/music';
 import { displayNote } from '../utils/music';
 
 interface Props {
   history: HistoryEntry[];
   maxTime: number;
   accidental: AccidentalMode;
+  notation?: NotationMode;
   everPlayed: boolean;
 }
 
@@ -30,8 +31,8 @@ function category(b: StatBucket): 'mastered' | 'solid' | 'growing' {
   return 'growing';
 }
 
-function Pill({ label, v, filter, accidental }: { label: string; v: StatBucket; filter: Filter; accidental?: AccidentalMode }) {
-  const display = accidental ? displayNote(label, accidental) : label;
+function Pill({ label, v, filter, accidental, notation }: { label: string; v: StatBucket; filter: Filter; accidental?: AccidentalMode; notation?: NotationMode }) {
+  const display = accidental ? displayNote(label, accidental, notation) : label;
   const fails = v.wrong + v.timeout;
   if (filter === 'all') {
     return (
@@ -47,24 +48,25 @@ function Pill({ label, v, filter, accidental }: { label: string; v: StatBucket; 
   return <span className="note-stat">{display}: {count}/{total}</span>;
 }
 
-function GroupSection({ title, cls, items, filter, accidental }: {
+function GroupSection({ title, cls, items, filter, accidental, notation }: {
   title: string; cls: string;
   items: [string, StatBucket][];
   filter: Filter;
   accidental?: AccidentalMode;
+  notation?: NotationMode;
 }) {
   if (items.length === 0) return null;
   return (
     <div className="stat-group">
       <p className={`stat-group-title ${cls}`}>{title}</p>
       <div className="note-stats">
-        {items.map(([key, v]) => <Pill key={key} label={key} v={v} filter={filter} accidental={accidental} />)}
+        {items.map(([key, v]) => <Pill key={key} label={key} v={v} filter={filter} accidental={accidental} notation={notation} />)}
       </div>
     </div>
   );
 }
 
-export default function StatsPanel({ history, accidental, everPlayed }: Props) {
+export default function StatsPanel({ history, accidental, notation, everPlayed }: Props) {
   const [tab, setTab] = useState<MainTab>('notes');
   const [filter, setFilter] = useState<Filter>('all');
 
@@ -93,7 +95,7 @@ export default function StatsPanel({ history, accidental, everPlayed }: Props) {
   // --- BY NOTE buckets ---
   const byNoteBuckets: Record<string, StatBucket> = {};
   history.forEach(h => {
-    const key = displayNote(h.note, accidental);
+    const key = displayNote(h.note, accidental, notation);
     if (!byNoteBuckets[key]) byNoteBuckets[key] = { correct: 0, wrong: 0, timeout: 0 };
     if (h.correct === true) byNoteBuckets[key].correct++;
     else if (h.correct === false) byNoteBuckets[key].wrong++;
@@ -169,9 +171,9 @@ export default function StatsPanel({ history, accidental, everPlayed }: Props) {
 
       {tab === 'notes' && (
         <>
-          <GroupSection title="🏆 Mastered" cls="good"     items={noteGroups.mastered} filter={filter} />
-          <GroupSection title="📈 Solid"    cls="solid"    items={noteGroups.solid}    filter={filter} />
-          <GroupSection title="🌱 Growing"  cls="improving" items={noteGroups.growing}  filter={filter} />
+          <GroupSection title="🏆 Mastered" cls="good"     items={noteGroups.mastered} filter={filter} accidental={accidental} notation={notation} />
+          <GroupSection title="📈 Solid"    cls="solid"    items={noteGroups.solid}    filter={filter} accidental={accidental} notation={notation} />
+          <GroupSection title="🌱 Growing"  cls="improving" items={noteGroups.growing}  filter={filter} accidental={accidental} notation={notation} />
         </>
       )}
 
