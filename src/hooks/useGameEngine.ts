@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { notes, getCofNotes, getCorrectCofNote, getValidFrets, notesMatch, displayNote } from '../utils/music';
 import type { AccidentalMode, OrderMode, HistoryEntry } from '../utils/music';
 import { playNote, playNoteSingle, stopPlayback, beep, isSoundPlaying } from '../utils/audio';
+import { haptic } from '../utils/feedback';
 import { STAGES } from '../utils/stages';
 
 interface GameSettings {
@@ -48,7 +49,7 @@ export function useGameEngine(
 ) {
   const { guitarString, fretFrom, fretTo, wholeToneOnly, dotsOnly,
           isMulti, activeStrings, time, accidental, order } = settings;
-  const { addEntry, markPlayed, resetSession, history } = historyOps;
+  const { addEntry, markPlayed, resetSession } = historyOps;
 
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -79,6 +80,9 @@ export function useGameEngine(
   // Live refs for values used inside timer callbacks
   const maxQuestionsRef = useRef(STAGES[0].maxQuestions);
   const sessionRef = useRef(0); // incremented on start/switchStage to cancel stale callbacks
+  // Coverage pool: ensures every valid fret is asked before repeats
+  const coveragePoolRef = useRef<number[]>([]);
+  const failedFretsRef = useRef<Set<number>>(new Set());
 
   // Keep timeRef in sync
   const timeRefUpdater = useRef(time);
@@ -100,30 +104,34 @@ export function useGameEngine(
     timerRef.current = window.setTimeout(onTimeout, seconds * 1000);
   };
 
-  const pickSmartFret = useCallback((validFrets: number[], strIdx: number) => {
-    if (history.length < 5 || validFrets.length <= 1) {
-      const filtered = validFrets.filter(f => notes[strIdx][f] !== lastNoteRef.current);
-      return filtered.length > 0 ? filtered[Math.floor(Math.random() * filtered.length)] : validFrets[0];
+  const pickSmartFret = useCallback((validFrets: number[], _strIdx: number): number => {
+    if (validFrets.length === 0) return 0;
+
+    // Always re-ask recently failed frets first (within same session)
+    const failed = validFrets.filter(f => failedFretsRef.current.has(f) && notes[_strIdx]?.[f] !== lastNoteRef.current);
+    if (failed.length > 0) {
+      // Pick the failed fret randomly so it doesn't feel repetitive
+      return failed[Math.floor(Math.random() * failed.length)];
     }
-    const byNoteStats: Record<string, { correct: number; total: number }> = {};
-    history.forEach(h => {
-      if (!byNoteStats[h.note]) byNoteStats[h.note] = { correct: 0, total: 0 };
-      byNoteStats[h.note].total++;
-      if (h.correct === true) byNoteStats[h.note].correct++;
-    });
-    const weights = validFrets
-      .filter(f => notes[strIdx][f] !== lastNoteRef.current)
-      .map(f => {
-        const note = notes[strIdx][f];
-        const stat = byNoteStats[note];
-        if (!stat || stat.total === 0) return { fret: f, weight: 3 };
-        return { fret: f, weight: 1 + (1 - stat.correct / stat.total) * 3 };
-      });
-    const totalWeight = weights.reduce((s, w) => s + w.weight, 0);
-    let rand = Math.random() * totalWeight;
-    for (const w of weights) { rand -= w.weight; if (rand <= 0) return w.fret; }
-    return weights[weights.length - 1].fret;
-  }, [history]);
+
+    // Coverage pool: refill when empty (guarantees all notes seen before repeats)
+    const available = validFrets.filter(f => coveragePoolRef.current.includes(f));
+    if (available.length === 0) {
+      // Refill pool with all valid frets except the last asked
+      coveragePoolRef.current = validFrets.filter(f => notes[_strIdx] ? f !== undefined : true);
+    }
+
+    // Pick from pool excluding last note (avoid immediate repeat)
+    const pool = coveragePoolRef.current.filter(f => f !== (lastNoteRef.current !== null
+      ? validFrets.find(vf => notes[_strIdx]?.[vf] === lastNoteRef.current)
+      : -1));
+    const candidates = pool.length > 0 ? pool : coveragePoolRef.current;
+    const pick = candidates[Math.floor(Math.random() * candidates.length)];
+
+    // Remove picked fret from pool
+    coveragePoolRef.current = coveragePoolRef.current.filter(f => f !== pick);
+    return pick ?? validFrets[0];
+  }, []);
 
   // ── BY NOTE MODE ──────────────────────────────────────────────
   const nextByNote = useCallback(() => {
@@ -189,6 +197,7 @@ export function useGameEngine(
       remainingFretsRef.current = newRem;
       setRemainingFrets(newRem);
       setFoundFrets(prev => [...prev, selectedFret]);
+      haptic.correct();
       const elapsed = (Date.now() - questionStartRef.current) / 1000;
       addEntry({ note, fret: selectedFret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: false, correct: true });
 
@@ -220,6 +229,8 @@ export function useGameEngine(
       answeredRef.current = true;
       setAnswered(true);
       setWrongFret(selectedFret);
+      haptic.wrong();
+      failedFretsRef.current.add(selectedFret); // re-queue for coverage
       const elapsed = (Date.now() - questionStartRef.current) / 1000;
       addEntry({ note, fret: selectedFret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: false, correct: false });
       setFeedback(`✗ Correct: ${rem.join(', ')}`);
@@ -281,6 +292,7 @@ export function useGameEngine(
     const correctNote = notes[qString - 1][currentFret];
     const cof = getCofNotes(accidental, order, false);
     const isCorrect = notesMatch(selectedNote, correctNote);
+    if (isCorrect) haptic.correct(); else haptic.wrong();
     setCorrectCofNote(getCorrectCofNote(correctNote, cof));
     if (!isCorrect) setWrongCofNote(selectedNote);
     const elapsed = (Date.now() - questionStartRef.current) / 1000;
@@ -298,6 +310,7 @@ export function useGameEngine(
     if (idx < 0 || idx >= STAGES.length) return;
     clearTimers();
     stopPlayback();
+    haptic.stageChange();
     sessionRef.current++;                    // BUG FIX 1+3: cancel all stale callbacks
     const s = STAGES[idx];
     maxQuestionsRef.current = s.maxQuestions;
@@ -305,6 +318,8 @@ export function useGameEngine(
     countRef.current = 0;
     lastNoteRef.current = null;
     answeredRef.current = false;
+    coveragePoolRef.current = [];
+    failedFretsRef.current = new Set();
     resetSession();
     setFeedback('');
     setCorrectCofNote(null);
@@ -339,6 +354,8 @@ export function useGameEngine(
     setPaused(false);
     runningRef.current = true;
     countRef.current = 0;
+    coveragePoolRef.current = [];
+    failedFretsRef.current = new Set();
     resetSession();
     setFeedback('');
     setCurrentFret(null);

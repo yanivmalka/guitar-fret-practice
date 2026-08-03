@@ -20,12 +20,12 @@ export const flatToSharp: Record<string, string> = {'Db':'C#','Eb':'D#','Gb':'F#
 
 // Solfege mapping (using Italian/Spanish standard: Do Re Mi Fa Sol La Si)
 const alphaToSolfege: Record<string, string> = {
-  'C':'Do', 'C#':'Do#', 'Db':'Dob',
-  'D':'Re', 'D#':'Re#', 'Eb':'Reb',
+  'C':'Do', 'C#':'Do#', 'Db':'Do♭',
+  'D':'Re', 'D#':'Re#', 'Eb':'Re♭',
   'E':'Mi',
-  'F':'Fa', 'F#':'Fa#', 'Gb':'Fab',
-  'G':'Sol', 'G#':'Sol#', 'Ab':'Solb',
-  'A':'La', 'A#':'La#', 'Bb':'Lab',
+  'F':'Fa', 'F#':'Fa#', 'Gb':'Fa♭',
+  'G':'Sol', 'G#':'Sol#', 'Ab':'Sol♭',
+  'A':'La', 'A#':'La#', 'Bb':'La♭',
   'B':'Si',
 };
 

@@ -4,11 +4,13 @@ import FretGrid from './components/FretGrid';
 import Settings from './components/Settings';
 import StatsPanel from './components/StatsPanel';
 import StageNav from './components/StageNav';
+import Onboarding from './components/Onboarding';
 import { displayNote } from './utils/music';
 import type { HistoryEntry } from './utils/music';
 import { preloadAllSamples } from './utils/audio';
+import { playClickSound, haptic } from './utils/feedback';
 import { STAGES } from './utils/stages';
-import { saveSetting } from './utils/settings';
+import { loadSetting, saveSetting } from './utils/settings';
 import { useGameSettings } from './hooks/useGameSettings';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useGameEngine } from './hooks/useGameEngine';
@@ -46,6 +48,8 @@ export default function App() {
     notation, setNotation,
     setStageIndex,
     goToStage,
+    isCustomized,
+    resetToStage,
   } = settings;
 
   const derived = useDerivedNotes(
@@ -72,7 +76,11 @@ export default function App() {
   const [preloaded, setPreloaded] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
+  const [onboardingDone, setOnboardingDone] = useState(() => loadSetting<boolean>('onboardingDone', false));
   const descTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // US-09: wrap any button handler with a click sound
+  const click = <T,>(fn: () => T) => () => { playClickSound(); haptic.tap(); return fn(); };
 
   const showDesc = () => {
     setDescExpanded(true);
@@ -102,6 +110,12 @@ export default function App() {
 
   return (
     <div className="app">
+      {!onboardingDone && (
+        <Onboarding onDone={({ stageIndex: si }) => {
+          goToStage(si);
+          setOnboardingDone(true);
+        }} />
+      )}
       <h1>🎸 Guitar Fret Practice</h1>
 
       <StageNav
@@ -114,9 +128,15 @@ export default function App() {
         allHistory={allHistory}
       />
 
-      <button className="toggle-btn" onClick={() => { if (running || paused) stop(); setShowSettings(!showSettings); }}>
+      <button className="toggle-btn" onClick={click(() => { if (running || paused) stop(); setShowSettings(!showSettings); })}>
         {showSettings ? '▲ Hide Settings' : '⚙ Settings'}
       </button>
+      {isCustomized && !running && (
+        <span className="custom-stage-badge">
+          ✎ custom
+          <button className="custom-reset-btn" onClick={click(resetToStage)} title="Reset to stage defaults">↺ reset</button>
+        </span>
+      )}
 
       {!descExpanded
         ? <button className="desc-question-btn" onClick={showDesc}>?</button>
@@ -199,7 +219,7 @@ export default function App() {
           <div className="controls">
             {!running && !paused ? (
               <>
-                <button className="icon-btn play-btn" onClick={start} title="Start">
+                <button className="icon-btn play-btn" onClick={click(start)} title="Start">
                   <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
                 </button>
                 {(allHistory[stage.id]?.length ?? 0) > 0 && <button className="clear-btn" onClick={clearStats}>Clear</button>}
@@ -207,14 +227,14 @@ export default function App() {
             ) : (
               <>
                 {!paused
-                  ? <button className="icon-btn pause-btn" onClick={pause} title="Pause">
+                  ? <button className="icon-btn pause-btn" onClick={click(pause)} title="Pause">
                       <svg viewBox="0 0 24 24" width="24" height="24"><rect x="5" y="4" width="4" height="16" fill="currentColor"/><rect x="15" y="4" width="4" height="16" fill="currentColor"/></svg>
                     </button>
-                  : <button className="icon-btn play-btn" onClick={() => resume(byNote, currentFret, guitarString)} title="Continue">
+                  : <button className="icon-btn play-btn" onClick={click(() => resume(byNote, currentFret, guitarString))} title="Continue">
                       <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
                     </button>
                 }
-                <button className="icon-btn stop-btn-icon" onClick={stop} title="Stop">
+                <button className="icon-btn stop-btn-icon" onClick={click(stop)} title="Stop">
                   <svg viewBox="0 0 24 24" width="24" height="24"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/></svg>
                 </button>
               </>

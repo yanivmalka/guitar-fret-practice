@@ -44,6 +44,19 @@ export function useGameSettings() {
     applyStage(idx);
   }, [applyStage]);
 
+  // US-14: detect when current settings deviate from the stage defaults
+  const isCustomized =
+    guitarString !== stage.string ||
+    time !== stage.time ||
+    fretFrom !== stage.fretFrom ||
+    fretTo !== stage.fretTo ||
+    wholeToneOnly !== stage.wholeToneOnly ||
+    dotsOnly !== stage.dotsOnly ||
+    byNote !== stage.byNote ||
+    JSON.stringify([...multiStrings].sort()) !== JSON.stringify([...stage.multiStrings].sort());
+
+  const resetToStage = useCallback(() => { applyStage(stageIndex); }, [applyStage, stageIndex]);
+
   return {
     stageIndex, setStageIndex,
     stage,
@@ -61,5 +74,7 @@ export function useGameSettings() {
     notation, setNotation,
     applyStage,
     goToStage,
+    isCustomized,
+    resetToStage,
   };
 }
