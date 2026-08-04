@@ -9,6 +9,7 @@ interface Props {
   stageIndex: number;
   onPrev: () => void;
   onNext: () => void;
+  onTitleClick: () => void;
   isPlaying: boolean;
   suggestion: 'next' | 'prev' | null;
   allHistory: Record<number, HistoryEntry[]>;
@@ -30,7 +31,7 @@ function successColor(stageIndices: number[], allHistory: Record<number, History
   return '#f90';
 }
 
-export default function StageNav({ stage, stageIndex, onPrev, onNext, isPlaying, suggestion, allHistory }: Props) {
+export default function StageNav({ stage, stageIndex, onPrev, onNext, onTitleClick, isPlaying, suggestion, allHistory }: Props) {
   const onPrevRef = useRef(onPrev);
   const onNextRef = useRef(onNext);
   onPrevRef.current = onPrev;
@@ -117,8 +118,8 @@ export default function StageNav({ stage, stageIndex, onPrev, onNext, isPlaying,
           })}
         </div>
 
-        {/* Center text: string · focus · step X/Y */}
-        <div className="stage-center-text">
+        {/* Center text: string · focus · step X/Y — tappable to open stage picker */}
+        <div className="stage-center-text" onClick={() => { playClickSound(); onTitleClick(); }} style={{ cursor: 'pointer' }}>
           <span className="stage-center-title">{stage.title}</span>
           <span className="stage-center-step">{stepInLevel} / {stepsInLevel}</span>
         </div>

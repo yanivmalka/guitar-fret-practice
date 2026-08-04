@@ -9,7 +9,8 @@ import { displayNote } from './utils/music';
 import type { HistoryEntry } from './utils/music';
 import { preloadAllSamples } from './utils/audio';
 import { playClickSound, haptic } from './utils/feedback';
-import { STAGES } from './utils/stages';
+import { STAGES, getStageGroups } from './utils/stages';
+import type { StageGroup } from './utils/stages';
 import { loadSetting, saveSetting } from './utils/settings';
 import { useGameSettings } from './hooks/useGameSettings';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
@@ -113,6 +114,39 @@ export default function App() {
   const customStages = useCustomStages();
   const [savingCustom, setSavingCustom] = useState(false);
   const [customName, setCustomName] = useState('');
+  const [showPicker, setShowPicker] = useState(false);
+
+  // Ordered groups for the picker: all 0–12 strings, then all 12–21 strings, then multi, full neck, custom
+  const pickerGroups = useMemo((): (StageGroup & { status: '✓' | '●' | '○' })[] => {
+    const groups = getStageGroups();
+    // Sort: 0–12 strings first, then 12–21, then multi, then full neck
+    const str012: StageGroup[] = [];
+    const str1221: StageGroup[] = [];
+    const multi: StageGroup[] = [];
+    const fullNeck: StageGroup[] = [];
+    groups.forEach(g => {
+      if (g.label.includes('0–12'))      str012.push(g);
+      else if (g.label.includes('12–21')) str1221.push(g);
+      else if (g.label.includes('Multi')) multi.push(g);
+      else fullNeck.push(g);
+    });
+    const ordered = [...str012, ...str1221, ...multi, ...fullNeck];
+    // Add custom stages group if any
+    if (customStages.stages.length > 0) {
+      ordered.push({ label: '★ My Stages', indices: [] }); // placeholder, handled separately
+    }
+    return ordered.map(g => {
+      // Determine status from allHistory
+      const hasHistory = g.indices.some(idx => (allHistory[STAGES[idx]?.id] ?? []).length > 0);
+      const mastered = hasHistory && g.indices.every(idx => {
+        const h = allHistory[STAGES[idx]?.id] ?? [];
+        if (h.length < 5) return false;
+        const correct = h.filter(e => e.correct === true).length;
+        return correct / h.length >= 0.75;
+      });
+      return { ...g, status: mastered ? '✓' as const : hasHistory ? '●' as const : '○' as const };
+    });
+  }, [allHistory, customStages.stages.length]);
 
   const handleSaveCustom = () => {
     if (!customName.trim()) return;
@@ -143,10 +177,44 @@ export default function App() {
         stageIndex={stageIndex}
         onPrev={() => { stop(); goToStage(stageIndex - 1); }}
         onNext={() => { stop(); goToStage(stageIndex + 1); }}
+        onTitleClick={() => { if (running || paused) stop(); setShowPicker(true); }}
         isPlaying={isPlaying}
         suggestion={liveSuggestion}
         allHistory={allHistory}
       />
+
+      {/* Stage picker overlay */}
+      {showPicker && (
+        <div className="picker-overlay" onClick={e => { if (e.target === e.currentTarget) setShowPicker(false); }}>
+          <div className="picker-panel">
+            <h3 className="picker-title">Jump to Stage</h3>
+            <div className="picker-list">
+              {pickerGroups.map((g, gi) => {
+                const isCurrent = g.indices.includes(stageIndex);
+                return (
+                  <button
+                    key={gi}
+                    className={`picker-item ${isCurrent ? 'picker-item-current' : ''}`}
+                    onClick={() => {
+                      playClickSound(); haptic.tap();
+                      if (g.label === '★ My Stages') {
+                        // TODO: navigate to custom stage
+                      } else if (g.indices.length > 0) {
+                        goToStage(g.indices[0]);
+                      }
+                      setShowPicker(false);
+                    }}
+                  >
+                    <span className="picker-status">{g.status}</span>
+                    <span className="picker-label">{g.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <button className="picker-close" onClick={() => setShowPicker(false)}>Close</button>
+          </div>
+        </div>
+      )}
 
       {/* Burger menu button — fixed top-right */}
       <button className="burger-btn" onClick={click(() => { if (running || paused) stop(); setShowSettings(s => !s); })} title="Settings">
