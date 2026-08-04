@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Stage } from '../utils/stages';
 import { STAGES, TOTAL_STAGES, getStageLevels, getStageClasses, getStageParts } from '../utils/stages';
 import type { HistoryEntry } from '../utils/music';
@@ -37,6 +37,21 @@ export default function StageNav({ stage, stageIndex, onPrev, onNext, onTitleCli
   onPrevRef.current = onPrev;
   onNextRef.current = onNext;
 
+  const stageIndexRef = useRef(stageIndex);
+  stageIndexRef.current = stageIndex;
+
+  // Title glow on stage change
+  const [titleGlow, setTitleGlow] = useState(false);
+  const prevStageRef = useRef(stageIndex);
+  useEffect(() => {
+    if (prevStageRef.current !== stageIndex) {
+      setTitleGlow(true);
+      const t = setTimeout(() => setTitleGlow(false), 600);
+      prevStageRef.current = stageIndex;
+      return () => clearTimeout(t);
+    }
+  }, [stageIndex]);
+
   // Swipe: horizontal only — US-11 fix: require |dx| > |dy| * 1.5
   useEffect(() => {
     let startX: number | null = null;
@@ -53,8 +68,11 @@ export default function StageNav({ stage, stageIndex, onPrev, onNext, onTitleCli
       // Ignore if not clearly horizontal
       if (Math.abs(dx) < 50) return;
       if (Math.abs(dy) > Math.abs(dx) * 0.6) return;
-      if (dx < 0) { playClickSound(); haptic.tap(); onNextRef.current(); }
-      else { playClickSound(); haptic.tap(); onPrevRef.current(); }
+      if (dx < 0) {
+        if (stageIndexRef.current < TOTAL_STAGES - 1) { playClickSound(); haptic.tap(); onNextRef.current(); }
+      } else {
+        if (stageIndexRef.current > 0) { playClickSound(); haptic.tap(); onPrevRef.current(); }
+      }
     };
     document.addEventListener('touchstart', onTouchStart, { passive: true });
     document.addEventListener('touchend', onTouchEnd, { passive: true });
@@ -119,7 +137,7 @@ export default function StageNav({ stage, stageIndex, onPrev, onNext, onTitleCli
         </div>
 
         {/* Center text: string · focus · step X/Y — tappable to open stage picker */}
-        <div className="stage-center-text" onClick={() => { playClickSound(); onTitleClick(); }} style={{ cursor: 'pointer' }}>
+        <div className={`stage-center-text ${titleGlow ? 'stage-title-glow' : ''}`} onClick={() => { playClickSound(); onTitleClick(); }} style={{ cursor: 'pointer' }}>
           <span className="stage-center-title">{stage.title}</span>
           <span className="stage-center-step">{stepInLevel} / {stepsInLevel}</span>
         </div>

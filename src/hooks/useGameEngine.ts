@@ -376,9 +376,10 @@ export function useGameEngine(
 
   const stop = useCallback(() => {
     clearTimers();
+    runningRef.current = false;
+    answeredRef.current = true; // prevent any pending callbacks
     setRunning(false);
     setPaused(false);
-    runningRef.current = false;
     setCurrentFret(null);
     setCurrentNote(null);
     setCorrectCofNote(null);
@@ -396,44 +397,19 @@ export function useGameEngine(
     stopPlayback();
   }, [remaining]);
 
-  const resume = useCallback((isByNote: boolean, curFret: number | null, curGuitarString: number) => {
+  const resume = useCallback((isByNote: boolean, _curFret: number | null, _curGuitarString: number) => {
     setPaused(false);
     runningRef.current = true;
-    if (answeredRef.current) {
-      setTimeout(isByNote ? nextByNote : next, 100);
-      return;
-    }
-    const rem = pausedTimeRef.current;
-    setRemaining(rem);
-    questionStartRef.current = Date.now() - (timeRefUpdater.current - rem) * 1000;
-    if (curFret !== null) playNote(curGuitarString, curFret);
-    let r = rem;
-    countdownRef.current = window.setInterval(() => {
-      r--;
-      setRemaining(r);
-      if (r <= 0 && countdownRef.current) clearInterval(countdownRef.current);
-    }, 1000);
-    const mySession = sessionRef.current;
-    timerRef.current = window.setTimeout(() => {
-      if (answeredRef.current || sessionRef.current !== mySession) return;
-      answeredRef.current = true;
-      setAnswered(true);
-      beep();
-      if (isByNote) {
-        setFeedback(`⏱ Frets: ${remainingFretsRef.current.join(', ')}`);
-        setTimeout(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
-      } else {
-        if (curFret === null) return;
-        const correctNote = notes[curGuitarString - 1][curFret];
-        const cof = getCofNotes(accidental, order, false);
-        setCorrectCofNote(getCorrectCofNote(correctNote, cof));
-        const elapsed = (Date.now() - questionStartRef.current) / 1000;
-        addEntry({ note: correctNote, fret: curFret, string: curGuitarString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null });
-        setFeedback(`⏱ ${displayNote(correctNote, accidental)} (Fret ${curFret})`);
-        setTimeout(() => { if (runningRef.current && sessionRef.current === mySession) next(); }, 1500);
-      }
-    }, rem * 1000);
-  }, [nextByNote, next, accidental, order, wholeToneOnly, addEntry]);
+    // Always start a fresh question on resume — ignore the paused question
+    answeredRef.current = false;
+    setAnswered(false);
+    setFeedback('');
+    setCorrectCofNote(null);
+    setWrongCofNote(null);
+    setFoundFrets([]);
+    setWrongFret(null);
+    setTimeout(isByNote ? nextByNote : next, 100);
+  }, [nextByNote, next]);
 
   return {
     // state

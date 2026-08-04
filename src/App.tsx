@@ -129,10 +129,7 @@ export default function App() {
       else fullNeck.push(g);
     });
     const ordered = [...str012, ...str1221, ...multi, ...fullNeck];
-    // Add custom stages group if any
-    if (customStages.stages.length > 0) {
-      ordered.push({ label: '★ My Stages', indices: [] }); // placeholder, handled separately
-    }
+    // Custom stages removed — feature not fully wired yet
     return ordered.map(g => {
       // Determine status from allHistory
       const hasHistory = g.indices.some(idx => (allHistory[STAGES[idx]?.id] ?? []).length > 0);
@@ -240,9 +237,9 @@ export default function App() {
       {/* Description button and order switcher */}
       {!byNote && !showSettings && (
         <div className="order-switcher">
-          <button className={`order-chip${byString ? ' order-chip-active' : ''}`} onClick={click(() => setByString(!byString))}>By String</button>
-          <button className={`order-chip${!byString && order === 'fifths' ? ' order-chip-active' : ''}`} onClick={click(() => { setByString(false); setOrder('fifths'); })}>Fifths</button>
-          <button className={`order-chip${!byString && order === 'alphabet' ? ' order-chip-active' : ''}`} onClick={click(() => { setByString(false); setOrder('alphabet'); })}>Alpha</button>
+          <button className={`order-chip${byString ? ' order-chip-active' : ''}`} onClick={click(() => { if (!byString) setByString(true); })}>By String</button>
+          <button className={`order-chip${!byString && order === 'fifths' ? ' order-chip-active' : ''}`} onClick={click(() => { if (byString || order !== 'fifths') { setByString(false); setOrder('fifths'); } })}>Fifths</button>
+          <button className={`order-chip${!byString && order === 'alphabet' ? ' order-chip-active' : ''}`} onClick={click(() => { if (byString || order !== 'alphabet') { setByString(false); setOrder('alphabet'); } })}>Alpha</button>
         </div>
       )}
 

@@ -837,3 +837,13 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   cursor: pointer; margin-left: 8px; padding: 2px 4px;
 }
 .refresh-btn:hover { color: #0ff; }
+
+
+/* Bug 6: Title glow on stage change */
+@keyframes title-glow-pulse {
+  0% { text-shadow: 0 0 8px #0ff; }
+  100% { text-shadow: none; }
+}
+.stage-title-glow .stage-center-title {
+  animation: title-glow-pulse 0.6s ease-out forwards;
+}

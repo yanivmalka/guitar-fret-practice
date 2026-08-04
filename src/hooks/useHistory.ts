@@ -27,7 +27,7 @@ export function useHistory(stageId: number) {
   const clearStage = useCallback((id: number) => {
     setHistory([]);
     setAllHistory(prev => { const u = { ...prev }; delete u[id]; return u; });
-    setEverPlayed(prev => { const s = new Set(prev); s.delete(id); return s; });
+    // Don't remove from everPlayed — keep showing empty stats panel as confirmation
   }, []);
 
   const resetSession = useCallback(() => {
