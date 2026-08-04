@@ -81,6 +81,16 @@ export default function App() {
   const [onboardingDone, setOnboardingDone] = useState(() => loadSetting<boolean>('onboardingDone', false));
   const descTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Per-note selection (By Note mode) — defaults to all active notes
+  const [selectedNotes, setSelectedNotes] = useState<Set<string>>(() => new Set());
+  // Keep selectedNotes in sync: if activeNotes changes, intersect or reset
+  const effectiveSelectedNotes = selectedNotes.size > 0
+    ? new Set([...selectedNotes].filter(n => derived.activeNotes.has(n)))
+    : derived.activeNotes;
+
+  // Custom stage naming
+  const [customStageName, setCustomStageName] = useState(() => loadSetting<string>('customStageName', ''));
+
   // US-09: wrap any button handler with a click sound
   const click = <T,>(fn: () => T) => () => { playClickSound(); haptic.tap(); return fn(); };
 
@@ -232,32 +242,6 @@ export default function App() {
       {showSettings && (
         <div className="settings-overlay" onClick={e => { if (e.target === e.currentTarget) setShowSettings(false); }}>
           <div className="settings-panel">
-            {isCustomized && (
-              <span className="custom-stage-badge" style={{ marginBottom: 10, display: 'flex', padding: '6px 14px', fontSize: '13px' }}>
-                ✎ custom
-                <button className="custom-reset-btn" onClick={click(resetToStage)}>↺ reset</button>
-              </span>
-            )}
-            {isCustomized && customStages.canSaveMore && (
-              <div style={{ marginBottom: 10, display: 'flex', gap: 6, alignItems: 'center' }}>
-                {!savingCustom ? (
-                  <button className="custom-save-btn-big" onClick={click(() => setSavingCustom(true))}>💾 Save as stage</button>
-                ) : (
-                  <>
-                    <input className="custom-name-input" placeholder="Stage name..." value={customName} onChange={e => setCustomName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSaveCustom()} autoFocus />
-                    <button className="custom-save-confirm" onClick={click(handleSaveCustom)}>Save</button>
-                    <button className="custom-save-cancel" onClick={click(() => { setSavingCustom(false); setCustomName(''); })}>✕</button>
-                  </>
-                )}
-              </div>
-            )}
-            {customStages.stages.length > 0 && (
-              <div style={{ marginBottom: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {customStages.stages.map((cs, i) => (
-                  <span key={i} className="custom-stage-chip">★ {cs.name} <button className="custom-delete-btn" onClick={click(() => customStages.remove(i))}>✕</button></span>
-                ))}
-              </div>
-            )}
             <Settings
               guitarString={guitarString} setGuitarString={setGuitarString}
               time={time} setTime={setTime}
@@ -273,6 +257,12 @@ export default function App() {
               activeNotes={activeNotes}
               showOrderSwitcher={!byNote}
               notation={notation} setNotation={setNotation}
+              selectedNotes={effectiveSelectedNotes}
+              setSelectedNotes={setSelectedNotes}
+              isCustomized={isCustomized}
+              customStageName={customStageName}
+              onRename={(name) => { setCustomStageName(name); saveSetting('customStageName', name); }}
+              onClearCustom={resetToStage}
             />
           </div>
         </div>

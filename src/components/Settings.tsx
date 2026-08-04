@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import type { AccidentalMode, OrderMode, NotationMode } from '../utils/music';
-import { displayNote } from '../utils/music';
+import { displayNote, wholeTones, alphaNotesSharp, alphaNotesFlat } from '../utils/music';
 import { playClickSound, haptic } from '../utils/feedback';
 
 interface Props {
@@ -29,11 +30,17 @@ interface Props {
   showOrderSwitcher: boolean;
   notation: NotationMode;
   setNotation: (v: NotationMode) => void;
+  selectedNotes: Set<string>;
+  setSelectedNotes: (v: Set<string>) => void;
+  isCustomized: boolean;
+  customStageName: string;
+  onRename: (name: string) => void;
+  onClearCustom: () => void;
 }
 
 function Chip({ label, selected, onClick, disabled, toggle }: { label: string; selected: boolean; onClick: () => void; disabled?: boolean; toggle?: boolean }) {
   const handleClick = () => {
-    if (selected && !toggle) return; // Don't click if already selected (non-toggle)
+    if (selected && !toggle) return;
     playClickSound(); haptic.tap(); onClick();
   };
   return (
@@ -48,11 +55,17 @@ function Chip({ label, selected, onClick, disabled, toggle }: { label: string; s
 }
 
 export default function Settings(p: Props) {
-  const strings = ['1(E)', '2(B)', '3(G)', '4(D)', '5(A)', '6(E)'];
+  const strings = [
+    { num: 6, label: '6(E)' },
+    { num: 5, label: '5(A)' },
+    { num: 4, label: '4(D)' },
+    { num: 3, label: '3(G)' },
+    { num: 2, label: '2(B)' },
+    { num: 1, label: '1(E)' },
+  ];
   const isMulti = p.multiStrings.length > 0;
 
-  const toggleMultiString = (i: number) => {
-    const s = i + 1;
+  const toggleMultiString = (s: number) => {
     if (p.multiStrings.includes(s)) {
       if (p.multiStrings.length === 1) return;
       p.setMultiStrings(p.multiStrings.filter(x => x !== s));
@@ -61,15 +74,41 @@ export default function Settings(p: Props) {
     }
   };
 
+  // Fret preset logic
+  const isFretPreset012 = p.fretFrom === 0 && p.fretTo === 12;
+  const isFretPreset1221 = p.fretFrom === 12 && p.fretTo === 21;
+  const isFretCustom = !isFretPreset012 && !isFretPreset1221;
+  const [showFretCustom, setShowFretCustom] = useState(isFretCustom);
+
+  // All chromatic notes for the per-note toggler
+  const allNotes = p.accidental === 'sharps' ? alphaNotesSharp : alphaNotesFlat;
+  const wholeNoteSet = new Set(wholeTones);
+
+  const toggleNote = (note: string) => {
+    const next = new Set(p.selectedNotes);
+    if (next.has(note)) {
+      if (next.size <= 1) return; // keep at least one
+      next.delete(note);
+    } else {
+      next.add(note);
+    }
+    p.setSelectedNotes(next);
+  };
+
+  // Renaming state for custom stage
+  const [renaming, setRenaming] = useState(false);
+  const [renameBuf, setRenameBuf] = useState(p.customStageName);
+
   return (
     <div className="settings">
+      {/* ─── String ─────────────────────────────────────── */}
       <div className="setting-group">
         <span className="group-title">String</span>
         <div className="setting-row">
-          {strings.map((s, i) => (
-            <Chip key={i} label={s}
-              selected={isMulti ? p.multiStrings.includes(i + 1) : p.guitarString === i + 1}
-              onClick={() => isMulti ? toggleMultiString(i) : p.setGuitarString(i + 1)}
+          {strings.map(s => (
+            <Chip key={s.num} label={s.label}
+              selected={isMulti ? p.multiStrings.includes(s.num) : p.guitarString === s.num}
+              onClick={() => isMulti ? toggleMultiString(s.num) : p.setGuitarString(s.num)}
               toggle={isMulti}
             />
           ))}
@@ -79,24 +118,32 @@ export default function Settings(p: Props) {
           />
         </div>
       </div>
-      <div className="setting-group">
-        <span className="group-title">Time</span>
-        <div className="setting-row">
-          {[3, 4, 5, 7, 10].map(t => <Chip key={t} label={`${t}s`} selected={p.time === t} onClick={() => p.setTime(t)} />)}
-        </div>
-      </div>
+
+      {/* ─── Frets ──────────────────────────────────────── */}
       <div className="setting-group">
         <span className="group-title">Frets</span>
         <div className="setting-row">
-          <button className="adj-btn" onClick={() => { playClickSound(); p.setFretFrom(Math.max(0, p.fretFrom - 1)); }}>−</button>
-          <span className="range-val">{p.fretFrom}</span>
-          <button className="adj-btn" onClick={() => { playClickSound(); p.setFretFrom(Math.min(p.fretTo, p.fretFrom + 1)); }}>+</button>
-          <span className="range-val">to</span>
-          <button className="adj-btn" onClick={() => { playClickSound(); p.setFretTo(Math.max(p.fretFrom, p.fretTo - 1)); }}>−</button>
-          <span className="range-val">{p.fretTo}</span>
-          <button className="adj-btn" onClick={() => { playClickSound(); p.setFretTo(Math.min(21, p.fretTo + 1)); }}>+</button>
+          <Chip label="0–12" selected={isFretPreset012 && !showFretCustom}
+            onClick={() => { p.setFretFrom(0); p.setFretTo(12); setShowFretCustom(false); }} />
+          <Chip label="12–21" selected={isFretPreset1221 && !showFretCustom}
+            onClick={() => { p.setFretFrom(12); p.setFretTo(21); setShowFretCustom(false); }} />
+          <Chip label="Custom" selected={showFretCustom} toggle
+            onClick={() => setShowFretCustom(!showFretCustom)} />
         </div>
+        {showFretCustom && (
+          <div className="setting-row" style={{ marginTop: 8 }}>
+            <button className="adj-btn" onClick={() => { playClickSound(); p.setFretFrom(Math.max(0, p.fretFrom - 1)); }}>−</button>
+            <span className="range-val">{p.fretFrom}</span>
+            <button className="adj-btn" onClick={() => { playClickSound(); p.setFretFrom(Math.min(p.fretTo, p.fretFrom + 1)); }}>+</button>
+            <span className="range-val">to</span>
+            <button className="adj-btn" onClick={() => { playClickSound(); p.setFretTo(Math.max(p.fretFrom, p.fretTo - 1)); }}>−</button>
+            <span className="range-val">{p.fretTo}</span>
+            <button className="adj-btn" onClick={() => { playClickSound(); p.setFretTo(Math.min(21, p.fretTo + 1)); }}>+</button>
+          </div>
+        )}
       </div>
+
+      {/* ─── Question Type ──────────────────────────────── */}
       <div className="setting-group">
         <span className="group-title">Question Type</span>
         <div className="setting-row">
@@ -104,22 +151,44 @@ export default function Settings(p: Props) {
           <Chip label="By Note" selected={p.byNote} onClick={() => p.setByNote(true)} />
         </div>
       </div>
+
+      {/* ─── Filter ─────────────────────────────────────── */}
       <div className="setting-group">
-        <span className="group-title">{p.byNote ? 'Note Filter' : 'Filter'}</span>
+        <span className="group-title">Filter</span>
         <div className="setting-row">
-          <Chip label="Dots only" selected={p.dotsOnly} onClick={() => p.setDotsOnly(!p.dotsOnly)} toggle />
-          <Chip label="Whole only" selected={p.wholeToneOnly} onClick={() => p.setWholeToneOnly(!p.wholeToneOnly)} toggle />
+          <Chip label="Whole Only" selected={p.wholeToneOnly} onClick={() => p.setWholeToneOnly(!p.wholeToneOnly)} toggle />
+          <Chip label="Dot Frets" selected={p.dotsOnly} onClick={() => p.setDotsOnly(!p.dotsOnly)} toggle />
+        </div>
+        <div className="setting-row" style={{ marginTop: 6 }}>
           <Chip label="♯ Sharps" selected={!p.wholeToneOnly && p.accidental === 'sharps'} onClick={() => p.setAccidental('sharps')} disabled={p.wholeToneOnly} />
           <Chip label="♭ Flats" selected={!p.wholeToneOnly && p.accidental === 'flats'} onClick={() => p.setAccidental('flats')} disabled={p.wholeToneOnly} />
         </div>
-        {p.byNote && p.activeNotes.size > 0 && (
-          <div className="setting-row" style={{ marginTop: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
-            {[...p.activeNotes].map(n => (
-              <span key={n} className="note-preview-chip">{displayNote(n, p.accidental, p.notation)}</span>
-            ))}
-          </div>
-        )}
       </div>
+
+      {/* ─── Notes (By Note mode) ───────────────────────── */}
+      {p.byNote && (
+        <div className="setting-group">
+          <span className="group-title">Notes</span>
+          <div className="setting-row" style={{ flexWrap: 'wrap' }}>
+            {allNotes.map(n => {
+              const isWhole = wholeNoteSet.has(n.replace('#', '').replace('b', ''));
+              const inActive = p.activeNotes.has(n);
+              const isSelected = p.selectedNotes.has(n);
+              return (
+                <Chip key={n}
+                  label={displayNote(n, p.accidental, p.notation)}
+                  selected={isSelected}
+                  onClick={() => toggleNote(n)}
+                  toggle
+                  disabled={!inActive || (p.wholeToneOnly && !isWhole)}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ─── Circle Order (By Fret mode) ────────────────── */}
       {p.showOrderSwitcher && (
         <div className="setting-group">
           <span className="group-title">Circle Order</span>
@@ -130,6 +199,16 @@ export default function Settings(p: Props) {
           </div>
         </div>
       )}
+
+      {/* ─── Time ───────────────────────────────────────── */}
+      <div className="setting-group">
+        <span className="group-title">Time</span>
+        <div className="setting-row">
+          {[3, 4, 5, 7, 10].map(t => <Chip key={t} label={`${t}s`} selected={p.time === t} onClick={() => p.setTime(t)} />)}
+        </div>
+      </div>
+
+      {/* ─── Note Names ─────────────────────────────────── */}
       <div className="setting-group">
         <span className="group-title">Note Names</span>
         <div className="setting-row">
@@ -137,6 +216,33 @@ export default function Settings(p: Props) {
           <Chip label="Do Re Mi" selected={p.notation === 'solfege'} onClick={() => p.setNotation('solfege')} />
         </div>
       </div>
+
+      {/* ─── Separator ──────────────────────────────────── */}
+      <div className="setting-separator" />
+
+      {/* ─── Custom Stage Section ───────────────────────── */}
+      {p.isCustomized && (
+        <div className="custom-stage-section">
+          <span className="group-title">Custom Stage</span>
+          <div className="custom-stage-name">
+            {!renaming ? (
+              <>
+                <span>✎ {p.customStageName || 'Untitled'}</span>
+                <button className="custom-action-btn" onClick={() => { setRenameBuf(p.customStageName); setRenaming(true); }}>Rename</button>
+                <button className="custom-action-btn custom-action-btn-danger" onClick={p.onClearCustom}>↺ Reset</button>
+              </>
+            ) : (
+              <>
+                <input className="custom-name-input" value={renameBuf} onChange={e => setRenameBuf(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { p.onRename(renameBuf); setRenaming(false); } }}
+                  autoFocus />
+                <button className="custom-action-btn" onClick={() => { p.onRename(renameBuf); setRenaming(false); }}>✓</button>
+                <button className="custom-action-btn" onClick={() => setRenaming(false)}>✕</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
