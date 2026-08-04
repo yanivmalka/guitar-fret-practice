@@ -57,14 +57,41 @@ export function useGameSettings() {
     applyStage(idx);
   }, [applyStage]);
 
-  // Detect customization: compare against stage defaults (excluding fretFrom/fretTo)
-  const isCustomized =
-    guitarString !== stage.string ||
-    time !== stage.time ||
-    wholeToneOnly !== stage.wholeToneOnly ||
-    dotsOnly !== stage.dotsOnly ||
-    byNote !== stage.byNote ||
-    JSON.stringify([...multiStrings].sort()) !== JSON.stringify([...stage.multiStrings].sort());
+  // When user changes settings, try to find a matching built-in stage
+  const findMatchingStage = useCallback((opts: {
+    string: number; dotsOnly: boolean; wholeToneOnly: boolean; byNote: boolean;
+    multiStrings: number[]; fretFrom: number; fretTo: number;
+  }): number => {
+    return STAGES.findIndex(s =>
+      s.string === opts.string &&
+      s.dotsOnly === opts.dotsOnly &&
+      s.wholeToneOnly === opts.wholeToneOnly &&
+      s.byNote === opts.byNote &&
+      s.fretFrom === opts.fretFrom &&
+      s.fretTo === opts.fretTo &&
+      JSON.stringify([...s.multiStrings].sort()) === JSON.stringify([...opts.multiStrings].sort())
+    );
+  }, []);
+
+  // Attempt to sync stage index when settings change
+  const syncStageToSettings = useCallback(() => {
+    const match = findMatchingStage({
+      string: guitarString, dotsOnly, wholeToneOnly, byNote, multiStrings, fretFrom, fretTo,
+    });
+    if (match >= 0 && match !== stageIndex) {
+      setStageIndex(match);
+      saveSetting('stageIndex', match);
+    }
+  }, [guitarString, dotsOnly, wholeToneOnly, byNote, multiStrings, fretFrom, fretTo, stageIndex, findMatchingStage]);
+
+  // Auto-sync when settings change (debounced via useEffect)
+  useEffect(() => { syncStageToSettings(); }, [syncStageToSettings]);
+
+  // After sync, determine if we're still customized (no built-in stage matches)
+  const matchedIdx = findMatchingStage({
+    string: guitarString, dotsOnly, wholeToneOnly, byNote, multiStrings, fretFrom, fretTo,
+  });
+  const isCustomized = matchedIdx < 0;
 
   // Reset restores ALL settings including fret range to stage defaults
   const resetToStage = useCallback(() => {

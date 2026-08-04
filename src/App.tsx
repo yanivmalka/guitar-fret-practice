@@ -15,6 +15,7 @@ import { useGameSettings } from './hooks/useGameSettings';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useGameEngine } from './hooks/useGameEngine';
 import { useHistory } from './hooks/useHistory';
+import { useCustomStages } from './hooks/useCustomStages';
 
 function computeSuggestion(history: HistoryEntry[]): 'next' | 'prev' | null {
   if (history.length < 10) return null;
@@ -108,6 +109,25 @@ export default function App() {
     clearStage(stage.id);
   };
 
+  // Custom stages
+  const customStages = useCustomStages();
+  const [savingCustom, setSavingCustom] = useState(false);
+  const [customName, setCustomName] = useState('');
+
+  const handleSaveCustom = () => {
+    if (!customName.trim()) return;
+    const saved = customStages.save({
+      name: customName.trim(),
+      guitarString, fretFrom, fretTo, dotsOnly, wholeToneOnly, byNote,
+      multiStrings, time, accidental, order,
+    });
+    if (!saved) {
+      alert('Free users can save 1 custom stage. Upgrade for more.');
+    }
+    setSavingCustom(false);
+    setCustomName('');
+  };
+
   return (
     <div className="app">
       {!onboardingDone && (
@@ -174,10 +194,39 @@ export default function App() {
 
       {/* Custom badge when visible (not in settings overlay) */}
       {isCustomized && !running && !showSettings && (
-        <span className="custom-stage-badge">
-          ✎ custom
-          <button className="custom-reset-btn" onClick={click(resetToStage)}>↺ reset</button>
-        </span>
+        <div className="custom-stage-area">
+          <span className="custom-stage-badge">
+            ✎ custom
+            <button className="custom-reset-btn" onClick={click(resetToStage)}>↺ reset</button>
+            {customStages.canSaveMore && (
+              <button className="custom-save-btn" onClick={click(() => setSavingCustom(true))}>💾 save</button>
+            )}
+          </span>
+          {savingCustom && (
+            <div className="custom-save-modal">
+              <input
+                className="custom-name-input"
+                placeholder="Stage name..."
+                value={customName}
+                onChange={e => setCustomName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSaveCustom()}
+                autoFocus
+              />
+              <button className="custom-save-confirm" onClick={click(handleSaveCustom)}>Save</button>
+              <button className="custom-save-cancel" onClick={click(() => { setSavingCustom(false); setCustomName(''); })}>✕</button>
+            </div>
+          )}
+          {customStages.stages.length > 0 && (
+            <div className="custom-stages-list">
+              {customStages.stages.map((cs, i) => (
+                <span key={i} className="custom-stage-chip">
+                  ★ {cs.name}
+                  <button className="custom-delete-btn" onClick={click(() => customStages.remove(i))}>✕</button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       <div className="game-row">
