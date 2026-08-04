@@ -123,18 +123,6 @@ export default function App() {
   // Custom stages
   const customStages = useCustomStages();
   const [showPicker, setShowPicker] = useState(false);
-  const [savingCustom, setSavingCustom] = useState(false);
-  const [customName, setCustomName] = useState('');
-  const handleSaveCustom = () => {
-    if (!customName.trim()) return;
-    customStages.save({
-      name: customName.trim(),
-      guitarString, fretFrom, fretTo, dotsOnly, wholeToneOnly, byNote,
-      multiStrings, time, accidental, order,
-    });
-    setSavingCustom(false);
-    setCustomName('');
-  };
 
   // Ordered groups for the picker: all 0–12 strings, then all 12–21 strings, then multi, full neck, custom
   const pickerGroups = useMemo((): (StageGroup & { status: '✓' | '●' | '○' })[] => {
