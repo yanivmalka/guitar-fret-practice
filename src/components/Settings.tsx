@@ -60,16 +60,6 @@ export default function Settings(p: Props) {
 
   return (
     <div className="settings">
-      {p.showOrderSwitcher && (
-        <div className="setting-group">
-          <span className="group-title">Circle Order</span>
-          <div className="setting-row">
-            <Chip label="By String" selected={p.byString} onClick={() => p.setByString(!p.byString)} toggle />
-            <Chip label="Fifths" selected={!p.byString && p.order === 'fifths'} onClick={() => { p.setByString(false); p.setOrder('fifths'); }} />
-            <Chip label="Alpha" selected={!p.byString && p.order === 'alphabet'} onClick={() => { p.setByString(false); p.setOrder('alphabet'); }} />
-          </div>
-        </div>
-      )}
       <div className="setting-group">
         <span className="group-title">String</span>
         <div className="setting-row">
@@ -127,6 +117,16 @@ export default function Settings(p: Props) {
           </div>
         )}
       </div>
+      {p.showOrderSwitcher && (
+        <div className="setting-group">
+          <span className="group-title">Circle Order</span>
+          <div className="setting-row">
+            <Chip label="By String" selected={p.byString} onClick={() => p.setByString(!p.byString)} toggle />
+            <Chip label="Fifths" selected={p.order === 'fifths'} onClick={() => { if (p.order !== 'fifths') p.setOrder('fifths'); }} />
+            <Chip label="Alpha" selected={p.order === 'alphabet'} onClick={() => { if (p.order !== 'alphabet') p.setOrder('alphabet'); }} />
+          </div>
+        </div>
+      )}
       <div className="setting-group">
         <span className="group-title">Note Names</span>
         <div className="setting-row">

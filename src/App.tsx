@@ -235,11 +235,11 @@ export default function App() {
       )}
 
       {/* Description button and order switcher */}
-      {!byNote && !showSettings && (
-        <div className="order-switcher">
-          <button className={`order-chip${byString ? ' order-chip-active' : ''}`} onClick={click(() => { if (!byString) setByString(true); })}>By String</button>
-          <button className={`order-chip${!byString && order === 'fifths' ? ' order-chip-active' : ''}`} onClick={click(() => { if (byString || order !== 'fifths') { setByString(false); setOrder('fifths'); } })}>Fifths</button>
-          <button className={`order-chip${!byString && order === 'alphabet' ? ' order-chip-active' : ''}`} onClick={click(() => { if (byString || order !== 'alphabet') { setByString(false); setOrder('alphabet'); } })}>Alpha</button>
+      {!showSettings && (
+        <div className="order-switcher" style={{ visibility: byNote ? 'hidden' : 'visible' }}>
+          <button className={`order-chip chip-toggle${byString ? ' chip-toggle-active' : ''}`} onClick={click(() => setByString(!byString))}>By String</button>
+          <button className={`order-chip${order === 'fifths' ? ' order-chip-active' : ''}`} onClick={click(() => { if (order !== 'fifths') setOrder('fifths'); })}>Fifths</button>
+          <button className={`order-chip${order === 'alphabet' ? ' order-chip-active' : ''}`} onClick={click(() => { if (order !== 'alphabet') setOrder('alphabet'); })}>Alpha</button>
         </div>
       )}
 
