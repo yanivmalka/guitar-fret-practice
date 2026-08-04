@@ -32,7 +32,10 @@ interface Props {
 }
 
 function Chip({ label, selected, onClick, disabled, toggle }: { label: string; selected: boolean; onClick: () => void; disabled?: boolean; toggle?: boolean }) {
-  const handleClick = () => { playClickSound(); haptic.tap(); onClick(); };
+  const handleClick = () => {
+    if (selected && !toggle) return; // Don't click if already selected (non-toggle)
+    playClickSound(); haptic.tap(); onClick();
+  };
   return (
     <button
       className={`chip ${selected ? (toggle ? 'chip-toggle-active' : 'chip-active') : ''} ${disabled ? 'chip-disabled' : ''} ${toggle ? 'chip-toggle' : ''}`}

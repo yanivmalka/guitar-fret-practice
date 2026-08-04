@@ -753,6 +753,11 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   cursor: pointer; padding: 0; margin-left: 6px;
 }
 .custom-save-btn:hover { color: #fff; }
+.custom-save-btn-big {
+  background: #0a1a2a; border: 1px solid #0ff; border-radius: 10px;
+  color: #0ff; font-size: 13px; padding: 6px 14px; cursor: pointer;
+}
+.custom-save-btn-big:hover { background: #0a2a3a; }
 .custom-save-modal {
   display: flex; gap: 6px; align-items: center;
 }
@@ -841,9 +846,10 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 
 /* Bug 6: Title glow on stage change */
 @keyframes title-glow-pulse {
-  0% { text-shadow: 0 0 8px #0ff; }
-  100% { text-shadow: none; }
+  0% { background: rgba(0,255,255,0.25); transform: scale(1.08); }
+  100% { background: transparent; transform: scale(1); }
 }
-.stage-title-glow .stage-center-title {
-  animation: title-glow-pulse 0.6s ease-out forwards;
+.stage-title-glow {
+  animation: title-glow-pulse 0.7s ease-out forwards;
+  border-radius: 8px;
 }

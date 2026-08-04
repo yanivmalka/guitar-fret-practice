@@ -113,6 +113,18 @@ export default function App() {
   // Custom stages
   const customStages = useCustomStages();
   const [showPicker, setShowPicker] = useState(false);
+  const [savingCustom, setSavingCustom] = useState(false);
+  const [customName, setCustomName] = useState('');
+  const handleSaveCustom = () => {
+    if (!customName.trim()) return;
+    customStages.save({
+      name: customName.trim(),
+      guitarString, fretFrom, fretTo, dotsOnly, wholeToneOnly, byNote,
+      multiStrings, time, accidental, order,
+    });
+    setSavingCustom(false);
+    setCustomName('');
+  };
 
   // Ordered groups for the picker: all 0–12 strings, then all 12–21 strings, then multi, full neck, custom
   const pickerGroups = useMemo((): (StageGroup & { status: '✓' | '●' | '○' })[] => {
@@ -129,7 +141,9 @@ export default function App() {
       else fullNeck.push(g);
     });
     const ordered = [...str012, ...str1221, ...multi, ...fullNeck];
-    // Custom stages removed — feature not fully wired yet
+    if (customStages.stages.length > 0) {
+      ordered.push({ label: '★ My Stages', indices: [] });
+    }
     return ordered.map(g => {
       // Determine status from allHistory
       const hasHistory = g.indices.some(idx => (allHistory[STAGES[idx]?.id] ?? []).length > 0);
@@ -180,8 +194,18 @@ export default function App() {
                     className={`picker-item ${isCurrent ? 'picker-item-current' : ''}`}
                     onClick={() => {
                       playClickSound(); haptic.tap();
-                      if (g.label === '★ My Stages') {
-                        // TODO: navigate to custom stage
+                      if (g.label === '★ My Stages' && customStages.stages.length > 0) {
+                        const cs = customStages.stages[0];
+                        setGuitarString(cs.guitarString);
+                        setFretFrom(cs.fretFrom);
+                        setFretTo(cs.fretTo);
+                        setDotsOnly(cs.dotsOnly);
+                        setWholeToneOnly(cs.wholeToneOnly);
+                        setByNote(cs.byNote);
+                        setMultiStrings(cs.multiStrings);
+                        setTime(cs.time);
+                        setAccidental(cs.accidental);
+                        setOrder(cs.order);
                       } else if (g.indices.length > 0) {
                         goToStage(g.indices[0]);
                       }
@@ -209,10 +233,30 @@ export default function App() {
         <div className="settings-overlay" onClick={e => { if (e.target === e.currentTarget) setShowSettings(false); }}>
           <div className="settings-panel">
             {isCustomized && (
-              <span className="custom-stage-badge" style={{ marginBottom: 10, display: 'flex' }}>
+              <span className="custom-stage-badge" style={{ marginBottom: 10, display: 'flex', padding: '6px 14px', fontSize: '13px' }}>
                 ✎ custom
                 <button className="custom-reset-btn" onClick={click(resetToStage)}>↺ reset</button>
               </span>
+            )}
+            {isCustomized && customStages.canSaveMore && (
+              <div style={{ marginBottom: 10, display: 'flex', gap: 6, alignItems: 'center' }}>
+                {!savingCustom ? (
+                  <button className="custom-save-btn-big" onClick={click(() => setSavingCustom(true))}>💾 Save as stage</button>
+                ) : (
+                  <>
+                    <input className="custom-name-input" placeholder="Stage name..." value={customName} onChange={e => setCustomName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSaveCustom()} autoFocus />
+                    <button className="custom-save-confirm" onClick={click(handleSaveCustom)}>Save</button>
+                    <button className="custom-save-cancel" onClick={click(() => { setSavingCustom(false); setCustomName(''); })}>✕</button>
+                  </>
+                )}
+              </div>
+            )}
+            {customStages.stages.length > 0 && (
+              <div style={{ marginBottom: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {customStages.stages.map((cs, i) => (
+                  <span key={i} className="custom-stage-chip">★ {cs.name} <button className="custom-delete-btn" onClick={click(() => customStages.remove(i))}>✕</button></span>
+                ))}
+              </div>
             )}
             <Settings
               guitarString={guitarString} setGuitarString={setGuitarString}
@@ -238,8 +282,8 @@ export default function App() {
       {!showSettings && (
         <div className="order-switcher" style={{ visibility: byNote ? 'hidden' : 'visible' }}>
           <button className={`order-chip chip-toggle${byString ? ' chip-toggle-active' : ''}`} onClick={click(() => setByString(!byString))}>By String</button>
-          <button className={`order-chip${order === 'fifths' ? ' order-chip-active' : ''}`} onClick={click(() => { if (order !== 'fifths') setOrder('fifths'); })}>Fifths</button>
-          <button className={`order-chip${order === 'alphabet' ? ' order-chip-active' : ''}`} onClick={click(() => { if (order !== 'alphabet') setOrder('alphabet'); })}>Alpha</button>
+          <button className={`order-chip${order === 'fifths' ? ' order-chip-active' : ''}`} onClick={() => { if (order !== 'fifths') { playClickSound(); haptic.tap(); setByString(false); setOrder('fifths'); } }}>Fifths</button>
+          <button className={`order-chip${order === 'alphabet' ? ' order-chip-active' : ''}`} onClick={() => { if (order !== 'alphabet') { playClickSound(); haptic.tap(); setByString(false); setOrder('alphabet'); } }}>Alpha</button>
         </div>
       )}
 
