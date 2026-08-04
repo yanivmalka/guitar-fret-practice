@@ -70,7 +70,7 @@ export default function App() {
   const {
     running, paused, currentFret, currentNote, remaining, feedback,
     correctCofNote, wrongCofNote, answered, remainingFrets, foundFrets, wrongFret,
-    start: engineStart, stop, pause, resume, switchStage, selectFret, selectAnswer,
+    start: engineStart, stop, pause, resume, selectFret, selectAnswer,
   } = engine;
 
   const [preloaded, setPreloaded] = useState(false);
@@ -121,25 +121,51 @@ export default function App() {
       <StageNav
         stage={stage}
         stageIndex={stageIndex}
-        onPrev={() => isPlaying ? switchStage(stageIndex - 1) : (stop(), goToStage(stageIndex - 1))}
-        onNext={() => isPlaying ? switchStage(stageIndex + 1) : (stop(), goToStage(stageIndex + 1))}
+        onPrev={() => { stop(); goToStage(stageIndex - 1); }}
+        onNext={() => { stop(); goToStage(stageIndex + 1); }}
         isPlaying={isPlaying}
         suggestion={liveSuggestion}
         allHistory={allHistory}
       />
 
-      <button className="toggle-btn" onClick={click(() => { if (running || paused) stop(); setShowSettings(!showSettings); })}>
-        {showSettings ? '▲ Hide Settings' : '⚙ Settings'}
+      {/* Burger menu button — fixed top-right */}
+      <button className="burger-btn" onClick={click(() => { if (running || paused) stop(); setShowSettings(s => !s); })} title="Settings">
+        {showSettings ? '✕' : '☰'}
       </button>
-      {isCustomized && !running && (
-        <span className="custom-stage-badge">
-          ✎ custom
-          <button className="custom-reset-btn" onClick={click(resetToStage)} title="Reset to stage defaults">↺ reset</button>
-        </span>
+
+      {/* Floating settings overlay */}
+      {showSettings && (
+        <div className="settings-overlay" onClick={e => { if (e.target === e.currentTarget) setShowSettings(false); }}>
+          <div className="settings-panel">
+            {isCustomized && (
+              <span className="custom-stage-badge" style={{ marginBottom: 10, display: 'flex' }}>
+                ✎ custom
+                <button className="custom-reset-btn" onClick={click(resetToStage)}>↺ reset</button>
+              </span>
+            )}
+            <Settings
+              guitarString={guitarString} setGuitarString={setGuitarString}
+              time={time} setTime={setTime}
+              fretFrom={fretFrom} setFretFrom={setFretFrom}
+              fretTo={fretTo} setFretTo={setFretTo}
+              accidental={accidental} setAccidental={setAccidental}
+              order={order} setOrder={setOrder}
+              wholeToneOnly={wholeToneOnly} setWholeToneOnly={(v) => { setWholeToneOnly(v); if (v) setDotsOnly(false); }}
+              dotsOnly={dotsOnly} setDotsOnly={(v) => { setDotsOnly(v); if (v) setWholeToneOnly(false); }}
+              byString={byString} setByString={setByString}
+              byNote={byNote} setByNote={setByNote}
+              multiStrings={multiStrings} setMultiStrings={setMultiStrings}
+              activeNotes={activeNotes}
+              showOrderSwitcher={!byNote}
+              notation={notation} setNotation={setNotation}
+            />
+          </div>
+        </div>
       )}
 
+      {/* Description button and order switcher */}
       {!descExpanded
-        ? <button className="desc-question-btn" onClick={showDesc}>?</button>
+        ? <button className="desc-question-btn" onClick={click(showDesc)}>?</button>
         : <div className="stage-description" onClick={hideDesc} style={{ cursor: 'pointer' }}>
             <span className="stage-desc-filter">
               {stage.dotsOnly ? '🎯 Dots Only' : stage.wholeToneOnly ? '🎵 Natural Notes' : '🎸 Full Chromatic'}
@@ -151,29 +177,18 @@ export default function App() {
 
       {!byNote && !showSettings && (
         <div className="order-switcher">
-          <button className={`order-chip${byString ? ' order-chip-active' : ''}`} onClick={() => setByString(!byString)}>By String</button>
-          <button className={`order-chip${!byString && order === 'fifths' ? ' order-chip-active' : ''}`} onClick={() => { setByString(false); setOrder('fifths'); }}>Fifths</button>
-          <button className={`order-chip${!byString && order === 'alphabet' ? ' order-chip-active' : ''}`} onClick={() => { setByString(false); setOrder('alphabet'); }}>Alpha</button>
+          <button className={`order-chip${byString ? ' order-chip-active' : ''}`} onClick={click(() => setByString(!byString))}>By String</button>
+          <button className={`order-chip${!byString && order === 'fifths' ? ' order-chip-active' : ''}`} onClick={click(() => { setByString(false); setOrder('fifths'); })}>Fifths</button>
+          <button className={`order-chip${!byString && order === 'alphabet' ? ' order-chip-active' : ''}`} onClick={click(() => { setByString(false); setOrder('alphabet'); })}>Alpha</button>
         </div>
       )}
 
-      {showSettings && (
-        <Settings
-          guitarString={guitarString} setGuitarString={setGuitarString}
-          time={time} setTime={setTime}
-          fretFrom={fretFrom} setFretFrom={setFretFrom}
-          fretTo={fretTo} setFretTo={setFretTo}
-          accidental={accidental} setAccidental={setAccidental}
-          order={order} setOrder={setOrder}
-          wholeToneOnly={wholeToneOnly} setWholeToneOnly={(v) => { setWholeToneOnly(v); if (v) setDotsOnly(false); }}
-          dotsOnly={dotsOnly} setDotsOnly={(v) => { setDotsOnly(v); if (v) setWholeToneOnly(false); }}
-          byString={byString} setByString={setByString}
-          byNote={byNote} setByNote={setByNote}
-          multiStrings={multiStrings} setMultiStrings={setMultiStrings}
-          activeNotes={activeNotes}
-          showOrderSwitcher={!byNote}
-          notation={notation} setNotation={setNotation}
-        />
+      {/* Custom badge when visible (not in settings overlay) */}
+      {isCustomized && !running && !showSettings && (
+        <span className="custom-stage-badge">
+          ✎ custom
+          <button className="custom-reset-btn" onClick={click(resetToStage)}>↺ reset</button>
+        </span>
       )}
 
       <div className="game-row">
@@ -198,7 +213,7 @@ export default function App() {
               {liveSuggestion === 'next' && stageIndex < STAGES.length - 1 && (
                 <div className="stage-suggestion stage-suggestion-next">
                   🔥 Great job! Ready for the next stage?
-                  <button className="stage-suggest-btn" onClick={() => goToStage(stageIndex + 1)}>
+                  <button className="stage-suggest-btn" onClick={click(() => goToStage(stageIndex + 1))}>
                     Go to {STAGES[stageIndex + 1].label} ▶
                   </button>
                 </div>
@@ -206,7 +221,7 @@ export default function App() {
               {liveSuggestion === 'prev' && stageIndex > 0 && (
                 <div className="stage-suggestion stage-suggestion-prev">
                   💡 Try the previous stage to build a stronger base.
-                  <button className="stage-suggest-btn" onClick={() => { clearStage(stage.id); goToStage(stageIndex - 1); }}>
+                  <button className="stage-suggest-btn" onClick={click(() => { clearStage(stage.id); goToStage(stageIndex - 1); })}>
                     ◀ Go to {STAGES[stageIndex - 1].label}
                   </button>
                 </div>
@@ -222,7 +237,7 @@ export default function App() {
                 <button className="icon-btn play-btn" onClick={click(start)} title="Start">
                   <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
                 </button>
-                {(allHistory[stage.id]?.length ?? 0) > 0 && <button className="clear-btn" onClick={clearStats}>Clear</button>}
+                {(allHistory[stage.id]?.length ?? 0) > 0 && <button className="clear-btn" onClick={click(clearStats)}>Clear</button>}
               </>
             ) : (
               <>

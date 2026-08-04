@@ -7,24 +7,68 @@ export function useGameSettings() {
   const [stageIndex, setStageIndex] = useState(() => loadSetting('stageIndex', 0));
   const stage = STAGES[stageIndex];
 
-  const [guitarString, setGuitarString] = useState(stage.string);
-  const [time, setTime] = useState(stage.time);
-  const [fretFrom, setFretFrom] = useState(stage.fretFrom);
-  const [fretTo, setFretTo] = useState(stage.fretTo);
-  const [accidental, setAccidental] = useState<AccidentalMode>(stage.accidental);
-  const [order, setOrder] = useState<OrderMode>(stage.order);
-  const [wholeToneOnly, setWholeToneOnly] = useState(stage.wholeToneOnly);
-  const [dotsOnly, setDotsOnly] = useState(stage.dotsOnly);
-  const [byString, setByString] = useState(true);
-  const [byNote, setByNote] = useState(stage.byNote);
-  const [multiStrings, setMultiStrings] = useState<number[]>(stage.multiStrings);
-  const [notation, setNotation] = useState<NotationMode>(() => loadSetting<NotationMode>('notation', 'alpha'));
-  useEffect(() => { saveSetting('notation', notation); }, [notation]);
+  // Each setting is individually persisted so user preferences survive stage changes and reopens
+  const [guitarString, setGuitarStringRaw] = useState(() => loadSetting('pref_guitarString', stage.string));
+  const [time,         setTimeRaw]         = useState(() => loadSetting('pref_time',         stage.time));
+  const [fretFrom,     setFretFromRaw]      = useState(() => loadSetting('pref_fretFrom',     stage.fretFrom));
+  const [fretTo,       setFretToRaw]        = useState(() => loadSetting('pref_fretTo',       stage.fretTo));
+  const [accidental,   setAccidentalRaw]    = useState<AccidentalMode>(() => loadSetting('pref_accidental', stage.accidental));
+  const [order,        setOrderRaw]         = useState<OrderMode>(() => loadSetting('pref_order', stage.order));
+  const [wholeToneOnly, setWholeToneOnlyRaw] = useState(() => loadSetting('pref_wholeToneOnly', stage.wholeToneOnly));
+  const [dotsOnly,     setDotsOnlyRaw]      = useState(() => loadSetting('pref_dotsOnly',     stage.dotsOnly));
+  const [byString,     setByStringRaw]      = useState(() => loadSetting('pref_byString',     true));
+  const [byNote,       setByNoteRaw]        = useState(() => loadSetting('pref_byNote',       stage.byNote));
+  const [multiStrings, setMultiStringsRaw]  = useState<number[]>(() => loadSetting('pref_multiStrings', stage.multiStrings));
+  const [notation,     setNotationRaw]      = useState<NotationMode>(() => loadSetting('pref_notation', 'alpha' as NotationMode));
+
+  // Persist every setting change
+  const setGuitarString = (v: number)        => { setGuitarStringRaw(v);  saveSetting('pref_guitarString',  v); };
+  const setTime         = (v: number)        => { setTimeRaw(v);          saveSetting('pref_time',          v); };
+  const setFretFrom     = (v: number)        => { setFretFromRaw(v);      saveSetting('pref_fretFrom',      v); };
+  const setFretTo       = (v: number)        => { setFretToRaw(v);        saveSetting('pref_fretTo',        v); };
+  const setAccidental   = (v: AccidentalMode)=> { setAccidentalRaw(v);   saveSetting('pref_accidental',   v); };
+  const setOrder        = (v: OrderMode)     => { setOrderRaw(v);         saveSetting('pref_order',         v); };
+  const setWholeToneOnly= (v: boolean)       => { setWholeToneOnlyRaw(v); saveSetting('pref_wholeToneOnly', v); };
+  const setDotsOnly     = (v: boolean)       => { setDotsOnlyRaw(v);      saveSetting('pref_dotsOnly',      v); };
+  const setByString     = (v: boolean)       => { setByStringRaw(v);      saveSetting('pref_byString',      v); };
+  const setByNote       = (v: boolean)       => { setByNoteRaw(v);        saveSetting('pref_byNote',        v); };
+  const setMultiStrings = (v: number[])      => { setMultiStringsRaw(v);  saveSetting('pref_multiStrings',  v); };
+  const setNotation     = (v: NotationMode)  => { setNotationRaw(v);      saveSetting('pref_notation',      v); };
 
   useEffect(() => { saveSetting('stageIndex', stageIndex); }, [stageIndex]);
 
+  // applyStage: only applies stage-specific settings (filter, mode, string)
+  // fretFrom/fretTo and time are NOT overwritten — user keeps their preferred range/speed
   const applyStage = useCallback((idx: number) => {
     const s = STAGES[idx];
+    setGuitarString(s.string);
+    setAccidental(s.accidental);
+    setOrder(s.order);
+    setWholeToneOnly(s.wholeToneOnly);
+    setDotsOnly(s.dotsOnly);
+    setByNote(s.byNote);
+    setMultiStrings(s.multiStrings);
+    setByStringRaw(true); saveSetting('pref_byString', true);
+  }, []);
+
+  const goToStage = useCallback((idx: number) => {
+    if (idx < 0 || idx >= STAGES.length) return;
+    setStageIndex(idx);
+    applyStage(idx);
+  }, [applyStage]);
+
+  // Detect customization: compare against stage defaults (excluding fretFrom/fretTo)
+  const isCustomized =
+    guitarString !== stage.string ||
+    time !== stage.time ||
+    wholeToneOnly !== stage.wholeToneOnly ||
+    dotsOnly !== stage.dotsOnly ||
+    byNote !== stage.byNote ||
+    JSON.stringify([...multiStrings].sort()) !== JSON.stringify([...stage.multiStrings].sort());
+
+  // Reset restores ALL settings including fret range to stage defaults
+  const resetToStage = useCallback(() => {
+    const s = STAGES[stageIndex];
     setGuitarString(s.string);
     setTime(s.time);
     setFretFrom(s.fretFrom);
@@ -35,27 +79,8 @@ export function useGameSettings() {
     setDotsOnly(s.dotsOnly);
     setByNote(s.byNote);
     setMultiStrings(s.multiStrings);
-    setByString(true);
-  }, []);
-
-  const goToStage = useCallback((idx: number) => {
-    if (idx < 0 || idx >= STAGES.length) return;
-    setStageIndex(idx);
-    applyStage(idx);
-  }, [applyStage]);
-
-  // US-14: detect when current settings deviate from the stage defaults
-  const isCustomized =
-    guitarString !== stage.string ||
-    time !== stage.time ||
-    fretFrom !== stage.fretFrom ||
-    fretTo !== stage.fretTo ||
-    wholeToneOnly !== stage.wholeToneOnly ||
-    dotsOnly !== stage.dotsOnly ||
-    byNote !== stage.byNote ||
-    JSON.stringify([...multiStrings].sort()) !== JSON.stringify([...stage.multiStrings].sort());
-
-  const resetToStage = useCallback(() => { applyStage(stageIndex); }, [applyStage, stageIndex]);
+    setByStringRaw(true); saveSetting('pref_byString', true);
+  }, [stageIndex]);
 
   return {
     stageIndex, setStageIndex,

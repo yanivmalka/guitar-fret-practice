@@ -1,11 +1,20 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+html, body {
+  overflow: hidden;
+  overscroll-behavior: none;
+  height: 100%;
+  width: 100%;
+  position: fixed;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: #1a1a2e;
   color: #eee;
-  min-height: 100dvh;
+  height: 100dvh;
   -webkit-tap-highlight-color: transparent;
+  touch-action: pan-x pan-y;
 }
 
 .app {
@@ -13,14 +22,55 @@ body {
   margin: 0 auto;
   padding: 12px;
   text-align: center;
+  height: 100dvh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 h1 { font-size: 1.3rem; margin-bottom: 10px; }
 
-.toggle-btn {
-  background: none; border: 1px solid #555; color: #0ff;
-  padding: 6px 14px; border-radius: 16px; font-size: 13px; cursor: pointer;
-  margin-bottom: 10px;
+/* Settings floating overlay (burger menu) */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 52px 8px 8px;
+  overscroll-behavior: contain;
+}
+.settings-panel {
+  background: #111122;
+  border: 1px solid #2a2a4a;
+  border-radius: 16px;
+  padding: 16px;
+  width: min(360px, 95vw);
+  max-height: 80dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+}
+.burger-btn {
+  position: fixed;
+  top: 10px;
+  right: 12px;
+  z-index: 60;
+  background: #1a1a2e;
+  border: 1px solid #444;
+  border-radius: 8px;
+  color: #0ff;
+  width: 40px;
+  height: 36px;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Settings */
@@ -643,10 +693,15 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 .custom-reset-btn:hover { color: #ffa; }
 
 /* ── Toggle chip vs action chip (US-13) ─────────────────── */
-/* Toggle chips: outlined style when active (shows state, not selection) */
+/* Toggle chips: always show a dashed border to indicate togglable nature */
+.chip-toggle {
+  border-style: dashed;
+}
+/* Toggle chips active: outlined style (shows state, not selection) */
 .chip-toggle-active {
   background: transparent;
   border-color: #0ff;
+  border-style: dashed;
   color: #0ff;
   font-weight: bold;
 }

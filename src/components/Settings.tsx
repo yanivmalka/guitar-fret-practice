@@ -1,5 +1,6 @@
 import type { AccidentalMode, OrderMode, NotationMode } from '../utils/music';
 import { displayNote } from '../utils/music';
+import { playClickSound, haptic } from '../utils/feedback';
 
 interface Props {
   guitarString: number;
@@ -31,10 +32,11 @@ interface Props {
 }
 
 function Chip({ label, selected, onClick, disabled, toggle }: { label: string; selected: boolean; onClick: () => void; disabled?: boolean; toggle?: boolean }) {
+  const handleClick = () => { playClickSound(); haptic.tap(); onClick(); };
   return (
     <button
-      className={`chip ${selected ? (toggle ? 'chip-toggle-active' : 'chip-active') : ''} ${disabled ? 'chip-disabled' : ''}`}
-      onClick={onClick}
+      className={`chip ${selected ? (toggle ? 'chip-toggle-active' : 'chip-active') : ''} ${disabled ? 'chip-disabled' : ''} ${toggle ? 'chip-toggle' : ''}`}
+      onClick={handleClick}
       disabled={disabled}
     >
       {label}
@@ -93,13 +95,13 @@ export default function Settings(p: Props) {
       <div className="setting-group">
         <span className="group-title">Frets</span>
         <div className="setting-row">
-          <button className="adj-btn" onClick={() => p.setFretFrom(Math.max(0, p.fretFrom - 1))}>−</button>
+          <button className="adj-btn" onClick={() => { playClickSound(); p.setFretFrom(Math.max(0, p.fretFrom - 1)); }}>−</button>
           <span className="range-val">{p.fretFrom}</span>
-          <button className="adj-btn" onClick={() => p.setFretFrom(Math.min(p.fretTo, p.fretFrom + 1))}>+</button>
+          <button className="adj-btn" onClick={() => { playClickSound(); p.setFretFrom(Math.min(p.fretTo, p.fretFrom + 1)); }}>+</button>
           <span className="range-val">to</span>
-          <button className="adj-btn" onClick={() => p.setFretTo(Math.max(p.fretFrom, p.fretTo - 1))}>−</button>
+          <button className="adj-btn" onClick={() => { playClickSound(); p.setFretTo(Math.max(p.fretFrom, p.fretTo - 1)); }}>−</button>
           <span className="range-val">{p.fretTo}</span>
-          <button className="adj-btn" onClick={() => p.setFretTo(Math.min(21, p.fretTo + 1))}>+</button>
+          <button className="adj-btn" onClick={() => { playClickSound(); p.setFretTo(Math.min(21, p.fretTo + 1)); }}>+</button>
         </div>
       </div>
       <div className="setting-group">

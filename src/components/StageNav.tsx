@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { Stage } from '../utils/stages';
 import { STAGES, TOTAL_STAGES, getStageLevels, getStageClasses, getStageParts } from '../utils/stages';
 import type { HistoryEntry } from '../utils/music';
+import { playClickSound, haptic } from '../utils/feedback';
 
 interface Props {
   stage: Stage;
@@ -84,7 +85,7 @@ export default function StageNav({ stage, stageIndex, onPrev, onNext, isPlaying,
       {/* ← chevron — US-05: rectangular, not circular */}
       <button
         className={`stage-chevron ${prevSuggested ? 'stage-chevron-suggest' : ''}`}
-        onClick={onPrev}
+        onClick={() => { playClickSound(); haptic.tap(); onPrev(); }}
         disabled={isFirst}
         title={isPlaying ? 'Switch to easier stage' : 'Previous stage'}
         aria-label="Previous stage"
@@ -138,7 +139,7 @@ export default function StageNav({ stage, stageIndex, onPrev, onNext, isPlaying,
       {/* › chevron */}
       <button
         className={`stage-chevron ${nextSuggested ? 'stage-chevron-suggest' : ''}`}
-        onClick={onNext}
+        onClick={() => { playClickSound(); haptic.tap(); onNext(); }}
         disabled={isLast}
         title={isPlaying ? 'Switch to harder stage' : 'Next stage'}
         aria-label="Next stage"
