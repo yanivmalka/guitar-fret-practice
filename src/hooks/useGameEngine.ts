@@ -107,28 +107,33 @@ export function useGameEngine(
   const pickSmartFret = useCallback((validFrets: number[], _strIdx: number): number => {
     if (validFrets.length === 0) return 0;
 
-    // Always re-ask recently failed frets first (within same session)
-    const failed = validFrets.filter(f => failedFretsRef.current.has(f) && notes[_strIdx]?.[f] !== lastNoteRef.current);
+    // Find the fret that corresponds to lastNoteRef (avoid immediate repeat)
+    const lastFret = lastNoteRef.current !== null
+      ? validFrets.find(f => notes[_strIdx]?.[f] === lastNoteRef.current) ?? -1
+      : -1;
+
+    // Re-ask recently failed frets — but only once, then remove from failed set
+    const failed = [...failedFretsRef.current].filter(f => validFrets.includes(f) && f !== lastFret);
     if (failed.length > 0) {
-      // Pick the failed fret randomly so it doesn't feel repetitive
-      return failed[Math.floor(Math.random() * failed.length)];
+      const pick = failed[Math.floor(Math.random() * failed.length)];
+      failedFretsRef.current.delete(pick); // Remove so it doesn't repeat indefinitely
+      return pick;
     }
 
-    // Coverage pool: refill when empty (guarantees all notes seen before repeats)
-    const available = validFrets.filter(f => coveragePoolRef.current.includes(f));
-    if (available.length === 0) {
-      // Refill pool with all valid frets except the last asked
-      coveragePoolRef.current = validFrets.filter(f => notes[_strIdx] ? f !== undefined : true);
+    // Coverage pool: keep only frets that are still valid
+    coveragePoolRef.current = coveragePoolRef.current.filter(f => validFrets.includes(f));
+
+    // Refill when empty
+    if (coveragePoolRef.current.length === 0) {
+      coveragePoolRef.current = [...validFrets];
     }
 
-    // Pick from pool excluding last note (avoid immediate repeat)
-    const pool = coveragePoolRef.current.filter(f => f !== (lastNoteRef.current !== null
-      ? validFrets.find(vf => notes[_strIdx]?.[vf] === lastNoteRef.current)
-      : -1));
-    const candidates = pool.length > 0 ? pool : coveragePoolRef.current;
-    const pick = candidates[Math.floor(Math.random() * candidates.length)];
+    // Pick from pool excluding last fret
+    const candidates = coveragePoolRef.current.filter(f => f !== lastFret);
+    const pool = candidates.length > 0 ? candidates : coveragePoolRef.current;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
 
-    // Remove picked fret from pool
+    // Remove picked from pool
     coveragePoolRef.current = coveragePoolRef.current.filter(f => f !== pick);
     return pick ?? validFrets[0];
   }, []);

@@ -112,8 +112,6 @@ export default function App() {
 
   // Custom stages
   const customStages = useCustomStages();
-  const [savingCustom, setSavingCustom] = useState(false);
-  const [customName, setCustomName] = useState('');
   const [showPicker, setShowPicker] = useState(false);
 
   // Ordered groups for the picker: all 0–12 strings, then all 12–21 strings, then multi, full neck, custom
@@ -148,19 +146,7 @@ export default function App() {
     });
   }, [allHistory, customStages.stages.length]);
 
-  const handleSaveCustom = () => {
-    if (!customName.trim()) return;
-    const saved = customStages.save({
-      name: customName.trim(),
-      guitarString, fretFrom, fretTo, dotsOnly, wholeToneOnly, byNote,
-      multiStrings, time, accidental, order,
-    });
-    if (!saved) {
-      alert('Free users can save 1 custom stage. Upgrade for more.');
-    }
-    setSavingCustom(false);
-    setCustomName('');
-  };
+
 
   return (
     <div className="app">
@@ -260,42 +246,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Custom badge when visible (not in settings overlay) */}
-      {isCustomized && !running && !showSettings && (
-        <div className="custom-stage-area">
-          <span className="custom-stage-badge">
-            ✎ custom
-            <button className="custom-reset-btn" onClick={click(resetToStage)}>↺ reset</button>
-            {customStages.canSaveMore && (
-              <button className="custom-save-btn" onClick={click(() => setSavingCustom(true))}>💾 save</button>
-            )}
-          </span>
-          {savingCustom && (
-            <div className="custom-save-modal">
-              <input
-                className="custom-name-input"
-                placeholder="Stage name..."
-                value={customName}
-                onChange={e => setCustomName(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSaveCustom()}
-                autoFocus
-              />
-              <button className="custom-save-confirm" onClick={click(handleSaveCustom)}>Save</button>
-              <button className="custom-save-cancel" onClick={click(() => { setSavingCustom(false); setCustomName(''); })}>✕</button>
-            </div>
-          )}
-          {customStages.stages.length > 0 && (
-            <div className="custom-stages-list">
-              {customStages.stages.map((cs, i) => (
-                <span key={i} className="custom-stage-chip">
-                  ★ {cs.name}
-                  <button className="custom-delete-btn" onClick={click(() => customStages.remove(i))}>✕</button>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+
 
       <div className="game-row">
         <div className="question-col">
@@ -407,7 +358,10 @@ export default function App() {
           </div>
       }
 
-      <div className="build-info">{__COMMIT_HASH__} · {__COMMIT_DATE__.slice(0, 16)}</div>
+      <div className="build-info">
+        {__COMMIT_HASH__} · {__COMMIT_DATE__.slice(0, 16)}
+        <button className="refresh-btn" onClick={() => window.location.reload()} title="Refresh">↻</button>
+      </div>
     </div>
   );
 }

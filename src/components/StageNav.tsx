@@ -53,8 +53,8 @@ export default function StageNav({ stage, stageIndex, onPrev, onNext, onTitleCli
       // Ignore if not clearly horizontal
       if (Math.abs(dx) < 50) return;
       if (Math.abs(dy) > Math.abs(dx) * 0.6) return;
-      if (dx < 0) onNextRef.current();
-      else onPrevRef.current();
+      if (dx < 0) { playClickSound(); haptic.tap(); onNextRef.current(); }
+      else { playClickSound(); haptic.tap(); onPrevRef.current(); }
     };
     document.addEventListener('touchstart', onTouchStart, { passive: true });
     document.addEventListener('touchend', onTouchEnd, { passive: true });
