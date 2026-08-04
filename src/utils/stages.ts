@@ -226,13 +226,16 @@ export function getStageLevels(): StageLevel[] {
 
 export function getStageClasses(): { label: string; levelIndices: number[] }[] {
   const levels = getStageLevels();
-  // Classes: one per string pair group + Multi-String + Full Neck
+  // Classes: one per string + Multi-String + Full Neck
   return [
-    { label: 'Str 6+5',      levelIndices: levels.map((lv, i) => (lv.label.startsWith('Str 6') || lv.label.startsWith('Str 5')) ? i : -1).filter(i => i !== -1) },
-    { label: 'Str 4+3',      levelIndices: levels.map((lv, i) => (lv.label.startsWith('Str 4') || lv.label.startsWith('Str 3')) ? i : -1).filter(i => i !== -1) },
-    { label: 'Str 2+1',      levelIndices: levels.map((lv, i) => (lv.label.startsWith('Str 2') || lv.label.startsWith('Str 1')) ? i : -1).filter(i => i !== -1) },
-    { label: 'Multi-String', levelIndices: levels.map((lv, i) => lv.label === 'Multi-String' ? i : -1).filter(i => i !== -1) },
-    { label: 'Full Neck',    levelIndices: levels.map((lv, i) => lv.label === 'Full Neck' ? i : -1).filter(i => i !== -1) },
+    { label: 'Str 6', levelIndices: levels.map((lv, i) => lv.label.startsWith('Str 6') ? i : -1).filter(i => i !== -1) },
+    { label: 'Str 5', levelIndices: levels.map((lv, i) => lv.label.startsWith('Str 5') ? i : -1).filter(i => i !== -1) },
+    { label: 'Str 4', levelIndices: levels.map((lv, i) => lv.label.startsWith('Str 4') ? i : -1).filter(i => i !== -1) },
+    { label: 'Str 3', levelIndices: levels.map((lv, i) => lv.label.startsWith('Str 3') ? i : -1).filter(i => i !== -1) },
+    { label: 'Str 2', levelIndices: levels.map((lv, i) => lv.label.startsWith('Str 2') ? i : -1).filter(i => i !== -1) },
+    { label: 'Str 1', levelIndices: levels.map((lv, i) => lv.label.startsWith('Str 1') ? i : -1).filter(i => i !== -1) },
+    { label: 'Multi',     levelIndices: levels.map((lv, i) => lv.label === 'Multi-String' ? i : -1).filter(i => i !== -1) },
+    { label: 'Full Neck', levelIndices: levels.map((lv, i) => lv.label === 'Full Neck' ? i : -1).filter(i => i !== -1) },
   ];
 }
 

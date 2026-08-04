@@ -712,3 +712,34 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   color: #1a1a2e;
   font-weight: bold;
 }
+
+/* ── Bottom-center ? button ───────────────────────────────── */
+.desc-question-btn-bottom {
+  background: none;
+  border: 1px solid #444;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  color: #0ff;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+  margin: 12px auto 4px;
+  display: block;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.desc-question-btn-bottom:hover { border-color: #0ff; background: rgba(0,255,255,0.1); }
+
+.stage-description-bottom {
+  margin: 8px auto 4px;
+  max-width: 600px;
+  font-size: 12px;
+  color: #777;
+  line-height: 1.5;
+  padding: 8px 12px;
+  background: #111120;
+  border-radius: 8px;
+  border: 1px solid #2a2a3a;
+  text-align: center;
+}

@@ -164,17 +164,6 @@ export default function App() {
       )}
 
       {/* Description button and order switcher */}
-      {!descExpanded
-        ? <button className="desc-question-btn" onClick={click(showDesc)}>?</button>
-        : <div className="stage-description" onClick={hideDesc} style={{ cursor: 'pointer' }}>
-            <span className="stage-desc-filter">
-              {stage.dotsOnly ? '🎯 Dots Only' : stage.wholeToneOnly ? '🎵 Natural Notes' : '🎸 Full Chromatic'}
-            </span>
-            {' · '}
-            {stage.shortDesc}
-          </div>
-      }
-
       {!byNote && !showSettings && (
         <div className="order-switcher">
           <button className={`order-chip${byString ? ' order-chip-active' : ''}`} onClick={click(() => setByString(!byString))}>By String</button>
@@ -288,6 +277,18 @@ export default function App() {
           />
         )}
       </div>
+
+      {/* ? info button at bottom center */}
+      {!descExpanded
+        ? <button className="desc-question-btn-bottom" onClick={click(showDesc)}>?</button>
+        : <div className="stage-description-bottom" onClick={hideDesc} style={{ cursor: 'pointer' }}>
+            <span className="stage-desc-filter">
+              {stage.dotsOnly ? '🎯 Dots Only' : stage.wholeToneOnly ? '🎵 Natural Notes' : '🎸 Full Chromatic'}
+            </span>
+            {' · '}
+            {stage.shortDesc}
+          </div>
+      }
 
       <div className="build-info">{__COMMIT_HASH__} · {__COMMIT_DATE__.slice(0, 16)}</div>
     </div>
