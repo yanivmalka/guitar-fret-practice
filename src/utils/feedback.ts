@@ -22,6 +22,7 @@ function getCtx(): AudioContext | null {
 export function playClickSound() {
   const ctx = getCtx();
   if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume();
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.connect(gain);

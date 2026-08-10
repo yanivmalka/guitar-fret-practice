@@ -107,34 +107,33 @@ export function useGameEngine(
   const pickSmartFret = useCallback((validFrets: number[], _strIdx: number): number => {
     if (validFrets.length === 0) return 0;
 
-    // Find the fret that corresponds to lastNoteRef (avoid immediate repeat)
+    // Shuffle-bag approach: drain the pool in random order, then reshuffle
+    // Keep only frets that are still valid
+    coveragePoolRef.current = coveragePoolRef.current.filter(f => validFrets.includes(f));
+
+    // Refill and shuffle when empty
+    if (coveragePoolRef.current.length === 0) {
+      // Fisher-Yates shuffle
+      const bag = [...validFrets];
+      for (let i = bag.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [bag[i], bag[j]] = [bag[j], bag[i]];
+      }
+      coveragePoolRef.current = bag;
+    }
+
+    // Avoid immediate repeat of last fret — swap it to the end if it's first
     const lastFret = lastNoteRef.current !== null
       ? validFrets.find(f => notes[_strIdx]?.[f] === lastNoteRef.current) ?? -1
       : -1;
 
-    // Re-ask recently failed frets — but only once, then remove from failed set
-    const failed = [...failedFretsRef.current].filter(f => validFrets.includes(f) && f !== lastFret);
-    if (failed.length > 0) {
-      const pick = failed[Math.floor(Math.random() * failed.length)];
-      failedFretsRef.current.delete(pick); // Remove so it doesn't repeat indefinitely
-      return pick;
+    if (coveragePoolRef.current[0] === lastFret && coveragePoolRef.current.length > 1) {
+      // Move it to the back so it's asked later
+      coveragePoolRef.current.push(coveragePoolRef.current.shift()!);
     }
 
-    // Coverage pool: keep only frets that are still valid
-    coveragePoolRef.current = coveragePoolRef.current.filter(f => validFrets.includes(f));
-
-    // Refill when empty
-    if (coveragePoolRef.current.length === 0) {
-      coveragePoolRef.current = [...validFrets];
-    }
-
-    // Pick from pool excluding last fret
-    const candidates = coveragePoolRef.current.filter(f => f !== lastFret);
-    const pool = candidates.length > 0 ? candidates : coveragePoolRef.current;
-    const pick = pool[Math.floor(Math.random() * pool.length)];
-
-    // Remove picked from pool
-    coveragePoolRef.current = coveragePoolRef.current.filter(f => f !== pick);
+    // Take the first item from the pool
+    const pick = coveragePoolRef.current.shift()!;
     return pick ?? validFrets[0];
   }, []);
 

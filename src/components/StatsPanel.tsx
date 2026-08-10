@@ -5,6 +5,7 @@ import { displayNote } from '../utils/music';
 interface Props {
   history: HistoryEntry[];
   maxTime: number;
+  maxQuestions: number;
   accidental: AccidentalMode;
   notation?: NotationMode;
   everPlayed: boolean;
@@ -66,7 +67,7 @@ function GroupSection({ title, cls, items, filter, accidental, notation }: {
   );
 }
 
-export default function StatsPanel({ history, accidental, notation, everPlayed }: Props) {
+export default function StatsPanel({ history, maxQuestions, accidental, notation, everPlayed }: Props) {
   const [tab, setTab] = useState<MainTab>('notes');
   const [filter, setFilter] = useState<Filter>('all');
 
@@ -84,7 +85,9 @@ export default function StatsPanel({ history, accidental, notation, everPlayed }
   const correct = history.filter(h => h.correct === true).length;
   const wrong = history.filter(h => h.correct === false).length;
   const timedOut = history.filter(h => h.skipped).length;
-  const score = Math.round(((correct + timedOut * 0.3) / total) * 100);
+  // Score uses maxQuestions as denominator so partial sessions don't look perfect
+  const scoreDenom = Math.max(total, maxQuestions);
+  const score = Math.round(((correct + timedOut * 0.3) / scoreDenom) * 100);
 
   let encouragement = '';
   if (score >= 80) encouragement = '🔥 Amazing!';
@@ -164,7 +167,7 @@ export default function StatsPanel({ history, accidental, notation, everPlayed }
       <div className="filter-row">
         {(['all', 'correct', 'wrong', 'timeout'] as Filter[]).map(f => (
           <button key={f} className={`filter-chip ${filter === f ? 'filter-active' : ''}`} onClick={() => setFilter(f)}>
-            {f === 'all' ? `All (${total})` : f === 'correct' ? `✓ ${correct}` : f === 'wrong' ? `✗ ${wrong}` : `⏱ ${timedOut}`}
+            {f === 'all' ? `All (${total}/${maxQuestions})` : f === 'correct' ? `✓ ${correct}` : f === 'wrong' ? `✗ ${wrong}` : `⏱ ${timedOut}`}
           </button>
         ))}
       </div>

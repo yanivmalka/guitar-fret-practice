@@ -37,11 +37,14 @@ export function useGameSettings() {
 
   useEffect(() => { saveSetting('stageIndex', stageIndex); }, [stageIndex]);
 
-  // applyStage: only applies stage-specific settings (filter, mode, string)
-  // fretFrom/fretTo and time are NOT overwritten — user keeps their preferred range/speed
+  // applyStage: applies ALL stage settings including fret range
+  // This ensures navigation always lands on the correct stage without syncStageToSettings snapping back
   const applyStage = useCallback((idx: number) => {
     const s = STAGES[idx];
     setGuitarString(s.string);
+    setFretFrom(s.fretFrom);
+    setFretTo(s.fretTo);
+    setTime(s.time);
     setAccidental(s.accidental);
     setOrder(s.order);
     setWholeToneOnly(s.wholeToneOnly);
@@ -51,11 +54,55 @@ export function useGameSettings() {
     setByStringRaw(true); saveSetting('pref_byString', true);
   }, []);
 
+  // ── Custom stage snapshot ──────────────────────────────────────
+  const [hasCustomSnapshot, setHasCustomSnapshot] = useState(() => localStorage.getItem('customStageSnapshot') !== null);
+
+  const saveCustomSnapshot = useCallback(() => {
+    const snapshot = { guitarString, fretFrom, fretTo, dotsOnly, wholeToneOnly, byNote, multiStrings, time, accidental, order };
+    saveSetting('customStageSnapshot', snapshot);
+    setHasCustomSnapshot(true);
+  }, [guitarString, fretFrom, fretTo, dotsOnly, wholeToneOnly, byNote, multiStrings, time, accidental, order]);
+
+  const restoreCustomSnapshot = useCallback((): boolean => {
+    const raw = localStorage.getItem('customStageSnapshot');
+    if (!raw) return false;
+    try {
+      const s = JSON.parse(raw);
+      setGuitarString(s.guitarString);
+      setTime(s.time);
+      setFretFrom(s.fretFrom);
+      setFretTo(s.fretTo);
+      setAccidental(s.accidental);
+      setOrder(s.order);
+      setWholeToneOnly(s.wholeToneOnly);
+      setDotsOnly(s.dotsOnly);
+      setByNote(s.byNote);
+      setMultiStrings(s.multiStrings);
+      return true;
+    } catch { return false; }
+  }, []);
+
+  const clearCustomSnapshot = useCallback(() => {
+    localStorage.removeItem('customStageSnapshot');
+    setHasCustomSnapshot(false);
+  }, []);
+
   const goToStage = useCallback((idx: number) => {
     if (idx < 0 || idx >= STAGES.length) return;
+    // Save custom settings before navigating away (check inline to avoid forward-ref)
+    const currentMatch = STAGES.findIndex(s =>
+      s.string === guitarString &&
+      s.dotsOnly === dotsOnly &&
+      s.wholeToneOnly === wholeToneOnly &&
+      s.byNote === byNote &&
+      s.fretFrom === fretFrom &&
+      s.fretTo === fretTo &&
+      JSON.stringify([...s.multiStrings].sort()) === JSON.stringify([...multiStrings].sort())
+    );
+    if (currentMatch < 0) saveCustomSnapshot();
     setStageIndex(idx);
     applyStage(idx);
-  }, [applyStage]);
+  }, [applyStage, saveCustomSnapshot, guitarString, dotsOnly, wholeToneOnly, byNote, fretFrom, fretTo, multiStrings]);
 
   // When user changes settings, try to find a matching built-in stage
   const findMatchingStage = useCallback((opts: {
@@ -107,7 +154,10 @@ export function useGameSettings() {
     setByNote(s.byNote);
     setMultiStrings(s.multiStrings);
     setByStringRaw(true); saveSetting('pref_byString', true);
-  }, [stageIndex]);
+    // Clear custom stage data
+    clearCustomSnapshot();
+    saveSetting('customStageName', '');
+  }, [stageIndex, clearCustomSnapshot]);
 
   return {
     stageIndex, setStageIndex,
@@ -128,5 +178,8 @@ export function useGameSettings() {
     goToStage,
     isCustomized,
     resetToStage,
+    restoreCustomSnapshot,
+    hasCustomSnapshot,
+    clearCustomSnapshot,
   };
 }

@@ -10,6 +10,12 @@ function getCtx(): AudioContext {
   return audioCtx;
 }
 
+/** Call on first user gesture to unlock the AudioContext */
+export function unlockAudio() {
+  const ctx = getCtx();
+  if (ctx.state === 'suspended') ctx.resume();
+}
+
 function midiName(midi: number): string {
   const n = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
   return n[midi % 12] + (Math.floor(midi / 12) - 1);

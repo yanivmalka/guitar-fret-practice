@@ -13,6 +13,8 @@ interface Props {
   isPlaying: boolean;
   suggestion: 'next' | 'prev' | null;
   allHistory: Record<number, HistoryEntry[]>;
+  customTitle: string | null;
+  byNote?: boolean;
 }
 
 const LEVELS  = getStageLevels();
@@ -31,7 +33,7 @@ function successColor(stageIndices: number[], allHistory: Record<number, History
   return '#f90';
 }
 
-export default function StageNav({ stage, stageIndex, onPrev, onNext, onTitleClick, isPlaying, suggestion, allHistory }: Props) {
+export default function StageNav({ stage, stageIndex, onPrev, onNext, onTitleClick, isPlaying, suggestion, allHistory, customTitle, byNote }: Props) {
   const onPrevRef = useRef(onPrev);
   const onNextRef = useRef(onNext);
   onPrevRef.current = onPrev;
@@ -105,7 +107,7 @@ export default function StageNav({ stage, stageIndex, onPrev, onNext, onTitleCli
       <button
         className={`stage-chevron ${prevSuggested ? 'stage-chevron-suggest' : ''}`}
         onClick={() => { playClickSound(); haptic.tap(); onPrev(); }}
-        disabled={isFirst}
+        disabled={isFirst && !customTitle}
         title={isPlaying ? 'Switch to easier stage' : 'Previous stage'}
         aria-label="Previous stage"
       >
@@ -138,16 +140,18 @@ export default function StageNav({ stage, stageIndex, onPrev, onNext, onTitleCli
 
         {/* Center text: string · focus · step X/Y — tappable to open stage picker */}
         <div className={`stage-center-text ${titleGlow ? 'stage-title-glow' : ''}`} onClick={() => { playClickSound(); onTitleClick(); }} style={{ cursor: 'pointer' }}>
-          <span className="stage-center-title">{stage.title}</span>
-          <span className="stage-center-step">{stepInLevel} / {stepsInLevel}</span>
+          <span className="stage-center-title">{customTitle ?? stage.title}</span>
+          <span className="stage-center-step">{customTitle ? (byNote ? 'By Note' : 'By Fret') : `${stepInLevel} / ${stepsInLevel}`}</span>
         </div>
 
         {/* Dots for current level */}
-        <div className="stage-dots-row">
-          {currentLevel?.stageIndices.map(idx => (
-            <span key={idx} className={`stage-dot ${idx === stageIndex ? 'stage-dot-active' : idx < stageIndex ? 'stage-dot-done' : ''}`} />
-          ))}
-        </div>
+        {!customTitle && (
+          <div className="stage-dots-row">
+            {currentLevel?.stageIndices.map(idx => (
+              <span key={idx} className={`stage-dot ${idx === stageIndex ? 'stage-dot-active' : idx < stageIndex ? 'stage-dot-done' : ''}`} />
+            ))}
+          </div>
+        )}
 
         {/* Suggestion subtitle — replaces blinking text on arrows */}
         {suggestionText && (
@@ -159,7 +163,7 @@ export default function StageNav({ stage, stageIndex, onPrev, onNext, onTitleCli
       <button
         className={`stage-chevron ${nextSuggested ? 'stage-chevron-suggest' : ''}`}
         onClick={() => { playClickSound(); haptic.tap(); onNext(); }}
-        disabled={isLast}
+        disabled={isLast && !customTitle}
         title={isPlaying ? 'Switch to harder stage' : 'Next stage'}
         aria-label="Next stage"
       >

@@ -7,7 +7,7 @@ import StageNav from './components/StageNav';
 import Onboarding from './components/Onboarding';
 import { displayNote } from './utils/music';
 import type { HistoryEntry } from './utils/music';
-import { preloadAllSamples } from './utils/audio';
+import { preloadAllSamples, unlockAudio } from './utils/audio';
 import { playClickSound, haptic } from './utils/feedback';
 import { STAGES, getStageGroups } from './utils/stages';
 import type { StageGroup } from './utils/stages';
@@ -16,7 +16,6 @@ import { useGameSettings } from './hooks/useGameSettings';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useGameEngine } from './hooks/useGameEngine';
 import { useHistory } from './hooks/useHistory';
-import { useCustomStages } from './hooks/useCustomStages';
 
 function computeSuggestion(history: HistoryEntry[]): 'next' | 'prev' | null {
   if (history.length < 10) return null;
@@ -52,6 +51,8 @@ export default function App() {
     goToStage,
     isCustomized,
     resetToStage,
+    restoreCustomSnapshot,
+    hasCustomSnapshot,
   } = settings;
 
   const derived = useDerivedNotes(
@@ -111,6 +112,7 @@ export default function App() {
   const isStopped = !running && !paused;
 
   const start = () => {
+    unlockAudio();
     if (!preloaded) { preloadAllSamples().then(() => setPreloaded(true)); setPreloaded(true); }
     engineStart(stage.id, stage.maxQuestions, time, byNote);
     setShowSettings(false);
@@ -121,11 +123,13 @@ export default function App() {
   };
 
   // Custom stages
-  const customStages = useCustomStages();
   const [showPicker, setShowPicker] = useState(false);
 
-  // Ordered groups for the picker: all 0–12 strings, then all 12–21 strings, then multi, full neck, custom
-  const pickerGroups = useMemo((): (StageGroup & { status: '✓' | '●' | '○' })[] => {
+  // Custom stage title for nav
+  const customTitle = isCustomized ? `★ ${customStageName || 'My Stage'}` : null;
+
+  // Ordered groups for the picker: custom stage entry + all built-in groups
+  const pickerGroups = useMemo((): (StageGroup & { status: '✓' | '●' | '○'; isCustom?: boolean })[] => {
     const groups = getStageGroups();
     // Sort: 0–12 strings first, then 12–21, then multi, then full neck
     const str012: StageGroup[] = [];
@@ -138,11 +142,17 @@ export default function App() {
       else if (g.label.includes('Multi')) multi.push(g);
       else fullNeck.push(g);
     });
-    const ordered = [...str012, ...str1221, ...multi, ...fullNeck];
-    if (customStages.stages.length > 0) {
-      ordered.push({ label: '★ My Stages', indices: [] });
+    const ordered: (StageGroup & { isCustom?: boolean })[] = [...str012, ...str1221, ...multi, ...fullNeck];
+
+    // Append custom stage entry at the bottom if customized or snapshot exists
+    if (isCustomized || hasCustomSnapshot) {
+      ordered.push({ label: `★ ${customStageName || 'My Stage'}`, indices: [], isCustom: true });
     }
+
     return ordered.map(g => {
+      if ((g as { isCustom?: boolean }).isCustom) {
+        return { ...g, status: (isCustomized ? '●' : '○') as '●' | '○' };
+      }
       // Determine status from allHistory
       const hasHistory = g.indices.some(idx => (allHistory[STAGES[idx]?.id] ?? []).length > 0);
       const mastered = hasHistory && g.indices.every(idx => {
@@ -153,7 +163,7 @@ export default function App() {
       });
       return { ...g, status: mastered ? '✓' as const : hasHistory ? '●' as const : '○' as const };
     });
-  }, [allHistory, customStages.stages.length]);
+  }, [allHistory, isCustomized, hasCustomSnapshot, customStageName]);
 
 
 
@@ -170,12 +180,14 @@ export default function App() {
       <StageNav
         stage={stage}
         stageIndex={stageIndex}
-        onPrev={() => { stop(); goToStage(stageIndex - 1); }}
-        onNext={() => { stop(); goToStage(stageIndex + 1); }}
+        onPrev={() => { if (isCustomized) { setByNote(!byNote); return; } stop(); goToStage(stageIndex - 1); }}
+        onNext={() => { if (isCustomized) { setByNote(!byNote); return; } stop(); goToStage(stageIndex + 1); }}
         onTitleClick={() => { if (running || paused) stop(); setShowPicker(true); }}
         isPlaying={isPlaying}
         suggestion={liveSuggestion}
         allHistory={allHistory}
+        customTitle={customTitle}
+        byNote={byNote}
       />
 
       {/* Stage picker overlay */}
@@ -185,25 +197,16 @@ export default function App() {
             <h3 className="picker-title">Jump to Stage</h3>
             <div className="picker-list">
               {pickerGroups.map((g, gi) => {
-                const isCurrent = g.indices.includes(stageIndex);
+                const isCustomEntry = !!(g as { isCustom?: boolean }).isCustom;
+                const isCurrent = isCustomEntry ? isCustomized : (!isCustomized && g.indices.includes(stageIndex));
                 return (
                   <button
                     key={gi}
                     className={`picker-item ${isCurrent ? 'picker-item-current' : ''}`}
                     onClick={() => {
                       playClickSound(); haptic.tap();
-                      if (g.label === '★ My Stages' && customStages.stages.length > 0) {
-                        const cs = customStages.stages[0];
-                        setGuitarString(cs.guitarString);
-                        setFretFrom(cs.fretFrom);
-                        setFretTo(cs.fretTo);
-                        setDotsOnly(cs.dotsOnly);
-                        setWholeToneOnly(cs.wholeToneOnly);
-                        setByNote(cs.byNote);
-                        setMultiStrings(cs.multiStrings);
-                        setTime(cs.time);
-                        setAccidental(cs.accidental);
-                        setOrder(cs.order);
+                      if (isCustomEntry) {
+                        if (!isCustomized) restoreCustomSnapshot();
                       } else if (g.indices.length > 0) {
                         goToStage(g.indices[0]);
                       }
@@ -250,7 +253,7 @@ export default function App() {
               isCustomized={isCustomized}
               customStageName={customStageName}
               onRename={(name) => { setCustomStageName(name); saveSetting('customStageName', name); }}
-              onClearCustom={resetToStage}
+              onClearCustom={() => { resetToStage(); setCustomStageName(''); }}
             />
           </div>
         </div>
@@ -260,8 +263,8 @@ export default function App() {
       {!showSettings && (
         <div className="order-switcher" style={{ visibility: byNote ? 'hidden' : 'visible' }}>
           <button className={`order-chip chip-toggle${byString ? ' chip-toggle-active' : ''}`} onClick={click(() => setByString(!byString))}>By String</button>
-          <button className={`order-chip${order === 'fifths' ? ' order-chip-active' : ''}`} onClick={() => { if (order !== 'fifths') { playClickSound(); haptic.tap(); setByString(false); setOrder('fifths'); } }}>Fifths</button>
-          <button className={`order-chip${order === 'alphabet' ? ' order-chip-active' : ''}`} onClick={() => { if (order !== 'alphabet') { playClickSound(); haptic.tap(); setByString(false); setOrder('alphabet'); } }}>Alpha</button>
+          <button className={`order-chip${order === 'fifths' ? ' order-chip-active' : ''}`} onClick={() => { if (order !== 'fifths') { playClickSound(); haptic.tap(); setOrder('fifths'); } }}>Fifths</button>
+          <button className={`order-chip${order === 'alphabet' ? ' order-chip-active' : ''}`} onClick={() => { if (order !== 'alphabet') { playClickSound(); haptic.tap(); setOrder('alphabet'); } }}>Alpha</button>
         </div>
       )}
 
@@ -285,7 +288,7 @@ export default function App() {
 
           {isStopped && (
             <>
-              <StatsPanel history={allHistory[stage.id] ?? []} maxTime={time} accidental={accidental} notation={notation} everPlayed={everPlayed.has(stage.id)} />
+              <StatsPanel history={allHistory[stage.id] ?? []} maxTime={time} maxQuestions={stage.maxQuestions} accidental={accidental} notation={notation} everPlayed={everPlayed.has(stage.id)} />
               {liveSuggestion === 'next' && stageIndex < STAGES.length - 1 && (
                 <div className="stage-suggestion stage-suggestion-next">
                   🔥 Great job! Ready for the next stage?
