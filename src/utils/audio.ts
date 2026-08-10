@@ -1,9 +1,12 @@
-const openMidi = [64, 59, 55, 50, 45, 40];
+export const openMidi = [64, 59, 55, 50, 45, 40];
 const baseUrl = 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/acoustic_guitar_nylon-mp3/';
 const cache: Record<string, AudioBuffer> = {};
+const inFlight = new Map<string, Promise<AudioBuffer | null>>();
 let activeSources: AudioBufferSourceNode[] = [];
 let soundEndTime = 0;
 let audioCtx: AudioContext | null = null;
+
+const CACHE_NAME = 'guitar-samples-v1';
 
 function getCtx(): AudioContext {
   if (!audioCtx) audioCtx = new AudioContext();
@@ -16,19 +19,93 @@ export function unlockAudio() {
   if (ctx.state === 'suspended') ctx.resume();
 }
 
-function midiName(midi: number): string {
+/** Returns true if AudioContext is available and not suspended */
+export function isAudioReady(): boolean {
+  return audioCtx !== null && audioCtx.state !== 'suspended';
+}
+
+export function midiName(midi: number): string {
   const n = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
   return n[midi % 12] + (Math.floor(midi / 12) - 1);
 }
 
-async function loadSample(midi: number): Promise<AudioBuffer | null> {
-  const name = midiName(midi);
-  if (cache[name]) return cache[name];
+/** Check if a MIDI note is already decoded in memory */
+export function isCached(midi: number): boolean {
+  return midiName(midi) in cache;
+}
+
+async function loadAndCache(name: string): Promise<AudioBuffer | null> {
+  const url = baseUrl + name + '.mp3';
   try {
-    const buf = await (await fetch(baseUrl + name + '.mp3')).arrayBuffer();
+    let response: Response | undefined;
+
+    // Try persistent cache first (if Cache API is available)
+    if (typeof caches !== 'undefined') {
+      const persistentCache = await caches.open(CACHE_NAME);
+      response = await persistentCache.match(url) ?? undefined;
+
+      if (!response) {
+        // Fetch from CDN and store in persistent cache
+        response = await fetch(url);
+        if (response.ok) {
+          await persistentCache.put(url, response.clone());
+        } else {
+          return null;
+        }
+      }
+    } else {
+      // No Cache API — direct fetch
+      response = await fetch(url);
+      if (!response.ok) return null;
+    }
+
+    const buf = await response.arrayBuffer();
     cache[name] = await getCtx().decodeAudioData(buf);
     return cache[name];
-  } catch { return null; }
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch and store raw MP3 in persistent cache without decoding.
+ * Useful for preloading before AudioContext is unlocked.
+ */
+export async function prefetchToPersistentCache(midi: number): Promise<void> {
+  if (typeof caches === 'undefined') return;
+  const name = midiName(midi);
+  if (cache[name]) return; // already decoded in memory
+  const url = baseUrl + name + '.mp3';
+  try {
+    const persistentCache = await caches.open(CACHE_NAME);
+    const existing = await persistentCache.match(url);
+    if (existing) return; // already in persistent cache
+    const response = await fetch(url);
+    if (response.ok) {
+      await persistentCache.put(url, response.clone());
+    }
+  } catch {
+    // Non-critical — silently ignore
+  }
+}
+
+export async function loadSample(midi: number): Promise<AudioBuffer | null> {
+  const name = midiName(midi);
+
+  // 1. In-memory buffer hit
+  if (cache[name]) return cache[name];
+
+  // 2. Already fetching — await existing promise (dedup)
+  if (inFlight.has(name)) return inFlight.get(name)!;
+
+  // 3. Start fetch with persistent cache check
+  const promise = loadAndCache(name);
+  inFlight.set(name, promise);
+  try {
+    return await promise;
+  } finally {
+    inFlight.delete(name);
+  }
 }
 
 export function stopPlayback() {
@@ -123,6 +200,7 @@ export async function playNoteSequence(stringNum: number, frets: number[], total
   soundEndTime = Date.now() + totalMs;
 }
 
+/** @deprecated Use audioPreloader's preloadStage/preloadOnStartup instead */
 export async function preloadAllSamples(): Promise<void> {
   const promises: Promise<unknown>[] = [];
   for (let s = 0; s < 6; s++)

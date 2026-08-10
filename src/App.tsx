@@ -7,7 +7,8 @@ import StageNav from './components/StageNav';
 import Onboarding from './components/Onboarding';
 import { displayNote } from './utils/music';
 import type { HistoryEntry } from './utils/music';
-import { preloadAllSamples, unlockAudio } from './utils/audio';
+import { unlockAudio } from './utils/audio';
+import { markAudioUnlocked } from './utils/audioPreloader';
 import { playClickSound, haptic } from './utils/feedback';
 import { STAGES, getStageGroups } from './utils/stages';
 import type { StageGroup } from './utils/stages';
@@ -16,6 +17,7 @@ import { useGameSettings } from './hooks/useGameSettings';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useGameEngine } from './hooks/useGameEngine';
 import { useHistory } from './hooks/useHistory';
+import { useAudioPreloader } from './hooks/useAudioPreloader';
 
 function computeSuggestion(history: HistoryEntry[]): 'next' | 'prev' | null {
   if (history.length < 10) return null;
@@ -76,7 +78,9 @@ export default function App() {
     start: engineStart, stop, pause, resume, selectFret, selectAnswer,
   } = engine;
 
-  const [preloaded, setPreloaded] = useState(false);
+  // Intelligent audio preloading based on stage/game state
+  useAudioPreloader(stageIndex, running, guitarString, currentFret);
+
   const [showSettings, setShowSettings] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
   const [onboardingDone, setOnboardingDone] = useState(() => loadSetting<boolean>('onboardingDone', false));
@@ -113,7 +117,7 @@ export default function App() {
 
   const start = () => {
     unlockAudio();
-    if (!preloaded) { preloadAllSamples().then(() => setPreloaded(true)); setPreloaded(true); }
+    markAudioUnlocked();
     engineStart(stage.id, stage.maxQuestions, time, byNote);
     setShowSettings(false);
   };
