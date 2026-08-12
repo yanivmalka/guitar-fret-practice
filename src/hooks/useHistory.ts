@@ -1,38 +1,52 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { HistoryEntry } from '../utils/music';
 
-export function useHistory(stageId: number) {
-  // Per-stage history retained across stage switches, keyed by stage id
-  const [allHistory, setAllHistory] = useState<Record<number, HistoryEntry[]>>({});
-  // Current session history (resets on start/switchStage)
+export function useHistory() {
+  // All history keyed by selector-derived string key (e.g. "6|0-12|byFret|dots")
+  const [allHistory, setAllHistory] = useState<Record<string, HistoryEntry[]>>(() => {
+    try {
+      const raw = localStorage.getItem('selectorHistory');
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // Current session history (resets on start/switch)
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  // Track which stages have ever been played (so we don't show "no stats" on first visit)
-  const [everPlayed, setEverPlayed] = useState<Set<number>>(new Set());
 
-  const stageIdRef = useRef(stageId);
-  useEffect(() => { stageIdRef.current = stageId; }, [stageId]);
+  // Track which keys have ever been played
+  const [everPlayed, setEverPlayed] = useState<Set<string>>(new Set());
 
-  const addEntry = useCallback((entry: HistoryEntry) => {
+  // Persist allHistory to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('selectorHistory', JSON.stringify(allHistory));
+  }, [allHistory]);
+
+  const addEntry = useCallback((key: string, entry: HistoryEntry) => {
     setHistory(prev => [...prev, entry]);
-    setAllHistory(prev => {
-      const sid = stageIdRef.current;
-      return { ...prev, [sid]: [...(prev[sid] ?? []), entry] };
-    });
+    setAllHistory(prev => ({
+      ...prev,
+      [key]: [...(prev[key] ?? []), entry],
+    }));
   }, []);
 
-  const markPlayed = useCallback((id: number) => {
-    setEverPlayed(prev => { const s = new Set(prev); s.add(id); return s; });
+  const markPlayed = useCallback((key: string) => {
+    setEverPlayed(prev => { const s = new Set(prev); s.add(key); return s; });
   }, []);
 
-  const clearStage = useCallback((id: number) => {
+  const clearHistory = useCallback((key: string) => {
     setHistory([]);
-    setAllHistory(prev => { const u = { ...prev }; delete u[id]; return u; });
-    // Don't remove from everPlayed — keep showing empty stats panel as confirmation
+    setAllHistory(prev => { const u = { ...prev }; delete u[key]; return u; });
   }, []);
 
   const resetSession = useCallback(() => {
     setHistory([]);
   }, []);
 
-  return { history, allHistory, everPlayed, addEntry, markPlayed, clearStage, resetSession };
+  const getEntriesForKey = useCallback((key: string): HistoryEntry[] => {
+    return allHistory[key] ?? [];
+  }, [allHistory]);
+
+  return { history, allHistory, everPlayed, addEntry, markPlayed, clearHistory, resetSession, getEntriesForKey };
 }

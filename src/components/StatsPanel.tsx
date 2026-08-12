@@ -67,27 +67,17 @@ function GroupSection({ title, cls, items, filter, accidental, notation }: {
   );
 }
 
-export default function StatsPanel({ history, maxQuestions, accidental, notation, everPlayed }: Props) {
+export default function StatsPanel({ history, maxQuestions, accidental, notation }: Props) {
   const [tab, setTab] = useState<MainTab>('notes');
   const [filter, setFilter] = useState<Filter>('all');
 
-  if (history.length === 0) {
-    if (!everPlayed) return null;
-    return (
-      <div className="stats-empty">
-        <span>No stats yet for this stage.</span>
-        <span className="stats-empty-hint">Play a session to see your results here.</span>
-      </div>
-    );
-  }
+  if (history.length === 0) return null;
 
   const total = history.length;
   const correct = history.filter(h => h.correct === true).length;
   const wrong = history.filter(h => h.correct === false).length;
   const timedOut = history.filter(h => h.skipped).length;
-  // Score uses maxQuestions as denominator so partial sessions don't look perfect
-  const scoreDenom = Math.max(total, maxQuestions);
-  const score = Math.round(((correct + timedOut * 0.3) / scoreDenom) * 100);
+  const score = total === 0 ? 0 : Math.round((correct / total) * 100);
 
   let encouragement = '';
   if (score >= 80) encouragement = '🔥 Amazing!';

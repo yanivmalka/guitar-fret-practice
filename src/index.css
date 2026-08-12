@@ -163,9 +163,15 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 /* Stats */
 .stats-panel {
   background: #0d0d1a; border-radius: 10px; padding: 14px;
-  text-align: left; min-width: 260px;
+  text-align: left; width: 100%;
 }
 .stats-panel p { font-size: 0.85rem; margin: 3px 0; }
+
+.stats-wrapper {
+  max-width: 370px;
+  margin: 12px auto 0;
+  overflow: hidden;
+}
 
 .filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .filter-chip {
@@ -228,7 +234,7 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   height: 56px; border-radius: 10px;
   background: #2a2a4a; border: 2px solid #555;
   color: #eee; cursor: pointer;
-  transition: transform 0.1s, box-shadow 0.15s;
+  transition: all 0.2s, box-shadow 0.6s;
   outline: none;
   -webkit-tap-highlight-color: transparent;
   -webkit-appearance: none;
@@ -240,17 +246,14 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 .fret-btn:active:not(:disabled) { transform: scale(0.93); background: #2a2a4a; border-color: #555; }
 .fret-btn:disabled { opacity: 0.4; cursor: default; }
 .fret-btn.fret-disabled { opacity: 0.2; cursor: not-allowed; }
-.fret-btn:not(:disabled):not(.fret-disabled):hover { background: #3a3a6a; }
-@media (hover: hover) {
-  .fret-btn:not(:disabled):not(.fret-disabled):hover { border-color: #0ff; }
-}
+
 
 .fret-btn-num { font-size: 18px; font-weight: bold; line-height: 1; }
 .fret-btn-dot { font-size: 8px; color: #ff0; line-height: 1; }
 
-.fret-found { background: #0a0 !important; border-color: #0f0 !important; }
-.fret-wrong { background: #a00 !important; border-color: #f00 !important; }
-.fret-reveal { background: #555 !important; border-color: #0ff !important; color: #0ff !important; }
+.fret-found { background: #0a0 !important; border-color: #0f0 !important; color: #fff !important; box-shadow: 0 0 8px 2px rgba(0, 255, 0, 0.4); }
+.fret-wrong { background: #a00 !important; border-color: #f00 !important; color: #fff !important; }
+.fret-reveal { background: #0a0 !important; border-color: #0f0 !important; color: #fff !important; box-shadow: 0 0 8px 2px rgba(0, 255, 0, 0.4); }
 .fret-glow {
   box-shadow: 0 0 14px 5px rgba(0, 255, 255, 0.7) !important;
   animation: fret-glow-fade 0.4s ease-out forwards;
@@ -275,7 +278,7 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   color: #aaa;
   font-size: 12px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: border-color 0.15s, color 0.15s, font-weight 0.15s;
 }
 .order-chip-active {
   border-color: #0ff;
@@ -582,7 +585,7 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   font-size: 14px;
   background: #0d0d1a;
   border-radius: 10px;
-  min-width: 240px;
+  width: 100%;
 }
 .stats-empty-hint {
   font-size: 12px;
@@ -893,4 +896,128 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 .custom-action-btn-danger:hover {
   border-color: #f55;
   color: #f55;
+}
+
+/* ── Selector Panel ──────────────────────────────────────────────── */
+.selector-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 12px 8px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+/* String pills */
+.selector-strings {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.string-pill {
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border: none;
+  background: #222;
+  color: #777;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-bottom: 3px solid transparent;
+}
+.string-pill.active {
+  color: #fff;
+  background: #333;
+  border-bottom-color: #4af;
+}
+
+/* Mode cards */
+.mode-cards {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  max-width: 370px;
+  margin: 0 auto;
+}
+.mode-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 2px solid #333;
+  background: #1a1a1a;
+  color: #777;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.mode-card.active {
+  border-color: #4af;
+  background: #1a2a3a;
+  color: #fff;
+}
+.mode-card span {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* Fret neck */
+.fret-neck {
+  width: 100%;
+  max-width: 370px;
+  margin: 0 auto;
+  padding: 0;
+}
+.fret-neck svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Difficulty road */
+.difficulty-road {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  width: 100%;
+  max-width: 370px;
+  margin: 0 auto;
+}
+.diff-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: 1;
+  padding: 12px 0;
+  border-radius: 12px;
+  border: 2px solid #333;
+  background: #1a1a1a;
+  color: #777;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.diff-btn.active {
+  border-color: #4af;
+  background: #1a2a3a;
+  color: #fff;
+}
+.diff-icon {
+  font-size: 1.5rem;
+}
+.diff-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.diff-arrow {
+  color: #555;
+  font-size: 1rem;
+  padding: 0 6px;
+  flex-shrink: 0;
 }

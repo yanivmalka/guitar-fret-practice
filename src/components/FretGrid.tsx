@@ -44,11 +44,11 @@ export default function FretGrid({
   };
 
   const handleClick = (f: number) => {
+    if (isDisabledFilter(f)) return; // Don't respond to clicks on filtered-out frets
     playNoteSingle(guitarString, f);
     flashGlow(f);
-    // Blur immediately so browser focus ring doesn't linger
     btnRefs.current.get(f)?.blur();
-    if (active && !isDisabledFilter(f)) onSelect(f);
+    if (active) onSelect(f);
   };
 
   return (

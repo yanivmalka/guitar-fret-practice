@@ -3,7 +3,6 @@ import { notes, getCofNotes, getCorrectCofNote, getValidFrets, notesMatch, displ
 import type { AccidentalMode, OrderMode, HistoryEntry } from '../utils/music';
 import { playNote, playNoteSingle, stopPlayback, beep, isSoundPlaying } from '../utils/audio';
 import { haptic } from '../utils/feedback';
-import { STAGES } from '../utils/stages';
 
 interface GameSettings {
   guitarString: number;
@@ -36,7 +35,7 @@ interface GameSetters {
 
 interface HistoryOps {
   addEntry: (entry: HistoryEntry) => void;
-  markPlayed: (id: number) => void;
+  markPlayed: () => void;
   resetSession: () => void;
   history: HistoryEntry[];
 }
@@ -45,7 +44,6 @@ export function useGameEngine(
   settings: GameSettings,
   setters: GameSetters,
   historyOps: HistoryOps,
-  saveSetting: (key: string, value: unknown) => void,
 ) {
   const { guitarString, fretFrom, fretTo, wholeToneOnly, dotsOnly,
           isMulti, activeStrings, time, accidental, order } = settings;
@@ -78,7 +76,7 @@ export function useGameEngine(
   const currentQuestionStringRef = useRef<number>(guitarString);
   const questionStartRef = useRef(0);
   // Live refs for values used inside timer callbacks
-  const maxQuestionsRef = useRef(STAGES[0].maxQuestions);
+  const maxQuestionsRef = useRef(20);
   const sessionRef = useRef(0); // incremented on start/switchStage to cancel stale callbacks
   // Coverage pool: ensures every valid fret is asked before repeats
   const coveragePoolRef = useRef<number[]>([]);
@@ -309,48 +307,8 @@ export function useGameEngine(
     setTimeout(waitForSound, 800);
   }, [paused, currentFret, accidental, order, wholeToneOnly, addEntry, next]);
 
-  // ── STAGE SWITCH (mid-game) ───────────────────────────────────
-  const switchStage = useCallback((idx: number) => {
-    if (idx < 0 || idx >= STAGES.length) return;
-    clearTimers();
-    stopPlayback();
-    haptic.stageChange();
-    sessionRef.current++;                    // BUG FIX 1+3: cancel all stale callbacks
-    const s = STAGES[idx];
-    maxQuestionsRef.current = s.maxQuestions;
-    timeRefUpdater.current = s.time;         // BUG FIX 1: update time ref immediately
-    countRef.current = 0;
-    lastNoteRef.current = null;
-    answeredRef.current = false;
-    coveragePoolRef.current = [];
-    failedFretsRef.current = new Set();
-    resetSession();
-    setFeedback('');
-    setCorrectCofNote(null);
-    setWrongCofNote(null);
-    setFoundFrets([]);
-    setWrongFret(null);
-    setAnswered(false);
-    setCurrentFret(null);
-    setCurrentNote(null);
-    setters.setStageIndex(idx);
-    saveSetting('stageIndex', idx);
-    setters.setGuitarString(s.string);
-    setters.setTime(s.time);
-    setters.setFretFrom(s.fretFrom);
-    setters.setFretTo(s.fretTo);
-    setters.setAccidental(s.accidental);
-    setters.setOrder(s.order);
-    setters.setWholeToneOnly(s.wholeToneOnly);
-    setters.setDotsOnly(s.dotsOnly);
-    setters.setByNote(s.byNote);
-    setters.setMultiStrings(s.multiStrings);
-    setters.setByString(true);
-    setTimeout(() => { if (runningRef.current) { s.byNote ? nextByNote() : next(); } }, 150);
-  }, [nextByNote, next, resetSession, setters, saveSetting]);
-
   // ── CONTROLS ─────────────────────────────────────────────────
-  const start = useCallback((stageId: number, maxQ: number, currentTime: number, isByNote: boolean) => {
+  const start = useCallback((maxQ: number, currentTime: number, isByNote: boolean) => {
     sessionRef.current++;
     maxQuestionsRef.current = maxQ;
     timeRefUpdater.current = currentTime;
@@ -369,7 +327,7 @@ export function useGameEngine(
     setFoundFrets([]);
     setWrongFret(null);
     lastNoteRef.current = null;
-    markPlayed(stageId);
+    markPlayed();
     setTimeout(isByNote ? nextByNote : next, 100);
   }, [nextByNote, next, resetSession, markPlayed]);
 
@@ -415,6 +373,6 @@ export function useGameEngine(
     running, paused, currentFret, currentNote, remaining, feedback,
     correctCofNote, wrongCofNote, answered, remainingFrets, foundFrets, wrongFret,
     // actions
-    start, stop, pause, resume, switchStage, selectFret, selectAnswer,
+    start, stop, pause, resume, selectFret, selectAnswer,
   };
 }

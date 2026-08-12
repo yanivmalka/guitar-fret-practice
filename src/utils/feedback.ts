@@ -33,3 +33,33 @@ export function playClickSound() {
   osc.start(ctx.currentTime);
   osc.stop(ctx.currentTime + 0.025);
 }
+
+export function playToggleOnSound() {
+  const ctx = getCtx();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.frequency.value = 1600;
+  gain.gain.setValueAtTime(0.07, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + 0.03);
+}
+
+export function playToggleOffSound() {
+  const ctx = getCtx();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.frequency.value = 800;
+  gain.gain.setValueAtTime(0.07, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + 0.03);
+}
