@@ -144,6 +144,54 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   color: #888;
   margin: 2px 0;
 }
+
+/* Live score during game */
+.score-live {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+}
+.score-live-pts {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #0ff;
+}
+.score-live-streak {
+  font-size: 0.85rem;
+  color: #f90;
+  font-weight: bold;
+}
+.score-live-mult {
+  font-size: 0.75rem;
+  color: #ff0;
+}
+.score-live-label {
+  font-size: 0.8rem;
+  color: #0f0;
+  font-weight: bold;
+  animation: label-pop 0.4s ease-out;
+}
+@keyframes label-pop {
+  0% { transform: scale(1.4); opacity: 0.5; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Session score in stats panel */
+.session-score-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 0.85rem;
+  color: #ccc;
+}
+.session-score-value {
+  font-weight: bold;
+  color: #0ff;
+}
+.session-score-streak {
+  color: #f90;
+}
 .paused-text { color: #f90; font-size: 1.2rem; margin: 8px 0; }
 .info { font-size: 0.9rem; color: #aaa; margin-bottom: 4px; }
 .feedback { font-size: 1.2rem; min-height: 1.6rem; margin: 4px 0; }

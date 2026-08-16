@@ -9,6 +9,8 @@ interface Props {
   accidental: AccidentalMode;
   notation?: NotationMode;
   everPlayed: boolean;
+  sessionScore?: number;
+  longestStreak?: number;
 }
 
 type MainTab = 'notes' | 'strings';
@@ -67,7 +69,7 @@ function GroupSection({ title, cls, items, filter, accidental, notation }: {
   );
 }
 
-export default function StatsPanel({ history, maxTime, maxQuestions, accidental, notation }: Props) {
+export default function StatsPanel({ history, maxTime, maxQuestions, accidental, notation, sessionScore, longestStreak }: Props) {
   const [tab, setTab] = useState<MainTab>('notes');
   const [filter, setFilter] = useState<Filter>('all');
 
@@ -165,6 +167,16 @@ export default function StatsPanel({ history, maxTime, maxQuestions, accidental,
           <span className="speed-stat">⚡ Avg: {speedAvg}s</span>
           <span className="speed-stat">🏆 Best: {speedBest}s</span>
           <span className="speed-stat">{fastZone}% fast</span>
+        </div>
+      )}
+
+      {/* Session score */}
+      {(sessionScore != null && sessionScore > 0) && (
+        <div className="session-score-row">
+          <span className="session-score-value">🎯 Score: {sessionScore}</span>
+          {(longestStreak != null && longestStreak >= 2) && (
+            <span className="session-score-streak">🔥 {longestStreak} streak</span>
+          )}
         </div>
       )}
 

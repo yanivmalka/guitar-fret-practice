@@ -14,6 +14,7 @@ import { useSelector } from './hooks/useSelector';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useGameEngine } from './hooks/useGameEngine';
 import { useHistory } from './hooks/useHistory';
+import { useScoring } from './hooks/useScoring';
 
 const STRING_DISPLAY: Record<number, string> = {
   1: 'String 1 · high E', 2: 'String 2 · B', 3: 'String 3 · G',
@@ -122,6 +123,8 @@ export default function App() {
   const start = () => {
     unlockAudio();
     if (!preloaded) { preloadAllSamples().then(() => setPreloaded(true)); setPreloaded(true); }
+    scoring.reset();
+    prevHistLenRef.current = 0;
     engineStart(derivedSettings.maxQuestions, derivedSettings.time, derivedSettings.byNote);
     setTimeout(() => gameRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
   };
@@ -142,6 +145,26 @@ export default function App() {
     const best = Math.min(...times);
     return { avg: Math.round(avg * 10) / 10, best: Math.round(best * 10) / 10, count: correctEntries.length };
   }, [sessionHistory]);
+
+  // ── Scoring ────────────────────────────────────────────────────
+  const scoring = useScoring(derivedSettings.time);
+  const prevHistLenRef = useRef(0);
+
+  // React to new history entries to update scoring
+  useEffect(() => {
+    const len = sessionHistory.length;
+    if (len > prevHistLenRef.current) {
+      const latest = sessionHistory[len - 1];
+      if (latest.correct === true) {
+        scoring.onCorrect(latest.seconds);
+      } else if (latest.correct === false) {
+        scoring.onWrong();
+      } else {
+        scoring.onTimeout();
+      }
+    }
+    prevHistLenRef.current = len;
+  }, [sessionHistory, scoring.onCorrect, scoring.onWrong, scoring.onTimeout]);
 
   // ── Render ─────────────────────────────────────────────────────
   return (
@@ -183,11 +206,20 @@ export default function App() {
                 : <div className="fret-display">{currentFret !== null ? currentFret : '—'}</div>
               }
               <SpeedBar remaining={remaining} total={derivedSettings.time} answered={answered} />
+              <div className="score-live">
+                <span className="score-live-pts">{scoring.session.score}</span>
+                {scoring.session.streak >= 2 && (
+                  <span className="score-live-streak">🔥{scoring.session.streak} <span className="score-live-mult">{scoring.session.multiplier}×</span></span>
+                )}
+                {scoring.session.lastLabel && (
+                  <span className="score-live-label">{scoring.session.lastLabel}</span>
+                )}
+              </div>
               {speedStats.count > 0 && (
                 <div className="speed-avg">⚡ {speedStats.avg}s avg</div>
               )}
               <div className={`feedback ${feedback.startsWith('✓') ? 'good' : feedback.startsWith('✗') ? 'bad' : 'warn'}`}>
-                {feedback}
+                {feedback}{scoring.session.lastPoints > 0 && feedback.startsWith('✓') ? ` +${scoring.session.lastPoints}` : ''}
               </div>
             </>
           )}
@@ -265,6 +297,8 @@ export default function App() {
             accidental={accidental}
             notation={notation}
             everPlayed={true}
+            sessionScore={scoring.session.score}
+            longestStreak={scoring.session.longestStreak}
           />
         </div>
       )}
