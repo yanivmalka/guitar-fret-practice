@@ -53,6 +53,7 @@ export function useGameEngine(
   const [paused, setPaused] = useState(false);
   const [currentFret, setCurrentFret] = useState<number | null>(null);
   const [currentNote, setCurrentNote] = useState<string | null>(null);
+  const [askedFret, setAskedFret] = useState<number | null>(null);
   const [remaining, setRemaining] = useState(0);
   const [feedback, setFeedback] = useState('');
   const [correctCofNote, setCorrectCofNote] = useState<string | null>(null);
@@ -166,6 +167,7 @@ export function useGameEngine(
     remainingFretsRef.current = allFretsForNote;
     setCurrentNote(note);
     setCurrentFret(null);
+    setAskedFret(fret);
 
     playNote(qString, fret);
     questionStartRef.current = Date.now();
@@ -264,6 +266,7 @@ export function useGameEngine(
     lastNoteRef.current = notes[qString - 1][fret];
     setCurrentFret(fret);
     setCurrentNote(null);
+    setAskedFret(fret);
     currentNoteRef.current = null;
     questionStartRef.current = Date.now();
     playNote(qString, fret);
@@ -322,6 +325,7 @@ export function useGameEngine(
     setFeedback('');
     setCurrentFret(null);
     setCurrentNote(null);
+    setAskedFret(null);
     setCorrectCofNote(null);
     setWrongCofNote(null);
     setFoundFrets([]);
@@ -339,6 +343,7 @@ export function useGameEngine(
     setPaused(false);
     setCurrentFret(null);
     setCurrentNote(null);
+    setAskedFret(null);
     setCorrectCofNote(null);
     setWrongCofNote(null);
     setFoundFrets([]);
@@ -370,7 +375,7 @@ export function useGameEngine(
 
   return {
     // state
-    running, paused, currentFret, currentNote, remaining, feedback,
+    running, paused, currentFret, currentNote, askedFret, remaining, feedback,
     correctCofNote, wrongCofNote, answered, remainingFrets, foundFrets, wrongFret,
     // actions
     start, stop, pause, resume, selectFret, selectAnswer,

@@ -93,7 +93,7 @@ export default function App() {
     },
   );
   const {
-    running, paused, currentFret, currentNote, remaining, feedback,
+    running, paused, currentFret, currentNote, askedFret, remaining, feedback,
     correctCofNote, wrongCofNote, answered, remainingFrets, foundFrets, wrongFret,
     start: engineStart, stop, pause, resume, selectFret, selectAnswer,
   } = engine;
@@ -110,6 +110,7 @@ export default function App() {
   // ── UI state ───────────────────────────────────────────────────
   const [preloaded, setPreloaded] = useState(false);
   const [onboardingDone, setOnboardingDone] = useState(() => loadSetting<boolean>('onboardingDone', false));
+  const gameRowRef = useRef<HTMLDivElement>(null);
 
   const isPlaying = running && !paused;
   const isStopped = !running && !paused;
@@ -121,6 +122,7 @@ export default function App() {
     unlockAudio();
     if (!preloaded) { preloadAllSamples().then(() => setPreloaded(true)); setPreloaded(true); }
     engineStart(derivedSettings.maxQuestions, derivedSettings.time, derivedSettings.byNote);
+    setTimeout(() => gameRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
   };
 
   const clearStats = () => {
@@ -149,7 +151,7 @@ export default function App() {
         onDifficultySelect={selector.onDifficultySelect}
         isPlaying={isPlaying}
         activeString={isPlaying ? guitarString : undefined}
-        activeFret={isPlaying ? currentFret : undefined}
+        activeFret={isPlaying ? askedFret : undefined}
       />
 
       {/* Order switcher row — visible when in By Fret mode */}
@@ -159,7 +161,7 @@ export default function App() {
         <button className={`order-chip${order === 'alphabet' ? ' order-chip-active' : ''}`} onClick={() => { playClickSound(); haptic.tap(); setOrder('alphabet'); saveSetting('pref_order', 'alphabet'); }}>Alpha</button>
       </div>
 
-      <div className="game-row">
+      <div className="game-row" ref={gameRowRef}>
         <div className="question-col">
           {isPlaying && (
             <>

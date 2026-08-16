@@ -1010,10 +1010,16 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 }
 .diff-icon {
   font-size: 1.1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
 }
 .diff-label {
   font-size: 0.8rem;
   font-weight: 600;
+  line-height: 1;
+  display: flex;
+  align-items: center;
 }
 .diff-arrow {
   color: #555;
