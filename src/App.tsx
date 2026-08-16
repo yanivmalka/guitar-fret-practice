@@ -226,7 +226,7 @@ export default function App() {
                 <button className="icon-btn play-btn" onClick={click(start)} title="Start">
                   <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
                 </button>
-                {hasHistory && <button className="clear-btn" onClick={click(clearStats)}>Clear</button>}
+                {hasHistory && <button className="clear-btn clear-x" onClick={click(clearStats)} title="Clear stats">✕</button>}
                 {hasHistory && <button className="clear-btn" onClick={click(() => setShowStats(s => !s))}>{showStats ? 'Hide' : 'Stats'}</button>}
               </>
             ) : (

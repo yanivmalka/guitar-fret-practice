@@ -283,7 +283,9 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   padding: 10px 18px; border: 1px solid #555; border-radius: 10px;
   background: none; color: #aaa; font-size: 0.85rem; cursor: pointer;
 }
-.clear-btn:hover { border-color: #f55; color: #f55; }
+.clear-btn:hover { border-color: #0ff; color: #0ff; }
+.clear-x { padding: 10px 12px; font-size: 1rem; }
+.clear-x:hover { border-color: #f55; color: #f55; }
 
 /* Note buttons */
 .note-btn {

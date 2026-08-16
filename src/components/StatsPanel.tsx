@@ -88,13 +88,25 @@ export default function StatsPanel({ history, maxTime: _maxTime, accidental, not
   const [tab, setTab] = useState<MainTab>('notes');
   const [filter, setFilter] = useState<Filter>('all');
 
-  if (history.length === 0) return null;
-
   const total = history.length;
   const correct = history.filter(h => h.correct === true).length;
+  const currentScore = sessionScore ?? 0;
+  const currentStreak = longestStreak ?? 0;
+  const accuracy = total === 0 ? 0 : Math.round((correct / total) * 100);
+
+  // Save personal best (hook must be unconditional)
+  useEffect(() => {
+    if (!hKey || currentScore === 0 || total === 0) return;
+    const prev = loadBest(hKey);
+    if (!prev || currentScore > prev.score) {
+      saveBest(hKey, { score: currentScore, streak: currentStreak, accuracy });
+    }
+  }, [hKey, currentScore, currentStreak, accuracy, total]);
+
+  if (total === 0) return null;
+
   const wrong = history.filter(h => h.correct === false).length;
   const timedOut = history.filter(h => h.skipped).length;
-  const accuracy = total === 0 ? 0 : Math.round((correct / total) * 100);
 
   // Speed stats
   const correctEntries = history.filter(h => h.correct === true);
@@ -107,18 +119,7 @@ export default function StatsPanel({ history, maxTime: _maxTime, accidental, not
 
   // Personal best
   const prevBest = hKey ? loadBest(hKey) : null;
-  const currentScore = sessionScore ?? 0;
-  const currentStreak = longestStreak ?? 0;
   const isNewBest = prevBest ? currentScore > prevBest.score : currentScore > 0;
-
-  // Save new best if applicable
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    if (!hKey || currentScore === 0) return;
-    if (!prevBest || currentScore > prevBest.score) {
-      saveBest(hKey, { score: currentScore, streak: currentStreak, accuracy });
-    }
-  }, [hKey, currentScore, currentStreak, accuracy]); // eslint-disable-line react-hooks/exhaustive-deps
 
   let encouragement = '';
   if (accuracy >= 80) encouragement = '🔥 Amazing!';
