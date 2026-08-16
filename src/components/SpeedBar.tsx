@@ -28,8 +28,10 @@ export default function SpeedBar({ remaining, total, answered }: Props) {
     }
   }, [answered]);
 
-  // Animate the bar smoothly
+  // Animate the bar smoothly — restarts when answered resets to false
   useEffect(() => {
+    if (answered) return; // don't animate while frozen
+    frozenRef.current = false;
     const tick = () => {
       if (frozenRef.current) return;
       const now = Date.now();
@@ -39,7 +41,7 @@ export default function SpeedBar({ remaining, total, answered }: Props) {
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [total]);
+  }, [total, answered]);
 
   const pct = Math.min((elapsed / total) * 100, 100);
 
