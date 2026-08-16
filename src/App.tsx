@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import NoteCircle from './components/NoteCircle';
 import FretGrid from './components/FretGrid';
 import SelectorPanel from './components/SelectorPanel';
@@ -135,20 +135,10 @@ export default function App() {
 
   const hasHistory = historyOps.getEntriesForKey(histKey).length > 0;
 
-  // ── Live speed stats ───────────────────────────────────────────
-  const sessionHistory = historyOps.history;
-  const speedStats = useMemo(() => {
-    const correctEntries = sessionHistory.filter(h => h.correct === true);
-    if (correctEntries.length === 0) return { avg: 0, best: 0, count: 0 };
-    const times = correctEntries.map(h => h.seconds);
-    const avg = times.reduce((a, b) => a + b, 0) / times.length;
-    const best = Math.min(...times);
-    return { avg: Math.round(avg * 10) / 10, best: Math.round(best * 10) / 10, count: correctEntries.length };
-  }, [sessionHistory]);
-
   // ── Scoring ────────────────────────────────────────────────────
-  const scoring = useScoring(derivedSettings.time);
+  const scoring = useScoring();
   const prevHistLenRef = useRef(0);
+  const sessionHistory = historyOps.history;
 
   // React to new history entries to update scoring
   useEffect(() => {
@@ -156,7 +146,7 @@ export default function App() {
     if (len > prevHistLenRef.current) {
       const latest = sessionHistory[len - 1];
       if (latest.correct === true) {
-        scoring.onCorrect(latest.seconds);
+        scoring.onCorrect();
       } else if (latest.correct === false) {
         scoring.onWrong();
       } else {
@@ -206,18 +196,18 @@ export default function App() {
                 : <div className="fret-display">{currentFret !== null ? currentFret : '—'}</div>
               }
               <SpeedBar remaining={remaining} total={derivedSettings.time} answered={answered} />
+              <div className="game-progress">
+                <div className="game-progress-bar">
+                  <div className="game-progress-fill" style={{ width: `${(scoring.session.questionsAnswered / derivedSettings.maxQuestions) * 100}%` }} />
+                </div>
+                <span className="game-progress-text">{scoring.session.questionsAnswered}/{derivedSettings.maxQuestions}</span>
+              </div>
               <div className="score-live">
                 <span className="score-live-pts">{scoring.session.score}</span>
                 {scoring.session.streak >= 2 && (
-                  <span className="score-live-streak">🔥{scoring.session.streak} <span className="score-live-mult">{scoring.session.multiplier}×</span></span>
-                )}
-                {scoring.session.lastLabel && (
-                  <span className="score-live-label">{scoring.session.lastLabel}</span>
+                  <span className="score-live-streak">🔥{scoring.session.streak}</span>
                 )}
               </div>
-              {speedStats.count > 0 && (
-                <div className="speed-avg">⚡ {speedStats.avg}s avg</div>
-              )}
               <div className={`feedback ${feedback.startsWith('✓') ? 'good' : feedback.startsWith('✗') ? 'bad' : 'warn'}`}>
                 {feedback}{scoring.session.lastPoints > 0 && feedback.startsWith('✓') ? ` +${scoring.session.lastPoints}` : ''}
               </div>

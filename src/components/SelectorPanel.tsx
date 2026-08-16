@@ -45,7 +45,7 @@ const DOT_FRETS = [3, 5, 7, 9, 12, 15, 17, 19, 21];
 
 export default function SelectorPanel({
   selector, onStringSelect, onMultiToggle, onModeSelect,
-  onFretRangeToggle, onDifficultySelect, activeString, activeFret,
+  onFretRangeToggle, onDifficultySelect, isPlaying, activeString, activeFret,
 }: SelectorPanelProps) {
   const strings: { label: string; num: number }[] = [
     { label: 'E', num: 6 }, { label: 'A', num: 5 }, { label: 'D', num: 4 },
@@ -53,7 +53,54 @@ export default function SelectorPanel({
   ];
 
   const splitX = fretX(12);
-  const fbLeft = FB_LEFT_MARGIN - 3; // fretboard visual left edge
+  const fbLeft = FB_LEFT_MARGIN - 3;
+
+  // During gameplay: show minimized panel with just info + fret neck
+  if (isPlaying) {
+    const strLabels = selector.selectedStrings.map(n => strings.find(s => s.num === n)?.label ?? '').join(' ');
+    const fretLabel = selector.lowerActive && selector.upperActive ? '0-21' : selector.lowerActive ? '0-12' : '12-21';
+    const modeLabel = selector.mode === 'byFret' ? 'N→F' : 'F→N';
+    const diffLabel = selector.difficulty === 'dots' ? '●' : selector.difficulty === 'naturals' ? '♮' : '♯♭';
+    return (
+      <div className="selector-panel selector-panel-mini">
+        <div className="selector-mini">
+          <span className="selector-mini-item">{strLabels}</span>
+          <span className="selector-mini-sep">·</span>
+          <span className="selector-mini-item">{modeLabel}</span>
+          <span className="selector-mini-sep">·</span>
+          <span className="selector-mini-item">{fretLabel}</span>
+          <span className="selector-mini-sep">·</span>
+          <span className="selector-mini-item">{diffLabel}</span>
+        </div>
+        <div className="fret-neck">
+          <svg viewBox={`${fbLeft - 5} ${FB_TOP - 3} ${NECK_RIGHT - fbLeft + 12} ${FB_HEIGHT + 16}`} aria-label="Guitar neck">
+            <rect x={fbLeft} y={FB_TOP} width={NECK_RIGHT - fbLeft} height={FB_HEIGHT} rx="2" fill="#3d2b1f" />
+            {[0, 1, 2, 3, 4, 5].map((i) => {
+              const y = FB_TOP + 5 + i * (FB_HEIGHT - 10) / 5;
+              const thickness = 0.9 - i * 0.1;
+              return <line key={`str${i}`} x1={fbLeft} y1={y} x2={NECK_RIGHT} y2={y} stroke="#cba" strokeWidth={thickness} opacity="0.5" />;
+            })}
+            {activeString != null && (
+              <line x1={fbLeft} y1={FB_TOP + 5 + (6 - activeString) * (FB_HEIGHT - 10) / 5} x2={NECK_RIGHT} y2={FB_TOP + 5 + (6 - activeString) * (FB_HEIGHT - 10) / 5} stroke="#0ff" strokeWidth="1.8" opacity="0.9" />
+            )}
+            {Array.from({ length: 21 }, (_, i) => i + 1).map((f) => (
+              <line key={f} x1={fretX(f)} y1={FB_TOP} x2={fretX(f)} y2={FB_BOTTOM} stroke="#999" strokeWidth="1" />
+            ))}
+            {DOT_FRETS.map((f) => {
+              const cx = (fretX(f - 1) + fretX(f)) / 2;
+              const midY = FB_TOP + FB_HEIGHT / 2;
+              if (f === 12) return <g key={f}><circle cx={cx} cy={midY - 7} r="2.5" fill="#ddd" opacity="0.8" /><circle cx={cx} cy={midY + 7} r="2.5" fill="#ddd" opacity="0.8" /></g>;
+              return <circle key={f} cx={cx} cy={midY} r="2.5" fill="#ddd" opacity="0.8" />;
+            })}
+            {activeFret != null && activeFret >= 0 && activeFret <= 21 && (
+              <circle cx={activeFret === 0 ? NECK_RIGHT + 1 : (fretX(activeFret - 1) + fretX(activeFret)) / 2} cy={activeString ? FB_TOP + 5 + (6 - activeString) * (FB_HEIGHT - 10) / 5 : FB_TOP + FB_HEIGHT / 2} r="4" fill="#0ff" opacity="0.85" />
+            )}
+            <line x1={NECK_RIGHT} y1={FB_TOP} x2={NECK_RIGHT} y2={FB_BOTTOM} stroke="#f5f0e8" strokeWidth="3.5" />
+          </svg>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="selector-panel">

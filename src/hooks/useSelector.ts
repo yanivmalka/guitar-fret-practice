@@ -114,7 +114,12 @@ export function useSelector() {
     setMultiMode(prev => {
       const next = !prev;
       saveSetting('sel_multi', next);
-      if (!next) {
+      if (next) {
+        // Turning on multi: select ALL strings
+        const all = [1, 2, 3, 4, 5, 6];
+        setSelectedStrings(all);
+        saveSetting('sel_strings', all);
+      } else {
         // Turning off multi: keep only the last-selected string
         const last = selectedStrings[selectedStrings.length - 1];
         const kept = [last];
