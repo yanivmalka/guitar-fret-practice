@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { HistoryEntry, AccidentalMode, NotationMode } from '../utils/music';
 import { displayNote } from '../utils/music';
 
@@ -11,8 +11,10 @@ interface Props {
   everPlayed: boolean;
   sessionScore?: number;
   longestStreak?: number;
+  historyKey?: string;
 }
 
+type TopTab = 'score' | 'details';
 type MainTab = 'notes' | 'strings';
 type Filter = 'all' | 'correct' | 'wrong' | 'timeout';
 
@@ -69,7 +71,20 @@ function GroupSection({ title, cls, items, filter, accidental, notation }: {
   );
 }
 
-export default function StatsPanel({ history, maxTime, maxQuestions, accidental, notation, sessionScore, longestStreak }: Props) {
+// Personal best stored per historyKey
+function loadBest(key: string): { score: number; streak: number; accuracy: number } | null {
+  try {
+    const raw = localStorage.getItem(`best_${key}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function saveBest(key: string, data: { score: number; streak: number; accuracy: number }) {
+  localStorage.setItem(`best_${key}`, JSON.stringify(data));
+}
+
+export default function StatsPanel({ history, maxTime: _maxTime, accidental, notation, sessionScore, longestStreak, historyKey: hKey }: Props) {
+  const [topTab, setTopTab] = useState<TopTab>('score');
   const [tab, setTab] = useState<MainTab>('notes');
   const [filter, setFilter] = useState<Filter>('all');
 
@@ -79,9 +94,9 @@ export default function StatsPanel({ history, maxTime, maxQuestions, accidental,
   const correct = history.filter(h => h.correct === true).length;
   const wrong = history.filter(h => h.correct === false).length;
   const timedOut = history.filter(h => h.skipped).length;
-  const score = total === 0 ? 0 : Math.round((correct / total) * 100);
+  const accuracy = total === 0 ? 0 : Math.round((correct / total) * 100);
 
-  // Speed stats from correct answers
+  // Speed stats
   const correctEntries = history.filter(h => h.correct === true);
   const speedAvg = correctEntries.length > 0
     ? Math.round((correctEntries.reduce((sum, h) => sum + h.seconds, 0) / correctEntries.length) * 10) / 10
@@ -89,14 +104,26 @@ export default function StatsPanel({ history, maxTime, maxQuestions, accidental,
   const speedBest = correctEntries.length > 0
     ? Math.round(Math.min(...correctEntries.map(h => h.seconds)) * 10) / 10
     : 0;
-  const fastZone = correctEntries.length > 0
-    ? Math.round((correctEntries.filter(h => h.seconds <= maxTime / 2).length / correctEntries.length) * 100)
-    : 0;
+
+  // Personal best
+  const prevBest = hKey ? loadBest(hKey) : null;
+  const currentScore = sessionScore ?? 0;
+  const currentStreak = longestStreak ?? 0;
+  const isNewBest = prevBest ? currentScore > prevBest.score : currentScore > 0;
+
+  // Save new best if applicable
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    if (!hKey || currentScore === 0) return;
+    if (!prevBest || currentScore > prevBest.score) {
+      saveBest(hKey, { score: currentScore, streak: currentStreak, accuracy });
+    }
+  }, [hKey, currentScore, currentStreak, accuracy]); // eslint-disable-line react-hooks/exhaustive-deps
 
   let encouragement = '';
-  if (score >= 80) encouragement = '🔥 Amazing!';
-  else if (score >= 60) encouragement = '💪 Great progress!';
-  else if (score >= 40) encouragement = '👍 Getting there!';
+  if (accuracy >= 80) encouragement = '🔥 Amazing!';
+  else if (accuracy >= 60) encouragement = '💪 Great progress!';
+  else if (accuracy >= 40) encouragement = '👍 Getting there!';
   else encouragement = '🎯 Keep building!';
 
   // --- BY NOTE buckets ---
@@ -125,12 +152,7 @@ export default function StatsPanel({ history, maxTime, maxQuestions, accidental,
     return true;
   };
 
-  // Split into mastered/solid/growing for the active tab
-  function splitBuckets<K extends string | number>(buckets: Record<K, StatBucket>): {
-    mastered: [string, StatBucket][];
-    solid: [string, StatBucket][];
-    growing: [string, StatBucket][];
-  } {
+  function splitBuckets<K extends string | number>(buckets: Record<K, StatBucket>) {
     const mastered: [string, StatBucket][] = [];
     const solid: [string, StatBucket][] = [];
     const growing: [string, StatBucket][] = [];
@@ -146,8 +168,6 @@ export default function StatsPanel({ history, maxTime, maxQuestions, accidental,
 
   const noteGroups = splitBuckets(byNoteBuckets);
   const stringGroups = splitBuckets(byStringBuckets);
-
-  // For string tab, replace numeric key with friendly name
   const namedStringGroups = {
     mastered: stringGroups.mastered.map(([k, v]) => [STRING_NAME[Number(k)] ?? `S${k}`, v] as [string, StatBucket]),
     solid: stringGroups.solid.map(([k, v]) => [STRING_NAME[Number(k)] ?? `S${k}`, v] as [string, StatBucket]),
@@ -156,81 +176,120 @@ export default function StatsPanel({ history, maxTime, maxQuestions, accidental,
 
   return (
     <div className="stats-panel">
-      <div className="score-row">
-        <span className="score">{score}%</span>
-        <span className="encouragement">{encouragement}</span>
-      </div>
-
-      {/* Speed stats */}
-      {correctEntries.length > 0 && (
-        <div className="speed-stats">
-          <span className="speed-stat">⚡ Avg: {speedAvg}s</span>
-          <span className="speed-stat">🏆 Best: {speedBest}s</span>
-          <span className="speed-stat">{fastZone}% fast</span>
-        </div>
-      )}
-
-      {/* Session score */}
-      {(sessionScore != null && sessionScore > 0) && (
-        <div className="session-score-row">
-          <span className="session-score-value">🎯 Score: {sessionScore}</span>
-          {(longestStreak != null && longestStreak >= 2) && (
-            <span className="session-score-streak">🔥 {longestStreak} streak</span>
-          )}
-        </div>
-      )}
-
-      {/* Main tabs: Notes / Strings */}
+      {/* Top-level tabs: Score / Details */}
       <div className="stats-tabs">
-        <button className={`stats-tab ${tab === 'notes' ? 'stats-tab-active' : ''}`} onClick={() => setTab('notes')}>By Note</button>
-        <button className={`stats-tab ${tab === 'strings' ? 'stats-tab-active' : ''}`} onClick={() => setTab('strings')}>By String</button>
+        <button className={`stats-tab ${topTab === 'score' ? 'stats-tab-active' : ''}`} onClick={() => setTopTab('score')}>Score</button>
+        <button className={`stats-tab ${topTab === 'details' ? 'stats-tab-active' : ''}`} onClick={() => setTopTab('details')}>Details</button>
       </div>
 
-      {/* Filter chips */}
-      <div className="filter-row">
-        {(['all', 'correct', 'wrong', 'timeout'] as Filter[]).map(f => (
-          <button key={f} className={`filter-chip ${filter === f ? 'filter-active' : ''}`} onClick={() => setFilter(f)}>
-            {f === 'all' ? `All (${total}/${maxQuestions})` : f === 'correct' ? `✓ ${correct}` : f === 'wrong' ? `✗ ${wrong}` : `⏱ ${timedOut}`}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'notes' && (
+      {topTab === 'score' && (
         <>
-          <GroupSection title="🏆 Mastered" cls="good"     items={noteGroups.mastered} filter={filter} accidental={accidental} notation={notation} />
-          <GroupSection title="📈 Solid"    cls="solid"    items={noteGroups.solid}    filter={filter} accidental={accidental} notation={notation} />
-          <GroupSection title="🌱 Growing"  cls="improving" items={noteGroups.growing}  filter={filter} accidental={accidental} notation={notation} />
+          <div className="score-row">
+            <span className="score">{accuracy}%</span>
+            <span className="encouragement">{encouragement}</span>
+          </div>
+
+          {currentScore > 0 && (
+            <div className="score-summary">
+              <div className="score-summary-line">
+                <span className="score-summary-label">Score</span>
+                <span className="score-summary-value score-gold">{currentScore}</span>
+              </div>
+              {currentStreak >= 2 && (
+                <div className="score-summary-line">
+                  <span className="score-summary-label">Best Streak</span>
+                  <span className="score-summary-value">🔥 {currentStreak}</span>
+                </div>
+              )}
+              {correctEntries.length > 0 && (
+                <div className="score-summary-line">
+                  <span className="score-summary-label">Avg Speed</span>
+                  <span className="score-summary-value">⚡ {speedAvg}s</span>
+                </div>
+              )}
+              {speedBest > 0 && (
+                <div className="score-summary-line">
+                  <span className="score-summary-label">Best Speed</span>
+                  <span className="score-summary-value">🏆 {speedBest}s</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Personal best comparison */}
+          {prevBest && (
+            <div className="score-best">
+              {isNewBest
+                ? <span className="score-best-new">🏆 NEW PERSONAL BEST!</span>
+                : <span className="score-best-prev">Previous best: {prevBest.score} pts ({prevBest.accuracy}%)</span>
+              }
+            </div>
+          )}
+          {!prevBest && currentScore > 0 && (
+            <div className="score-best">
+              <span className="score-best-new">🏆 First score recorded!</span>
+            </div>
+          )}
         </>
       )}
 
-      {tab === 'strings' && (
+      {topTab === 'details' && (
         <>
-          {/* Per-string score bars */}
-          <div className="string-bars">
-            {(Object.entries(byStringBuckets) as [string, StatBucket][])
-              .sort(([a], [b]) => Number(a) - Number(b))
-              .map(([strKey, v]) => {
-                const strNum = Number(strKey);
-                const t = v.correct + v.wrong + v.timeout;
-                const pct = t === 0 ? 0 : Math.round((v.correct / t) * 100);
-                const cat = category(v);
-                const barCls = cat === 'mastered' ? 'bar-mastered' : cat === 'solid' ? 'bar-solid' : 'bar-growing';
-                return (
-                  <div key={strKey} className="string-bar-row">
-                    <span className="string-bar-label">{STRING_NAME[strNum]}</span>
-                    <div className="string-bar-track">
-                      <div className={`string-bar-fill ${barCls}`} style={{ width: `${pct}%` }} />
-                    </div>
-                    <span className="string-bar-pct">{pct}%</span>
-                    <span className="string-bar-counts">✓{v.correct} ✗{v.wrong} ⏱{v.timeout}</span>
-                  </div>
-                );
-              })}
+          <div className="score-row">
+            <span className="score">{accuracy}%</span>
+            <span className="encouragement">✓{correct} ✗{wrong} ⏱{timedOut}</span>
           </div>
 
-          <GroupSection title="🏆 Mastered" cls="good"      items={namedStringGroups.mastered} filter={filter} />
-          <GroupSection title="📈 Solid"    cls="solid"     items={namedStringGroups.solid}    filter={filter} />
-          <GroupSection title="🌱 Growing"  cls="improving"  items={namedStringGroups.growing}  filter={filter} />
+          {/* Sub tabs: Notes / Strings */}
+          <div className="stats-tabs">
+            <button className={`stats-tab ${tab === 'notes' ? 'stats-tab-active' : ''}`} onClick={() => setTab('notes')}>By Note</button>
+            <button className={`stats-tab ${tab === 'strings' ? 'stats-tab-active' : ''}`} onClick={() => setTab('strings')}>By String</button>
+          </div>
+
+          <div className="filter-row">
+            {(['all', 'correct', 'wrong', 'timeout'] as Filter[]).map(f => (
+              <button key={f} className={`filter-chip ${filter === f ? 'filter-active' : ''}`} onClick={() => setFilter(f)}>
+                {f === 'all' ? `All (${total})` : f === 'correct' ? `✓ ${correct}` : f === 'wrong' ? `✗ ${wrong}` : `⏱ ${timedOut}`}
+              </button>
+            ))}
+          </div>
+
+          {tab === 'notes' && (
+            <>
+              <GroupSection title="🏆 Mastered" cls="good" items={noteGroups.mastered} filter={filter} accidental={accidental} notation={notation} />
+              <GroupSection title="📈 Solid" cls="solid" items={noteGroups.solid} filter={filter} accidental={accidental} notation={notation} />
+              <GroupSection title="🌱 Growing" cls="improving" items={noteGroups.growing} filter={filter} accidental={accidental} notation={notation} />
+            </>
+          )}
+
+          {tab === 'strings' && (
+            <>
+              <div className="string-bars">
+                {(Object.entries(byStringBuckets) as [string, StatBucket][])
+                  .sort(([a], [b]) => Number(a) - Number(b))
+                  .map(([strKey, v]) => {
+                    const strNum = Number(strKey);
+                    const t = v.correct + v.wrong + v.timeout;
+                    const pct = t === 0 ? 0 : Math.round((v.correct / t) * 100);
+                    const cat = category(v);
+                    const barCls = cat === 'mastered' ? 'bar-mastered' : cat === 'solid' ? 'bar-solid' : 'bar-growing';
+                    return (
+                      <div key={strKey} className="string-bar-row">
+                        <span className="string-bar-label">{STRING_NAME[strNum]}</span>
+                        <div className="string-bar-track">
+                          <div className={`string-bar-fill ${barCls}`} style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="string-bar-pct">{pct}%</span>
+                        <span className="string-bar-counts">✓{v.correct} ✗{v.wrong} ⏱{v.timeout}</span>
+                      </div>
+                    );
+                  })}
+              </div>
+              <GroupSection title="🏆 Mastered" cls="good" items={namedStringGroups.mastered} filter={filter} />
+              <GroupSection title="📈 Solid" cls="solid" items={namedStringGroups.solid} filter={filter} />
+              <GroupSection title="🌱 Growing" cls="improving" items={namedStringGroups.growing} filter={filter} />
+            </>
+          )}
         </>
       )}
     </div>

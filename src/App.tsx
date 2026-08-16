@@ -290,6 +290,7 @@ export default function App() {
             everPlayed={true}
             sessionScore={scoring.session.score}
             longestStreak={scoring.session.longestStreak}
+            historyKey={histKey}
           />
         </div>
       )}
