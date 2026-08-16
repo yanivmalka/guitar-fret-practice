@@ -135,6 +135,10 @@ export default function App() {
   };
 
   const hasHistory = historyOps.getEntriesForKey(histKey).length > 0;
+  const [showStats, setShowStats] = useState(false);
+
+  // Reset showStats when selector changes
+  useEffect(() => { setShowStats(false); }, [histKey]);
 
   // ── Scoring ────────────────────────────────────────────────────
   const scoring = useScoring();
@@ -223,6 +227,7 @@ export default function App() {
                   <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
                 </button>
                 {hasHistory && <button className="clear-btn" onClick={click(clearStats)}>Clear</button>}
+                {hasHistory && <button className="clear-btn" onClick={click(() => setShowStats(s => !s))}>{showStats ? 'Hide' : 'Stats'}</button>}
               </>
             ) : (
               <>
@@ -242,8 +247,8 @@ export default function App() {
           </div>
         </div>
 
-        {/* Show NoteCircle/FretGrid when playing, paused, or stopped with no history */}
-        {(!isStopped || !hasHistory) && (
+        {/* Show NoteCircle/FretGrid when playing, paused, or stopped without stats open */}
+        {(!isStopped || !showStats) && (
           derivedSettings.byNote ? (
             <FretGrid
               fretFrom={derivedSettings.fretFrom}
@@ -277,8 +282,8 @@ export default function App() {
         )}
       </div>
 
-      {/* Show stats when stopped AND there is history */}
-      {isStopped && hasHistory && (
+      {/* Show stats when user clicks Stats button */}
+      {isStopped && showStats && (
         <div className="stats-wrapper">
           <StatsPanel
             history={historyOps.getEntriesForKey(histKey)}
