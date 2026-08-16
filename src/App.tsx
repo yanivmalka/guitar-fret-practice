@@ -191,7 +191,7 @@ export default function App() {
         <div className="question-col">
           {isPlaying && (
             <>
-              <div className="string-label">{STRING_DISPLAY[guitarString]}</div>
+              <div className="string-label" key={guitarString}>{STRING_DISPLAY[guitarString]}</div>
               {derivedSettings.byNote
                 ? <div className="note-display">{currentNote ? displayNote(currentNote, accidental, notation) : '—'}</div>
                 : <div className="fret-display">{currentFret !== null ? currentFret : '—'}</div>

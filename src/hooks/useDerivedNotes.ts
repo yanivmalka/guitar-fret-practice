@@ -26,8 +26,7 @@ export function useDerivedNotes(
       getValidFrets(s - 1, fretFrom, fretTo, wholeToneOnly, dotsOnly).forEach(f => noteSet.add(notes[s - 1][f]));
     });
     return noteSet;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeStrings.join(','), fretFrom, fretTo, wholeToneOnly, dotsOnly]);
+  }, [JSON.stringify(activeStrings), fretFrom, fretTo, wholeToneOnly, dotsOnly]);
 
   const questionActiveNotes = useMemo(() => {
     const noteSet = new Set<string>();
