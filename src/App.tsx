@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import NoteCircle from './components/NoteCircle';
 import FretGrid from './components/FretGrid';
 import SelectorPanel from './components/SelectorPanel';
 import StatsPanel from './components/StatsPanel';
 import Onboarding from './components/Onboarding';
+import SpeedBar from './components/SpeedBar';
 import { displayNote } from './utils/music';
 import type { HistoryEntry, AccidentalMode, OrderMode, NotationMode } from './utils/music';
 import { preloadAllSamples, unlockAudio } from './utils/audio';
@@ -131,6 +132,17 @@ export default function App() {
 
   const hasHistory = historyOps.getEntriesForKey(histKey).length > 0;
 
+  // ── Live speed stats ───────────────────────────────────────────
+  const sessionHistory = historyOps.history;
+  const speedStats = useMemo(() => {
+    const correctEntries = sessionHistory.filter(h => h.correct === true);
+    if (correctEntries.length === 0) return { avg: 0, best: 0, count: 0 };
+    const times = correctEntries.map(h => h.seconds);
+    const avg = times.reduce((a, b) => a + b, 0) / times.length;
+    const best = Math.min(...times);
+    return { avg: Math.round(avg * 10) / 10, best: Math.round(best * 10) / 10, count: correctEntries.length };
+  }, [sessionHistory]);
+
   // ── Render ─────────────────────────────────────────────────────
   return (
     <div className="app">
@@ -170,7 +182,10 @@ export default function App() {
                 ? <div className="note-display">{currentNote ? displayNote(currentNote, accidental, notation) : '—'}</div>
                 : <div className="fret-display">{currentFret !== null ? currentFret : '—'}</div>
               }
-              <div className="countdown">{remaining > 0 ? remaining : ''}</div>
+              <SpeedBar remaining={remaining} total={derivedSettings.time} answered={answered} />
+              {speedStats.count > 0 && (
+                <div className="speed-avg">⚡ {speedStats.avg}s avg</div>
+              )}
               <div className={`feedback ${feedback.startsWith('✓') ? 'good' : feedback.startsWith('✗') ? 'bad' : 'warn'}`}>
                 {feedback}
               </div>

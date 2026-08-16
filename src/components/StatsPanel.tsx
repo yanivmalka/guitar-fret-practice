@@ -67,7 +67,7 @@ function GroupSection({ title, cls, items, filter, accidental, notation }: {
   );
 }
 
-export default function StatsPanel({ history, maxQuestions, accidental, notation }: Props) {
+export default function StatsPanel({ history, maxTime, maxQuestions, accidental, notation }: Props) {
   const [tab, setTab] = useState<MainTab>('notes');
   const [filter, setFilter] = useState<Filter>('all');
 
@@ -78,6 +78,18 @@ export default function StatsPanel({ history, maxQuestions, accidental, notation
   const wrong = history.filter(h => h.correct === false).length;
   const timedOut = history.filter(h => h.skipped).length;
   const score = total === 0 ? 0 : Math.round((correct / total) * 100);
+
+  // Speed stats from correct answers
+  const correctEntries = history.filter(h => h.correct === true);
+  const speedAvg = correctEntries.length > 0
+    ? Math.round((correctEntries.reduce((sum, h) => sum + h.seconds, 0) / correctEntries.length) * 10) / 10
+    : 0;
+  const speedBest = correctEntries.length > 0
+    ? Math.round(Math.min(...correctEntries.map(h => h.seconds)) * 10) / 10
+    : 0;
+  const fastZone = correctEntries.length > 0
+    ? Math.round((correctEntries.filter(h => h.seconds <= maxTime / 2).length / correctEntries.length) * 100)
+    : 0;
 
   let encouragement = '';
   if (score >= 80) encouragement = '🔥 Amazing!';
@@ -146,6 +158,15 @@ export default function StatsPanel({ history, maxQuestions, accidental, notation
         <span className="score">{score}%</span>
         <span className="encouragement">{encouragement}</span>
       </div>
+
+      {/* Speed stats */}
+      {correctEntries.length > 0 && (
+        <div className="speed-stats">
+          <span className="speed-stat">⚡ Avg: {speedAvg}s</span>
+          <span className="speed-stat">🏆 Best: {speedBest}s</span>
+          <span className="speed-stat">{fastZone}% fast</span>
+        </div>
+      )}
 
       {/* Main tabs: Notes / Strings */}
       <div className="stats-tabs">

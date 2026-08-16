@@ -107,6 +107,43 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 
 .fret-display { font-size: 5rem; color: #0ff; line-height: 1; }
 .countdown { font-size: 1.5rem; color: #ff0; height: 2rem; }
+
+/* Speed bar */
+.speed-bar-container {
+  position: relative;
+  width: 100%;
+  max-width: 220px;
+  height: 6px;
+  background: #222;
+  border-radius: 3px;
+  margin: 8px 0 4px;
+  overflow: hidden;
+}
+.speed-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: none;
+}
+.speed-bar-frozen {
+  animation: speed-bar-flash 0.3s ease-out;
+}
+@keyframes speed-bar-flash {
+  0% { filter: brightness(2); }
+  100% { filter: brightness(1); }
+}
+.speed-bar-time {
+  position: absolute;
+  right: -28px;
+  top: -4px;
+  font-size: 0.75rem;
+  color: #ff0;
+  font-weight: bold;
+}
+.speed-avg {
+  font-size: 0.75rem;
+  color: #888;
+  margin: 2px 0;
+}
 .paused-text { color: #f90; font-size: 1.2rem; margin: 8px 0; }
 .info { font-size: 0.9rem; color: #aaa; margin-bottom: 4px; }
 .feedback { font-size: 1.2rem; min-height: 1.6rem; margin: 4px 0; }
@@ -188,6 +225,18 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 .score-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .score { font-size: 2rem; font-weight: bold; color: #0ff; }
 .encouragement { font-size: 0.9rem; color: #ccc; }
+
+/* Speed stats in panel */
+.speed-stats {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 0.8rem;
+  color: #aaa;
+}
+.speed-stat {
+  white-space: nowrap;
+}
 
 .stat-group { margin-bottom: 10px; }
 .stat-group-title { font-size: 0.85rem; font-weight: bold; margin-bottom: 4px; }
