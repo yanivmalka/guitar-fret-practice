@@ -284,7 +284,30 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   background: none; color: #aaa; font-size: 0.85rem; cursor: pointer;
 }
 .clear-btn:hover { border-color: #0ff; color: #0ff; }
-.stats-close-x { color: #f55; margin-left: 4px; font-weight: bold; }
+
+/* Stats button group */
+.stats-btn-group {
+  display: inline-flex;
+  gap: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #555;
+}
+.stats-btn-group .clear-btn {
+  border: none;
+  border-radius: 0;
+  padding: 10px 14px;
+}
+.stats-toggle-on {
+  background: #1a2a3a;
+  color: #0ff;
+}
+.stats-clear-x {
+  border-left: 1px solid #555 !important;
+  padding: 10px 10px !important;
+  color: #f55 !important;
+}
+.stats-clear-x:hover { background: #3a0a0a; }
 
 /* Note buttons */
 .note-btn {

@@ -223,8 +223,12 @@ export default function App() {
                 <button className="icon-btn play-btn" onClick={click(start)} title="Start">
                   <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
                 </button>
-                {hasHistory && !showStats && <button className="clear-btn" onClick={click(() => setShowStats(true))}>Stats</button>}
-                {hasHistory && showStats && <button className="clear-btn" onClick={click(() => setShowStats(false))}>Stats <span className="stats-close-x">✕</span></button>}
+                {hasHistory && (
+                  <span className="stats-btn-group">
+                    <button className={`clear-btn stats-toggle ${showStats ? 'stats-toggle-on' : ''}`} onClick={click(() => setShowStats(s => !s))}>Stats</button>
+                    <button className="clear-btn stats-clear-x" onClick={click(() => { historyOps.clearHistory(histKey); setShowStats(false); })} title="Clear stats">✕</button>
+                  </span>
+                )}
               </>
             ) : (
               <>
