@@ -153,11 +153,9 @@ export default function SelectorPanel({
 
           {/* Tap targets — no sound if tapping the only active half (no-op) */}
           <rect x={splitX} y={FB_TOP} width={NECK_RIGHT - splitX} height={FB_HEIGHT} fill="transparent" style={{ cursor: 'pointer' }} onClick={() => {
-            if (selector.lowerActive && !selector.upperActive) return;
             playClickSound(); onFretRangeToggle('lower');
           }} />
           <rect x={fbLeft} y={FB_TOP} width={splitX - fbLeft} height={FB_HEIGHT} fill="transparent" style={{ cursor: 'pointer' }} onClick={() => {
-            if (selector.upperActive && !selector.lowerActive) return;
             playClickSound(); onFretRangeToggle('upper');
           }} />
 

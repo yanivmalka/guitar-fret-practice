@@ -140,8 +140,13 @@ export function useSelector() {
         // Both active, clicking 0-12 → deselect it → only 12-21 remains
         setLowerActive(false);
         saveSetting('sel_lower', false);
+      } else {
+        // Only lower active, clicking it → invert → switch to upper only
+        setLowerActive(false);
+        setUpperActive(true);
+        saveSetting('sel_lower', false);
+        saveSetting('sel_upper', true);
       }
-      // If only lower is active, clicking it again does nothing
     } else {
       if (!upperActive) {
         // Clicking 12-21 while only 0-12 active → switch to 12-21 only
@@ -153,8 +158,13 @@ export function useSelector() {
         // Both active, clicking 12-21 → deselect it → only 0-12 remains
         setUpperActive(false);
         saveSetting('sel_upper', false);
+      } else {
+        // Only upper active, clicking it → invert → switch to lower only
+        setUpperActive(false);
+        setLowerActive(true);
+        saveSetting('sel_upper', false);
+        saveSetting('sel_lower', true);
       }
-      // If only upper is active, clicking it again does nothing
     }
   };
 
