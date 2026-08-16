@@ -130,9 +130,6 @@ export default function App() {
     setTimeout(() => gameRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
   };
 
-  const clearStats = () => {
-    historyOps.clearHistory(histKey);
-  };
 
   const hasHistory = historyOps.getEntriesForKey(histKey).length > 0;
   const [showStats, setShowStats] = useState(false);
@@ -226,20 +223,20 @@ export default function App() {
                 <button className="icon-btn play-btn" onClick={click(start)} title="Start">
                   <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
                 </button>
-                {hasHistory && <button className="clear-btn clear-x" onClick={click(clearStats)} title="Clear stats">✕</button>}
-                {hasHistory && <button className="clear-btn" onClick={click(() => setShowStats(s => !s))}>{showStats ? 'Hide' : 'Stats'}</button>}
+                {hasHistory && !showStats && <button className="clear-btn" onClick={click(() => setShowStats(true))}>Stats</button>}
+                {hasHistory && showStats && <button className="clear-btn" onClick={click(() => setShowStats(false))}>Stats <span className="stats-close-x">✕</span></button>}
               </>
             ) : (
               <>
                 {!paused
-                  ? <button className="icon-btn pause-btn" onPointerDown={(e) => { e.preventDefault(); playClickSound(); haptic.tap(); pause(); }} title="Pause">
+                  ? <button className="icon-btn pause-btn" onPointerDown={() => { pause(); playClickSound(); haptic.tap(); }} onClick={() => { pause(); }} title="Pause">
                       <svg viewBox="0 0 24 24" width="24" height="24"><rect x="5" y="4" width="4" height="16" fill="currentColor"/><rect x="15" y="4" width="4" height="16" fill="currentColor"/></svg>
                     </button>
-                  : <button className="icon-btn play-btn" onPointerDown={(e) => { e.preventDefault(); playClickSound(); haptic.tap(); resume(derivedSettings.byNote, currentFret, guitarString); }} title="Continue">
+                  : <button className="icon-btn play-btn" onPointerDown={() => { resume(derivedSettings.byNote, currentFret, guitarString); playClickSound(); haptic.tap(); }} onClick={() => { resume(derivedSettings.byNote, currentFret, guitarString); }} title="Continue">
                       <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
                     </button>
                 }
-                <button className="icon-btn stop-btn-icon" onPointerDown={(e) => { e.preventDefault(); playClickSound(); haptic.tap(); stop(); }} title="Stop">
+                <button className="icon-btn stop-btn-icon" onPointerDown={() => { stop(); playClickSound(); haptic.tap(); }} onClick={() => { stop(); }} title="Stop">
                   <svg viewBox="0 0 24 24" width="24" height="24"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/></svg>
                 </button>
               </>
