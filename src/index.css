@@ -430,32 +430,35 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   margin-bottom: 8px;
   justify-content: center;
 }
-.order-switcher-inline {
+/* Order options between mode cards — vertical stack */
+.mode-order-col {
   display: flex;
-  gap: 6px;
+  flex-direction: column;
+  gap: 4px;
   justify-content: center;
   overflow: hidden;
-  transition: max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease;
+  transition: max-width 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
 }
-.order-switcher-show {
-  max-height: 40px;
+.mode-order-show {
+  max-width: 80px;
   opacity: 1;
-  margin: 4px 0;
+  padding: 0 4px;
 }
-.order-switcher-hide {
-  max-height: 0;
+.mode-order-hide {
+  max-width: 0;
   opacity: 0;
-  margin: 0;
+  padding: 0;
 }
 .order-chip {
-  padding: 5px 12px;
-  border-radius: 14px;
+  padding: 4px 10px;
+  border-radius: 12px;
   border: 1px solid #444;
   background: #1a1a2e;
   color: #aaa;
-  font-size: 12px;
+  font-size: 11px;
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s, font-weight 0.15s;
+  white-space: nowrap;
 }
 .order-chip-active {
   border-color: #0ff;

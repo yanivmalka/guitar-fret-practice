@@ -118,7 +118,7 @@ export default function SelectorPanel({
         <button className={`string-pill ${selector.multiMode ? 'active' : ''}`} onClick={() => { selector.multiMode ? playToggleOffSound() : playToggleOnSound(); onMultiToggle(); }}>Multi</button>
       </div>
 
-      {/* ── ModeToggle (Note by Fret left, Fret by Note right) ── */}
+      {/* ── ModeToggle with order options between cards ── */}
       <div className="mode-cards">
         <button className={`mode-card ${selector.mode === 'byFret' ? 'active' : ''}`} onClick={() => { playClickSound(); onModeSelect('byFret'); }}>
           <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
@@ -133,6 +133,14 @@ export default function SelectorPanel({
           </svg>
           <span>Note by Fret</span>
         </button>
+
+        {/* Order options — stacked vertically between the two mode cards, visible only for byFret */}
+        <div className={`mode-order-col ${selector.mode === 'byFret' ? 'mode-order-show' : 'mode-order-hide'}`}>
+          {onOrderChange && <button className={`order-chip${order === 'alphabet' ? ' order-chip-active' : ''}`} onClick={() => onOrderChange('alphabet')}>Alpha</button>}
+          {onOrderChange && <button className={`order-chip${order === 'fifths' ? ' order-chip-active' : ''}`} onClick={() => onOrderChange('fifths')}>Fifths</button>}
+          {onByStringToggle && <button className={`order-chip chip-toggle${byString ? ' chip-toggle-active' : ''}`} onClick={onByStringToggle}>By String</button>}
+        </div>
+
         <button className={`mode-card ${selector.mode === 'byNote' ? 'active' : ''}`} onClick={() => { playClickSound(); onModeSelect('byNote'); }}>
           <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
             {[
@@ -145,13 +153,6 @@ export default function SelectorPanel({
           </svg>
           <span>Fret by Note</span>
         </button>
-      </div>
-
-      {/* ── Order switcher (visible only for Note by Fret mode) ── */}
-      <div className={`order-switcher-inline ${selector.mode === 'byFret' ? 'order-switcher-show' : 'order-switcher-hide'}`}>
-        {onByStringToggle && <button className={`order-chip chip-toggle${byString ? ' chip-toggle-active' : ''}`} onClick={onByStringToggle}>By String</button>}
-        {onOrderChange && <button className={`order-chip${order === 'fifths' ? ' order-chip-active' : ''}`} onClick={() => onOrderChange('fifths')}>Fifths</button>}
-        {onOrderChange && <button className={`order-chip${order === 'alphabet' ? ' order-chip-active' : ''}`} onClick={() => onOrderChange('alphabet')}>Alpha</button>}
       </div>
 
       {/* ── FretRangeNeck SVG ─────────────────────────────── */}
