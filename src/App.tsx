@@ -178,14 +178,13 @@ export default function App() {
         isPlaying={isPlaying}
         activeString={isPlaying ? guitarString : undefined}
         activeFret={isPlaying ? askedFret : undefined}
+        byString={byString}
+        order={order}
+        onByStringToggle={() => { byString ? playToggleOffSound() : playToggleOnSound(); haptic.tap(); const next = !byString; setByString(next); saveSetting('pref_byString', next); }}
+        onOrderChange={(o) => { playClickSound(); haptic.tap(); setOrder(o); saveSetting('pref_order', o); }}
       />
 
-      {/* Order switcher row — visible when in By Fret mode */}
-      <div className="order-switcher" style={{ visibility: derivedSettings.byNote ? 'hidden' : 'visible' }}>
-        <button className={`order-chip chip-toggle${byString ? ' chip-toggle-active' : ''}`} onClick={() => { byString ? playToggleOffSound() : playToggleOnSound(); haptic.tap(); const next = !byString; setByString(next); saveSetting('pref_byString', next); }}>By String</button>
-        <button className={`order-chip${order === 'fifths' ? ' order-chip-active' : ''}`} onClick={() => { playClickSound(); haptic.tap(); setOrder('fifths'); saveSetting('pref_order', 'fifths'); }}>Fifths</button>
-        <button className={`order-chip${order === 'alphabet' ? ' order-chip-active' : ''}`} onClick={() => { playClickSound(); haptic.tap(); setOrder('alphabet'); saveSetting('pref_order', 'alphabet'); }}>Alpha</button>
-      </div>
+      {/* Order switcher moved into SelectorPanel */}
 
       <div className="game-row" ref={gameRowRef}>
         <div className="question-col">
@@ -235,7 +234,7 @@ export default function App() {
                       <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
                     </button>
                 }
-                <button className="icon-btn stop-btn-icon" onClick={click(stop)} title="Stop">
+                <button className="icon-btn stop-btn-icon" onClick={() => { playClickSound(); haptic.tap(); stop(); }} title="Stop">
                   <svg viewBox="0 0 24 24" width="24" height="24"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/></svg>
                 </button>
               </>

@@ -430,6 +430,23 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   margin-bottom: 8px;
   justify-content: center;
 }
+.order-switcher-inline {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease;
+}
+.order-switcher-show {
+  max-height: 40px;
+  opacity: 1;
+  margin: 4px 0;
+}
+.order-switcher-hide {
+  max-height: 0;
+  opacity: 0;
+  margin: 0;
+}
 .order-chip {
   padding: 5px 12px;
   border-radius: 14px;

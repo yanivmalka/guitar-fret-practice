@@ -1,4 +1,5 @@
 import type { SelectorState, Difficulty } from '../hooks/useSelector';
+import type { OrderMode } from '../utils/music';
 import { playClickSound, playToggleOnSound, playToggleOffSound } from '../utils/feedback';
 
 interface SelectorPanelProps {
@@ -11,6 +12,10 @@ interface SelectorPanelProps {
   isPlaying: boolean;
   activeString?: number;
   activeFret?: number | null;
+  byString?: boolean;
+  order?: OrderMode;
+  onByStringToggle?: () => void;
+  onOrderChange?: (o: OrderMode) => void;
 }
 
 const SCALE_FACTOR = 17.817;
@@ -46,6 +51,7 @@ const DOT_FRETS = [3, 5, 7, 9, 12, 15, 17, 19, 21];
 export default function SelectorPanel({
   selector, onStringSelect, onMultiToggle, onModeSelect,
   onFretRangeToggle, onDifficultySelect, isPlaying, activeString, activeFret,
+  byString, order, onByStringToggle, onOrderChange,
 }: SelectorPanelProps) {
   const strings: { label: string; num: number }[] = [
     { label: 'E', num: 6 }, { label: 'A', num: 5 }, { label: 'D', num: 4 },
@@ -139,6 +145,13 @@ export default function SelectorPanel({
           </svg>
           <span>Fret by Note</span>
         </button>
+      </div>
+
+      {/* ── Order switcher (visible only for Note by Fret mode) ── */}
+      <div className={`order-switcher-inline ${selector.mode === 'byFret' ? 'order-switcher-show' : 'order-switcher-hide'}`}>
+        {onByStringToggle && <button className={`order-chip chip-toggle${byString ? ' chip-toggle-active' : ''}`} onClick={onByStringToggle}>By String</button>}
+        {onOrderChange && <button className={`order-chip${order === 'fifths' ? ' order-chip-active' : ''}`} onClick={() => onOrderChange('fifths')}>Fifths</button>}
+        {onOrderChange && <button className={`order-chip${order === 'alphabet' ? ' order-chip-active' : ''}`} onClick={() => onOrderChange('alphabet')}>Alpha</button>}
       </div>
 
       {/* ── FretRangeNeck SVG ─────────────────────────────── */}
