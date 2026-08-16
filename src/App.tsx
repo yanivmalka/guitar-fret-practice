@@ -5,6 +5,7 @@ import SelectorPanel from './components/SelectorPanel';
 import StatsPanel from './components/StatsPanel';
 import Onboarding from './components/Onboarding';
 import SpeedBar from './components/SpeedBar';
+import AnimatedScore from './components/AnimatedScore';
 import { displayNote } from './utils/music';
 import type { HistoryEntry, AccidentalMode, OrderMode, NotationMode } from './utils/music';
 import { preloadAllSamples, unlockAudio } from './utils/audio';
@@ -203,7 +204,7 @@ export default function App() {
                 <span className="game-progress-text">{scoring.session.questionsAnswered}/{derivedSettings.maxQuestions}</span>
               </div>
               <div className="score-live">
-                <span className="score-live-pts">{scoring.session.score}</span>
+                <AnimatedScore value={scoring.session.score} />
                 {scoring.session.streak >= 2 && (
                   <span className="score-live-streak">🔥{scoring.session.streak}</span>
                 )}
@@ -261,8 +262,8 @@ export default function App() {
               notes={cofList}
               activeNotes={isMulti && isPlaying ? questionActiveNotes : activeNotes}
               active={isPlaying && !answered}
-              correctNote={correctCofNote}
-              wrongNote={wrongCofNote}
+              correctNote={running ? correctCofNote : null}
+              wrongNote={running ? wrongCofNote : null}
               onSelect={selectAnswer}
               guitarString={guitarString}
               fretDots={fretDots}
