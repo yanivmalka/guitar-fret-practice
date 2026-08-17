@@ -23,22 +23,18 @@ const STRING_DISPLAY: Record<number, string> = {
 };
 
 export default function App() {
-  // ── Selector (replaces useGameSettings) ────────────────────────
   const selector = useSelector();
   const { derivedSettings } = selector;
 
-  // ── Local display state ────────────────────────────────────────
   const [guitarString, setGuitarString] = useState(derivedSettings.guitarString);
   const [byString, setByString] = useState(() => loadSetting('pref_byString', true));
   const [notation] = useState<NotationMode>(() => loadSetting('pref_notation', 'alpha'));
   const [order, setOrder] = useState<OrderMode>(() => loadSetting('pref_order', 'fifths'));
   const [accidental] = useState<AccidentalMode>(() => loadSetting('pref_accidental', 'sharps'));
 
-  // Sync guitarString when selector changes
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setGuitarString(derivedSettings.guitarString); }, [derivedSettings.guitarString]);
 
-  // ── History ────────────────────────────────────────────────────
   const historyOps = useHistory();
   const histKey = selector.historyKey();
   const { addEntry: addEntryRaw, markPlayed: markPlayedRaw } = historyOps;
@@ -51,7 +47,6 @@ export default function App() {
     [histKey, markPlayedRaw],
   );
 
-  // ── Derived notes ──────────────────────────────────────────────
   const derived = useDerivedNotes(
     guitarString, derivedSettings.fretFrom, derivedSettings.fretTo,
     derivedSettings.wholeToneOnly, derivedSettings.dotsOnly,
@@ -59,7 +54,6 @@ export default function App() {
   );
   const { cofList, startIndex, activeNotes, questionActiveNotes, fretDots, noteFrets, isMulti } = derived;
 
-  // ── Game engine ────────────────────────────────────────────────
   const engine = useGameEngine(
     {
       guitarString,
@@ -76,17 +70,10 @@ export default function App() {
     },
     {
       setGuitarString,
-      setTime: () => {},
-      setFretFrom: () => {},
-      setFretTo: () => {},
-      setAccidental: () => {},
-      setOrder: () => {},
-      setWholeToneOnly: () => {},
-      setDotsOnly: () => {},
-      setByNote: () => {},
-      setMultiStrings: () => {},
-      setByString: () => {},
-      setStageIndex: () => {},
+      setTime: () => {}, setFretFrom: () => {}, setFretTo: () => {},
+      setAccidental: () => {}, setOrder: () => {}, setWholeToneOnly: () => {},
+      setDotsOnly: () => {}, setByNote: () => {}, setMultiStrings: () => {},
+      setByString: () => {}, setStageIndex: () => {},
     },
     {
       addEntry: addEntryWithKey,
@@ -101,71 +88,80 @@ export default function App() {
     start: engineStart, stop, pause, resume, selectFret, selectAnswer,
   } = engine;
 
-  // ── Stop game when selector changes while playing ──────────────
   const derivedRef = useRef(derivedSettings);
   useEffect(() => {
-    if (derivedRef.current !== derivedSettings && running) {
-      stop();
-    }
+    if (derivedRef.current !== derivedSettings && running) { stop(); }
     derivedRef.current = derivedSettings;
   }, [derivedSettings, running, stop]);
 
-  // ── UI state ───────────────────────────────────────────────────
   const [preloaded, setPreloaded] = useState(false);
   const [onboardingDone, setOnboardingDone] = useState(() => loadSetting<boolean>('onboardingDone', false));
+  const [showStats, setShowStats] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [gameEnded, setGameEnded] = useState(false);
   const gameRowRef = useRef<HTMLDivElement>(null);
 
   const isPlaying = running && !paused;
   const isStopped = !running && !paused;
 
-  // US-09: wrap any button handler with a click sound
   const click = <T,>(fn: () => T) => () => { playClickSound(); haptic.tap(); return fn(); };
+
+  const hasHistory = historyOps.getEntriesForKey(histKey).length > 0;
+
+  useEffect(() => { setShowStats(false); setGameEnded(false); }, [histKey]);
+
+  const scoring = useScoring();
+  const prevHistLenRef = useRef(0);
+  const sessionHistory = historyOps.history;
+
+  useEffect(() => {
+    const len = sessionHistory.length;
+    if (len > prevHistLenRef.current) {
+      const latest = sessionHistory[len - 1];
+      if (latest.correct === true) scoring.onCorrect();
+      else if (latest.correct === false) scoring.onWrong();
+      else scoring.onTimeout();
+    }
+    prevHistLenRef.current = len;
+  }, [sessionHistory, scoring.onCorrect, scoring.onWrong, scoring.onTimeout]);
+
+  // Detect game end
+  const wasRunningRef = useRef(false);
+  useEffect(() => {
+    if (wasRunningRef.current && !running && !paused && scoring.session.questionsAnswered > 0) {
+      setGameEnded(true);
+    }
+    wasRunningRef.current = running;
+  }, [running, paused, scoring.session.questionsAnswered]);
 
   const start = () => {
     unlockAudio();
     if (!preloaded) { preloadAllSamples().then(() => setPreloaded(true)); setPreloaded(true); }
     scoring.reset();
     prevHistLenRef.current = 0;
-    engineStart(derivedSettings.maxQuestions, derivedSettings.time, derivedSettings.byNote);
-    setTimeout(() => gameRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+    setGameEnded(false);
+    // Countdown 3-2-1
+    setCountdown(3);
+    let c = 3;
+    const interval = setInterval(() => {
+      c--;
+      if (c > 0) { setCountdown(c); }
+      else {
+        clearInterval(interval);
+        setCountdown(null);
+        engineStart(derivedSettings.maxQuestions, derivedSettings.time, derivedSettings.byNote);
+        setTimeout(() => gameRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+      }
+    }, 700);
   };
 
+  // Multiplier circles (streak-based, max 5)
+  const multiplierLevel = Math.min(scoring.session.streak, 5);
 
-  const hasHistory = historyOps.getEntriesForKey(histKey).length > 0;
-  const [showStats, setShowStats] = useState(false);
-
-  // Reset showStats when selector changes
-  useEffect(() => { setShowStats(false); }, [histKey]);
-
-  // ── Scoring ────────────────────────────────────────────────────
-  const scoring = useScoring();
-  const prevHistLenRef = useRef(0);
-  const sessionHistory = historyOps.history;
-
-  // React to new history entries to update scoring
-  useEffect(() => {
-    const len = sessionHistory.length;
-    if (len > prevHistLenRef.current) {
-      const latest = sessionHistory[len - 1];
-      if (latest.correct === true) {
-        scoring.onCorrect();
-      } else if (latest.correct === false) {
-        scoring.onWrong();
-      } else {
-        scoring.onTimeout();
-      }
-    }
-    prevHistLenRef.current = len;
-  }, [sessionHistory, scoring.onCorrect, scoring.onWrong, scoring.onTimeout]);
-
-  // ── Render ─────────────────────────────────────────────────────
   return (
     <div className="app">
       {!onboardingDone && (
-        <Onboarding onDone={() => {
-          setOnboardingDone(true);
-          saveSetting('onboardingDone', true);
-        }} />
+        <Onboarding onDone={() => { setOnboardingDone(true); saveSetting('onboardingDone', true); }} />
       )}
       <h1>🎸 Guitar Fret Practice</h1>
 
@@ -183,9 +179,17 @@ export default function App() {
         order={order}
         onByStringToggle={() => { byString ? playToggleOffSound() : playToggleOnSound(); haptic.tap(); const next = !byString; setByString(next); saveSetting('pref_byString', next); }}
         onOrderChange={(o) => { playClickSound(); haptic.tap(); setOrder(o); saveSetting('pref_order', o); }}
+        showStats={showStats}
+        onStatsToggle={() => { playClickSound(); setShowStats(s => !s); }}
+        hasHistory={hasHistory}
       />
 
-      {/* Order switcher moved into SelectorPanel */}
+      {/* Countdown overlay */}
+      {countdown !== null && (
+        <div className="countdown-overlay">
+          <span className="countdown-num" key={countdown}>{countdown}</span>
+        </div>
+      )}
 
       <div className="game-row" ref={gameRowRef}>
         <div className="question-col">
@@ -203,10 +207,16 @@ export default function App() {
                 </div>
                 <span className="game-progress-text">{scoring.session.questionsAnswered}/{derivedSettings.maxQuestions}</span>
               </div>
+              {/* Score + multiplier circles */}
               <div className="score-live">
+                <div className="multiplier-circles">
+                  {[1,2,3,4,5].map(i => (
+                    <span key={i} className={`mult-dot ${i <= multiplierLevel ? 'mult-dot-on' : ''}`} />
+                  ))}
+                </div>
                 <AnimatedScore value={scoring.session.score} />
                 {scoring.session.streak >= 2 && (
-                  <span className="score-live-streak">🔥{scoring.session.streak}</span>
+                  <span className="score-live-streak">×{Math.min(scoring.session.streak, 5)}</span>
                 )}
               </div>
               <div className={`feedback ${feedback.startsWith('✓') ? 'good' : feedback.startsWith('✗') ? 'bad' : 'warn'}`}>
@@ -217,20 +227,25 @@ export default function App() {
 
           {paused && <div className="paused-text">⏸ Paused</div>}
 
+          {/* Game ended summary */}
+          {gameEnded && isStopped && (
+            <div className="game-end-summary">
+              <div className="game-end-title">🎉 Round Complete!</div>
+              <div className="game-end-score"><AnimatedScore value={scoring.session.score} /> pts</div>
+              <div className="game-end-details">
+                {scoring.session.longestStreak >= 2 && <span>🔥 {scoring.session.longestStreak} streak</span>}
+                <span>✓ {sessionHistory.filter(h => h.correct === true).length}/{scoring.session.questionsAnswered}</span>
+              </div>
+              <button className="clear-btn" onClick={() => setGameEnded(false)}>OK</button>
+            </div>
+          )}
+
           <div className="controls">
-            {!running && !paused ? (
-              <>
-                <button className="icon-btn play-btn" onClick={click(start)} title="Start">
-                  <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
-                </button>
-                {hasHistory && (
-                  <span className="stats-btn-group">
-                    <button className={`clear-btn stats-toggle ${showStats ? 'stats-toggle-on' : ''}`} onClick={click(() => setShowStats(s => !s))}>Stats</button>
-                    <button className="clear-btn stats-clear-x" onClick={click(() => { historyOps.clearHistory(histKey); setShowStats(false); })} title="Clear stats">✕</button>
-                  </span>
-                )}
-              </>
-            ) : (
+            {!running && !paused && !countdown ? (
+              <button className="icon-btn play-btn" onClick={click(start)} title="Start">
+                <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
+              </button>
+            ) : running || paused ? (
               <>
                 {!paused
                   ? <button className="icon-btn pause-btn" onClick={() => { pause(); playClickSound(); haptic.tap(); }} title="Pause">
@@ -241,9 +256,8 @@ export default function App() {
                     </button>
                 }
               </>
-            )}
+            ) : null}
           </div>
-          {/* Stop button always visible and outside controls flow when game is active */}
           {(running || paused) && (
             <button className="stop-floating" onClick={() => { stop(); playClickSound(); haptic.tap(); }} title="Stop">
               <svg viewBox="0 0 24 24" width="20" height="20"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/></svg>
@@ -252,8 +266,7 @@ export default function App() {
           )}
         </div>
 
-        {/* Show NoteCircle/FretGrid when playing, paused, or stopped without stats open */}
-        {(!isStopped || !showStats) && (
+        {(!isStopped || (!showStats && !gameEnded)) && (
           derivedSettings.byNote ? (
             <FretGrid
               fretFrom={derivedSettings.fretFrom}
@@ -287,7 +300,6 @@ export default function App() {
         )}
       </div>
 
-      {/* Show stats when user clicks Stats button */}
       {isStopped && showStats && (
         <div className="stats-wrapper">
           <StatsPanel
@@ -300,6 +312,7 @@ export default function App() {
             sessionScore={scoring.session.score}
             longestStreak={scoring.session.longestStreak}
             historyKey={histKey}
+            onClear={() => { historyOps.clearHistory(histKey); setShowStats(false); }}
           />
         </div>
       )}

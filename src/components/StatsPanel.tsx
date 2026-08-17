@@ -12,6 +12,7 @@ interface Props {
   sessionScore?: number;
   longestStreak?: number;
   historyKey?: string;
+  onClear?: () => void;
 }
 
 type TopTab = 'score' | 'details';
@@ -83,7 +84,7 @@ function saveBest(key: string, data: { score: number; streak: number; accuracy: 
   localStorage.setItem(`best_${key}`, JSON.stringify(data));
 }
 
-export default function StatsPanel({ history, maxTime: _maxTime, accidental, notation, sessionScore, longestStreak, historyKey: hKey }: Props) {
+export default function StatsPanel({ history, maxTime: _maxTime, accidental, notation, sessionScore, longestStreak, historyKey: hKey, onClear }: Props) {
   const [topTab, setTopTab] = useState<TopTab>('score');
   const [tab, setTab] = useState<MainTab>('notes');
   const [filter, setFilter] = useState<Filter>('all');
@@ -183,10 +184,15 @@ export default function StatsPanel({ history, maxTime: _maxTime, accidental, not
         <button className={`stats-tab ${topTab === 'details' ? 'stats-tab-active' : ''}`} onClick={() => setTopTab('details')}>Details</button>
       </div>
 
+      {/* Clear history + accuracy header */}
+      <div className="stats-header-row">
+        <span className="score">{accuracy}% <span className="score-detail">({correct}/{total})</span></span>
+        {onClear && <button className="stats-clear-history" onClick={onClear}>Clear History ✕</button>}
+      </div>
+
       {topTab === 'score' && (
         <>
           <div className="score-row">
-            <span className="score">{accuracy}%</span>
             <span className="encouragement">{encouragement}</span>
           </div>
 
@@ -237,7 +243,6 @@ export default function StatsPanel({ history, maxTime: _maxTime, accidental, not
       {topTab === 'details' && (
         <>
           <div className="score-row">
-            <span className="score">{accuracy}%</span>
             <span className="encouragement">✓{correct} ✗{wrong} ⏱{timedOut}</span>
           </div>
 
@@ -249,7 +254,7 @@ export default function StatsPanel({ history, maxTime: _maxTime, accidental, not
 
           <div className="filter-row">
             {(['all', 'correct', 'wrong', 'timeout'] as Filter[]).map(f => (
-              <button key={f} className={`filter-chip ${filter === f ? 'filter-active' : ''}`} onClick={() => setFilter(f)}>
+              <button key={f} className={`filter-chip ${filter === f ? 'filter-active' : ''}`} onClick={() => setFilter(filter === f && f !== 'all' ? 'all' : f)}>
                 {f === 'all' ? `All (${total})` : f === 'correct' ? `✓ ${correct}` : f === 'wrong' ? `✗ ${wrong}` : `⏱ ${timedOut}`}
               </button>
             ))}

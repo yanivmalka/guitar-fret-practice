@@ -16,6 +16,9 @@ interface SelectorPanelProps {
   order?: OrderMode;
   onByStringToggle?: () => void;
   onOrderChange?: (o: OrderMode) => void;
+  showStats?: boolean;
+  onStatsToggle?: () => void;
+  hasHistory?: boolean;
 }
 
 const SCALE_FACTOR = 17.817;
@@ -51,7 +54,7 @@ const DOT_FRETS = [3, 5, 7, 9, 12, 15, 17, 19, 21];
 export default function SelectorPanel({
   selector, onStringSelect, onMultiToggle, onModeSelect,
   onFretRangeToggle, onDifficultySelect, isPlaying, activeString, activeFret,
-  byString, order, onByStringToggle, onOrderChange,
+  byString, order, onByStringToggle, onOrderChange, showStats, onStatsToggle, hasHistory,
 }: SelectorPanelProps) {
   const strings: { label: string; num: number }[] = [
     { label: 'E', num: 6 }, { label: 'A', num: 5 }, { label: 'D', num: 4 },
@@ -233,6 +236,12 @@ export default function SelectorPanel({
         <button className={`diff-btn ${selector.difficulty === 'naturals' ? 'active' : ''}`} onClick={() => { playClickSound(); onDifficultySelect('naturals'); }}><span className="diff-icon">♮</span><span className="diff-label">Naturals</span></button>
         <span className="diff-arrow">→</span>
         <button className={`diff-btn ${selector.difficulty === 'full' ? 'active' : ''}`} onClick={() => { playClickSound(); onDifficultySelect('full'); }}><span className="diff-icon">♯♭</span><span className="diff-label">Full</span></button>
+        {/* Stats dashboard icon */}
+        {hasHistory && onStatsToggle && (
+          <button className={`stats-icon-btn ${showStats ? 'stats-icon-on' : ''}`} onClick={onStatsToggle} title="Statistics">
+            <svg viewBox="0 0 20 20" width="16" height="16"><rect x="2" y="10" width="4" height="8" rx="1" fill="currentColor"/><rect x="8" y="6" width="4" height="12" rx="1" fill="currentColor"/><rect x="14" y="2" width="4" height="16" rx="1" fill="currentColor"/></svg>
+          </button>
+        )}
       </div>
     </div>
   );
