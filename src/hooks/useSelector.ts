@@ -137,39 +137,15 @@ export function useSelector() {
 
   const onFretRangeToggle = (half: 'lower' | 'upper') => {
     if (half === 'lower') {
-      if (!lowerActive) {
-        // Clicking 0-12 while only 12-21 active → enable both (0-21)
-        setLowerActive(true);
-        saveSetting('sel_lower', true);
-      } else if (lowerActive && upperActive) {
-        // Both active, clicking 0-12 → deselect it → only 12-21 remains
-        setLowerActive(false);
-        saveSetting('sel_lower', false);
-      } else {
-        // Only lower active, clicking it → invert → switch to upper only
-        setLowerActive(false);
-        setUpperActive(true);
-        saveSetting('sel_lower', false);
-        saveSetting('sel_upper', true);
-      }
+      if (lowerActive && !upperActive) return; // can't deselect the only one
+      const next = !lowerActive;
+      setLowerActive(next);
+      saveSetting('sel_lower', next);
     } else {
-      if (!upperActive) {
-        // Clicking 12-21 while only 0-12 active → switch to 12-21 only
-        setUpperActive(true);
-        setLowerActive(false);
-        saveSetting('sel_upper', true);
-        saveSetting('sel_lower', false);
-      } else if (lowerActive && upperActive) {
-        // Both active, clicking 12-21 → deselect it → only 0-12 remains
-        setUpperActive(false);
-        saveSetting('sel_upper', false);
-      } else {
-        // Only upper active, clicking it → invert → switch to lower only
-        setUpperActive(false);
-        setLowerActive(true);
-        saveSetting('sel_upper', false);
-        saveSetting('sel_lower', true);
-      }
+      if (upperActive && !lowerActive) return; // can't deselect the only one
+      const next = !upperActive;
+      setUpperActive(next);
+      saveSetting('sel_upper', next);
     }
   };
 

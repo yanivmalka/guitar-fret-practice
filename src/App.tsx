@@ -233,19 +233,23 @@ export default function App() {
             ) : (
               <>
                 {!paused
-                  ? <button className="icon-btn pause-btn" onPointerDown={() => { pause(); playClickSound(); haptic.tap(); }} onClick={() => { pause(); }} title="Pause">
+                  ? <button className="icon-btn pause-btn" onClick={() => { pause(); playClickSound(); haptic.tap(); }} title="Pause">
                       <svg viewBox="0 0 24 24" width="24" height="24"><rect x="5" y="4" width="4" height="16" fill="currentColor"/><rect x="15" y="4" width="4" height="16" fill="currentColor"/></svg>
                     </button>
-                  : <button className="icon-btn play-btn" onPointerDown={() => { resume(derivedSettings.byNote, currentFret, guitarString); playClickSound(); haptic.tap(); }} onClick={() => { resume(derivedSettings.byNote, currentFret, guitarString); }} title="Continue">
+                  : <button className="icon-btn play-btn" onClick={() => { resume(derivedSettings.byNote, currentFret, guitarString); playClickSound(); haptic.tap(); }} title="Continue">
                       <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
                     </button>
                 }
-                <button className="icon-btn stop-btn-icon" onPointerDown={() => { stop(); playClickSound(); haptic.tap(); }} onClick={() => { stop(); }} title="Stop">
-                  <svg viewBox="0 0 24 24" width="24" height="24"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/></svg>
-                </button>
               </>
             )}
           </div>
+          {/* Stop button always visible and outside controls flow when game is active */}
+          {(running || paused) && (
+            <button className="stop-floating" onClick={() => { stop(); playClickSound(); haptic.tap(); }} title="Stop">
+              <svg viewBox="0 0 24 24" width="20" height="20"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/></svg>
+              <span>Stop</span>
+            </button>
+          )}
         </div>
 
         {/* Show NoteCircle/FretGrid when playing, paused, or stopped without stats open */}

@@ -279,6 +279,25 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 .stop-btn-icon { border-color: #0ff; color: #0ff; }
 .stop-btn-icon:hover { background: rgba(0, 255, 255, 0.1); }
 
+/* Floating stop button — always accessible during game */
+.stop-floating {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 20px;
+  border: 1px solid #555;
+  border-radius: 8px;
+  background: none;
+  color: #aaa;
+  font-size: 0.8rem;
+  cursor: pointer;
+  margin-top: 6px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.stop-floating:active { background: #333; color: #fff; }
+
 .clear-btn {
   padding: 10px 18px; border: 1px solid #555; border-radius: 10px;
   background: none; color: #aaa; font-size: 0.85rem; cursor: pointer;

@@ -220,9 +220,9 @@ export default function SelectorPanel({
             playClickSound(); onFretRangeToggle('upper');
           }} />
 
-          {/* Labels */}
-          <text x={(splitX + NECK_RIGHT) / 2} y={FB_BOTTOM + 11} textAnchor="middle" fontSize="8" fill="#aaa">0–12</text>
-          <text x={(fbLeft + splitX) / 2} y={FB_BOTTOM + 11} textAnchor="middle" fontSize="8" fill="#aaa">12–21</text>
+          {/* Labels — highlighted when active */}
+          <text x={(splitX + NECK_RIGHT) / 2} y={FB_BOTTOM + 11} textAnchor="middle" fontSize="8" fill={selector.lowerActive ? '#0ff' : '#555'} fontWeight={selector.lowerActive ? 'bold' : 'normal'}>0–12</text>
+          <text x={(fbLeft + splitX) / 2} y={FB_BOTTOM + 11} textAnchor="middle" fontSize="8" fill={selector.upperActive ? '#0ff' : '#555'} fontWeight={selector.upperActive ? 'bold' : 'normal'}>12–21</text>
         </svg>
       </div>
 
