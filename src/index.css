@@ -160,33 +160,7 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   font-weight: bold;
 }
 
-/* Game progress bar */
-.game-progress {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  max-width: 180px;
-  margin: 2px 0;
-}
-.game-progress-bar {
-  flex: 1;
-  height: 4px;
-  background: #888;
-  border-radius: 2px;
-  overflow: hidden;
-}
-.game-progress-fill {
-  height: 100%;
-  background: #4af;
-  border-radius: 2px;
-  transition: width 0.3s ease;
-}
-.game-progress-text {
-  font-size: 0.7rem;
-  color: #888;
-  white-space: nowrap;
-}
+/* Game progress — now in game-info-row */
 
 /* Minimized selector during play */
 .selector-panel-mini {
@@ -279,24 +253,7 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 .stop-btn-icon { border-color: #0ff; color: #0ff; }
 .stop-btn-icon:hover { background: rgba(0, 255, 255, 0.1); }
 
-/* Floating stop button — always accessible during game */
-.stop-floating {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 20px;
-  border: 1px solid #555;
-  border-radius: 8px;
-  background: none;
-  color: #aaa;
-  font-size: 0.8rem;
-  cursor: pointer;
-  margin-top: 6px;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-.stop-floating:active { background: #333; color: #fff; }
+/* Floating stop button — removed, using inline stop */
 
 .clear-btn {
   padding: 10px 18px; border: 1px solid #555; border-radius: 10px;
@@ -1281,24 +1238,29 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   100% { transform: scale(1); opacity: 1; }
 }
 
-/* Multiplier circles */
-.multiplier-circles {
+/* Multiplier icon */
+.multiplier-circles { display: none; }
+.mult-dot { display: none; }
+.game-info-row {
   display: flex;
-  gap: 4px;
-  margin-right: 6px;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.8rem;
+  color: #888;
+  margin: 2px 0;
 }
-.mult-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #333;
-  border: 1px solid #555;
-  transition: all 0.2s;
+.game-timer {
+  color: #ff0;
+  font-weight: bold;
+  font-size: 0.9rem;
 }
-.mult-dot-on {
-  background: #0ff;
-  border-color: #0ff;
-  box-shadow: 0 0 6px #0ff;
+.multiplier-icon {
+  font-size: 0.9rem;
+  animation: mult-pulse 0.3s ease-out;
+}
+@keyframes mult-pulse {
+  0% { transform: scale(1.3); }
+  100% { transform: scale(1); }
 }
 
 /* Game end summary */

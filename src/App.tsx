@@ -155,8 +155,9 @@ export default function App() {
     }, 700);
   };
 
-  // Multiplier circles (streak-based, max 5)
-  const multiplierLevel = Math.min(scoring.session.streak, 5);
+  // Multiplier level (3 steps: 1=normal, 2=fast, 3=blazing)
+  const multiplierLevel = scoring.session.streak >= 5 ? 3 : scoring.session.streak >= 3 ? 2 : scoring.session.streak >= 1 ? 1 : 0;
+  const multiplierIcon = multiplierLevel >= 3 ? '🔥🔥🔥' : multiplierLevel >= 2 ? '🔥🔥' : multiplierLevel >= 1 ? '🔥' : '';
 
   return (
     <div className="app">
@@ -172,8 +173,8 @@ export default function App() {
         onModeSelect={selector.onModeSelect}
         onFretRangeToggle={selector.onFretRangeToggle}
         onDifficultySelect={selector.onDifficultySelect}
-        isPlaying={isPlaying}
-        activeString={isPlaying ? guitarString : undefined}
+        isPlaying={isPlaying || paused}
+        activeString={(isPlaying || paused) ? guitarString : undefined}
         activeFret={isPlaying ? askedFret : undefined}
         byString={byString}
         order={order}
@@ -201,23 +202,13 @@ export default function App() {
                 : <div className="fret-display">{currentFret !== null ? currentFret : '—'}</div>
               }
               <SpeedBar remaining={remaining} total={derivedSettings.time} answered={answered} />
-              <div className="game-progress">
-                <div className="game-progress-bar">
-                  <div className="game-progress-fill" style={{ width: `${(scoring.session.questionsAnswered / derivedSettings.maxQuestions) * 100}%` }} />
-                </div>
+              <div className="game-info-row">
+                <span className="game-timer">{remaining}s</span>
                 <span className="game-progress-text">{scoring.session.questionsAnswered}/{derivedSettings.maxQuestions}</span>
+                {multiplierIcon && <span className="multiplier-icon">{multiplierIcon}</span>}
               </div>
-              {/* Score + multiplier circles */}
               <div className="score-live">
-                <div className="multiplier-circles">
-                  {[1,2,3,4,5].map(i => (
-                    <span key={i} className={`mult-dot ${i <= multiplierLevel ? 'mult-dot-on' : ''}`} />
-                  ))}
-                </div>
                 <AnimatedScore value={scoring.session.score} />
-                {scoring.session.streak >= 2 && (
-                  <span className="score-live-streak">×{Math.min(scoring.session.streak, 5)}</span>
-                )}
               </div>
               <div className={`feedback ${feedback.startsWith('✓') ? 'good' : feedback.startsWith('✗') ? 'bad' : 'warn'}`}>
                 {feedback}{scoring.session.lastPoints > 0 && feedback.startsWith('✓') ? ` +${scoring.session.lastPoints}` : ''}
@@ -240,33 +231,36 @@ export default function App() {
             </div>
           )}
 
+          {/* Controls: Play (centered) → becomes Pause when playing, Stop appears to the right */}
           <div className="controls">
             {!running && !paused && !countdown ? (
               <button className="icon-btn play-btn" onClick={click(start)} title="Start">
                 <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
               </button>
-            ) : running || paused ? (
+            ) : running ? (
               <>
-                {!paused
-                  ? <button className="icon-btn pause-btn" onClick={() => { pause(); playClickSound(); haptic.tap(); }} title="Pause">
-                      <svg viewBox="0 0 24 24" width="24" height="24"><rect x="5" y="4" width="4" height="16" fill="currentColor"/><rect x="15" y="4" width="4" height="16" fill="currentColor"/></svg>
-                    </button>
-                  : <button className="icon-btn play-btn" onClick={() => { resume(derivedSettings.byNote, currentFret, guitarString); playClickSound(); haptic.tap(); }} title="Continue">
-                      <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
-                    </button>
-                }
+                <button className="icon-btn pause-btn" onClick={() => { pause(); playClickSound(); haptic.tap(); }} title="Pause">
+                  <svg viewBox="0 0 24 24" width="24" height="24"><rect x="5" y="4" width="4" height="16" fill="currentColor"/><rect x="15" y="4" width="4" height="16" fill="currentColor"/></svg>
+                </button>
+                <button className="icon-btn stop-btn-icon" onClick={() => { stop(); playClickSound(); haptic.tap(); }} title="Stop">
+                  <svg viewBox="0 0 24 24" width="24" height="24"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/></svg>
+                </button>
+              </>
+            ) : paused ? (
+              <>
+                <button className="icon-btn play-btn" onClick={() => { resume(derivedSettings.byNote, currentFret, guitarString); playClickSound(); haptic.tap(); }} title="Continue">
+                  <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
+                </button>
+                <button className="icon-btn stop-btn-icon" onClick={() => { stop(); playClickSound(); haptic.tap(); }} title="Stop">
+                  <svg viewBox="0 0 24 24" width="24" height="24"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/></svg>
+                </button>
               </>
             ) : null}
           </div>
-          {(running || paused) && (
-            <button className="stop-floating" onClick={() => { stop(); playClickSound(); haptic.tap(); }} title="Stop">
-              <svg viewBox="0 0 24 24" width="20" height="20"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/></svg>
-              <span>Stop</span>
-            </button>
-          )}
         </div>
 
-        {(!isStopped || (!showStats && !gameEnded)) && (
+        {/* Hide NoteCircle/FretGrid when paused, show stats, or game ended */}
+        {(!isStopped && !paused || (isStopped && !showStats && !gameEnded)) && (
           derivedSettings.byNote ? (
             <FretGrid
               fretFrom={derivedSettings.fretFrom}
