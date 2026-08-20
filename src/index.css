@@ -1376,3 +1376,39 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
     opacity: 0;
   }
 }
+
+/* Tier 2 milestone recognition */
+.celebrate-ring-gold {
+  position: absolute;
+  width: 96px;
+  height: 96px;
+  border: 3px solid #ffd700;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: radial-pulse-gold 700ms ease-out forwards;
+}
+
+.milestone-banner {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+  transform: translateX(-50%);
+  padding: 10px 22px;
+  border: 2px solid #ffd700;
+  border-radius: 12px;
+  background: rgba(30, 24, 0, 0.94);
+  color: #ffd700;
+  font-size: 1.25rem;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+  box-shadow: 0 0 24px rgba(255, 215, 0, 0.35);
+  animation: milestone-drop 300ms ease-out forwards;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+@keyframes milestone-drop {
+  0% { opacity: 0; transform: translate(-50%, -24px) scale(0.8); }
+  100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}

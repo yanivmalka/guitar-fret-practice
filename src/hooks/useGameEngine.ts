@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { notes, getCofNotes, getCorrectCofNote, getValidFrets, notesMatch, displayNote } from '../utils/music';
 import type { AccidentalMode, OrderMode, HistoryEntry } from '../utils/music';
+import type { ScoreResult } from './useScoring';
 import { playNote, playNoteSingle, stopPlayback, beep, isSoundPlaying } from '../utils/audio';
 import { haptic, playCorrectChime, celebrateTier1, celebrateTier2 } from '../utils/feedback';
 
@@ -40,14 +41,22 @@ interface HistoryOps {
   history: HistoryEntry[];
 }
 
+interface ScoreOps {
+  onCorrect: (elapsedSeconds: number, timeLimit: number) => ScoreResult;
+  onWrong: () => void;
+  onTimeout: () => void;
+}
+
 export function useGameEngine(
   settings: GameSettings,
   setters: GameSetters,
   historyOps: HistoryOps,
+  scoreOps: ScoreOps,
 ) {
   const { guitarString, fretFrom, fretTo, wholeToneOnly, dotsOnly,
           isMulti, activeStrings, time, accidental, order } = settings;
   const { addEntry, markPlayed, resetSession } = historyOps;
+  const { onCorrect, onWrong, onTimeout } = scoreOps;
 
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -82,12 +91,26 @@ export function useGameEngine(
   // Coverage pool: ensures every valid fret is asked before repeats
   const coveragePoolRef = useRef<number[]>([]);
   const failedFretsRef = useRef<Set<number>>(new Set());
-  // Streak tracking for celebrations
-  const currentStreakRef = useRef(0);
-
-  // Keep timeRef in sync
+  const milestonePauseRef = useRef(false);
   const timeRefUpdater = useRef(time);
   timeRefUpdater.current = time;
+
+  const scoreCorrect = useCallback((elapsedSeconds: number): ScoreResult => {
+    const result = onCorrect(elapsedSeconds, timeRefUpdater.current);
+    playCorrectChime();
+
+    const scoreEl = document.getElementById('live-score');
+    if (scoreEl) celebrateTier1(scoreEl, `+${result.points}`);
+
+    if (result.milestone) {
+      haptic.milestone();
+      celebrateTier2(`${result.streak} STREAK!`);
+    } else {
+      haptic.correct();
+    }
+
+    return result;
+  }, [onCorrect]);
 
   const clearTimers = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -180,13 +203,14 @@ export function useGameEngine(
       answeredRef.current = true;
       setAnswered(true);
       beep();
+      onTimeout();
       const elapsed = (Date.now() - questionStartRef.current) / 1000;
       addEntry({ note, fret: askedFretRef.current, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null });
       setFeedback(`⏱ Frets: ${remainingFretsRef.current.join(', ')}`);
       playNoteSingle(qString, askedFretRef.current);
       setTimeout(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
     });
-  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters]);
+  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout]);
 
   // ── SELECT FRET (by note mode) ────────────────────────────────
   const selectFret = useCallback((selectedFret: number) => {
@@ -199,26 +223,12 @@ export function useGameEngine(
     const isCorrect = rem.includes(selectedFret);
 
     if (isCorrect) {
-      const newStreak = currentStreakRef.current + 1;
-      currentStreakRef.current = newStreak;
-      playCorrectChime();
-
-      // Tier 1: small celebration on every correct answer. The visual target
-      // is optional so audio/streak feedback still works if the DOM changes.
-      const scoreEl = document.getElementById('live-score');
-      if (scoreEl) celebrateTier1(scoreEl);
-
-      // Tier 2: milestone celebration on streak 3, 5, 10
-      if ([3, 5, 10].includes(newStreak)) {
-        celebrateTier2(newStreak >= 10 ? 'PERFECT!' : newStreak >= 5 ? 'STREAK!' : 'GO!');
-      }
-      
+      const elapsed = (Date.now() - questionStartRef.current) / 1000;
+      const scoreResult = scoreCorrect(elapsed);
       const newRem = rem.filter(f => f !== selectedFret);
       remainingFretsRef.current = newRem;
       setRemainingFrets(newRem);
       setFoundFrets(prev => [...prev, selectedFret]);
-      haptic.correct();
-      const elapsed = (Date.now() - questionStartRef.current) / 1000;
       addEntry({ note, fret: selectedFret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: false, correct: true });
 
       if (newRem.length === 0) {
@@ -226,39 +236,55 @@ export function useGameEngine(
         answeredRef.current = true;
         setAnswered(true);
         setFeedback('✓ All found!');
-        setTimeout(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1200);
+        const delay = scoreResult.milestone ? 1500 : 1200;
+        setTimeout(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, delay);
       } else {
-        // BUG FIX 3: don't set answeredRef=true here — more frets remain, keep question open
         clearTimers();
         setFeedback(`✓ Where else? (${newRem.length} more)`);
-        questionStartRef.current = Date.now();
-        startCountdown(timeRefUpdater.current, () => {
-          if (answeredRef.current || sessionRef.current !== mySession) return;
+
+        const resumeRemaining = () => {
+          if (!runningRef.current || sessionRef.current !== mySession) return;
+          milestonePauseRef.current = false;
+          answeredRef.current = false;
+          setAnswered(false);
+          questionStartRef.current = Date.now();
+          startCountdown(timeRefUpdater.current, () => {
+            if (answeredRef.current || sessionRef.current !== mySession) return;
+            answeredRef.current = true;
+            setAnswered(true);
+            beep();
+            onTimeout();
+            const elapsed2 = (Date.now() - questionStartRef.current) / 1000;
+            addEntry({ note, fret: remainingFretsRef.current[0], string: qString, seconds: Math.round(elapsed2 * 10) / 10, skipped: true, correct: null });
+            setFeedback(`⏱ Also on: ${remainingFretsRef.current.join(', ')}`);
+            playNoteSingle(qString, remainingFretsRef.current[0]);
+            setTimeout(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
+          });
+        };
+
+        if (scoreResult.milestone) {
+          milestonePauseRef.current = true;
           answeredRef.current = true;
           setAnswered(true);
-          beep();
-          const elapsed2 = (Date.now() - questionStartRef.current) / 1000;
-          addEntry({ note, fret: remainingFretsRef.current[0], string: qString, seconds: Math.round(elapsed2 * 10) / 10, skipped: true, correct: null });
-          setFeedback(`⏱ Also on: ${remainingFretsRef.current.join(', ')}`);
-          playNoteSingle(qString, remainingFretsRef.current[0]);
-          setTimeout(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
-        });
+          setTimeout(resumeRemaining, 1500);
+        } else {
+          resumeRemaining();
+        }
       }
     } else {
-      // Reset streak on wrong
-      currentStreakRef.current = 0;
+      onWrong();
+      haptic.wrong();
       clearTimers();
       answeredRef.current = true;
       setAnswered(true);
       setWrongFret(selectedFret);
-      haptic.wrong();
       failedFretsRef.current.add(selectedFret); // re-queue for coverage
       const elapsed = (Date.now() - questionStartRef.current) / 1000;
       addEntry({ note, fret: selectedFret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: false, correct: false });
       setFeedback(`✗ Correct: ${rem.join(', ')}`);
       setTimeout(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
     }
-  }, [paused, addEntry, nextByNote]);
+  }, [paused, addEntry, nextByNote, onTimeout, onWrong, scoreCorrect]);
 
   // ── BY FRET MODE ──────────────────────────────────────────────
   const next = useCallback(() => {
@@ -294,6 +320,7 @@ export function useGameEngine(
       answeredRef.current = true;
       setAnswered(true);
       beep();
+      onTimeout();
       const correctNote = notes[qString - 1][fret];
       const cof = getCofNotes(accidental, order, false);
       setCorrectCofNote(getCorrectCofNote(correctNote, cof));
@@ -302,7 +329,7 @@ export function useGameEngine(
       setFeedback(`⏱ ${displayNote(correctNote, accidental)} (Fret ${fret})`);
       setTimeout(() => { if (runningRef.current && sessionRef.current === mySession) next(); }, 1500);
     });
-  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, accidental, order, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters]);
+  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, accidental, order, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout]);
 
   const selectAnswer = useCallback((selectedNote: string) => {
     if (!runningRef.current || paused || answeredRef.current || currentFret === null) return;
@@ -315,37 +342,26 @@ export function useGameEngine(
     const correctNote = notes[qString - 1][currentFret];
     const cof = getCofNotes(accidental, order, false);
     const isCorrect = notesMatch(selectedNote, correctNote);
-    if (isCorrect) {
-      const newStreak = currentStreakRef.current + 1;
-      currentStreakRef.current = newStreak;
-      playCorrectChime();
-
-      // Tier 1: small celebration on every correct answer. The visual target
-      // is optional so audio/streak feedback still works if the DOM changes.
-      const scoreEl = document.getElementById('live-score');
-      if (scoreEl) celebrateTier1(scoreEl);
-
-      // Tier 2: milestone celebration on streak 3, 5, 10
-      if ([3, 5, 10].includes(newStreak)) {
-        celebrateTier2(newStreak >= 10 ? 'PERFECT!' : newStreak >= 5 ? 'STREAK!' : 'GO!');
-      }
-      haptic.correct();
-    } else {
-      // Reset streak on wrong
-      currentStreakRef.current = 0;
+    const elapsed = (Date.now() - questionStartRef.current) / 1000;
+    const scoreResult = isCorrect ? scoreCorrect(elapsed) : null;
+    if (!isCorrect) {
+      onWrong();
       haptic.wrong();
     }
     setCorrectCofNote(getCorrectCofNote(correctNote, cof));
     if (!isCorrect) setWrongCofNote(selectedNote);
-    const elapsed = (Date.now() - questionStartRef.current) / 1000;
     addEntry({ note: correctNote, fret: currentFret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: false, correct: isCorrect });
     setFeedback(isCorrect ? '✓ Correct!' : `✗ It was ${displayNote(correctNote, accidental)}`);
     const waitForSound = () => {
-      if (isSoundPlaying()) { setTimeout(waitForSound, 100); }
-      else { setTimeout(() => { if (runningRef.current && sessionRef.current === mySession) next(); }, 400); }
+      if (isSoundPlaying()) {
+        setTimeout(waitForSound, 100);
+      } else {
+        const delay = scoreResult?.milestone ? 1500 : 400;
+        setTimeout(() => { if (runningRef.current && sessionRef.current === mySession) next(); }, delay);
+      }
     };
     setTimeout(waitForSound, 800);
-  }, [paused, currentFret, accidental, order, wholeToneOnly, addEntry, next]);
+  }, [paused, currentFret, accidental, order, wholeToneOnly, addEntry, next, onWrong, scoreCorrect]);
 
   // ── CONTROLS ─────────────────────────────────────────────────
   const start = useCallback((maxQ: number, currentTime: number, isByNote: boolean) => {
@@ -368,7 +384,7 @@ export function useGameEngine(
     setFoundFrets([]);
     setWrongFret(null);
     lastNoteRef.current = null;
-    currentStreakRef.current = 0; // Reset streak on new game
+    milestonePauseRef.current = false;
     markPlayed();
     setTimeout(isByNote ? nextByNote : next, 100);
   }, [nextByNote, next, resetSession, markPlayed]);
@@ -386,6 +402,7 @@ export function useGameEngine(
     setWrongCofNote(null);
     setFoundFrets([]);
     setWrongFret(null);
+    milestonePauseRef.current = false;
     stopPlayback();
   }, []);
 

@@ -53,6 +53,7 @@ export default function App() {
     accidental, order, byString, derivedSettings.multiStrings,
   );
   const { cofList, startIndex, activeNotes, questionActiveNotes, fretDots, noteFrets, isMulti } = derived;
+  const scoring = useScoring();
 
   const engine = useGameEngine(
     {
@@ -80,6 +81,11 @@ export default function App() {
       markPlayed: markPlayedForKey,
       resetSession: historyOps.resetSession,
       history: historyOps.history,
+    },
+    {
+      onCorrect: scoring.onCorrect,
+      onWrong: scoring.onWrong,
+      onTimeout: scoring.onTimeout,
     },
   );
   const {
@@ -110,20 +116,7 @@ export default function App() {
 
   useEffect(() => { setShowStats(false); setGameEnded(false); }, [histKey]);
 
-  const scoring = useScoring();
-  const prevHistLenRef = useRef(0);
   const sessionHistory = historyOps.history;
-
-  useEffect(() => {
-    const len = sessionHistory.length;
-    if (len > prevHistLenRef.current) {
-      const latest = sessionHistory[len - 1];
-      if (latest.correct === true) scoring.onCorrect();
-      else if (latest.correct === false) scoring.onWrong();
-      else scoring.onTimeout();
-    }
-    prevHistLenRef.current = len;
-  }, [sessionHistory, scoring.onCorrect, scoring.onWrong, scoring.onTimeout]);
 
   // Detect game end
   const wasRunningRef = useRef(false);
@@ -138,7 +131,6 @@ export default function App() {
     unlockAudio();
     if (!preloaded) { preloadAllSamples().then(() => setPreloaded(true)); setPreloaded(true); }
     scoring.reset();
-    prevHistLenRef.current = 0;
     setGameEnded(false);
     // Countdown 3-2-1
     setCountdown(3);
@@ -155,9 +147,9 @@ export default function App() {
     }, 700);
   };
 
-  // Multiplier level (3 steps: 1=normal, 2=fast, 3=blazing)
-  const multiplierLevel = scoring.session.streak >= 5 ? 3 : scoring.session.streak >= 3 ? 2 : scoring.session.streak >= 1 ? 1 : 0;
-  const multiplierIcon = multiplierLevel >= 3 ? '🔥🔥🔥' : multiplierLevel >= 2 ? '🔥🔥' : multiplierLevel >= 1 ? '🔥' : '';
+  // v1.1 multiplier display: ×1.5 at 3, ×2 at 5, ×3 at 10
+  const multiplierLevel = scoring.session.multiplier >= 3 ? 3 : scoring.session.multiplier >= 2 ? 2 : scoring.session.multiplier >= 1.5 ? 1 : 0;
+  const multiplierIcon = multiplierLevel >= 3 ? '🔥🔥🔥 ×3' : multiplierLevel >= 2 ? '🔥🔥 ×2' : multiplierLevel >= 1 ? '🔥 ×1.5' : '';
 
   return (
     <div className="app">

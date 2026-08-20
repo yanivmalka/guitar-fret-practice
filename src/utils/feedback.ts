@@ -6,6 +6,7 @@ function vibrate(pattern: number | number[]) {
 export const haptic = {
   correct:     () => vibrate(30),
   wrong:       () => vibrate([30, 40, 30]),
+  milestone:   () => vibrate([60, 40, 60]),
   stageChange: () => vibrate(60),
   tap:         () => vibrate(10),
 };
@@ -151,33 +152,33 @@ export function celebrateTier1(targetElement: HTMLElement, text = '+15', color =
   showFloatingText(text, color, 800, rect.left + rect.width / 2, rect.top);
 }
 
-// Tier 2 celebration: three gold rings from center (for milestone streaks)
+// Tier 2 celebration: three gold rings and a milestone banner from center
 export function celebrateTier2(text = 'MILESTONE!', color = '#ffd700') {
+  const container = getContainer();
   const centerX = window.innerWidth / 2;
   const centerY = window.innerHeight / 2;
-  
-  // Create 3 concentric rings
+  const timestamp = Date.now();
+
   [1, 2, 3].forEach(i => {
     const ring = document.createElement('div');
-    const id = `ring-${Date.now()}-${i}`;
+    const id = `milestone-ring-${timestamp}-${i}`;
     ring.id = id;
-    ring.style.cssText = `
-      position: absolute;
-      left: ${centerX}px;
-      top: ${centerY}px;
-      width: ${60 + i * 40}px;
-      height: ${60 + i * 40}px;
-      border: 2px solid ${color};
-      border-radius: 50%;
-      animation: radial-pulse-gold ${400 + i * 200}ms ease-out forwards;
-      pointer-events: none;
-    `;
-    getContainer().appendChild(ring);
-    setTimeout(() => { const e = document.getElementById(id); e?.remove(); }, 400 + i * 200);
+    ring.className = 'celebrate-ring-gold';
+    ring.style.left = `${centerX}px`;
+    ring.style.top = `${centerY}px`;
+    ring.style.borderColor = color;
+    ring.style.animationDelay = `${(i - 1) * 100}ms`;
+    container.appendChild(ring);
+    setTimeout(() => document.getElementById(id)?.remove(), 800);
   });
-  
-  // Show milestone banner
-  showFloatingText(text, color, 1200);
+
+  const banner = document.createElement('div');
+  const bannerId = `milestone-banner-${timestamp}`;
+  banner.id = bannerId;
+  banner.className = 'milestone-banner';
+  banner.textContent = text;
+  container.appendChild(banner);
+  setTimeout(() => document.getElementById(bannerId)?.remove(), 1500);
 }
 
 // Tier 3 celebration: game pause + overlay card (for best streaks)
