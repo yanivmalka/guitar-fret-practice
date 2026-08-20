@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { notes, getCofNotes, getCorrectCofNote, getValidFrets, notesMatch, displayNote } from '../utils/music';
 import type { AccidentalMode, OrderMode, HistoryEntry } from '../utils/music';
 import { playNote, playNoteSingle, stopPlayback, beep, isSoundPlaying } from '../utils/audio';
-import { haptic } from '../utils/feedback';
+import { haptic, playCorrectChime, celebrateTier1, celebrateTier2 } from '../utils/feedback';
 
 interface GameSettings {
   guitarString: number;
@@ -82,6 +82,8 @@ export function useGameEngine(
   // Coverage pool: ensures every valid fret is asked before repeats
   const coveragePoolRef = useRef<number[]>([]);
   const failedFretsRef = useRef<Set<number>>(new Set());
+  // Streak tracking for celebrations
+  const currentStreakRef = useRef(0);
 
   // Keep timeRef in sync
   const timeRefUpdater = useRef(time);
@@ -197,6 +199,20 @@ export function useGameEngine(
     const isCorrect = rem.includes(selectedFret);
 
     if (isCorrect) {
+      const newStreak = currentStreakRef.current + 1;
+      currentStreakRef.current = newStreak;
+      playCorrectChime();
+
+      // Tier 1: small celebration on every correct answer. The visual target
+      // is optional so audio/streak feedback still works if the DOM changes.
+      const scoreEl = document.getElementById('live-score');
+      if (scoreEl) celebrateTier1(scoreEl);
+
+      // Tier 2: milestone celebration on streak 3, 5, 10
+      if ([3, 5, 10].includes(newStreak)) {
+        celebrateTier2(newStreak >= 10 ? 'PERFECT!' : newStreak >= 5 ? 'STREAK!' : 'GO!');
+      }
+      
       const newRem = rem.filter(f => f !== selectedFret);
       remainingFretsRef.current = newRem;
       setRemainingFrets(newRem);
@@ -229,6 +245,8 @@ export function useGameEngine(
         });
       }
     } else {
+      // Reset streak on wrong
+      currentStreakRef.current = 0;
       clearTimers();
       answeredRef.current = true;
       setAnswered(true);
@@ -297,7 +315,26 @@ export function useGameEngine(
     const correctNote = notes[qString - 1][currentFret];
     const cof = getCofNotes(accidental, order, false);
     const isCorrect = notesMatch(selectedNote, correctNote);
-    if (isCorrect) haptic.correct(); else haptic.wrong();
+    if (isCorrect) {
+      const newStreak = currentStreakRef.current + 1;
+      currentStreakRef.current = newStreak;
+      playCorrectChime();
+
+      // Tier 1: small celebration on every correct answer. The visual target
+      // is optional so audio/streak feedback still works if the DOM changes.
+      const scoreEl = document.getElementById('live-score');
+      if (scoreEl) celebrateTier1(scoreEl);
+
+      // Tier 2: milestone celebration on streak 3, 5, 10
+      if ([3, 5, 10].includes(newStreak)) {
+        celebrateTier2(newStreak >= 10 ? 'PERFECT!' : newStreak >= 5 ? 'STREAK!' : 'GO!');
+      }
+      haptic.correct();
+    } else {
+      // Reset streak on wrong
+      currentStreakRef.current = 0;
+      haptic.wrong();
+    }
     setCorrectCofNote(getCorrectCofNote(correctNote, cof));
     if (!isCorrect) setWrongCofNote(selectedNote);
     const elapsed = (Date.now() - questionStartRef.current) / 1000;
@@ -331,6 +368,7 @@ export function useGameEngine(
     setFoundFrets([]);
     setWrongFret(null);
     lastNoteRef.current = null;
+    currentStreakRef.current = 0; // Reset streak on new game
     markPlayed();
     setTimeout(isByNote ? nextByNote : next, 100);
   }, [nextByNote, next, resetSession, markPlayed]);

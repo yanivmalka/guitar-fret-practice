@@ -63,3 +63,204 @@ export function playToggleOffSound() {
   osc.start(ctx.currentTime);
   osc.stop(ctx.currentTime + 0.03);
 }
+
+// Satisfying chime for correct answer (major triad: C5 + E5 + G5)
+export function playCorrectChime() {
+  const ctx = getCtx();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume();
+  
+  [523.25, 659.25, 783.99].forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    const t = ctx.currentTime + i * 0.03; // Stagger 30ms
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.15, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    
+    osc.start(t);
+    osc.stop(t + 0.4);
+  });
+}
+
+// Celebration overlay element
+let _celebrationContainer: HTMLElement | null = null;
+function getContainer(): HTMLElement {
+  if (!_celebrationContainer) {
+    _celebrationContainer = document.createElement('div');
+    _celebrationContainer.style.cssText = `
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 999;
+      overflow: visible;
+    `;
+    document.body.appendChild(_celebrationContainer);
+  }
+  return _celebrationContainer;
+}
+
+// Floating text animation
+let _floatTextId = 0;
+export function showFloatingText(text: string, color: string, duration = 800, x?: number, y?: number) {
+  const el = document.createElement('div');
+  const id = `float-${++_floatTextId}`;
+  el.id = id;
+  el.textContent = text;
+  el.style.cssText = `
+    position: absolute;
+    color: ${color};
+    font-weight: bold;
+    font-size: 1.2rem;
+    animation: float-up ${duration}ms ease-out forwards;
+    left: ${x ?? window.innerWidth / 2}px;
+    top: ${y ?? window.innerHeight / 2}px;
+    transform: translateX(-50%);
+    pointer-events: none;
+  `;
+  getContainer().appendChild(el);
+  setTimeout(() => { const e = document.getElementById(id); e?.remove(); }, duration);
+}
+
+// Tier 1 celebration: cyan ring from score corner + floating text
+export function celebrateTier1(targetElement: HTMLElement, text = '+15', color = '#0ff') {
+  const rect = targetElement.getBoundingClientRect();
+  const ring = document.createElement('div');
+  const id = `ring-${Date.now()}`;
+  ring.id = id;
+  ring.style.cssText = `
+    position: absolute;
+    left: ${rect.left + rect.width / 2}px;
+    top: ${rect.top + rect.height / 2}px;
+    width: 40px;
+    height: 40px;
+    border: 2px solid ${color};
+    border-radius: 50%;
+    animation: radial-pulse-cyan 400ms ease-out forwards;
+    pointer-events: none;
+  `;
+  getContainer().appendChild(ring);
+  setTimeout(() => { const e = document.getElementById(id); e?.remove(); }, 400);
+  
+  // Show floating text just above the score target
+  showFloatingText(text, color, 800, rect.left + rect.width / 2, rect.top);
+}
+
+// Tier 2 celebration: three gold rings from center (for milestone streaks)
+export function celebrateTier2(text = 'MILESTONE!', color = '#ffd700') {
+  const centerX = window.innerWidth / 2;
+  const centerY = window.innerHeight / 2;
+  
+  // Create 3 concentric rings
+  [1, 2, 3].forEach(i => {
+    const ring = document.createElement('div');
+    const id = `ring-${Date.now()}-${i}`;
+    ring.id = id;
+    ring.style.cssText = `
+      position: absolute;
+      left: ${centerX}px;
+      top: ${centerY}px;
+      width: ${60 + i * 40}px;
+      height: ${60 + i * 40}px;
+      border: 2px solid ${color};
+      border-radius: 50%;
+      animation: radial-pulse-gold ${400 + i * 200}ms ease-out forwards;
+      pointer-events: none;
+    `;
+    getContainer().appendChild(ring);
+    setTimeout(() => { const e = document.getElementById(id); e?.remove(); }, 400 + i * 200);
+  });
+  
+  // Show milestone banner
+  showFloatingText(text, color, 1200);
+}
+
+// Tier 3 celebration: game pause + overlay card (for best streaks)
+export function celebrateTier3(score: number, streak: number, onComplete?: () => void) {
+  // Pause game (caller should handle this)
+  
+  const card = document.createElement('div');
+  card.style.cssText = `
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+  `;
+  
+  card.innerHTML = `
+    <div style="
+      background: #111122;
+      border: 2px solid #ffd700;
+      border-radius: 20px;
+      padding: 32px 24px;
+      max-width: 340px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 0 40px rgba(255, 215, 0, 0.3);
+    ">
+      <h2 style="font-size: 1.8rem; color: #ffd700; margin-bottom: 16px;">NEW BEST!</h2>
+      <div style="display: flex; gap: 24px; justify-content: center; margin: 24px 0;">
+        <div>
+          <div style="font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 1px;">Score</div>
+          <div style="font-size: 2.5rem; font-weight: bold; font-family: Georgia, serif; color: #fff;">${score}</div>
+        </div>
+        <div>
+          <div style="font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 1px;">Streak</div>
+          <div style="font-size: 2.5rem; font-weight: bold; color: #0ff;">${streak}</div>
+        </div>
+      </div>
+      <button id="tier3-close" style="
+        background: #0aa;
+        border: none;
+        border-radius: 12px;
+        color: #fff;
+        padding: 12px 24px;
+        font-size: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.15s;
+      ">CONTINUE</button>
+    </div>
+  `;
+  
+  document.body.appendChild(card);
+  
+  // Play ascending tone sequence
+  const ctx = getCtx();
+  if (ctx && ctx.state !== 'suspended') {
+    [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      const t = ctx.currentTime + i * 0.15;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.1, t + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+      osc.start(t);
+      osc.stop(t + 0.5);
+    });
+  }
+  
+  // Haptic: long pulse
+  vibrate([100, 50, 100]);
+  
+  // Close handler
+  setTimeout(() => {
+    const btn = card.querySelector('#tier3-close');
+    btn?.addEventListener('click', () => {
+      card.remove();
+      onComplete?.();
+    });
+  }, 100);
+}

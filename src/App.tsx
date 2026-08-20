@@ -207,7 +207,7 @@ export default function App() {
                 <span className="game-progress-text">{scoring.session.questionsAnswered}/{derivedSettings.maxQuestions}</span>
                 {multiplierIcon && <span className="multiplier-icon">{multiplierIcon}</span>}
               </div>
-              <div className="score-live">
+              <div id="live-score" className="score-live">
                 <AnimatedScore value={scoring.session.score} />
               </div>
               <div className={`feedback ${feedback.startsWith('✓') ? 'good' : feedback.startsWith('✗') ? 'bad' : 'warn'}`}>
