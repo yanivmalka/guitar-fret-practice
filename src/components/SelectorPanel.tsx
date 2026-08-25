@@ -116,14 +116,14 @@ export default function SelectorPanel({
       {/* ── StringRow ─────────────────────────────────────── */}
       <div className="selector-strings">
         {strings.map(({ label, num }) => (
-          <button key={num} className={`string-pill ${selector.selectedStrings.includes(num) ? 'active' : ''}`} onClick={() => { playClickSound(); onStringSelect(num); }}>{label}</button>
+          <button key={num} className={`string-pill ${selector.selectedStrings.includes(num) ? 'active' : ''}`} onClick={() => onStringSelect(num)}>{label}</button>
         ))}
         <button className={`string-pill ${selector.multiMode ? 'active' : ''}`} onClick={() => { selector.multiMode ? playToggleOffSound() : playToggleOnSound(); onMultiToggle(); }}>Multi</button>
       </div>
 
       {/* ── ModeToggle with order options between cards ── */}
       <div className="mode-cards">
-        <button className={`mode-card ${selector.mode === 'byFret' ? 'active' : ''}`} onClick={() => { playClickSound(); onModeSelect('byFret'); }}>
+        <button className={`mode-card ${selector.mode === 'byFret' ? 'active' : ''}`} onClick={() => onModeSelect('byFret')}>
           <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
             <circle cx="20" cy="20" r="14" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.3" />
             {Array.from({ length: 12 }, (_, i) => {
@@ -144,7 +144,7 @@ export default function SelectorPanel({
           {onByStringToggle && <button className={`order-chip chip-toggle${byString ? ' chip-toggle-active' : ''}`} onClick={onByStringToggle}>By String</button>}
         </div>
 
-        <button className={`mode-card ${selector.mode === 'byNote' ? 'active' : ''}`} onClick={() => { playClickSound(); onModeSelect('byNote'); }}>
+        <button className={`mode-card ${selector.mode === 'byNote' ? 'active' : ''}`} onClick={() => onModeSelect('byNote')}>
           <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
             {[
               { x: 2, y: 2, op: 1 }, { x: 12, y: 2, op: 0.2 }, { x: 22, y: 2, op: 0.2 }, { x: 32, y: 2, op: 1 },
@@ -231,11 +231,11 @@ export default function SelectorPanel({
 
       {/* ── DifficultyRoad ────────────────────────────────── */}
       <div className="difficulty-road">
-        <button className={`diff-btn ${selector.difficulty === 'dots' ? 'active' : ''}`} onClick={() => { playClickSound(); onDifficultySelect('dots'); }}><span className="diff-icon">●</span><span className="diff-label">Dots</span></button>
+        <button className={`diff-btn ${selector.difficulty === 'dots' ? 'active' : ''}`} onClick={() => onDifficultySelect('dots')}><span className="diff-icon">●</span><span className="diff-label">Dots</span></button>
         <span className="diff-arrow">→</span>
-        <button className={`diff-btn ${selector.difficulty === 'naturals' ? 'active' : ''}`} onClick={() => { playClickSound(); onDifficultySelect('naturals'); }}><span className="diff-icon">♮</span><span className="diff-label">Naturals</span></button>
+        <button className={`diff-btn ${selector.difficulty === 'naturals' ? 'active' : ''}`} onClick={() => onDifficultySelect('naturals')}><span className="diff-icon">♮</span><span className="diff-label">Naturals</span></button>
         <span className="diff-arrow">→</span>
-        <button className={`diff-btn ${selector.difficulty === 'full' ? 'active' : ''}`} onClick={() => { playClickSound(); onDifficultySelect('full'); }}><span className="diff-icon">♯♭</span><span className="diff-label">Full</span></button>
+        <button className={`diff-btn ${selector.difficulty === 'full' ? 'active' : ''}`} onClick={() => onDifficultySelect('full')}><span className="diff-icon">♯♭</span><span className="diff-label">Full</span></button>
         {/* Stats dashboard icon */}
         {hasHistory && onStatsToggle && (
           <button className={`stats-icon-btn ${showStats ? 'stats-icon-on' : ''}`} onClick={onStatsToggle} title="Statistics">

@@ -130,14 +130,17 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
 
   const handleClick = (note: string) => {
     stopPlayback();
+    if (active) {
+      // Answering: play the note once, not once per duplicate fret (e.g. E0 and E12)
+      playNoteSequence(guitarString, [getPlayFrets(note)[0]], 600);
+      onSelect(note);
+      return;
+    }
     const frets = getPlayFrets(note);
     const totalMs = Math.min(frets.length * 600, 1800);
     playNoteSequence(guitarString, frets, totalMs);
-    if (!active) {
-      setGlowNote(note);
-      setTimeout(() => setGlowNote(null), totalMs);
-    }
-    if (active) onSelect(note);
+    setGlowNote(note);
+    setTimeout(() => setGlowNote(null), totalMs);
   };
 
   return (
