@@ -8,7 +8,8 @@ import SpeedBar from './components/SpeedBar';
 import AnimatedScore from './components/AnimatedScore';
 import { displayNote } from './utils/music';
 import type { HistoryEntry, AccidentalMode, OrderMode, NotationMode } from './utils/music';
-import { preloadAllSamples, unlockAudio } from './utils/audio';
+import { preloadAllSamples, unlockAudio, stopPlayback } from './utils/audio';
+import { App as CapacitorApp } from '@capacitor/app';
 import { playClickSound, playToggleOnSound, playToggleOffSound, haptic } from './utils/feedback';
 import { loadSetting, saveSetting } from './utils/settings';
 import { useSelector } from './hooks/useSelector';
@@ -99,6 +100,35 @@ export default function App() {
     if (derivedRef.current !== derivedSettings && running) { stop(); }
     derivedRef.current = derivedSettings;
   }, [derivedSettings, running, stop]);
+
+  // Stop all activity (audio, timers, game loop) whenever the app is backgrounded,
+  // hidden, or closed — on return the user must explicitly press Play again.
+  const stopRef = useRef(stop);
+  stopRef.current = stop;
+  useEffect(() => {
+    const stopEverything = () => {
+      stopPlayback();
+      stopRef.current();
+    };
+    const onVisibilityChange = () => { if (document.hidden) stopEverything(); };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    document.addEventListener('pagehide', stopEverything);
+
+    let removeAppStateListener: (() => void) | undefined;
+    CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+      if (!isActive) stopEverything();
+    }).then((handle) => { removeAppStateListener = () => handle.remove(); });
+    CapacitorApp.addListener('pause', stopEverything).then((handle) => {
+      const prev = removeAppStateListener;
+      removeAppStateListener = () => { prev?.(); handle.remove(); };
+    });
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      document.removeEventListener('pagehide', stopEverything);
+      removeAppStateListener?.();
+    };
+  }, []);
 
   const [preloaded, setPreloaded] = useState(false);
   const [onboardingDone, setOnboardingDone] = useState(() => loadSetting<boolean>('onboardingDone', false));
@@ -223,30 +253,28 @@ export default function App() {
             </div>
           )}
 
-          {/* Controls: Play (centered) → becomes Pause when playing, Stop appears to the right */}
+          {/* Controls: Play (centered) → becomes a single Pause/Resume toggle when playing/paused */}
           <div className="controls">
             {!running && !paused && !countdown ? (
               <button className="icon-btn play-btn" onClick={click(start)} title="Start">
                 <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
               </button>
-            ) : running ? (
-              <>
-                <button className="icon-btn pause-btn" onClick={() => { pause(); playClickSound(); haptic.tap(); }} title="Pause">
-                  <svg viewBox="0 0 24 24" width="24" height="24"><rect x="5" y="4" width="4" height="16" fill="currentColor"/><rect x="15" y="4" width="4" height="16" fill="currentColor"/></svg>
-                </button>
-                <button className="icon-btn stop-btn-icon" onClick={() => { stop(); playClickSound(); haptic.tap(); }} title="Stop">
-                  <svg viewBox="0 0 24 24" width="24" height="24"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/></svg>
-                </button>
-              </>
-            ) : paused ? (
-              <>
-                <button className="icon-btn play-btn" onClick={() => { resume(derivedSettings.byNote, currentFret, guitarString); playClickSound(); haptic.tap(); }} title="Continue">
-                  <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
-                </button>
-                <button className="icon-btn stop-btn-icon" onClick={() => { stop(); playClickSound(); haptic.tap(); }} title="Stop">
-                  <svg viewBox="0 0 24 24" width="24" height="24"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/></svg>
-                </button>
-              </>
+            ) : running || paused ? (
+              <button
+                className="icon-btn pause-btn"
+                onClick={() => {
+                  if (paused) resume(derivedSettings.byNote, currentFret, guitarString);
+                  else pause();
+                  playClickSound(); haptic.tap();
+                }}
+                title={paused ? 'Resume' : 'Pause'}
+                aria-label={paused ? 'Resume' : 'Pause'}
+              >
+                {paused
+                  ? <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
+                  : <svg viewBox="0 0 24 24" width="24" height="24"><rect x="5" y="4" width="4" height="16" fill="currentColor"/><rect x="15" y="4" width="4" height="16" fill="currentColor"/></svg>
+                }
+              </button>
             ) : null}
           </div>
         </div>
