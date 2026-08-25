@@ -197,7 +197,7 @@ export default function App() {
         onDifficultySelect={selector.onDifficultySelect}
         isPlaying={isPlaying || paused}
         activeString={(isPlaying || paused) ? guitarString : undefined}
-        activeFret={isPlaying ? askedFret : undefined}
+        activeFret={running ? askedFret : undefined}
         byString={byString}
         order={order}
         onByStringToggle={() => { byString ? playToggleOffSound() : playToggleOnSound(); haptic.tap(); const next = !byString; setByString(next); saveSetting('pref_byString', next); }}
@@ -216,7 +216,7 @@ export default function App() {
 
       <div className="game-row" ref={gameRowRef}>
         <div className="question-col">
-          {isPlaying && (
+          {running && (
             <>
               <div className="string-label" key={guitarString}>{STRING_DISPLAY[guitarString]}</div>
               {derivedSettings.byNote
@@ -237,8 +237,6 @@ export default function App() {
               </div>
             </>
           )}
-
-          {paused && <div className="paused-text">⏸ Paused</div>}
 
           {/* Game ended summary */}
           {gameEnded && isStopped && (
@@ -263,24 +261,24 @@ export default function App() {
               <button
                 className="icon-btn pause-btn"
                 onClick={() => {
-                  if (paused) resume(derivedSettings.byNote, currentFret, guitarString);
+                  if (paused) resume();
                   else pause();
                   playClickSound(); haptic.tap();
                 }}
                 title={paused ? 'Resume' : 'Pause'}
                 aria-label={paused ? 'Resume' : 'Pause'}
               >
-                {paused
-                  ? <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
-                  : <svg viewBox="0 0 24 24" width="24" height="24"><rect x="5" y="4" width="4" height="16" fill="currentColor"/><rect x="15" y="4" width="4" height="16" fill="currentColor"/></svg>
-                }
+                <span className={`morph-icon ${paused ? 'is-resume' : 'is-pause'}`}>
+                  <svg className="icon-pause" viewBox="0 0 24 24" width="24" height="24"><rect x="5" y="4" width="4" height="16" fill="currentColor"/><rect x="15" y="4" width="4" height="16" fill="currentColor"/></svg>
+                  <svg className="icon-play" viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
+                </span>
               </button>
             ) : null}
           </div>
         </div>
 
-        {/* Hide NoteCircle/FretGrid when paused, show stats, or game ended */}
-        {(!isStopped && !paused || (isStopped && !showStats && !gameEnded)) && (
+        {/* Keep the grid/circle visible (frozen) while paused; hide only when fully stopped and showing stats/end summary */}
+        {(running || (isStopped && !showStats && !gameEnded)) && (
           derivedSettings.byNote ? (
             <FretGrid
               fretFrom={derivedSettings.fretFrom}

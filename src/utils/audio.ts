@@ -31,6 +31,18 @@ async function loadSample(midi: number): Promise<AudioBuffer | null> {
   } catch { return null; }
 }
 
+/** Freeze all scheduled/playing audio in place (Web Audio has no per-source pause). */
+export function pauseAudioContext() {
+  const ctx = audioCtx;
+  if (ctx && ctx.state === 'running') ctx.suspend();
+}
+
+/** Resume audio exactly where it was frozen. */
+export function resumeAudioContext() {
+  const ctx = audioCtx;
+  if (ctx && ctx.state === 'suspended') ctx.resume();
+}
+
 export function stopPlayback() {
   activeSources.forEach(s => { try { s.stop(); } catch {} });
   activeSources = [];

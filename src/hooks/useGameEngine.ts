@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { notes, getCofNotes, getCorrectCofNote, getValidFrets, notesMatch, displayNote } from '../utils/music';
 import type { AccidentalMode, OrderMode, HistoryEntry } from '../utils/music';
 import type { ScoreResult } from './useScoring';
-import { playNote, playNoteSingle, stopPlayback, beep, isSoundPlaying } from '../utils/audio';
+import { playNote, playNoteSingle, stopPlayback, beep, isSoundPlaying, pauseAudioContext, resumeAudioContext } from '../utils/audio';
 import { haptic, playCorrectChime, celebrateTier1, celebrateTier2 } from '../utils/feedback';
 
 interface GameSettings {
@@ -94,6 +94,24 @@ export function useGameEngine(
   const milestonePauseRef = useRef(false);
   const timeRefUpdater = useRef(time);
   timeRefUpdater.current = time;
+  // Freeze/continue support: remembers what the active countdown or scheduled
+  // "advance to next question" call was doing at the moment of pause, so
+  // resume can pick up from exactly the same point instead of restarting.
+  const timeoutCallbackRef = useRef<(() => void) | null>(null);
+  const advanceTimeoutRef = useRef<number | null>(null);
+  const advanceMetaRef = useRef<{ fn: () => void; start: number; delay: number } | null>(null);
+  const pausedAdvanceRef = useRef<{ fn: () => void; remainingMs: number } | null>(null);
+  const pauseStartRef = useRef(0);
+
+  const scheduleAdvance = useCallback((fn: () => void, delay: number) => {
+    if (advanceTimeoutRef.current) clearTimeout(advanceTimeoutRef.current);
+    advanceMetaRef.current = { fn, start: Date.now(), delay };
+    advanceTimeoutRef.current = window.setTimeout(() => {
+      advanceTimeoutRef.current = null;
+      advanceMetaRef.current = null;
+      fn();
+    }, delay);
+  }, []);
 
   const scoreCorrect = useCallback((elapsedSeconds: number): ScoreResult => {
     const result = onCorrect(elapsedSeconds, timeRefUpdater.current);
@@ -118,6 +136,7 @@ export function useGameEngine(
   };
 
   const startCountdown = (seconds: number, onTimeout: () => void) => {
+    timeoutCallbackRef.current = onTimeout;
     setRemaining(seconds);
     let rem = seconds;
     countdownRef.current = window.setInterval(() => {
@@ -208,9 +227,9 @@ export function useGameEngine(
       addEntry({ note, fret: askedFretRef.current, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null });
       setFeedback(`⏱ Frets: ${remainingFretsRef.current.join(', ')}`);
       playNoteSingle(qString, askedFretRef.current);
-      setTimeout(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
+      scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
     });
-  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout]);
+  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance]);
 
   // ── SELECT FRET (by note mode) ────────────────────────────────
   const selectFret = useCallback((selectedFret: number) => {
@@ -237,7 +256,7 @@ export function useGameEngine(
         setAnswered(true);
         setFeedback('✓ All found!');
         const delay = scoreResult.milestone ? 1500 : 1200;
-        setTimeout(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, delay);
+        scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, delay);
       } else {
         clearTimers();
         setFeedback(`✓ Where else? (${newRem.length} more)`);
@@ -258,7 +277,7 @@ export function useGameEngine(
             addEntry({ note, fret: remainingFretsRef.current[0], string: qString, seconds: Math.round(elapsed2 * 10) / 10, skipped: true, correct: null });
             setFeedback(`⏱ Also on: ${remainingFretsRef.current.join(', ')}`);
             playNoteSingle(qString, remainingFretsRef.current[0]);
-            setTimeout(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
+            scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
           });
         };
 
@@ -266,7 +285,7 @@ export function useGameEngine(
           milestonePauseRef.current = true;
           answeredRef.current = true;
           setAnswered(true);
-          setTimeout(resumeRemaining, 1500);
+          scheduleAdvance(resumeRemaining, 1500);
         } else {
           resumeRemaining();
         }
@@ -282,9 +301,9 @@ export function useGameEngine(
       const elapsed = (Date.now() - questionStartRef.current) / 1000;
       addEntry({ note, fret: selectedFret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: false, correct: false });
       setFeedback(`✗ Correct: ${rem.join(', ')}`);
-      setTimeout(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
+      scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
     }
-  }, [paused, addEntry, nextByNote, onTimeout, onWrong, scoreCorrect]);
+  }, [paused, addEntry, nextByNote, onTimeout, onWrong, scoreCorrect, scheduleAdvance]);
 
   // ── BY FRET MODE ──────────────────────────────────────────────
   const next = useCallback(() => {
@@ -327,9 +346,9 @@ export function useGameEngine(
       const elapsed = (Date.now() - questionStartRef.current) / 1000;
       addEntry({ note: correctNote, fret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null });
       setFeedback(`⏱ ${displayNote(correctNote, accidental)} (Fret ${fret})`);
-      setTimeout(() => { if (runningRef.current && sessionRef.current === mySession) next(); }, 1500);
+      scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) next(); }, 1500);
     });
-  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, accidental, order, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout]);
+  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, accidental, order, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance]);
 
   const selectAnswer = useCallback((selectedNote: string) => {
     if (!runningRef.current || paused || answeredRef.current || currentFret === null) return;
@@ -354,14 +373,14 @@ export function useGameEngine(
     setFeedback(isCorrect ? '✓ Correct!' : `✗ It was ${displayNote(correctNote, accidental)}`);
     const waitForSound = () => {
       if (isSoundPlaying()) {
-        setTimeout(waitForSound, 100);
+        scheduleAdvance(waitForSound, 100);
       } else {
         const delay = scoreResult?.milestone ? 1500 : 400;
-        setTimeout(() => { if (runningRef.current && sessionRef.current === mySession) next(); }, delay);
+        scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) next(); }, delay);
       }
     };
-    setTimeout(waitForSound, 800);
-  }, [paused, currentFret, accidental, order, wholeToneOnly, addEntry, next, onWrong, scoreCorrect]);
+    scheduleAdvance(waitForSound, 800);
+  }, [paused, currentFret, accidental, order, wholeToneOnly, addEntry, next, onWrong, scoreCorrect, scheduleAdvance]);
 
   // ── CONTROLS ─────────────────────────────────────────────────
   const start = useCallback((maxQ: number, currentTime: number, isByNote: boolean) => {
@@ -391,6 +410,9 @@ export function useGameEngine(
 
   const stop = useCallback(() => {
     clearTimers();
+    if (advanceTimeoutRef.current) { clearTimeout(advanceTimeoutRef.current); advanceTimeoutRef.current = null; }
+    advanceMetaRef.current = null;
+    pausedAdvanceRef.current = null;
     runningRef.current = false;
     answeredRef.current = true; // prevent any pending callbacks
     setRunning(false);
@@ -406,27 +428,45 @@ export function useGameEngine(
     stopPlayback();
   }, []);
 
+  // Freeze the current stage exactly where it is: stop the active countdown
+  // (or the scheduled "advance to next question" call) and suspend audio,
+  // without touching any gameplay/UI state so the screen stays unchanged.
   const pause = useCallback(() => {
-    clearTimers();
-    setPaused(true);
-    runningRef.current = false;
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
+    if (advanceTimeoutRef.current) {
+      clearTimeout(advanceTimeoutRef.current);
+      advanceTimeoutRef.current = null;
+      const meta = advanceMetaRef.current;
+      if (meta) {
+        pausedAdvanceRef.current = { fn: meta.fn, remainingMs: Math.max(0, meta.delay - (Date.now() - meta.start)) };
+      }
+      advanceMetaRef.current = null;
+    }
     pausedTimeRef.current = remaining;
-    stopPlayback();
+    pauseStartRef.current = Date.now();
+    runningRef.current = false;
+    setPaused(true);
+    pauseAudioContext();
   }, [remaining]);
 
-  const resume = useCallback((isByNote: boolean, _curFret: number | null, _curGuitarString: number) => {
-    setPaused(false);
+  // Continue from exactly the same point: resume audio and pick back up
+  // whichever was frozen — the countdown for the in-progress question, or
+  // the pending advance to the next one. Never starts a new question.
+  const resume = useCallback(() => {
     runningRef.current = true;
-    // Always start a fresh question on resume — ignore the paused question
-    answeredRef.current = false;
-    setAnswered(false);
-    setFeedback('');
-    setCorrectCofNote(null);
-    setWrongCofNote(null);
-    setFoundFrets([]);
-    setWrongFret(null);
-    setTimeout(isByNote ? nextByNote : next, 100);
-  }, [nextByNote, next]);
+    setPaused(false);
+    resumeAudioContext();
+    const pauseDuration = pauseStartRef.current ? Date.now() - pauseStartRef.current : 0;
+    questionStartRef.current += pauseDuration;
+    if (pausedAdvanceRef.current) {
+      const { fn, remainingMs } = pausedAdvanceRef.current;
+      pausedAdvanceRef.current = null;
+      scheduleAdvance(fn, remainingMs);
+    } else if (!answeredRef.current && timeoutCallbackRef.current) {
+      startCountdown(pausedTimeRef.current, timeoutCallbackRef.current);
+    }
+  }, [scheduleAdvance]);
 
   return {
     // state

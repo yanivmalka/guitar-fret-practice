@@ -253,6 +253,16 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 .stop-btn-icon { border-color: #0ff; color: #0ff; }
 .stop-btn-icon:hover { background: rgba(0, 255, 255, 0.1); }
 
+.morph-icon { position: relative; width: 24px; height: 24px; display: inline-block; }
+.morph-icon svg {
+  position: absolute; top: 0; left: 0;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.morph-icon .icon-pause { opacity: 1; transform: scale(1) rotate(0deg); }
+.morph-icon .icon-play { opacity: 0; transform: scale(0.5) rotate(-90deg); }
+.morph-icon.is-resume .icon-pause { opacity: 0; transform: scale(0.5) rotate(90deg); }
+.morph-icon.is-resume .icon-play { opacity: 1; transform: scale(1) rotate(0deg); }
+
 /* Floating stop button — removed, using inline stop */
 
 .clear-btn {
