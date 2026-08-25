@@ -35,6 +35,42 @@ export function playClickSound() {
   osc.stop(ctx.currentTime + 0.025);
 }
 
+// Countdown "stick click" — short, crisp, percussive tap (two drumsticks), no pitch
+export function playStickClick() {
+  const ctx = getCtx();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume();
+
+  const duration = 0.03;
+  const bufferSize = Math.ceil(ctx.sampleRate * duration);
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    // sharp decay envelope over white noise for a woody tap transient
+    const envelope = Math.pow(1 - i / bufferSize, 6);
+    data[i] = (Math.random() * 2 - 1) * envelope;
+  }
+
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+
+  const bandpass = ctx.createBiquadFilter();
+  bandpass.type = 'bandpass';
+  bandpass.frequency.value = 2800;
+  bandpass.Q.value = 1.2;
+
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.25, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+  src.connect(bandpass);
+  bandpass.connect(gain);
+  gain.connect(ctx.destination);
+
+  src.start(ctx.currentTime);
+  src.stop(ctx.currentTime + duration);
+}
+
 export function playToggleOnSound() {
   const ctx = getCtx();
   if (!ctx) return;

@@ -4,13 +4,15 @@ interface Props {
   remaining: number;  // seconds left (integer countdown)
   total: number;      // total seconds for this question
   answered: boolean;  // freeze bar when answered
+  paused?: boolean;   // freeze bar in place while paused
 }
 
-export default function SpeedBar({ remaining, total, answered }: Props) {
+export default function SpeedBar({ remaining, total, answered, paused = false }: Props) {
   const [elapsed, setElapsed] = useState(0);
   const rafRef = useRef<number | null>(null);
   const startRef = useRef(Date.now());
   const frozenRef = useRef(false);
+  const pausedAtRef = useRef(0);
 
   // Reset on new question (remaining resets to total)
   useEffect(() => {
@@ -28,9 +30,24 @@ export default function SpeedBar({ remaining, total, answered }: Props) {
     }
   }, [answered]);
 
+  // Freeze in place on pause; on resume, shift the start time forward by the
+  // paused duration so the bar continues from the exact same visual position
+  // instead of jumping ahead by the time spent paused.
+  useEffect(() => {
+    if (paused) {
+      frozenRef.current = true;
+      pausedAtRef.current = Date.now();
+    } else if (pausedAtRef.current) {
+      const pauseDuration = Date.now() - pausedAtRef.current;
+      startRef.current += pauseDuration;
+      pausedAtRef.current = 0;
+      if (!answered) frozenRef.current = false;
+    }
+  }, [paused, answered]);
+
   // Animate the bar smoothly — restarts when answered resets to false
   useEffect(() => {
-    if (answered) return; // don't animate while frozen
+    if (answered || paused) return; // don't animate while frozen
     frozenRef.current = false;
     const tick = () => {
       if (frozenRef.current) return;
@@ -41,7 +58,7 @@ export default function SpeedBar({ remaining, total, answered }: Props) {
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [total, answered]);
+  }, [total, answered, paused]);
 
   const pct = Math.min((elapsed / total) * 100, 100);
 

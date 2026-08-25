@@ -10,7 +10,7 @@ import { displayNote } from './utils/music';
 import type { HistoryEntry, AccidentalMode, OrderMode, NotationMode } from './utils/music';
 import { preloadAllSamples, unlockAudio, stopPlayback } from './utils/audio';
 import { App as CapacitorApp } from '@capacitor/app';
-import { playClickSound, playToggleOnSound, playToggleOffSound, haptic } from './utils/feedback';
+import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic } from './utils/feedback';
 import { loadSetting, saveSetting } from './utils/settings';
 import { useSelector } from './hooks/useSelector';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
@@ -32,9 +32,6 @@ export default function App() {
   const [notation] = useState<NotationMode>(() => loadSetting('pref_notation', 'alpha'));
   const [order, setOrder] = useState<OrderMode>(() => loadSetting('pref_order', 'fifths'));
   const [accidental] = useState<AccidentalMode>(() => loadSetting('pref_accidental', 'sharps'));
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setGuitarString(derivedSettings.guitarString); }, [derivedSettings.guitarString]);
 
   const historyOps = useHistory();
   const histKey = selector.historyKey();
@@ -95,11 +92,17 @@ export default function App() {
     start: engineStart, stop, pause, resume, selectFret, selectAnswer,
   } = engine;
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { if (!paused) setGuitarString(derivedSettings.guitarString); }, [derivedSettings.guitarString, paused]);
+
+  // Settings changed while actively playing invalidate the session, so stop it.
+  // While paused, just remember the new settings — they're picked up on resume
+  // (for the next question) without losing the current score/streak/progress.
   const derivedRef = useRef(derivedSettings);
   useEffect(() => {
-    if (derivedRef.current !== derivedSettings && running) { stop(); }
+    if (derivedRef.current !== derivedSettings && running && !paused) { stop(); }
     derivedRef.current = derivedSettings;
-  }, [derivedSettings, running, stop]);
+  }, [derivedSettings, running, paused, stop]);
 
   // Stop all activity (audio, timers, game loop) whenever the app is backgrounded,
   // hidden, or closed — on return the user must explicitly press Play again.
@@ -164,10 +167,11 @@ export default function App() {
     setGameEnded(false);
     // Countdown 3-2-1
     setCountdown(3);
+    playStickClick();
     let c = 3;
     const interval = setInterval(() => {
       c--;
-      if (c > 0) { setCountdown(c); }
+      if (c > 0) { setCountdown(c); playStickClick(); }
       else {
         clearInterval(interval);
         setCountdown(null);
@@ -195,7 +199,7 @@ export default function App() {
         onModeSelect={selector.onModeSelect}
         onFretRangeToggle={selector.onFretRangeToggle}
         onDifficultySelect={selector.onDifficultySelect}
-        isPlaying={isPlaying || paused}
+        isPlaying={isPlaying}
         activeString={(isPlaying || paused) ? guitarString : undefined}
         activeFret={running ? askedFret : undefined}
         byString={byString}
@@ -223,7 +227,7 @@ export default function App() {
                 ? <div className="note-display">{currentNote ? displayNote(currentNote, accidental, notation) : '—'}</div>
                 : <div className="fret-display">{currentFret !== null ? currentFret : '—'}</div>
               }
-              <SpeedBar remaining={remaining} total={derivedSettings.time} answered={answered} />
+              <SpeedBar remaining={remaining} total={derivedSettings.time} answered={answered} paused={paused} />
               <div className="game-info-row">
                 <span className="game-timer">{remaining}s</span>
                 <span className="game-progress-text">{scoring.session.questionsAnswered}/{derivedSettings.maxQuestions}</span>
