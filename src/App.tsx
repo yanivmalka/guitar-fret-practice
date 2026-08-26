@@ -181,6 +181,7 @@ export default function App() {
       else {
         clearInterval(interval);
         setCountdown(null);
+        playStickClick();
         engineStart(derivedSettings.maxQuestions, derivedSettings.time, derivedSettings.byNote);
         setTimeout(() => gameRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
       }
