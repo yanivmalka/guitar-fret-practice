@@ -101,6 +101,7 @@ export default function App() {
       onCorrect: scoring.onCorrect,
       onWrong: scoring.onWrong,
       onTimeout: scoring.onTimeout,
+      getStreak: scoring.getStreak,
     },
     {
       onComplete: handleAutoComplete,
@@ -222,9 +223,18 @@ export default function App() {
     }, 700);
   };
 
-  // v1.1 multiplier display: ×1.5 at 3, ×2 at 5, ×3 at 10
-  const multiplierLevel = scoring.session.multiplier >= 3 ? 3 : scoring.session.multiplier >= 2 ? 2 : scoring.session.multiplier >= 1.5 ? 1 : 0;
-  const multiplierIcon = multiplierLevel >= 3 ? '🔥🔥🔥 ×3' : multiplierLevel >= 2 ? '🔥🔥 ×2' : multiplierLevel >= 1 ? '🔥 ×1.5' : '';
+  // Multiplier display tracks the streak-tier multiplier from useScoring
+  // (1×, 1.25×, 1.5×, 2×, 2.5×, 3×, 4× at streaks 0, 3, 5, 7, 10, 15, 20).
+  const currentMultiplier = scoring.session.multiplier;
+  const multiplierFireCount = currentMultiplier >= 4 ? 5
+    : currentMultiplier >= 3 ? 4
+    : currentMultiplier >= 2.5 ? 3
+    : currentMultiplier >= 2 ? 2
+    : currentMultiplier > 1 ? 1
+    : 0;
+  const multiplierIcon = multiplierFireCount > 0
+    ? `${'🔥'.repeat(multiplierFireCount)} ×${currentMultiplier}`
+    : '';
 
   return (
     <div className="app">

@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { notes, getCofNotes, getCorrectCofNote, getValidFrets, notesMatch, displayNote } from '../utils/music';
 import type { AccidentalMode, OrderMode, HistoryEntry } from '../utils/music';
 import type { ScoreResult } from './useScoring';
+import { getQuestionTime } from './useScoring';
 import { playNote, playNoteSingle, stopPlayback, beep, isSoundPlaying, pauseAudioContext, resumeAudioContext } from '../utils/audio';
 import { haptic, playCorrectChime, celebrateTier1, celebrateTier2 } from '../utils/feedback';
 
@@ -45,6 +46,7 @@ interface ScoreOps {
   onCorrect: (elapsedSeconds: number, timeLimit: number) => ScoreResult;
   onWrong: () => void;
   onTimeout: () => void;
+  getStreak: () => number;
 }
 
 interface EngineCallbacks {
@@ -67,7 +69,7 @@ export function useGameEngine(
           isMulti, activeStrings, time, accidental, order } = settings;
   const { onComplete } = callbacks;
   const { addEntry, markPlayed, resetSession } = historyOps;
-  const { onCorrect, onWrong, onTimeout } = scoreOps;
+  const { onCorrect, onWrong, onTimeout, getStreak } = scoreOps;
 
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -103,8 +105,12 @@ export function useGameEngine(
   const coveragePoolRef = useRef<number[]>([]);
   const failedFretsRef = useRef<Set<number>>(new Set());
   const milestonePauseRef = useRef(false);
-  const timeRefUpdater = useRef(time);
-  timeRefUpdater.current = time;
+  // baseTimeRef: the difficulty's own base time (unaffected by streak).
+  // questionTimeRef: that base scaled down by the current streak tier —
+  // the value actually used for the countdown and passed to scoring.
+  const baseTimeRef = useRef(time);
+  baseTimeRef.current = time;
+  const questionTimeRef = useRef(time);
   // Freeze/continue support: remembers what the active countdown or scheduled
   // "advance to next question" call was doing at the moment of pause, so
   // resume can pick up from exactly the same point instead of restarting.
@@ -125,7 +131,7 @@ export function useGameEngine(
   }, []);
 
   const scoreCorrect = useCallback((elapsedSeconds: number): ScoreResult => {
-    const result = onCorrect(elapsedSeconds, timeRefUpdater.current);
+    const result = onCorrect(elapsedSeconds, questionTimeRef.current);
     playCorrectChime();
 
     const scoreEl = document.getElementById('live-score');
@@ -231,7 +237,8 @@ export function useGameEngine(
     questionStartRef.current = Date.now();
 
     // BUG FIX 1: use timeRef.current so countdown uses the correct time after switchStage
-    startCountdown(timeRefUpdater.current, () => {
+    questionTimeRef.current = getQuestionTime(baseTimeRef.current, getStreak());
+    startCountdown(questionTimeRef.current, () => {
       if (answeredRef.current || sessionRef.current !== mySession) return;
       answeredRef.current = true;
       setAnswered(true);
@@ -243,7 +250,7 @@ export function useGameEngine(
       playNoteSingle(qString, askedFretRef.current);
       scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
     });
-  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, onComplete]);
+  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, onComplete, getStreak]);
 
   // ── SELECT FRET (by note mode) ────────────────────────────────
   const selectFret = useCallback((selectedFret: number) => {
@@ -269,8 +276,11 @@ export function useGameEngine(
         answeredRef.current = true;
         setAnswered(true);
         setFeedback('✓ All found!');
-        const delay = scoreResult.milestone ? 1500 : 1200;
-        scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, delay);
+        // Advance immediately — the score/milestone celebration (chime,
+        // floating text, rings/banner) plays independently on its own
+        // fixed, pointer-events:none overlay and never gates the next
+        // question.
+        if (runningRef.current && sessionRef.current === mySession) nextByNote();
       } else {
         clearTimers();
         setFeedback(`✓ Where else? (${newRem.length} more)`);
@@ -281,7 +291,7 @@ export function useGameEngine(
           answeredRef.current = false;
           setAnswered(false);
           questionStartRef.current = Date.now();
-          startCountdown(timeRefUpdater.current, () => {
+          startCountdown(questionTimeRef.current, () => {
             if (answeredRef.current || sessionRef.current !== mySession) return;
             answeredRef.current = true;
             setAnswered(true);
@@ -351,7 +361,8 @@ export function useGameEngine(
     questionStartRef.current = Date.now();
     playNote(qString, fret);
 
-    startCountdown(timeRefUpdater.current, () => {
+    questionTimeRef.current = getQuestionTime(baseTimeRef.current, getStreak());
+    startCountdown(questionTimeRef.current, () => {
       if (answeredRef.current || sessionRef.current !== mySession) return;
       answeredRef.current = true;
       setAnswered(true);
@@ -365,7 +376,7 @@ export function useGameEngine(
       setFeedback(`⏱ ${displayNote(correctNote, accidental)} (Fret ${fret})`);
       scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) next(); }, 1500);
     });
-  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, accidental, order, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, onComplete]);
+  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, accidental, order, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, onComplete, getStreak]);
 
   const selectAnswer = useCallback((selectedNote: string) => {
     if (!runningRef.current || paused || answeredRef.current || currentFret === null) return;
@@ -379,8 +390,9 @@ export function useGameEngine(
     const cof = getCofNotes(accidental, order, false);
     const isCorrect = notesMatch(selectedNote, correctNote);
     const elapsed = (Date.now() - questionStartRef.current) / 1000;
-    const scoreResult = isCorrect ? scoreCorrect(elapsed) : null;
-    if (!isCorrect) {
+    if (isCorrect) {
+      scoreCorrect(elapsed);
+    } else {
       onWrong();
       haptic.wrong();
     }
@@ -388,12 +400,19 @@ export function useGameEngine(
     if (!isCorrect) setWrongCofNote(selectedNote);
     addEntry({ note: correctNote, fret: currentFret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: false, correct: isCorrect });
     setFeedback(isCorrect ? '✓ Correct!' : `✗ It was ${displayNote(correctNote, accidental)}`);
+
+    if (isCorrect) {
+      // Advance immediately — the chime/score celebration plays independently
+      // on its own fixed, pointer-events:none overlay and never gates this.
+      if (runningRef.current && sessionRef.current === mySession) next();
+      return;
+    }
+
     const waitForSound = () => {
       if (isSoundPlaying()) {
         scheduleAdvance(waitForSound, 100);
       } else {
-        const delay = scoreResult?.milestone ? 1500 : 400;
-        scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) next(); }, delay);
+        scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) next(); }, 400);
       }
     };
     scheduleAdvance(waitForSound, 800);
@@ -403,7 +422,8 @@ export function useGameEngine(
   const start = useCallback((maxQ: number, currentTime: number, isByNote: boolean) => {
     sessionRef.current++;
     maxQuestionsRef.current = maxQ;
-    timeRefUpdater.current = currentTime;
+    baseTimeRef.current = currentTime;
+    questionTimeRef.current = currentTime;
     setRunning(true);
     setPaused(false);
     runningRef.current = true;
