@@ -8,7 +8,7 @@ import SpeedBar from './components/SpeedBar';
 import AnimatedScore from './components/AnimatedScore';
 import { displayNote } from './utils/music';
 import type { HistoryEntry, AccidentalMode, OrderMode, NotationMode } from './utils/music';
-import { preloadAllSamples, unlockAudio, stopPlayback } from './utils/audio';
+import { preloadAllSamples, unlockAudio } from './utils/audio';
 import { App as CapacitorApp } from '@capacitor/app';
 import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic } from './utils/feedback';
 import { loadSetting, saveSetting } from './utils/settings';
@@ -104,34 +104,37 @@ export default function App() {
     derivedRef.current = derivedSettings;
   }, [derivedSettings, running, paused, stop]);
 
-  // Stop all activity (audio, timers, game loop) whenever the app is backgrounded,
-  // hidden, or closed — on return the user must explicitly press Play again.
-  const stopRef = useRef(stop);
-  stopRef.current = stop;
+  // Freeze the game (pause, not stop) whenever the app is backgrounded, hidden,
+  // or closed, so returning to it resumes exactly where it left off instead of
+  // resetting. Only actually running sessions pause; already-idle/paused state
+  // is left alone.
+  const pauseRef = useRef(pause);
+  pauseRef.current = pause;
+  const runningRef2 = useRef(running);
+  runningRef2.current = running;
   useEffect(() => {
-    const stopEverything = () => {
-      stopPlayback();
-      stopRef.current();
+    const pauseEverything = () => {
+      if (runningRef2.current) pauseRef.current();
     };
-    const onVisibilityChange = () => { if (document.hidden) stopEverything(); };
+    const onVisibilityChange = () => { if (document.hidden) pauseEverything(); };
     document.addEventListener('visibilitychange', onVisibilityChange);
-    document.addEventListener('pagehide', stopEverything);
+    document.addEventListener('pagehide', pauseEverything);
 
     let removeAppStateListener: (() => void) | undefined;
     CapacitorApp.addListener('appStateChange', ({ isActive }) => {
-      if (!isActive) stopEverything();
+      if (!isActive) pauseEverything();
     }).then((handle) => { removeAppStateListener = () => handle.remove(); });
-    CapacitorApp.addListener('pause', stopEverything).then((handle) => {
+    CapacitorApp.addListener('pause', pauseEverything).then((handle) => {
       const prev = removeAppStateListener;
       removeAppStateListener = () => { prev?.(); handle.remove(); };
     });
 
     return () => {
       document.removeEventListener('visibilitychange', onVisibilityChange);
-      document.removeEventListener('pagehide', stopEverything);
+      document.removeEventListener('pagehide', pauseEverything);
       removeAppStateListener?.();
     };
-  }, []);
+  }, [pause]);
 
   const [preloaded, setPreloaded] = useState(false);
   const [onboardingDone, setOnboardingDone] = useState(() => loadSetting<boolean>('onboardingDone', false));
@@ -142,6 +145,9 @@ export default function App() {
 
   const isPlaying = running && !paused;
   const isStopped = !running && !paused;
+  // The game screen (question, grid/circle, selector-mini) stays visible and
+  // frozen while paused, not just while actively running.
+  const gameActive = running || paused;
 
   const click = <T,>(fn: () => T) => () => { playClickSound(); haptic.tap(); return fn(); };
 
@@ -199,9 +205,9 @@ export default function App() {
         onModeSelect={selector.onModeSelect}
         onFretRangeToggle={selector.onFretRangeToggle}
         onDifficultySelect={selector.onDifficultySelect}
-        isPlaying={isPlaying}
-        activeString={(isPlaying || paused) ? guitarString : undefined}
-        activeFret={running ? askedFret : undefined}
+        isPlaying={gameActive}
+        activeString={gameActive ? guitarString : undefined}
+        activeFret={gameActive ? askedFret : undefined}
         byString={byString}
         order={order}
         onByStringToggle={() => { byString ? playToggleOffSound() : playToggleOnSound(); haptic.tap(); const next = !byString; setByString(next); saveSetting('pref_byString', next); }}
@@ -220,7 +226,7 @@ export default function App() {
 
       <div className="game-row" ref={gameRowRef}>
         <div className="question-col">
-          {running && (
+          {gameActive && (
             <>
               <div className="string-label" key={guitarString}>{STRING_DISPLAY[guitarString]}</div>
               {derivedSettings.byNote
@@ -255,34 +261,44 @@ export default function App() {
             </div>
           )}
 
-          {/* Controls: Play (centered) → becomes a single Pause/Resume toggle when playing/paused */}
+          {/* Controls: Play (centered) → becomes a Pause/Resume toggle plus a separate Stop when playing/paused */}
           <div className="controls">
             {!running && !paused && !countdown ? (
               <button className="icon-btn play-btn" onClick={click(start)} title="Start">
                 <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
               </button>
             ) : running || paused ? (
-              <button
-                className="icon-btn pause-btn"
-                onClick={() => {
-                  if (paused) resume();
-                  else pause();
-                  playClickSound(); haptic.tap();
-                }}
-                title={paused ? 'Resume' : 'Pause'}
-                aria-label={paused ? 'Resume' : 'Pause'}
-              >
-                <span className={`morph-icon ${paused ? 'is-resume' : 'is-pause'}`}>
-                  <svg className="icon-pause" viewBox="0 0 24 24" width="24" height="24"><rect x="5" y="4" width="4" height="16" fill="currentColor"/><rect x="15" y="4" width="4" height="16" fill="currentColor"/></svg>
-                  <svg className="icon-play" viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
-                </span>
-              </button>
+              <>
+                <button
+                  className="icon-btn pause-btn"
+                  onClick={() => {
+                    if (paused) resume();
+                    else pause();
+                    playClickSound(); haptic.tap();
+                  }}
+                  title={paused ? 'Resume' : 'Pause'}
+                  aria-label={paused ? 'Resume' : 'Pause'}
+                >
+                  <span className={`morph-icon ${paused ? 'is-resume' : 'is-pause'}`}>
+                    <svg className="icon-pause" viewBox="0 0 24 24" width="24" height="24"><rect x="5" y="4" width="4" height="16" fill="currentColor"/><rect x="15" y="4" width="4" height="16" fill="currentColor"/></svg>
+                    <svg className="icon-play" viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
+                  </span>
+                </button>
+                <button
+                  className="icon-btn stop-btn-icon"
+                  onClick={() => { stop(); playClickSound(); haptic.tap(); }}
+                  title="Stop"
+                  aria-label="Stop"
+                >
+                  <svg viewBox="0 0 24 24" width="24" height="24"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/></svg>
+                </button>
+              </>
             ) : null}
           </div>
         </div>
 
         {/* Keep the grid/circle visible (frozen) while paused; hide only when fully stopped and showing stats/end summary */}
-        {(running || (isStopped && !showStats && !gameEnded)) && (
+        {(gameActive || (isStopped && !showStats && !gameEnded)) && (
           derivedSettings.byNote ? (
             <FretGrid
               fretFrom={derivedSettings.fretFrom}
@@ -290,25 +306,25 @@ export default function App() {
               guitarString={guitarString}
               validFrets={new Set(Object.values(noteFrets).flat())}
               active={isPlaying && !answered}
-              correctFrets={running ? remainingFrets : []}
-              wrongFret={running ? wrongFret : null}
-              foundFrets={running ? foundFrets : []}
+              correctFrets={gameActive ? remainingFrets : []}
+              wrongFret={gameActive ? wrongFret : null}
+              foundFrets={gameActive ? foundFrets : []}
               onSelect={selectFret}
             />
           ) : (
             <NoteCircle
               notes={cofList}
-              activeNotes={isMulti && isPlaying ? questionActiveNotes : activeNotes}
+              activeNotes={isMulti && gameActive ? questionActiveNotes : activeNotes}
               active={isPlaying && !answered}
-              correctNote={running ? correctCofNote : null}
-              wrongNote={running ? wrongCofNote : null}
+              correctNote={gameActive ? correctCofNote : null}
+              wrongNote={gameActive ? wrongCofNote : null}
               onSelect={selectAnswer}
               guitarString={guitarString}
               fretDots={fretDots}
               noteFrets={noteFrets}
               byString={byString}
               startIndex={startIndex}
-              showDots={!(isMulti && derivedSettings.multiStrings.length > 1) || isPlaying}
+              showDots={!(isMulti && derivedSettings.multiStrings.length > 1) || gameActive}
               accidental={accidental}
               notation={notation}
             />
