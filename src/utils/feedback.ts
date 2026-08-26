@@ -35,40 +35,44 @@ export function playClickSound() {
   osc.stop(ctx.currentTime + 0.025);
 }
 
-// Countdown "stick click" — short, crisp, percussive tap (two drumsticks), no pitch
+// Countdown "stick click" — real recorded drumstick tap sample, decoded once
+// and cached (bundled locally at public/sounds/stick-click.mp3, no network
+// fetch after the first load; also precached by the PWA service worker).
+let _stickClickBuffer: AudioBuffer | null = null;
+let _stickClickLoading: Promise<AudioBuffer | null> | null = null;
+
+async function loadStickClickBuffer(ctx: AudioContext): Promise<AudioBuffer | null> {
+  if (_stickClickBuffer) return _stickClickBuffer;
+  if (!_stickClickLoading) {
+    _stickClickLoading = (async () => {
+      try {
+        const res = await fetch(`${import.meta.env.BASE_URL}sounds/stick-click.mp3`);
+        const arrayBuffer = await res.arrayBuffer();
+        _stickClickBuffer = await ctx.decodeAudioData(arrayBuffer);
+        return _stickClickBuffer;
+      } catch {
+        return null;
+      }
+    })();
+  }
+  return _stickClickLoading;
+}
+
 export function playStickClick() {
   const ctx = getCtx();
   if (!ctx) return;
   if (ctx.state === 'suspended') ctx.resume();
 
-  const duration = 0.03;
-  const bufferSize = Math.ceil(ctx.sampleRate * duration);
-  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let i = 0; i < bufferSize; i++) {
-    // sharp decay envelope over white noise for a woody tap transient
-    const envelope = Math.pow(1 - i / bufferSize, 6);
-    data[i] = (Math.random() * 2 - 1) * envelope;
-  }
-
-  const src = ctx.createBufferSource();
-  src.buffer = buffer;
-
-  const bandpass = ctx.createBiquadFilter();
-  bandpass.type = 'bandpass';
-  bandpass.frequency.value = 2800;
-  bandpass.Q.value = 1.2;
-
-  const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0.25, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-
-  src.connect(bandpass);
-  bandpass.connect(gain);
-  gain.connect(ctx.destination);
-
-  src.start(ctx.currentTime);
-  src.stop(ctx.currentTime + duration);
+  loadStickClickBuffer(ctx).then((buffer) => {
+    if (!buffer) return;
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const gain = ctx.createGain();
+    gain.gain.value = 0.9;
+    src.connect(gain);
+    gain.connect(ctx.destination);
+    src.start();
+  });
 }
 
 export function playToggleOnSound() {

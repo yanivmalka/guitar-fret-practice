@@ -17,7 +17,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,mp3}'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/gleitz\.github\.io\/midi-js-soundfonts\/.*/,
