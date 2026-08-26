@@ -13,6 +13,16 @@ export interface SelectorState {
   lowerActive: boolean;
   upperActive: boolean;
   difficulty: Difficulty;
+  autoAdvance: boolean;
+}
+
+// The current Selector-model's only progression axis is difficulty
+// (dots -> naturals -> full). Returns the next step up, or null if
+// already at the hardest difficulty (nothing further to advance to).
+export function nextDifficulty(difficulty: Difficulty): Difficulty | null {
+  if (difficulty === 'dots') return 'naturals';
+  if (difficulty === 'naturals') return 'full';
+  return null;
 }
 
 export interface DerivedSettings {
@@ -84,6 +94,9 @@ export function useSelector() {
   const [difficulty, setDifficulty] = useState<Difficulty>(
     () => loadSetting('sel_difficulty', 'dots')
   );
+  const [autoAdvance, setAutoAdvance] = useState<boolean>(
+    () => loadSetting('sel_autoAdvance', false)
+  );
 
   // ── Setters with persistence ───────────────────────────────────────
 
@@ -154,6 +167,14 @@ export function useSelector() {
     saveSetting('sel_difficulty', diff);
   };
 
+  const onAutoAdvanceToggle = () => {
+    setAutoAdvance(prev => {
+      const next = !prev;
+      saveSetting('sel_autoAdvance', next);
+      return next;
+    });
+  };
+
   // ── Selector state object ──────────────────────────────────────────
 
   const state: SelectorState = {
@@ -163,6 +184,7 @@ export function useSelector() {
     lowerActive,
     upperActive,
     difficulty,
+    autoAdvance,
   };
 
   // ── Derived settings ───────────────────────────────────────────────
@@ -208,6 +230,7 @@ export function useSelector() {
     onModeSelect,
     onFretRangeToggle,
     onDifficultySelect,
+    onAutoAdvanceToggle,
     derivedSettings,
     historyKey: () => historyKey(state),
   };

@@ -47,14 +47,25 @@ interface ScoreOps {
   onTimeout: () => void;
 }
 
+interface EngineCallbacks {
+  // Fired when the run ends because every question was actually answered
+  // (the asked-question budget was reached) — never on a manual Stop, and
+  // never on a Pause (which discards the current question and keeps the
+  // engine running). Lets a caller (e.g. Auto Advance) distinguish a real
+  // stage completion from the session simply being stopped.
+  onComplete?: () => void;
+}
+
 export function useGameEngine(
   settings: GameSettings,
   setters: GameSetters,
   historyOps: HistoryOps,
   scoreOps: ScoreOps,
+  callbacks: EngineCallbacks = {},
 ) {
   const { guitarString, fretFrom, fretTo, wholeToneOnly, dotsOnly,
           isMulti, activeStrings, time, accidental, order } = settings;
+  const { onComplete } = callbacks;
   const { addEntry, markPlayed, resetSession } = historyOps;
   const { onCorrect, onWrong, onTimeout } = scoreOps;
 
@@ -183,7 +194,10 @@ export function useGameEngine(
   // ── BY NOTE MODE ──────────────────────────────────────────────
   const nextByNote = useCallback(() => {
     if (!runningRef.current || countRef.current >= maxQuestionsRef.current) {
-      setRunning(false); runningRef.current = false; return;
+      const completedNaturally = runningRef.current && countRef.current >= maxQuestionsRef.current;
+      setRunning(false); runningRef.current = false;
+      if (completedNaturally) onComplete?.();
+      return;
     }
     const mySession = sessionRef.current;
     countRef.current++;
@@ -229,7 +243,7 @@ export function useGameEngine(
       playNoteSingle(qString, askedFretRef.current);
       scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
     });
-  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance]);
+  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, onComplete]);
 
   // ── SELECT FRET (by note mode) ────────────────────────────────
   const selectFret = useCallback((selectedFret: number) => {
@@ -308,7 +322,10 @@ export function useGameEngine(
   // ── BY FRET MODE ──────────────────────────────────────────────
   const next = useCallback(() => {
     if (!runningRef.current || countRef.current >= maxQuestionsRef.current) {
-      setRunning(false); runningRef.current = false; return;
+      const completedNaturally = runningRef.current && countRef.current >= maxQuestionsRef.current;
+      setRunning(false); runningRef.current = false;
+      if (completedNaturally) onComplete?.();
+      return;
     }
     const mySession = sessionRef.current;
     countRef.current++;
@@ -348,7 +365,7 @@ export function useGameEngine(
       setFeedback(`⏱ ${displayNote(correctNote, accidental)} (Fret ${fret})`);
       scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) next(); }, 1500);
     });
-  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, accidental, order, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance]);
+  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, accidental, order, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, onComplete]);
 
   const selectAnswer = useCallback((selectedNote: string) => {
     if (!runningRef.current || paused || answeredRef.current || currentFret === null) return;

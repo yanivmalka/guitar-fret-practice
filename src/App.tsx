@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import NoteCircle from './components/NoteCircle';
 import FretGrid from './components/FretGrid';
 import SelectorPanel from './components/SelectorPanel';
@@ -12,7 +12,7 @@ import { preloadAllSamples, unlockAudio } from './utils/audio';
 import { App as CapacitorApp } from '@capacitor/app';
 import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic } from './utils/feedback';
 import { loadSetting, saveSetting } from './utils/settings';
-import { useSelector } from './hooks/useSelector';
+import { useSelector, nextDifficulty } from './hooks/useSelector';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useGameEngine } from './hooks/useGameEngine';
 import { useHistory } from './hooks/useHistory';
@@ -53,6 +53,23 @@ export default function App() {
   const { cofList, startIndex, activeNotes, questionActiveNotes, fretDots, noteFrets, isMulti } = derived;
   const scoring = useScoring();
 
+  // Auto Advance: when the current stage/selection is actually completed
+  // (every question answered, not a manual Stop), bump to the next
+  // difficulty and continue straight into it, keeping the same score/
+  // streak/session. selector.onDifficultySelect and setPendingAutoAdvance
+  // are called together in the same tick as the engine's setRunning(false),
+  // so React batches them into one render — the game-end-summary effect
+  // (below) sees pendingAutoAdvance already true at that same render and
+  // skips showing the "round complete" screen for this transition.
+  const [pendingAutoAdvance, setPendingAutoAdvance] = useState(false);
+  const handleAutoComplete = useCallback(() => {
+    if (!selector.state.autoAdvance) return;
+    const next = nextDifficulty(selector.state.difficulty);
+    if (!next) return;
+    selector.onDifficultySelect(next);
+    setPendingAutoAdvance(true);
+  }, [selector]);
+
   const engine = useGameEngine(
     {
       guitarString,
@@ -85,12 +102,27 @@ export default function App() {
       onWrong: scoring.onWrong,
       onTimeout: scoring.onTimeout,
     },
+    {
+      onComplete: handleAutoComplete,
+    },
   );
   const {
     running, paused, currentFret, currentNote, askedFret, remaining, feedback,
     correctCofNote, wrongCofNote, answered, remainingFrets, foundFrets, wrongFret,
     start: engineStart, stop, pause, resume, selectFret, selectAnswer,
   } = engine;
+
+  // Runs right after the difficulty bump above has re-rendered (so
+  // derivedSettings already reflects the new stage) and before the browser
+  // paints, so there's no visible flash of the idle/selector screen between
+  // stages — score/streak/session are untouched since this calls the
+  // engine's own start(), not App's start() (which would reset scoring).
+  useLayoutEffect(() => {
+    if (!pendingAutoAdvance) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPendingAutoAdvance(false);
+    engineStart(derivedSettings.maxQuestions, derivedSettings.time, derivedSettings.byNote);
+  }, [pendingAutoAdvance, derivedSettings, engineStart]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (!paused) setGuitarString(derivedSettings.guitarString); }, [derivedSettings.guitarString, paused]);
@@ -157,14 +189,16 @@ export default function App() {
 
   const sessionHistory = historyOps.history;
 
-  // Detect game end
+  // Detect game end (skipped when Auto Advance is about to continue straight
+  // into the next stage, so the "round complete" screen doesn't flash up for
+  // a transition that isn't actually ending the session).
   const wasRunningRef = useRef(false);
   useEffect(() => {
-    if (wasRunningRef.current && !running && !paused && scoring.session.questionsAnswered > 0) {
+    if (wasRunningRef.current && !running && !paused && scoring.session.questionsAnswered > 0 && !pendingAutoAdvance) {
       setGameEnded(true);
     }
     wasRunningRef.current = running;
-  }, [running, paused, scoring.session.questionsAnswered]);
+  }, [running, paused, scoring.session.questionsAnswered, pendingAutoAdvance]);
 
   const start = () => {
     unlockAudio();
@@ -206,6 +240,7 @@ export default function App() {
         onModeSelect={selector.onModeSelect}
         onFretRangeToggle={selector.onFretRangeToggle}
         onDifficultySelect={selector.onDifficultySelect}
+        onAutoAdvanceToggle={() => { if (selector.state.autoAdvance) playToggleOffSound(); else playToggleOnSound(); haptic.tap(); selector.onAutoAdvanceToggle(); }}
         isPlaying={gameActive}
         activeString={gameActive ? guitarString : undefined}
         activeFret={gameActive ? askedFret : undefined}

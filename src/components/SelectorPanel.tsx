@@ -9,6 +9,7 @@ interface SelectorPanelProps {
   onModeSelect: (mode: 'byNote' | 'byFret') => void;
   onFretRangeToggle: (half: 'lower' | 'upper') => void;
   onDifficultySelect: (diff: Difficulty) => void;
+  onAutoAdvanceToggle?: () => void;
   isPlaying: boolean;
   activeString?: number;
   activeFret?: number | null;
@@ -53,7 +54,7 @@ const DOT_FRETS = [3, 5, 7, 9, 12, 15, 17, 19, 21];
 
 export default function SelectorPanel({
   selector, onStringSelect, onMultiToggle, onModeSelect,
-  onFretRangeToggle, onDifficultySelect, isPlaying, activeString, activeFret,
+  onFretRangeToggle, onDifficultySelect, onAutoAdvanceToggle, isPlaying, activeString, activeFret,
   byString, order, onByStringToggle, onOrderChange, showStats, onStatsToggle, hasHistory,
 }: SelectorPanelProps) {
   const strings: { label: string; num: number }[] = [
@@ -236,6 +237,18 @@ export default function SelectorPanel({
         <button className={`diff-btn ${selector.difficulty === 'naturals' ? 'active' : ''}`} onClick={() => onDifficultySelect('naturals')}><span className="diff-icon">♮</span><span className="diff-label">Naturals</span></button>
         <span className="diff-arrow">→</span>
         <button className={`diff-btn ${selector.difficulty === 'full' ? 'active' : ''}`} onClick={() => onDifficultySelect('full')}><span className="diff-icon">♯♭</span><span className="diff-label">Full</span></button>
+        {/* Auto Advance: continue straight into the next difficulty when the current one is completed */}
+        {onAutoAdvanceToggle && (
+          <button
+            className={`stats-icon-btn ${selector.autoAdvance ? 'stats-icon-on' : ''}`}
+            onClick={onAutoAdvanceToggle}
+            title="Auto Advance to next difficulty"
+            aria-label="Auto Advance to next difficulty"
+            aria-pressed={selector.autoAdvance}
+          >
+            <svg viewBox="0 0 20 20" width="16" height="16"><polygon points="3,3 10,10 3,17" fill="currentColor"/><polygon points="10,3 17,10 10,17" fill="currentColor"/></svg>
+          </button>
+        )}
         {/* Stats dashboard icon */}
         {hasHistory && onStatsToggle && (
           <button className={`stats-icon-btn ${showStats ? 'stats-icon-on' : ''}`} onClick={onStatsToggle} title="Statistics">
