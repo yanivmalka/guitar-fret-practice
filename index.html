@@ -12,6 +12,33 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Desktop/web only: emulate the mobile viewport by rendering the
+      // app at a fixed phone size and uniformly scaling that frame to
+      // fit the window. Below the mobile breakpoint this is a no-op -
+      // the app fills the real screen exactly as before.
+      (function () {
+        var PHONE_W = 390;
+        var PHONE_H = 844;
+        var root = document.documentElement;
+        root.style.setProperty('--phone-w', PHONE_W + 'px');
+        root.style.setProperty('--phone-h', PHONE_H + 'px');
+        function updateScale() {
+          if (window.innerWidth < 601) {
+            root.style.setProperty('--phone-scale', 1);
+            return;
+          }
+          var scale = Math.min(
+            1,
+            (window.innerWidth - 24) / PHONE_W,
+            (window.innerHeight - 24) / PHONE_H
+          );
+          root.style.setProperty('--phone-scale', scale);
+        }
+        updateScale();
+        window.addEventListener('resize', updateScale);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

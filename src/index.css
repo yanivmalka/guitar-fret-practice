@@ -29,8 +29,12 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-/* On larger (desktop/tablet) screens, render the app inside a fixed
-   phone-sized frame centered on the page instead of stretching it. */
+/* On larger (desktop/tablet) screens, render the app at its native
+   mobile size (--phone-w/--phone-h, set in index.html) inside #root,
+   then uniformly scale that whole frame down to fit the window
+   (--phone-scale, computed in index.html on load/resize). This is a
+   pure visual zoom of the exact mobile layout - nothing reflows or
+   redesigns, so it can never clip or need its own scrollbar. */
 @media (min-width: 601px) {
   body {
     background: #0c0c18;
@@ -38,16 +42,24 @@ body {
     align-items: center;
     justify-content: center;
     height: 100vh;
+    overflow: hidden;
+  }
+
+  #root {
+    width: var(--phone-w, 390px);
+    height: var(--phone-h, 844px);
+    flex-shrink: 0;
+    transform: scale(var(--phone-scale, 1));
+    border-radius: 36px;
+    box-shadow: 0 0 0 8px #111122, 0 20px 60px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
   }
 
   .app {
     position: relative;
-    width: 420px;
-    max-width: 420px;
-    height: min(912px, 96vh);
-    border-radius: 36px;
-    box-shadow: 0 0 0 8px #111122, 0 20px 60px rgba(0, 0, 0, 0.6);
-    background: #1a1a2e;
+    width: var(--phone-w, 390px);
+    max-width: var(--phone-w, 390px);
+    height: var(--phone-h, 844px);
   }
 
   /* Keep full-screen overlays confined to the phone frame instead of
