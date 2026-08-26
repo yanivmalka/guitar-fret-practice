@@ -89,6 +89,7 @@ export function useGameEngine(
   const timerRef = useRef<number | null>(null);
   const countdownRef = useRef<number | null>(null);
   const runningRef = useRef(false);
+  const pausedRef = useRef(false);
   const countRef = useRef(0);
   const answeredRef = useRef(false);
   const lastNoteRef = useRef<string | null>(null);
@@ -421,6 +422,7 @@ export function useGameEngine(
     setRunning(true);
     setPaused(false);
     runningRef.current = true;
+    pausedRef.current = false;
     countRef.current = 0;
     coveragePoolRef.current = [];
     failedFretsRef.current = new Set();
@@ -444,6 +446,7 @@ export function useGameEngine(
     if (advanceTimeoutRef.current) { clearTimeout(advanceTimeoutRef.current); advanceTimeoutRef.current = null; }
     advanceMetaRef.current = null;
     runningRef.current = false;
+    pausedRef.current = false;
     answeredRef.current = true; // prevent any pending callbacks
     setRunning(false);
     setPaused(false);
@@ -464,6 +467,11 @@ export function useGameEngine(
   // score/history entry is ever written for a question that was neither
   // answered nor timed out, so nothing there needs undoing.
   const pause = useCallback(() => {
+    // Idempotent: repeated calls while already paused (e.g. several
+    // visibilitychange/pagehide/appStateChange firings before the user
+    // resumes) must not discard more than the one in-flight question.
+    if (pausedRef.current) return;
+    pausedRef.current = true;
     if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
     if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
     if (advanceTimeoutRef.current) { clearTimeout(advanceTimeoutRef.current); advanceTimeoutRef.current = null; }
@@ -489,6 +497,7 @@ export function useGameEngine(
   // Resume the session with a brand-new question, not the discarded one.
   const resume = useCallback(() => {
     runningRef.current = true;
+    pausedRef.current = false;
     setPaused(false);
     resumeAudioContext();
     if (byNote) nextByNote(); else next();
