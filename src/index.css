@@ -29,6 +29,38 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
+/* On larger (desktop/tablet) screens, render the app inside a fixed
+   phone-sized frame centered on the page instead of stretching it. */
+@media (min-width: 601px) {
+  body {
+    background: #0c0c18;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+  }
+
+  .app {
+    position: relative;
+    width: 420px;
+    max-width: 420px;
+    height: min(912px, 96vh);
+    border-radius: 36px;
+    box-shadow: 0 0 0 8px #111122, 0 20px 60px rgba(0, 0, 0, 0.6);
+    background: #1a1a2e;
+  }
+
+  /* Keep full-screen overlays confined to the phone frame instead of
+     covering the whole desktop viewport. */
+  .settings-overlay,
+  .burger-btn,
+  .onboarding,
+  .picker-overlay,
+  .countdown-overlay {
+    position: absolute;
+  }
+}
+
 h1 { font-size: 1.3rem; margin-bottom: 10px; }
 
 /* Settings floating overlay (burger menu) */
