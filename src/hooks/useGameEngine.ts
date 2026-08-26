@@ -65,7 +65,7 @@ export function useGameEngine(
   scoreOps: ScoreOps,
   callbacks: EngineCallbacks = {},
 ) {
-  const { guitarString, fretFrom, fretTo, wholeToneOnly, dotsOnly,
+  const { guitarString, fretFrom, fretTo, wholeToneOnly, dotsOnly, byNote,
           isMulti, activeStrings, time, accidental, order } = settings;
   const { onComplete } = callbacks;
   const { addEntry, markPlayed, resetSession } = historyOps;
@@ -92,7 +92,6 @@ export function useGameEngine(
   const countRef = useRef(0);
   const answeredRef = useRef(false);
   const lastNoteRef = useRef<string | null>(null);
-  const pausedTimeRef = useRef(0);
   const remainingFretsRef = useRef<number[]>([]);
   const askedFretRef = useRef<number>(0);
   const currentNoteRef = useRef<string | null>(null);
@@ -111,14 +110,9 @@ export function useGameEngine(
   const baseTimeRef = useRef(time);
   baseTimeRef.current = time;
   const questionTimeRef = useRef(time);
-  // Freeze/continue support: remembers what the active countdown or scheduled
-  // "advance to next question" call was doing at the moment of pause, so
-  // resume can pick up from exactly the same point instead of restarting.
   const timeoutCallbackRef = useRef<(() => void) | null>(null);
   const advanceTimeoutRef = useRef<number | null>(null);
   const advanceMetaRef = useRef<{ fn: () => void; start: number; delay: number } | null>(null);
-  const pausedAdvanceRef = useRef<{ fn: () => void; remainingMs: number } | null>(null);
-  const pauseStartRef = useRef(0);
 
   const scheduleAdvance = useCallback((fn: () => void, delay: number) => {
     if (advanceTimeoutRef.current) clearTimeout(advanceTimeoutRef.current);
@@ -449,7 +443,6 @@ export function useGameEngine(
     clearTimers();
     if (advanceTimeoutRef.current) { clearTimeout(advanceTimeoutRef.current); advanceTimeoutRef.current = null; }
     advanceMetaRef.current = null;
-    pausedAdvanceRef.current = null;
     runningRef.current = false;
     answeredRef.current = true; // prevent any pending callbacks
     setRunning(false);
@@ -465,45 +458,41 @@ export function useGameEngine(
     stopPlayback();
   }, []);
 
-  // Freeze the current stage exactly where it is: stop the active countdown
-  // (or the scheduled "advance to next question" call) and suspend audio,
-  // without touching any gameplay/UI state so the screen stays unchanged.
+  // Discard the in-progress question entirely, as if it were never asked:
+  // cancel its countdown/scheduled-advance so no timeout/answer callback can
+  // fire for it, and give back its slot in the asked-question budget. No
+  // score/history entry is ever written for a question that was neither
+  // answered nor timed out, so nothing there needs undoing.
   const pause = useCallback(() => {
     if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
     if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
-    if (advanceTimeoutRef.current) {
-      clearTimeout(advanceTimeoutRef.current);
-      advanceTimeoutRef.current = null;
-      const meta = advanceMetaRef.current;
-      if (meta) {
-        pausedAdvanceRef.current = { fn: meta.fn, remainingMs: Math.max(0, meta.delay - (Date.now() - meta.start)) };
-      }
-      advanceMetaRef.current = null;
-    }
-    pausedTimeRef.current = remaining;
-    pauseStartRef.current = Date.now();
+    if (advanceTimeoutRef.current) { clearTimeout(advanceTimeoutRef.current); advanceTimeoutRef.current = null; }
+    advanceMetaRef.current = null;
+    if (countRef.current > 0) countRef.current--;
     runningRef.current = false;
+    answeredRef.current = true;
     setPaused(true);
+    setFeedback('');
+    setCurrentFret(null);
+    setCurrentNote(null);
+    setAskedFret(null);
+    setCorrectCofNote(null);
+    setWrongCofNote(null);
+    setFoundFrets([]);
+    setWrongFret(null);
+    setRemainingFrets([]);
+    milestonePauseRef.current = false;
+    stopPlayback();
     pauseAudioContext();
-  }, [remaining]);
+  }, []);
 
-  // Continue from exactly the same point: resume audio and pick back up
-  // whichever was frozen — the countdown for the in-progress question, or
-  // the pending advance to the next one. Never starts a new question.
+  // Resume the session with a brand-new question, not the discarded one.
   const resume = useCallback(() => {
     runningRef.current = true;
     setPaused(false);
     resumeAudioContext();
-    const pauseDuration = pauseStartRef.current ? Date.now() - pauseStartRef.current : 0;
-    questionStartRef.current += pauseDuration;
-    if (pausedAdvanceRef.current) {
-      const { fn, remainingMs } = pausedAdvanceRef.current;
-      pausedAdvanceRef.current = null;
-      scheduleAdvance(fn, remainingMs);
-    } else if (!answeredRef.current && timeoutCallbackRef.current) {
-      startCountdown(pausedTimeRef.current, timeoutCallbackRef.current);
-    }
-  }, [scheduleAdvance]);
+    if (byNote) nextByNote(); else next();
+  }, [byNote, nextByNote, next]);
 
   return {
     // state

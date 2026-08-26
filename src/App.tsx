@@ -241,6 +241,11 @@ export default function App() {
       {!onboardingDone && (
         <Onboarding onDone={() => { setOnboardingDone(true); saveSetting('onboardingDone', true); }} />
       )}
+
+      {/* Pause: dim the entire app screen; .controls (Resume/Stop) sits
+          above this via z-index so it stays sharp and clickable in place. */}
+      {paused && <div className="pause-overlay" aria-hidden="true" />}
+
       <h1>🎸 Guitar Fret Practice</h1>
 
       <SelectorPanel
