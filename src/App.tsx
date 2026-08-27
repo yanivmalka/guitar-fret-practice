@@ -12,7 +12,7 @@ import { preloadAllSamples, unlockAudio } from './utils/audio';
 import { App as CapacitorApp } from '@capacitor/app';
 import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic } from './utils/feedback';
 import { loadSetting, saveSetting } from './utils/settings';
-import { useSelector, nextDifficulty } from './hooks/useSelector';
+import { useSelector, nextDifficulty, totalRunQuestions } from './hooks/useSelector';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useGameEngine } from './hooks/useGameEngine';
 import { useHistory } from './hooks/useHistory';
@@ -66,6 +66,10 @@ export default function App() {
     if (!selector.state.autoAdvance) return;
     const next = nextDifficulty(selector.state.difficulty);
     if (!next) return;
+    // Continuous run: carry score / streak / timing progression straight into
+    // the next stage. runStreak keeps counting across this boundary — the
+    // engine's next start() must NOT call scoring.beginRun (only manual Play
+    // does), so the single run-length ramp is preserved.
     selector.onDifficultySelect(next);
     setPendingAutoAdvance(true);
   }, [selector]);
@@ -101,7 +105,7 @@ export default function App() {
       onCorrect: scoring.onCorrect,
       onWrong: scoring.onWrong,
       onTimeout: scoring.onTimeout,
-      getStreak: scoring.getStreak,
+      getQuestionTime: scoring.getQuestionTime,
     },
     {
       onComplete: handleAutoComplete,
@@ -110,6 +114,7 @@ export default function App() {
   const {
     running, paused, currentFret, currentNote, askedFret, remaining, feedback,
     correctCofNote, wrongCofNote, answered, remainingFrets, foundFrets, wrongFret,
+    questionTime, questionStart, questionSeq,
     start: engineStart, stop, pause, resume, selectFret, selectAnswer,
   } = engine;
 
@@ -205,6 +210,13 @@ export default function App() {
     unlockAudio();
     if (!preloaded) { preloadAllSamples().then(() => setPreloaded(true)); setPreloaded(true); }
     scoring.reset();
+    // One continuous timing ramp for the whole run: from this difficulty's
+    // base down to the 3s floor across every question the run will ask
+    // (all Auto Advance stages, or just this one).
+    scoring.beginRun(
+      derivedSettings.time,
+      totalRunQuestions(selector.state.difficulty, selector.state.autoAdvance),
+    );
     setGameEnded(false);
     // Countdown 3-2-1
     setCountdown(3);
@@ -284,7 +296,7 @@ export default function App() {
                 ? <div className="note-display">{currentNote ? displayNote(currentNote, accidental, notation) : '—'}</div>
                 : <div className="fret-display">{currentFret !== null ? currentFret : '—'}</div>
               }
-              <SpeedBar remaining={remaining} total={derivedSettings.time} answered={answered} paused={paused} />
+              <SpeedBar key={questionSeq} remaining={remaining} total={questionTime} startAt={questionStart} answered={answered} paused={paused} />
               <div className="game-info-row">
                 <span className="game-timer">{remaining}s</span>
                 <span className="game-progress-text">{scoring.session.questionsAnswered}/{derivedSettings.maxQuestions}</span>

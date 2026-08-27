@@ -1,58 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
 
 interface Props {
-  remaining: number;  // seconds left (integer countdown)
-  total: number;      // total seconds for this question
+  remaining: number;  // seconds left (integer countdown), for the text label
+  total: number;      // exact time limit for this question (seconds)
+  startAt: number;    // wall-clock (ms) the question's countdown started at
   answered: boolean;  // freeze bar when answered
   paused?: boolean;   // freeze bar in place while paused
 }
 
-export default function SpeedBar({ remaining, total, answered, paused = false }: Props) {
+// The parent remounts this component (via a per-question `key`) for every
+// question and every "where else?" sub-round, so there is no cross-question
+// state to reset here: `startAt`/`total` are captured fresh at mount and the
+// bar spans exactly `total` seconds from exactly `startAt`. On resume the
+// engine starts a brand-new question, which remounts this too.
+export default function SpeedBar({ remaining, total, startAt, answered, paused = false }: Props) {
   const [elapsed, setElapsed] = useState(0);
   const rafRef = useRef<number | null>(null);
-  const startRef = useRef(Date.now());
-  const frozenRef = useRef(false);
-  const pausedAtRef = useRef(0);
+  const startRef = useRef(startAt);
 
-  // Reset on new question (remaining resets to total)
   useEffect(() => {
-    if (remaining === total && !answered) {
-      startRef.current = Date.now();
-      frozenRef.current = false;
-      setElapsed(0);
-    }
-  }, [remaining, total, answered]);
-
-  // Freeze on answer
-  useEffect(() => {
-    if (answered) {
-      frozenRef.current = true;
-    }
-  }, [answered]);
-
-  // Freeze in place on pause; on resume, shift the start time forward by the
-  // paused duration so the bar continues from the exact same visual position
-  // instead of jumping ahead by the time spent paused.
-  useEffect(() => {
-    if (paused) {
-      frozenRef.current = true;
-      pausedAtRef.current = Date.now();
-    } else if (pausedAtRef.current) {
-      const pauseDuration = Date.now() - pausedAtRef.current;
-      startRef.current += pauseDuration;
-      pausedAtRef.current = 0;
-      if (!answered) frozenRef.current = false;
-    }
-  }, [paused, answered]);
-
-  // Animate the bar smoothly — restarts when answered resets to false
-  useEffect(() => {
-    if (answered || paused) return; // don't animate while frozen
-    frozenRef.current = false;
+    if (answered || paused) return; // frozen — stop animating, keep last position
     const tick = () => {
-      if (frozenRef.current) return;
-      const now = Date.now();
-      const secs = (now - startRef.current) / 1000;
+      const secs = (Date.now() - startRef.current) / 1000;
       setElapsed(Math.min(secs, total));
       rafRef.current = requestAnimationFrame(tick);
     };

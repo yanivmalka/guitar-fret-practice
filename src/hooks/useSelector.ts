@@ -73,6 +73,20 @@ function getMaxQuestions(difficulty: Difficulty): number {
   }
 }
 
+// Total questions a run will ask. With Auto Advance on, that's every stage from
+// the current difficulty through the last one; otherwise just this stage. Used
+// to scale the continuous-run timing progression (see useScoring).
+export function totalRunQuestions(difficulty: Difficulty, autoAdvance: boolean): number {
+  if (!autoAdvance) return getMaxQuestions(difficulty);
+  let total = 0;
+  let d: Difficulty | null = difficulty;
+  while (d) {
+    total += getMaxQuestions(d);
+    d = nextDifficulty(d);
+  }
+  return total;
+}
+
 // ── Hook ─────────────────────────────────────────────────────────────────
 
 export function useSelector() {

@@ -2,7 +2,6 @@ import { useState, useRef, useCallback } from 'react';
 import { notes, getCofNotes, getCorrectCofNote, getValidFrets, notesMatch, displayNote } from '../utils/music';
 import type { AccidentalMode, OrderMode, HistoryEntry } from '../utils/music';
 import type { ScoreResult } from './useScoring';
-import { getQuestionTime } from './useScoring';
 import { playNote, playNoteSingle, stopPlayback, beep, isSoundPlaying, pauseAudioContext, resumeAudioContext } from '../utils/audio';
 import { haptic, playCorrectChime, celebrateTier1, celebrateTier2 } from '../utils/feedback';
 
@@ -46,7 +45,9 @@ interface ScoreOps {
   onCorrect: (elapsedSeconds: number, timeLimit: number) => ScoreResult;
   onWrong: () => void;
   onTimeout: () => void;
-  getStreak: () => number;
+  // Time limit (seconds) for the question about to be asked, given the current
+  // continuous-run progression. `baseTime` is the current difficulty's base.
+  getQuestionTime: (baseTime: number) => number;
 }
 
 interface EngineCallbacks {
@@ -69,7 +70,7 @@ export function useGameEngine(
           isMulti, activeStrings, time, accidental, order } = settings;
   const { onComplete } = callbacks;
   const { addEntry, markPlayed, resetSession } = historyOps;
-  const { onCorrect, onWrong, onTimeout, getStreak } = scoreOps;
+  const { onCorrect, onWrong, onTimeout, getQuestionTime } = scoreOps;
 
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -84,6 +85,14 @@ export function useGameEngine(
   const [remainingFrets, setRemainingFrets] = useState<number[]>([]);
   const [foundFrets, setFoundFrets] = useState<number[]>([]);
   const [wrongFret, setWrongFret] = useState<number | null>(null);
+  // Single source of truth for the SpeedBar. `questionTime` is the exact limit
+  // the current countdown runs on (matches questionTimeRef); `questionStart` is
+  // the wall-clock the countdown started at (matches questionStartRef);
+  // `questionSeq` increments once per countdown so the bar remounts cleanly for
+  // every question and every "where else?" sub-round.
+  const [questionTime, setQuestionTime] = useState(time);
+  const [questionStart, setQuestionStart] = useState(() => Date.now());
+  const [questionSeq, setQuestionSeq] = useState(0);
 
   // Refs that game-loop callbacks read directly (avoid stale closures)
   const timerRef = useRef<number | null>(null);
@@ -159,6 +168,16 @@ export function useGameEngine(
     timerRef.current = window.setTimeout(onTimeout, seconds * 1000);
   };
 
+  // Start a countdown AND publish its timing to the render layer in the same
+  // step, so the SpeedBar always spans exactly `seconds` from exactly the
+  // moment questionStartRef was stamped. Bumping questionSeq remounts the bar.
+  const beginCountdown = (seconds: number, onTimeout: () => void) => {
+    setQuestionTime(seconds);
+    setQuestionStart(questionStartRef.current);
+    setQuestionSeq(s => s + 1);
+    startCountdown(seconds, onTimeout);
+  };
+
   const pickSmartFret = useCallback((validFrets: number[], _strIdx: number): number => {
     if (validFrets.length === 0) return 0;
 
@@ -232,8 +251,8 @@ export function useGameEngine(
     questionStartRef.current = Date.now();
 
     // BUG FIX 1: use timeRef.current so countdown uses the correct time after switchStage
-    questionTimeRef.current = getQuestionTime(baseTimeRef.current, getStreak());
-    startCountdown(questionTimeRef.current, () => {
+    questionTimeRef.current = getQuestionTime(baseTimeRef.current);
+    beginCountdown(questionTimeRef.current, () => {
       if (answeredRef.current || sessionRef.current !== mySession) return;
       answeredRef.current = true;
       setAnswered(true);
@@ -245,7 +264,7 @@ export function useGameEngine(
       playNoteSingle(qString, askedFretRef.current);
       scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
     });
-  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, onComplete, getStreak]);
+  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, onComplete, getQuestionTime]);
 
   // ── SELECT FRET (by note mode) ────────────────────────────────
   const selectFret = useCallback((selectedFret: number) => {
@@ -286,7 +305,7 @@ export function useGameEngine(
           answeredRef.current = false;
           setAnswered(false);
           questionStartRef.current = Date.now();
-          startCountdown(questionTimeRef.current, () => {
+          beginCountdown(questionTimeRef.current, () => {
             if (answeredRef.current || sessionRef.current !== mySession) return;
             answeredRef.current = true;
             setAnswered(true);
@@ -356,8 +375,8 @@ export function useGameEngine(
     questionStartRef.current = Date.now();
     playNote(qString, fret);
 
-    questionTimeRef.current = getQuestionTime(baseTimeRef.current, getStreak());
-    startCountdown(questionTimeRef.current, () => {
+    questionTimeRef.current = getQuestionTime(baseTimeRef.current);
+    beginCountdown(questionTimeRef.current, () => {
       if (answeredRef.current || sessionRef.current !== mySession) return;
       answeredRef.current = true;
       setAnswered(true);
@@ -371,7 +390,7 @@ export function useGameEngine(
       setFeedback(`⏱ ${displayNote(correctNote, accidental)} (Fret ${fret})`);
       scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) next(); }, 1500);
     });
-  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, accidental, order, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, onComplete, getStreak]);
+  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, accidental, order, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, onComplete, getQuestionTime]);
 
   const selectAnswer = useCallback((selectedNote: string) => {
     if (!runningRef.current || paused || answeredRef.current || currentFret === null) return;
@@ -419,6 +438,7 @@ export function useGameEngine(
     maxQuestionsRef.current = maxQ;
     baseTimeRef.current = currentTime;
     questionTimeRef.current = currentTime;
+    setQuestionTime(currentTime);
     setRunning(true);
     setPaused(false);
     runningRef.current = true;
@@ -507,6 +527,7 @@ export function useGameEngine(
     // state
     running, paused, currentFret, currentNote, askedFret, remaining, feedback,
     correctCofNote, wrongCofNote, answered, remainingFrets, foundFrets, wrongFret,
+    questionTime, questionStart, questionSeq,
     // actions
     start, stop, pause, resume, selectFret, selectAnswer,
   };
