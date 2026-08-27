@@ -23,6 +23,9 @@ const STRING_DISPLAY: Record<number, string> = {
   4: 'String 4 · D', 5: 'String 5 · A', 6: 'String 6 · low E',
 };
 
+// Uppercase display name for the Auto Advance stage-transition banner.
+const STAGE_NAME: Record<string, string> = { dots: 'DOTS', naturals: 'NATURALS', full: 'FULL' };
+
 export default function App() {
   const selector = useSelector();
   const { derivedSettings } = selector;
@@ -62,10 +65,18 @@ export default function App() {
   // (below) sees pendingAutoAdvance already true at that same render and
   // skips showing the "round complete" screen for this transition.
   const [pendingAutoAdvance, setPendingAutoAdvance] = useState(false);
+  // Data for the brief Auto Advance stage-transition banner (null = not shown).
+  const [stageTransition, setStageTransition] = useState<{ name: string; from: number; to: number } | null>(null);
+  // Mirror of the *current* stage's question count, read at the moment a stage
+  // completes (before the difficulty bump re-renders) to show "15 → 20".
+  const stageMaxQRef = useRef(derivedSettings.maxQuestions);
+  stageMaxQRef.current = derivedSettings.maxQuestions;
+  const autoAdvanceFromRef = useRef(0);
   const handleAutoComplete = useCallback(() => {
     if (!selector.state.autoAdvance) return;
     const next = nextDifficulty(selector.state.difficulty);
     if (!next) return;
+    autoAdvanceFromRef.current = stageMaxQRef.current;
     // Continuous run: carry score / streak / timing progression straight into
     // the next stage. runStreak keeps counting across this boundary — the
     // engine's next start() must NOT call scoring.beginRun (only manual Play
@@ -118,20 +129,61 @@ export default function App() {
     start: engineStart, stop, pause, resume, selectFret, selectAnswer,
   } = engine;
 
-  // Runs right after the difficulty bump above has re-rendered (so
-  // derivedSettings already reflects the new stage) and before the browser
-  // paints, so there's no visible flash of the idle/selector screen between
-  // stages — score/streak/session are untouched since this calls the
-  // engine's own start(), not App's start() (which would reset scoring).
+  // Latest-value mirror so the Auto Advance effect below can depend ONLY on
+  // `pendingAutoAdvance`. `engineStart` (and the objects it closes over) get a
+  // fresh identity on every render, so listing it as a dep would re-run the
+  // effect mid-hold and restart the timer forever.
+  const autoAdvanceLatestRef = useRef({ engineStart, derivedSettings, difficulty: selector.state.difficulty });
+  autoAdvanceLatestRef.current = { engineStart, derivedSettings, difficulty: selector.state.difficulty };
+
+  // On an Auto Advance boundary: show the "STAGE COMPLETE / <NAME>" banner,
+  // hold briefly, then start the next stage exactly the way it started before —
+  // same engineStart, same per-question countdown, no 3-2-1. No scoring/streak/
+  // multiplier/timing state is touched here; this only delays *when* the first
+  // question of the new stage is asked (~1s, or ~0.55s under reduced-motion).
+  // `pendingAutoAdvance` stays true for the whole hold so the "round complete"
+  // screen stays suppressed and the game screen stays mounted (see gameActive).
   useLayoutEffect(() => {
     if (!pendingAutoAdvance) return;
+    const reduced = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const { difficulty, derivedSettings: ds } = autoAdvanceLatestRef.current;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPendingAutoAdvance(false);
-    engineStart(derivedSettings.maxQuestions, derivedSettings.time, derivedSettings.byNote);
-  }, [pendingAutoAdvance, derivedSettings, engineStart]);
+    setStageTransition({
+      name: STAGE_NAME[difficulty] ?? '',
+      from: autoAdvanceFromRef.current,
+      to: ds.maxQuestions,
+    });
+    const id = window.setTimeout(() => {
+      const l = autoAdvanceLatestRef.current;
+      setStageTransition(null);
+      setPendingAutoAdvance(false);
+      l.engineStart(l.derivedSettings.maxQuestions, l.derivedSettings.time, l.derivedSettings.byNote);
+    }, reduced ? 550 : 1000);
+    return () => window.clearTimeout(id);
+  }, [pendingAutoAdvance]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (!paused) setGuitarString(derivedSettings.guitarString); }, [derivedSettings.guitarString, paused]);
+
+  // Subtle in-place transition when the question changes. Animates the single
+  // existing .note-display / .fret-display node via the Web Animations API — no
+  // React remount, so there is never more than one element and the layout box
+  // never grows or shifts. Transform/opacity only; direction-agnostic (works in
+  // LTR and RTL). questionSeq bumps once per question (incl. Auto Advance).
+  const questionDisplayRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (questionSeq === 0) return;
+    const el = questionDisplayRef.current;
+    if (!el || typeof el.animate !== 'function') return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    el.animate(
+      [
+        { transform: 'translateY(4px) scale(0.96)', opacity: 0.35 },
+        { transform: 'translateY(0) scale(1)', opacity: 1 },
+      ],
+      { duration: 130, easing: 'ease-out' },
+    );
+  }, [questionSeq]);
 
   // Settings changed while actively playing invalidate the session, so stop it.
   // While paused, just remember the new settings — they're picked up on resume
@@ -185,7 +237,10 @@ export default function App() {
   const isStopped = !running && !paused;
   // The game screen (question, grid/circle, selector-mini) stays visible and
   // frozen while paused, not just while actively running.
-  const gameActive = running || paused;
+  // Also "active" during the brief Auto Advance banner: `running` is momentarily
+  // false between stages, but the game screen must stay mounted (frozen on the
+  // last question) so the transition never collapses the layout.
+  const gameActive = running || paused || pendingAutoAdvance;
 
   const click = <T,>(fn: () => T) => () => { playClickSound(); haptic.tap(); return fn(); };
 
@@ -288,13 +343,24 @@ export default function App() {
       )}
 
       <div className="game-row" ref={gameRowRef}>
+        {stageTransition && (
+          <div className="stage-transition" role="status" aria-live="polite">
+            <div className="stage-transition-label">STAGE COMPLETE</div>
+            <div className="stage-transition-name">{stageTransition.name}</div>
+            {stageTransition.from !== stageTransition.to && (
+              <div className="stage-transition-progress" dir="ltr">
+                {stageTransition.from} → {stageTransition.to} QUESTIONS
+              </div>
+            )}
+          </div>
+        )}
         <div className="question-col">
           {gameActive && (
             <>
               <div className="string-label" key={guitarString}>{STRING_DISPLAY[guitarString]}</div>
               {derivedSettings.byNote
-                ? <div className="note-display">{currentNote ? displayNote(currentNote, accidental, notation) : '—'}</div>
-                : <div className="fret-display">{currentFret !== null ? currentFret : '—'}</div>
+                ? <div className={`note-display${stageTransition ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>{currentNote ? displayNote(currentNote, accidental, notation) : '—'}</div>
+                : <div className={`fret-display${stageTransition ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>{currentFret !== null ? currentFret : '—'}</div>
               }
               <SpeedBar key={questionSeq} remaining={remaining} total={questionTime} startAt={questionStart} answered={answered} paused={paused} />
               <div className="game-info-row">
