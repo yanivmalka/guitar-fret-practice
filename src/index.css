@@ -29,9 +29,6 @@ body {
   overflow-x: hidden;
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
-  outline: 1px solid rgba(255, 215, 0, 0.2);
-  outline-offset: -1px;
-  box-shadow: 0 0 14px rgba(255, 215, 0, 0.08);
 }
 
 /* On larger (desktop/tablet) screens, render the app at its native
