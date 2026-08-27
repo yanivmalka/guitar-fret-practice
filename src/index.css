@@ -29,6 +29,9 @@ body {
   overflow-x: hidden;
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
+  outline: 1px solid rgba(255, 215, 0, 0.2);
+  outline-offset: -1px;
+  box-shadow: 0 0 14px rgba(255, 215, 0, 0.08);
 }
 
 /* On larger (desktop/tablet) screens, render the app at its native
@@ -53,7 +56,7 @@ body {
     flex-shrink: 0;
     transform: scale(var(--phone-scale, 1));
     border-radius: 36px;
-    box-shadow: 0 0 0 8px #111122, 0 20px 60px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 0 0 8px #111122, 0 0 0 9.5px rgba(255, 215, 0, 0.5), 0 0 22px rgba(255, 215, 0, 0.14), 0 20px 60px rgba(0, 0, 0, 0.6);
     overflow: hidden;
   }
 
@@ -62,6 +65,8 @@ body {
     width: var(--phone-w, 390px);
     max-width: var(--phone-w, 390px);
     height: var(--phone-h, 844px);
+    outline: none;
+    box-shadow: none;
   }
 
   /* Keep full-screen overlays confined to the phone frame instead of
