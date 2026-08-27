@@ -29,6 +29,9 @@ body {
   overflow-x: hidden;
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
+  outline: 1.5px solid rgba(255, 215, 0, 0.55);
+  outline-offset: -1.5px;
+  box-shadow: 0 0 24px rgba(255, 215, 0, 0.28);
 }
 
 /* On larger (desktop/tablet) screens, render the app at its native
@@ -53,7 +56,7 @@ body {
     flex-shrink: 0;
     transform: scale(var(--phone-scale, 1));
     border-radius: 36px;
-    box-shadow: 0 0 0 8px #111122, 0 20px 60px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 0 0 8px #111122, 0 0 0 10px rgba(255, 215, 0, 0.65), 0 0 30px 4px rgba(255, 215, 0, 0.28), 0 20px 60px rgba(0, 0, 0, 0.6);
     overflow: hidden;
   }
 
@@ -62,6 +65,8 @@ body {
     width: var(--phone-w, 390px);
     max-width: var(--phone-w, 390px);
     height: var(--phone-h, 844px);
+    outline: none;
+    box-shadow: none;
   }
 
   /* Keep full-screen overlays confined to the phone frame instead of
@@ -161,7 +166,7 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 }
 .question-col { display: flex; flex-direction: column; align-items: center; min-width: 200px; }
 
-.fret-display { font-size: 4rem; color: #0ff; line-height: 1; }
+.fret-display { font-size: 4rem; color: #0ff; line-height: 1; text-shadow: 0 0 16px rgba(0, 255, 255, 0.5); }
 .countdown { font-size: 1.5rem; color: #ff0; height: 2rem; }
 
 /* Speed bar */
@@ -300,6 +305,7 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   border: 2px solid #0ff; background: transparent;
   color: #0ff; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 18px 3px rgba(0, 255, 255, 0.4);
   transition: all 0.2s;
 }
 .icon-btn:active { transform: scale(0.9); }
@@ -450,7 +456,7 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 }
 
 /* By Note mode */
-.note-display { font-size: 4rem; color: #0ff; line-height: 1; }
+.note-display { font-size: 4rem; color: #0ff; line-height: 1; text-shadow: 0 0 16px rgba(0, 255, 255, 0.5); }
 
 .fret-grid {
   display: grid;
@@ -675,6 +681,7 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   letter-spacing: 1px;
   margin-bottom: 2px;
   text-transform: uppercase;
+  text-shadow: 0 0 12px rgba(0, 255, 255, 0.45);
   animation: string-bounce 0.35s ease-out;
 }
 @keyframes string-bounce {
@@ -1301,6 +1308,7 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   font-size: 6rem;
   font-weight: 900;
   color: #0ff;
+  text-shadow: 0 0 26px rgba(0, 255, 255, 0.55);
   animation: countdown-pop 0.6s ease-out;
 }
 @keyframes countdown-pop {
@@ -1341,6 +1349,7 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   letter-spacing: 1px;
   line-height: 1;
   color: #0ff;
+  text-shadow: 0 0 16px rgba(0, 255, 255, 0.5);
 }
 .stage-transition-progress {
   font-size: 0.8rem;
