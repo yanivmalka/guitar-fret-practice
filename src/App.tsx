@@ -114,7 +114,7 @@ export default function App() {
   const {
     running, paused, currentFret, currentNote, askedFret, remaining, feedback,
     correctCofNote, wrongCofNote, answered, remainingFrets, foundFrets, wrongFret,
-    questionTime, questionStart, questionSeq,
+    questionTime, questionStart, questionSeq, questionNumber,
     start: engineStart, stop, pause, resume, selectFret, selectAnswer,
   } = engine;
 
@@ -299,7 +299,7 @@ export default function App() {
               <SpeedBar key={questionSeq} remaining={remaining} total={questionTime} startAt={questionStart} answered={answered} paused={paused} />
               <div className="game-info-row">
                 <span className="game-timer">{remaining}s</span>
-                <span className="game-progress-text">{scoring.session.questionsAnswered}/{derivedSettings.maxQuestions}</span>
+                <span className="game-progress-text">{questionNumber}/{derivedSettings.maxQuestions}</span>
                 {multiplierIcon && <span className="multiplier-icon">{multiplierIcon}</span>}
               </div>
               <div id="live-score" className="score-live">

@@ -93,6 +93,11 @@ export function useGameEngine(
   const [questionTime, setQuestionTime] = useState(time);
   const [questionStart, setQuestionStart] = useState(() => Date.now());
   const [questionSeq, setQuestionSeq] = useState(0);
+  // Per-stage question number (1-based) for the progress display. Mirrors
+  // countRef, which is reset for every stage in start(); unlike the
+  // continuous-run counters in useScoring it goes back to 0 at each Auto
+  // Advance boundary.
+  const [questionNumber, setQuestionNumber] = useState(0);
 
   // Refs that game-loop callbacks read directly (avoid stale closures)
   const timerRef = useRef<number | null>(null);
@@ -221,6 +226,7 @@ export function useGameEngine(
     }
     const mySession = sessionRef.current;
     countRef.current++;
+    setQuestionNumber(countRef.current);
     setAnswered(false);
     answeredRef.current = false;
     setFeedback('');
@@ -353,6 +359,7 @@ export function useGameEngine(
     }
     const mySession = sessionRef.current;
     countRef.current++;
+    setQuestionNumber(countRef.current);
     setAnswered(false);
     answeredRef.current = false;
     setFeedback('');
@@ -444,6 +451,7 @@ export function useGameEngine(
     runningRef.current = true;
     pausedRef.current = false;
     countRef.current = 0;
+    setQuestionNumber(0);
     coveragePoolRef.current = [];
     failedFretsRef.current = new Set();
     resetSession();
@@ -497,6 +505,7 @@ export function useGameEngine(
     if (advanceTimeoutRef.current) { clearTimeout(advanceTimeoutRef.current); advanceTimeoutRef.current = null; }
     advanceMetaRef.current = null;
     if (countRef.current > 0) countRef.current--;
+    setQuestionNumber(countRef.current);
     runningRef.current = false;
     answeredRef.current = true;
     setPaused(true);
@@ -527,7 +536,7 @@ export function useGameEngine(
     // state
     running, paused, currentFret, currentNote, askedFret, remaining, feedback,
     correctCofNote, wrongCofNote, answered, remainingFrets, foundFrets, wrongFret,
-    questionTime, questionStart, questionSeq,
+    questionTime, questionStart, questionSeq, questionNumber,
     // actions
     start, stop, pause, resume, selectFret, selectAnswer,
   };
