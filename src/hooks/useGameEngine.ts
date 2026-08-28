@@ -125,6 +125,12 @@ export function useGameEngine(
   const baseTimeRef = useRef(time);
   baseTimeRef.current = time;
   const questionTimeRef = useRef(time);
+  // Note playback speed scales proportionally with how far the continuous
+  // timing ramp has compressed the current question: rate = base / current.
+  // At the original/base question time this is 1×. This only affects audio
+  // playback rate — timing, scoring, streaks and Auto Advance are untouched.
+  const questionPlaybackRate = () =>
+    questionTimeRef.current > 0 ? baseTimeRef.current / questionTimeRef.current : 1;
   const timeoutCallbackRef = useRef<(() => void) | null>(null);
   const advanceTimeoutRef = useRef<number | null>(null);
   const advanceMetaRef = useRef<{ fn: () => void; start: number; delay: number } | null>(null);
@@ -253,11 +259,11 @@ export function useGameEngine(
     setCurrentFret(null);
     setAskedFret(fret);
 
-    playNote(qString, fret);
     questionStartRef.current = Date.now();
 
     // BUG FIX 1: use timeRef.current so countdown uses the correct time after switchStage
     questionTimeRef.current = getQuestionTime(baseTimeRef.current);
+    playNote(qString, fret, questionPlaybackRate());
     beginCountdown(questionTimeRef.current, () => {
       if (answeredRef.current || sessionRef.current !== mySession) return;
       answeredRef.current = true;
@@ -267,7 +273,7 @@ export function useGameEngine(
       const elapsed = (Date.now() - questionStartRef.current) / 1000;
       addEntry({ note, fret: askedFretRef.current, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null });
       setFeedback(`⏱ Frets: ${remainingFretsRef.current.join(', ')}`);
-      playNoteSingle(qString, askedFretRef.current);
+      playNoteSingle(qString, askedFretRef.current, questionPlaybackRate());
       scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
     });
   }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, onComplete, getQuestionTime]);
@@ -320,7 +326,7 @@ export function useGameEngine(
             const elapsed2 = (Date.now() - questionStartRef.current) / 1000;
             addEntry({ note, fret: remainingFretsRef.current[0], string: qString, seconds: Math.round(elapsed2 * 10) / 10, skipped: true, correct: null });
             setFeedback(`⏱ Also on: ${remainingFretsRef.current.join(', ')}`);
-            playNoteSingle(qString, remainingFretsRef.current[0]);
+            playNoteSingle(qString, remainingFretsRef.current[0], questionPlaybackRate());
             scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
           });
         };
@@ -380,9 +386,9 @@ export function useGameEngine(
     setAskedFret(fret);
     currentNoteRef.current = null;
     questionStartRef.current = Date.now();
-    playNote(qString, fret);
 
     questionTimeRef.current = getQuestionTime(baseTimeRef.current);
+    playNote(qString, fret, questionPlaybackRate());
     beginCountdown(questionTimeRef.current, () => {
       if (answeredRef.current || sessionRef.current !== mySession) return;
       answeredRef.current = true;

@@ -53,7 +53,7 @@ export function isSoundPlaying(): boolean {
   return Date.now() < soundEndTime;
 }
 
-export async function playNote(stringNum: number, fret: number) {
+export async function playNote(stringNum: number, fret: number, rate = 1) {
   stopPlayback();
   const ctx = getCtx();
   if (ctx.state === 'suspended') await ctx.resume();
@@ -64,6 +64,7 @@ export async function playNote(stringNum: number, fret: number) {
     const src = ctx.createBufferSource();
     const gain = ctx.createGain();
     src.buffer = buffer;
+    src.playbackRate.value = rate;
     src.connect(gain);
     gain.connect(ctx.destination);
     const dur = i < 2 ? 0.4 : 0.8;
@@ -90,7 +91,7 @@ export function beep() {
   osc.stop(ctx.currentTime + 0.1);
 }
 
-export async function playNoteSingle(stringNum: number, fret: number) {
+export async function playNoteSingle(stringNum: number, fret: number, rate = 1) {
   stopPlayback();
   const ctx = getCtx();
   if (ctx.state === 'suspended') await ctx.resume();
@@ -100,6 +101,7 @@ export async function playNoteSingle(stringNum: number, fret: number) {
   const src = ctx.createBufferSource();
   const gain = ctx.createGain();
   src.buffer = buffer;
+  src.playbackRate.value = rate;
   src.connect(gain);
   gain.connect(ctx.destination);
   gain.gain.setValueAtTime(0.6, ctx.currentTime);
