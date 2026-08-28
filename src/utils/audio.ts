@@ -60,6 +60,10 @@ export async function playNote(stringNum: number, fret: number, rate = 1) {
   const midi = openMidi[stringNum - 1] + fret;
   const buffer = await loadSample(midi);
   if (!buffer) return;
+  // The whole triple-pluck event scales with `rate`: the sample plays faster
+  // (playbackRate) AND the grain offsets / envelope durations compress by the
+  // same 1/rate factor, so a faster question compresses the entire note event
+  // rather than only shifting its pitch.
   [0, 0.4, 0.8].forEach((t, i) => {
     const src = ctx.createBufferSource();
     const gain = ctx.createGain();
@@ -67,14 +71,15 @@ export async function playNote(stringNum: number, fret: number, rate = 1) {
     src.playbackRate.value = rate;
     src.connect(gain);
     gain.connect(ctx.destination);
-    const dur = i < 2 ? 0.4 : 0.8;
-    gain.gain.setValueAtTime(0.7, ctx.currentTime + t);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + t + dur);
-    src.start(ctx.currentTime + t);
-    src.stop(ctx.currentTime + t + dur);
+    const offset = t / rate;
+    const dur = (i < 2 ? 0.4 : 0.8) / rate;
+    gain.gain.setValueAtTime(0.7, ctx.currentTime + offset);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + offset + dur);
+    src.start(ctx.currentTime + offset);
+    src.stop(ctx.currentTime + offset + dur);
     activeSources.push(src);
   });
-  soundEndTime = Date.now() + 1600;
+  soundEndTime = Date.now() + 1600 / rate;
 }
 
 export function beep() {
