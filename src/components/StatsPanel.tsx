@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import type { HistoryEntry, AccidentalMode, NotationMode } from '../utils/music';
 import { displayNote } from '../utils/music';
+import { playClickSound, haptic } from '../utils/feedback';
+import { loadBest, saveBest } from '../utils/personalBest';
 
 interface Props {
   history: HistoryEntry[];
@@ -72,22 +74,13 @@ function GroupSection({ title, cls, items, filter, accidental, notation }: {
   );
 }
 
-// Personal best stored per historyKey
-function loadBest(key: string): { score: number; streak: number; accuracy: number } | null {
-  try {
-    const raw = localStorage.getItem(`best_${key}`);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
-}
-
-function saveBest(key: string, data: { score: number; streak: number; accuracy: number }) {
-  localStorage.setItem(`best_${key}`, JSON.stringify(data));
-}
-
 export default function StatsPanel({ history, maxTime: _maxTime, accidental, notation, sessionScore, longestStreak, historyKey: hKey, onClear }: Props) {
   const [topTab, setTopTab] = useState<TopTab>('score');
   const [tab, setTab] = useState<MainTab>('notes');
   const [filter, setFilter] = useState<Filter>('all');
+
+  // Same click feedback wrapper used across the app (sound + haptic).
+  const click = (fn: () => void) => () => { playClickSound(); haptic.tap(); fn(); };
 
   const total = history.length;
   const correct = history.filter(h => h.correct === true).length;
@@ -180,14 +173,14 @@ export default function StatsPanel({ history, maxTime: _maxTime, accidental, not
     <div className="stats-panel">
       {/* Top-level tabs: Score / Details */}
       <div className="stats-tabs">
-        <button className={`stats-tab ${topTab === 'score' ? 'stats-tab-active' : ''}`} onClick={() => setTopTab('score')}>Score</button>
-        <button className={`stats-tab ${topTab === 'details' ? 'stats-tab-active' : ''}`} onClick={() => setTopTab('details')}>Details</button>
+        <button className={`stats-tab ${topTab === 'score' ? 'stats-tab-active' : ''}`} onClick={click(() => setTopTab('score'))}>Score</button>
+        <button className={`stats-tab ${topTab === 'details' ? 'stats-tab-active' : ''}`} onClick={click(() => setTopTab('details'))}>Details</button>
       </div>
 
       {/* Clear history + accuracy header */}
       <div className="stats-header-row">
         <span className="score">{accuracy}% <span className="score-detail">({correct}/{total})</span></span>
-        {onClear && <button className="stats-clear-history" onClick={onClear}>Clear History ✕</button>}
+        {onClear && <button className="stats-clear-history" onClick={click(onClear)}>Clear History ✕</button>}
       </div>
 
       {topTab === 'score' && (
@@ -248,13 +241,13 @@ export default function StatsPanel({ history, maxTime: _maxTime, accidental, not
 
           {/* Sub tabs: Notes / Strings */}
           <div className="stats-tabs">
-            <button className={`stats-tab ${tab === 'notes' ? 'stats-tab-active' : ''}`} onClick={() => setTab('notes')}>By Note</button>
-            <button className={`stats-tab ${tab === 'strings' ? 'stats-tab-active' : ''}`} onClick={() => setTab('strings')}>By String</button>
+            <button className={`stats-tab ${tab === 'notes' ? 'stats-tab-active' : ''}`} onClick={click(() => setTab('notes'))}>By Note</button>
+            <button className={`stats-tab ${tab === 'strings' ? 'stats-tab-active' : ''}`} onClick={click(() => setTab('strings'))}>By String</button>
           </div>
 
           <div className="filter-row">
             {(['all', 'correct', 'wrong', 'timeout'] as Filter[]).map(f => (
-              <button key={f} className={`filter-chip ${filter === f ? 'filter-active' : ''}`} onClick={() => setFilter(filter === f && f !== 'all' ? 'all' : f)}>
+              <button key={f} className={`filter-chip ${filter === f ? 'filter-active' : ''}`} onClick={click(() => setFilter(filter === f && f !== 'all' ? 'all' : f))}>
                 {f === 'all' ? `All (${total})` : f === 'correct' ? `✓ ${correct}` : f === 'wrong' ? `✗ ${wrong}` : `⏱ ${timedOut}`}
               </button>
             ))}

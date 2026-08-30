@@ -1,5 +1,5 @@
 import type { SelectorState, Difficulty } from '../hooks/useSelector';
-import type { OrderMode } from '../utils/music';
+import type { OrderMode, NotationMode } from '../utils/music';
 import { playClickSound, playToggleOnSound, playToggleOffSound } from '../utils/feedback';
 
 interface SelectorPanelProps {
@@ -17,6 +17,8 @@ interface SelectorPanelProps {
   order?: OrderMode;
   onByStringToggle?: () => void;
   onOrderChange?: (o: OrderMode) => void;
+  notation?: NotationMode;
+  onNotationChange?: (n: NotationMode) => void;
   showStats?: boolean;
   onStatsToggle?: () => void;
   hasHistory?: boolean;
@@ -55,7 +57,8 @@ const DOT_FRETS = [3, 5, 7, 9, 12, 15, 17, 19, 21];
 export default function SelectorPanel({
   selector, onStringSelect, onMultiToggle, onModeSelect,
   onFretRangeToggle, onDifficultySelect, onAutoAdvanceToggle, isPlaying, activeString, activeFret,
-  byString, order, onByStringToggle, onOrderChange, showStats, onStatsToggle, hasHistory,
+  byString, order, onByStringToggle, onOrderChange, notation, onNotationChange,
+  showStats, onStatsToggle, hasHistory,
 }: SelectorPanelProps) {
   const strings: { label: string; num: number }[] = [
     { label: 'E', num: 6 }, { label: 'A', num: 5 }, { label: 'D', num: 4 },
@@ -91,7 +94,7 @@ export default function SelectorPanel({
               return <line key={`str${i}`} x1={fbLeft} y1={y} x2={NECK_RIGHT} y2={y} stroke="#cba" strokeWidth={thickness} opacity="0.5" />;
             })}
             {activeString != null && (
-              <line x1={fbLeft} y1={FB_TOP + 5 + (6 - activeString) * (FB_HEIGHT - 10) / 5} x2={NECK_RIGHT} y2={FB_TOP + 5 + (6 - activeString) * (FB_HEIGHT - 10) / 5} stroke="#0ff" strokeWidth="1.8" opacity="0.9" />
+              <line key={activeString} className="mini-neck-active-string" x1={fbLeft} y1={FB_TOP + 5 + (6 - activeString) * (FB_HEIGHT - 10) / 5} x2={NECK_RIGHT} y2={FB_TOP + 5 + (6 - activeString) * (FB_HEIGHT - 10) / 5} stroke="#0ff" strokeWidth="1.8" opacity="0.9" />
             )}
             {Array.from({ length: 21 }, (_, i) => i + 1).map((f) => (
               <line key={f} x1={fretX(f)} y1={FB_TOP} x2={fretX(f)} y2={FB_BOTTOM} stroke="#999" strokeWidth="1" />
@@ -256,6 +259,21 @@ export default function SelectorPanel({
           </button>
         )}
       </div>
+
+      {/* ── Note names (A-B-C / solfège) ──────────────────── */}
+      {onNotationChange && (
+        <div className="notation-row">
+          <span className="notation-label">Notes</span>
+          <button
+            className={`order-chip${notation === 'alpha' ? ' order-chip-active' : ''}`}
+            onClick={() => onNotationChange('alpha')}
+          >A B C</button>
+          <button
+            className={`order-chip${notation === 'solfege' ? ' order-chip-active' : ''}`}
+            onClick={() => onNotationChange('solfege')}
+          >Do Re Mi</button>
+        </div>
+      )}
     </div>
   );
 }

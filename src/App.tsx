@@ -10,8 +10,9 @@ import { displayNote } from './utils/music';
 import type { HistoryEntry, AccidentalMode, OrderMode, NotationMode } from './utils/music';
 import { preloadAllSamples, unlockAudio } from './utils/audio';
 import { App as CapacitorApp } from '@capacitor/app';
-import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic } from './utils/feedback';
+import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3 } from './utils/feedback';
 import { loadSetting, saveSetting } from './utils/settings';
+import { loadBest, saveBest } from './utils/personalBest';
 import { useSelector, nextDifficulty, totalRunQuestions } from './hooks/useSelector';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useGameEngine } from './hooks/useGameEngine';
@@ -32,7 +33,7 @@ export default function App() {
 
   const [guitarString, setGuitarString] = useState(derivedSettings.guitarString);
   const [byString, setByString] = useState(() => loadSetting('pref_byString', true));
-  const [notation] = useState<NotationMode>(() => loadSetting('pref_notation', 'alpha'));
+  const [notation, setNotation] = useState<NotationMode>(() => loadSetting('pref_notation', 'alpha'));
   const [order, setOrder] = useState<OrderMode>(() => loadSetting('pref_order', 'fifths'));
   const [accidental] = useState<AccidentalMode>(() => loadSetting('pref_accidental', 'sharps'));
 
@@ -229,9 +230,13 @@ export default function App() {
   const [preloaded, setPreloaded] = useState(false);
   const [onboardingDone, setOnboardingDone] = useState(() => loadSetting<boolean>('onboardingDone', false));
   const [showStats, setShowStats] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [gameEnded, setGameEnded] = useState(false);
   const gameRowRef = useRef<HTMLDivElement>(null);
+  // Guards the Tier 3 (new personal best) celebration so it fires at most once
+  // per completed run. Reset on every Play and whenever the selector combo changes.
+  const tier3FiredRef = useRef(false);
 
   const isPlaying = running && !paused;
   const isStopped = !running && !paused;
@@ -246,7 +251,30 @@ export default function App() {
 
   const hasHistory = historyOps.getEntriesForKey(histKey).length > 0;
 
-  useEffect(() => { setShowStats(false); setGameEnded(false); }, [histKey]);
+  // While actively playing the game stays clean and focused — the hamburger
+  // (and the stats shortcut) are only offered when stopped or paused.
+  const showBurger = !isPlaying && !pendingAutoAdvance && countdown === null;
+
+  useEffect(() => { setShowStats(false); setGameEnded(false); tier3FiredRef.current = false; }, [histKey]);
+
+  // Close the settings overlay with Escape (desktop / keyboard users).
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSettingsOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [settingsOpen]);
+
+  // Multi-string mode: a short haptic pulse when the drilled string changes
+  // between questions, reinforcing the visual string-change emphasis. Single-
+  // string rounds never switch string, so this only ever fires in Multi.
+  const activeStringRef = useRef(guitarString);
+  useEffect(() => {
+    if (gameActive && isMulti && activeStringRef.current !== guitarString) {
+      haptic.stageChange();
+    }
+    activeStringRef.current = guitarString;
+  }, [guitarString, gameActive, isMulti]);
 
   const sessionHistory = historyOps.history;
 
@@ -257,9 +285,25 @@ export default function App() {
   useEffect(() => {
     if (wasRunningRef.current && !running && !paused && scoring.session.questionsAnswered > 0 && !pendingAutoAdvance) {
       setGameEnded(true);
+
+      // Major achievement: a new personal-best score for this exact selector
+      // combination — the same per-historyKey `best_<key>` record StatsPanel
+      // maintains. Persist it here and fire the Tier 3 celebration once per run
+      // (tier3FiredRef also blocks a repeat if this effect re-runs).
+      const score = scoring.session.score;
+      const prevBest = loadBest(histKey);
+      if (!tier3FiredRef.current && score > 0 && score > (prevBest?.score ?? 0)) {
+        tier3FiredRef.current = true;
+        const hist = historyOps.history;
+        const total = hist.length;
+        const correctCount = hist.filter(h => h.correct === true).length;
+        const accuracy = total === 0 ? 0 : Math.round((correctCount / total) * 100);
+        saveBest(histKey, { score, streak: scoring.session.longestStreak, accuracy });
+        celebrateTier3(score, scoring.session.longestStreak);
+      }
     }
     wasRunningRef.current = running;
-  }, [running, paused, scoring.session.questionsAnswered, pendingAutoAdvance]);
+  }, [running, paused, pendingAutoAdvance, scoring.session.questionsAnswered, scoring.session.score, scoring.session.longestStreak, histKey, historyOps.history]);
 
   const start = () => {
     unlockAudio();
@@ -273,6 +317,7 @@ export default function App() {
       totalRunQuestions(selector.state.difficulty, selector.state.autoAdvance),
     );
     setGameEnded(false);
+    tier3FiredRef.current = false;
     // Countdown 3-2-1
     setCountdown(3);
     playStickClick();
@@ -303,6 +348,33 @@ export default function App() {
     ? `${'🔥'.repeat(multiplierFireCount)} ×${currentMultiplier}`
     : '';
 
+  // One definition of the settings panel, rendered in two places: the compact
+  // read-only HUD during play (panelPlaying = true) and the full editable panel
+  // inside the hamburger overlay (panelPlaying = false).
+  const renderSelectorPanel = (panelPlaying: boolean) => (
+    <SelectorPanel
+      selector={selector.state}
+      onStringSelect={selector.onStringSelect}
+      onMultiToggle={selector.onMultiToggle}
+      onModeSelect={selector.onModeSelect}
+      onFretRangeToggle={selector.onFretRangeToggle}
+      onDifficultySelect={selector.onDifficultySelect}
+      onAutoAdvanceToggle={() => { if (selector.state.autoAdvance) playToggleOffSound(); else playToggleOnSound(); haptic.tap(); selector.onAutoAdvanceToggle(); }}
+      isPlaying={panelPlaying}
+      activeString={gameActive ? guitarString : undefined}
+      activeFret={gameActive ? askedFret : undefined}
+      byString={byString}
+      order={order}
+      onByStringToggle={() => { byString ? playToggleOffSound() : playToggleOnSound(); haptic.tap(); const next = !byString; setByString(next); saveSetting('pref_byString', next); }}
+      onOrderChange={(o) => { playClickSound(); haptic.tap(); setOrder(o); saveSetting('pref_order', o); }}
+      notation={notation}
+      onNotationChange={(n) => { playClickSound(); haptic.tap(); setNotation(n); saveSetting('pref_notation', n); }}
+      showStats={showStats}
+      onStatsToggle={() => { playClickSound(); setShowStats(s => !s); }}
+      hasHistory={hasHistory}
+    />
+  );
+
   return (
     <div className="app">
       {!onboardingDone && (
@@ -313,27 +385,58 @@ export default function App() {
           above this via z-index so it stays sharp and clickable in place. */}
       {paused && <div className="pause-overlay" aria-hidden="true" />}
 
+      {/* Settings hamburger + stats shortcut — hidden while actively playing so
+          the game stays clean and focused. */}
+      {showBurger && (
+        <button
+          className="burger-btn"
+          onClick={click(() => setSettingsOpen(true))}
+          aria-label="Open settings"
+          aria-expanded={settingsOpen}
+          title="Settings"
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="2" rx="1" fill="currentColor" />
+            <rect x="3" y="11" width="18" height="2" rx="1" fill="currentColor" />
+            <rect x="3" y="17" width="18" height="2" rx="1" fill="currentColor" />
+          </svg>
+        </button>
+      )}
+      {showBurger && hasHistory && (
+        <button
+          className="burger-btn stats-burger-btn"
+          onClick={click(() => setShowStats(s => !s))}
+          aria-label="Toggle statistics"
+          aria-pressed={showStats}
+          title="Statistics"
+        >
+          <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+            <rect x="2" y="10" width="4" height="8" rx="1" fill="currentColor" />
+            <rect x="8" y="6" width="4" height="12" rx="1" fill="currentColor" />
+            <rect x="14" y="2" width="4" height="16" rx="1" fill="currentColor" />
+          </svg>
+        </button>
+      )}
+
       <h1>🎸 Guitar Fret Practice</h1>
 
-      <SelectorPanel
-        selector={selector.state}
-        onStringSelect={selector.onStringSelect}
-        onMultiToggle={selector.onMultiToggle}
-        onModeSelect={selector.onModeSelect}
-        onFretRangeToggle={selector.onFretRangeToggle}
-        onDifficultySelect={selector.onDifficultySelect}
-        onAutoAdvanceToggle={() => { if (selector.state.autoAdvance) playToggleOffSound(); else playToggleOnSound(); haptic.tap(); selector.onAutoAdvanceToggle(); }}
-        isPlaying={gameActive}
-        activeString={gameActive ? guitarString : undefined}
-        activeFret={gameActive ? askedFret : undefined}
-        byString={byString}
-        order={order}
-        onByStringToggle={() => { byString ? playToggleOffSound() : playToggleOnSound(); haptic.tap(); const next = !byString; setByString(next); saveSetting('pref_byString', next); }}
-        onOrderChange={(o) => { playClickSound(); haptic.tap(); setOrder(o); saveSetting('pref_order', o); }}
-        showStats={showStats}
-        onStatsToggle={() => { playClickSound(); setShowStats(s => !s); }}
-        hasHistory={hasHistory}
-      />
+      {/* Compact read-only HUD (fret neck + selection summary) during play. */}
+      {gameActive && renderSelectorPanel(true)}
+
+      {/* All game settings live here. Backdrop click or Escape dismisses. */}
+      {settingsOpen && (
+        <div className="settings-overlay" onClick={click(() => setSettingsOpen(false))}>
+          <div
+            className="settings-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Game settings"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {renderSelectorPanel(false)}
+          </div>
+        </div>
+      )}
 
       {/* Countdown overlay */}
       {countdown !== null && (
