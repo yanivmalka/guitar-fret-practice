@@ -106,11 +106,15 @@ export function playToggleOffSound() {
 }
 
 // Satisfying chime for correct answer (major triad: C5 + E5 + G5)
+const CHIME_STAGGER = 0.03; // gap between the three notes
+const CHIME_TAIL = 0.4;     // per-note ring-out
+let _chimeEndTime = 0;      // wall-clock ms when the chime has fully finished
+
 export function playCorrectChime() {
   const ctx = getCtx();
   if (!ctx) return;
   if (ctx.state === 'suspended') ctx.resume();
-  
+
   [523.25, 659.25, 783.99].forEach((freq, i) => {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -118,15 +122,21 @@ export function playCorrectChime() {
     osc.frequency.value = freq;
     osc.connect(gain);
     gain.connect(ctx.destination);
-    
-    const t = ctx.currentTime + i * 0.03; // Stagger 30ms
+
+    const t = ctx.currentTime + i * CHIME_STAGGER;
     gain.gain.setValueAtTime(0, t);
     gain.gain.linearRampToValueAtTime(0.15, t + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
-    
+    gain.gain.exponentialRampToValueAtTime(0.001, t + CHIME_TAIL);
+
     osc.start(t);
-    osc.stop(t + 0.4);
+    osc.stop(t + CHIME_TAIL);
   });
+  _chimeEndTime = Date.now() + Math.ceil((2 * CHIME_STAGGER + CHIME_TAIL) * 1000);
+}
+
+/** Milliseconds until the correct-answer chime has fully finished (0 if done). */
+export function correctChimeRemainingMs(): number {
+  return Math.max(0, _chimeEndTime - Date.now());
 }
 
 // Celebration overlay element

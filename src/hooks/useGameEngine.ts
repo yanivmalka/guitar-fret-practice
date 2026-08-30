@@ -3,7 +3,7 @@ import { notes, getCofNotes, getCorrectCofNote, getValidFrets, notesMatch, displ
 import type { AccidentalMode, OrderMode, HistoryEntry } from '../utils/music';
 import type { ScoreResult } from './useScoring';
 import { playNote, playNoteSingle, stopPlayback, beep, isSoundPlaying, pauseAudioContext, resumeAudioContext } from '../utils/audio';
-import { haptic, playCorrectChime, celebrateTier1, celebrateTier2 } from '../utils/feedback';
+import { haptic, playCorrectChime, correctChimeRemainingMs, celebrateTier1, celebrateTier2 } from '../utils/feedback';
 
 interface GameSettings {
   guitarString: number;
@@ -162,6 +162,14 @@ export function useGameEngine(
     return result;
   }, [onCorrect]);
 
+  // After a correct answer the success chime is still ringing. Defer the next
+  // question (and its note) until the chime's actual end time so the two never
+  // overlap — no fixed padding delay. Routed through scheduleAdvance so pause
+  // cancels it like any other pending advance.
+  const advanceAfterChime = useCallback((fn: () => void) => {
+    scheduleAdvance(fn, correctChimeRemainingMs());
+  }, [scheduleAdvance]);
+
   const clearTimers = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
     if (countdownRef.current) clearInterval(countdownRef.current);
@@ -302,11 +310,10 @@ export function useGameEngine(
         answeredRef.current = true;
         setAnswered(true);
         setFeedback('✓ All found!');
-        // Advance immediately — the score/milestone celebration (chime,
-        // floating text, rings/banner) plays independently on its own
-        // fixed, pointer-events:none overlay and never gates the next
-        // question.
-        if (runningRef.current && sessionRef.current === mySession) nextByNote();
+        // Visual celebration (floating text, rings/banner) plays independently
+        // on its own overlay, but the success chime must finish before the next
+        // question note so they don't overlap.
+        advanceAfterChime(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); });
       } else {
         clearTimers();
         setFeedback(`✓ Where else? (${newRem.length} more)`);
@@ -353,7 +360,7 @@ export function useGameEngine(
       setFeedback(`✗ Correct: ${rem.join(', ')}`);
       scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
     }
-  }, [paused, addEntry, nextByNote, onTimeout, onWrong, scoreCorrect, scheduleAdvance]);
+  }, [paused, addEntry, nextByNote, onTimeout, onWrong, scoreCorrect, scheduleAdvance, advanceAfterChime]);
 
   // ── BY FRET MODE ──────────────────────────────────────────────
   const next = useCallback(() => {
@@ -429,9 +436,9 @@ export function useGameEngine(
     setFeedback(isCorrect ? '✓ Correct!' : `✗ It was ${displayNote(correctNote, accidental)}`);
 
     if (isCorrect) {
-      // Advance immediately — the chime/score celebration plays independently
-      // on its own fixed, pointer-events:none overlay and never gates this.
-      if (runningRef.current && sessionRef.current === mySession) next();
+      // Wait for the success chime to finish before advancing so its tail does
+      // not overlap the next question note (visible esp. during Auto Advance).
+      advanceAfterChime(() => { if (runningRef.current && sessionRef.current === mySession) next(); });
       return;
     }
 
@@ -443,7 +450,7 @@ export function useGameEngine(
       }
     };
     scheduleAdvance(waitForSound, 800);
-  }, [paused, currentFret, accidental, order, wholeToneOnly, addEntry, next, onWrong, scoreCorrect, scheduleAdvance]);
+  }, [paused, currentFret, accidental, order, wholeToneOnly, addEntry, next, onWrong, scoreCorrect, scheduleAdvance, advanceAfterChime]);
 
   // ── CONTROLS ─────────────────────────────────────────────────
   const start = useCallback((maxQ: number, currentTime: number, isByNote: boolean) => {
