@@ -489,7 +489,7 @@ export default function App() {
                 {scoring.session.longestStreak >= 2 && <span>🔥 {scoring.session.longestStreak} streak</span>}
                 <span>✓ {sessionHistory.filter(h => h.correct === true).length}/{scoring.session.questionsAnswered}</span>
               </div>
-              <button className="clear-btn" onClick={() => setGameEnded(false)}>OK</button>
+              <button className="clear-btn" onClick={click(() => setGameEnded(false))}>OK</button>
             </div>
           )}
 
