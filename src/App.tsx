@@ -310,6 +310,10 @@ export default function App() {
   const [onboardingDone, setOnboardingDone] = useState(() => loadSetting<boolean>('onboardingDone', false));
   const [showStats, setShowStats] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Friendly in-app microphone card shown *before* the browser's own bare
+  // permission prompt: 'primer' explains why we need the mic, 'denied' is the
+  // recovery card for when the browser has already refused (it won't re-ask).
+  const [micPrompt, setMicPrompt] = useState<null | 'primer' | 'denied'>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [gameEnded, setGameEnded] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
@@ -329,6 +333,19 @@ export default function App() {
   const gameActive = running || paused || pendingAutoAdvance;
 
   const click = <T,>(fn: () => T) => () => { playClickSound(); haptic.tap(); return fn(); };
+
+  // Route every microphone request through our own card instead of springing
+  // the browser's permission bar unannounced. Already-granted → straight
+  // through; a prior refusal → the recovery card; otherwise → the primer.
+  const askForMic = () => {
+    if (!voice.supported) return;
+    if (voice.permission === 'granted') { void voice.ensurePermission(); return; }
+    setMicPrompt(voice.permission === 'denied' ? 'denied' : 'primer');
+  };
+  const grantMic = async () => {
+    const ok = await voice.ensurePermission();
+    setMicPrompt(ok ? null : 'denied');
+  };
 
   // "?" affordance pinned to the Note-by-Fret card corner: briefly explains the
   // clock / timing method, then auto-dismisses after 3s. Re-tapping restarts it.
@@ -354,6 +371,14 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [settingsOpen]);
+
+  // Dismiss the microphone card with Escape too.
+  useEffect(() => {
+    if (!micPrompt) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMicPrompt(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [micPrompt]);
 
   // Multi-string mode: a short haptic pulse when the drilled string changes
   // between questions, reinforcing the visual string-change emphasis. Single-
@@ -398,7 +423,7 @@ export default function App() {
   const start = () => {
     unlockAudio();
     // Trigger the mic permission prompt from this user gesture, like unlockAudio.
-    if (answerMode === 'voice' && voice.supported) void voice.ensurePermission();
+    if (answerMode === 'voice' && voice.supported) askForMic();
     if (!preloaded) { preloadAllSamples().then(() => setPreloaded(true)); setPreloaded(true); }
     scoring.reset();
     // One continuous timing ramp for the whole run: from this difficulty's
@@ -559,7 +584,7 @@ export default function App() {
                   onClick={click(() => {
                     setAnswerMode('voice');
                     saveSetting('pref_answerMode', 'voice');
-                    void voice.ensurePermission();
+                    askForMic();
                   })}
                 >🎤 Voice</button>
               </div>
@@ -593,6 +618,61 @@ export default function App() {
                   </button>
                 )}
               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Microphone permission card — our own copy + styling, shown ahead of
+          (primer) or in place of (denied) the browser's native prompt. */}
+      {micPrompt && (
+        <div className="mic-overlay" onClick={click(() => setMicPrompt(null))}>
+          <div
+            className="mic-card"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Microphone access"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mic-card-icon" aria-hidden="true">🎤</div>
+            {micPrompt === 'primer' ? (
+              <>
+                <div className="mic-card-title">Answer out loud</div>
+                <p className="mic-card-body">
+                  Voice mode listens for the note or fret you say instead of a tap.
+                  Your browser will ask to use the microphone next — audio stays on
+                  your device and is never recorded or uploaded.
+                </p>
+                <div className="mic-card-actions">
+                  <button className="mic-btn mic-btn-primary" onClick={click(() => { void grantMic(); })}>
+                    Allow microphone
+                  </button>
+                  <button className="mic-btn mic-btn-ghost" onClick={click(() => setMicPrompt(null))}>
+                    Not now
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mic-card-title">Microphone is blocked</div>
+                <p className="mic-card-body">
+                  Your browser is refusing microphone access for this site, so
+                  voice answers can’t work yet. Tap the 🔒 / 🎤 icon beside the
+                  address bar, set the microphone to <strong>Allow</strong>, then
+                  reload the page.
+                </p>
+                <div className="mic-card-actions">
+                  <button className="mic-btn mic-btn-primary" onClick={click(() => setMicPrompt(null))}>
+                    Got it
+                  </button>
+                  <button
+                    className="mic-btn mic-btn-ghost"
+                    onClick={click(() => { setAnswerMode('tap'); saveSetting('pref_answerMode', 'tap'); setMicPrompt(null); })}
+                  >
+                    Use tap instead
+                  </button>
+                </div>
+              </>
             )}
           </div>
         </div>
