@@ -167,13 +167,6 @@ export default function SelectorPanel({
               }}
             >
               ?
-              {showInfo && (
-                <span className="mode-card-info-bubble" role="status" aria-live="polite">
-                  Read the note wheel like a clock: your open string sits at 12 o'clock,
-                  and the dots under each note show its fret. Answer before the timing
-                  bar empties.
-                </span>
-              )}
             </span>
           )}
           <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
@@ -208,6 +201,14 @@ export default function SelectorPanel({
           </svg>
           <span>Fret by Note</span>
         </button>
+
+        {onInfo && showInfo && (
+          <div className="mode-card-info-bubble" role="status" aria-live="polite">
+            Read the note wheel like a clock: your open string sits at 12 o'clock,
+            and the dots under each note show its fret. Answer before the timing
+            bar empties.
+          </div>
+        )}
       </div>
 
       {/* ── FretRangeNeck SVG ─────────────────────────────── */}

@@ -565,9 +565,10 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 .mode-card-info-bubble {
   position: absolute;
   top: calc(100% + 6px);
-  right: -4px;
+  left: 50%;
+  transform: translateX(-50%);
   width: max-content;
-  max-width: min(320px, 80vw);
+  max-width: min(340px, calc(100vw - 32px));
   padding: 8px 12px;
   font-size: 12px;
   font-weight: 400;
@@ -583,8 +584,8 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   animation: info-bubble-in 0.18s ease-out;
 }
 @keyframes info-bubble-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translate(-50%, 4px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
 }
 @media (prefers-reduced-motion: reduce) {
   .mode-card-info-bubble { animation: none; }
@@ -1395,6 +1396,7 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 
 /* Mode cards */
 .mode-cards {
+  position: relative;
   display: flex;
   gap: 10px;
   justify-content: center;
