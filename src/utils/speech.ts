@@ -29,7 +29,10 @@ export type SpeechEngineError =
   | 'unknown';
 
 export interface SpeechResult {
+  /** Top-ranked hypothesis. */
   transcript: string;
+  /** All hypotheses for this result, best first (includes `transcript`). */
+  alternatives: string[];
   isFinal: boolean;
   confidence?: number;
 }
@@ -156,9 +159,12 @@ class WebSpeechEngine implements SpeechEngine {
     const rec = new Ctor();
     this.rec = rec;
     rec.lang = opts.lang;
-    rec.continuous = false;
+    // Keep the mic open for the whole question. In non-continuous mode the
+    // browser ends the turn after the first phrase or a brief silence, which
+    // left the app deaf for the rest of the question.
+    rec.continuous = true;
     rec.interimResults = true;
-    rec.maxAlternatives = 3;
+    rec.maxAlternatives = 5;
 
     const GLCtor = getGrammarListConstructor();
     const vocab = opts.vocabulary;
@@ -182,8 +188,17 @@ class WebSpeechEngine implements SpeechEngine {
         const res = e.results[i];
         const alt = res[0];
         if (!alt) continue;
+        // Pass every alternative, not just the top one: an isolated note
+        // letter is often ranked below a common homophone ("see" over "C",
+        // "for" over "four"), and the caller keeps the first that parses.
+        const alternatives: string[] = [];
+        for (let a = 0; a < res.length; a++) {
+          const t = res[a]?.transcript;
+          if (t) alternatives.push(t);
+        }
         opts.onResult({
           transcript: alt.transcript,
+          alternatives,
           isFinal: res.isFinal,
           confidence: alt.confidence,
         });
@@ -337,8 +352,10 @@ class NativeSpeechEngine implements SpeechEngine {
     try {
       const sub = await p.addListener('partialResults', (data) => {
         if (myTurn !== this.turn) return;
-        const m = data.matches?.[0];
-        if (m) opts.onResult({ transcript: m, isFinal: false });
+        const matches = (data.matches ?? []).filter(Boolean);
+        if (matches.length) {
+          opts.onResult({ transcript: matches[0], alternatives: matches, isFinal: false });
+        }
       });
       this.listener = sub as { remove: () => void };
     } catch {
@@ -353,8 +370,10 @@ class NativeSpeechEngine implements SpeechEngine {
         popup: false,
       });
       if (myTurn !== this.turn) return;
-      const m = res.matches?.[0];
-      if (m) opts.onResult({ transcript: m, isFinal: true });
+      const matches = (res.matches ?? []).filter(Boolean);
+      if (matches.length) {
+        opts.onResult({ transcript: matches[0], alternatives: matches, isFinal: true });
+      }
       opts.onEnd?.();
     } catch (err) {
       if (myTurn !== this.turn) return;

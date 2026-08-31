@@ -68,8 +68,17 @@ const START_RETRY_MS = 200;
 // An interim transcript that already parses ("C") must not be submitted right
 // away — the speaker may still be mid-phrase ("C… sharp"). Hold a parseable
 // interim this long after the last interim before committing it; a final
-// result (speech endpoint detected) commits immediately.
-const INTERIM_COMMIT_MS = 650;
+// result (speech endpoint detected) commits immediately. Also short-circuited
+// when the same answer repeats across interims (see `ingest`).
+const INTERIM_COMMIT_MS = 400;
+// If two consecutive interims parse to the same answer the speaker has almost
+// certainly finished it — commit sooner, but still leave a small gap so a
+// trailing "…sharp" after "C" can still land.
+const STABLE_COMMIT_MS = 250;
+// The browser recogniser can end its turn on its own (silence, transient
+// network blip) while the question is still on screen. Silently resume up to
+// this many times per question so the mic doesn't just go dead.
+const MAX_KEEPALIVE = 30;
 
 export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResult {
   const [engine] = useState<SpeechEngine | null>(() =>
@@ -88,6 +97,10 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
   const handledRef = useRef(false);
   const retriesRef = useRef(0);
   const startRetriesRef = useRef(0);
+  const keepAliveRef = useRef(0);
+  // Signature of the last parseable answer seen on an interim, to detect when
+  // the same answer repeats and can be committed early.
+  const lastParsedSigRef = useRef<string | null>(null);
   const listeningRef = useRef(false);
   const startTimerRef = useRef<number | null>(null);
   const listenRef = useRef<() => void>(() => {});
@@ -136,18 +149,20 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
   // (INTERIM_COMMIT_MS) so "C" has time to grow into "C sharp"; a final result
   // is submitted at once. An unparseable transcript never clears an earlier
   // pending value.
-  const ingest = useCallback((transcript: string, isFinal: boolean) => {
+  const ingest = useCallback((transcripts: string[], isFinal: boolean) => {
     if (handledRef.current) return;
     const p = pRef.current;
-    const parsed: { note?: string; fret?: number } | null = p.byNote
-      ? ((): { fret: number } | null => {
-          const f = parseSpokenFret(transcript);
-          return f === null ? null : { fret: f };
-        })()
-      : ((): { note: string } | null => {
-          const n = parseSpokenNote(transcript, p.notation);
-          return n === null ? null : { note: n };
-        })();
+    // Try each hypothesis in rank order; keep the first that parses.
+    let parsed: { note?: string; fret?: number } | null = null;
+    for (const t of transcripts) {
+      if (p.byNote) {
+        const f = parseSpokenFret(t);
+        if (f !== null) { parsed = { fret: f }; break; }
+      } else {
+        const n = parseSpokenNote(t, p.notation);
+        if (n !== null) { parsed = { note: n }; break; }
+      }
+    }
 
     if (parsed) pendingRef.current = parsed;
 
@@ -156,8 +171,16 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
       return;
     }
     if (!parsed) return;
+
+    const sig = parsed.fret !== undefined ? `f${parsed.fret}` : `n${parsed.note}`;
+    const stable = sig === lastParsedSigRef.current;
+    lastParsedSigRef.current = sig;
+
     if (commitTimerRef.current !== null) clearTimeout(commitTimerRef.current);
-    commitTimerRef.current = window.setTimeout(commitPending, INTERIM_COMMIT_MS);
+    commitTimerRef.current = window.setTimeout(
+      commitPending,
+      stable ? STABLE_COMMIT_MS : INTERIM_COMMIT_MS,
+    );
   }, [commitPending]);
 
   const startNow = useCallback(() => {
@@ -178,7 +201,7 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
       onResult: (r) => {
         if (handledRef.current) return;
         setPartial(r.transcript);
-        ingest(r.transcript, r.isFinal);
+        ingest(r.alternatives?.length ? r.alternatives : [r.transcript], r.isFinal);
       },
       onError: (e) => {
         if (handledRef.current) return;
@@ -212,6 +235,17 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
       onEnd: () => {
         if (!listeningRef.current) return;
         listeningRef.current = false;
+        // The recogniser stopped on its own. If no answer has been committed
+        // and the question is still up, transparently resume so the mic keeps
+        // listening for the whole question rather than going dead.
+        const q = pRef.current;
+        const stillActive =
+          q.enabled && q.running && !q.paused && !q.answered && q.hasActiveQuestion;
+        if (!handledRef.current && stillActive && keepAliveRef.current < MAX_KEEPALIVE) {
+          keepAliveRef.current++;
+          listenRef.current();
+          return;
+        }
         setStatus((s) => (s === 'heard' ? s : 'idle'));
       },
     });
@@ -238,6 +272,8 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
   const retry = useCallback(() => {
     retriesRef.current = 0;
     startRetriesRef.current = 0;
+    keepAliveRef.current = 0;
+    lastParsedSigRef.current = null;
     setError(null);
     listen();
   }, [listen]);
@@ -255,6 +291,8 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
     if (active) {
       retriesRef.current = 0;
       startRetriesRef.current = 0;
+      keepAliveRef.current = 0;
+      lastParsedSigRef.current = null;
       listen();
     } else {
       // Just stop; the engine's abort/end callback settles `status` back to
