@@ -545,7 +545,7 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 .mode-card-info {
   position: absolute;
   top: 4px;
-  right: 6px;
+  left: 6px;
   width: 18px;
   height: 18px;
   display: flex;
