@@ -439,8 +439,8 @@ export default function App() {
       {showBurger && (
         <button
           className="burger-btn"
-          onClick={click(() => setSettingsOpen(true))}
-          aria-label="Open settings"
+          onClick={click(() => setSettingsOpen(o => !o))}
+          aria-label={settingsOpen ? 'Close settings' : 'Open settings'}
           aria-expanded={settingsOpen}
           title="Settings"
         >
