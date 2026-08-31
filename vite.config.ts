@@ -88,7 +88,12 @@ export default defineConfig({
         description: 'Practice guitar & bass fretboard note recognition',
         theme_color: '#1a1a2e',
         background_color: '#1a1a2e',
-        display: 'standalone',
+        // 'minimal-ui', not 'standalone': Android Chrome disables the Web
+        // Speech API (voice answers) inside a 'standalone'/'fullscreen' PWA,
+        // failing every listen with a bogus 'network' error. 'minimal-ui'
+        // keeps the app-like chrome (no editable URL bar) while leaving
+        // SpeechRecognition working from a home-screen link.
+        display: 'minimal-ui',
         orientation: 'portrait',
         icons: [
           { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
