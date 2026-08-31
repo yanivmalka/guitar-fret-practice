@@ -1,5 +1,24 @@
-const openMidi = [64, 59, 55, 50, 45, 40];
-const baseUrl = 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/acoustic_guitar_nylon-mp3/';
+// Active instrument's tuning + sample source. Swapped by setAudioInstrument()
+// when the user switches instrument; defaults to the standard 6-string guitar.
+let openMidi = [64, 59, 55, 50, 45, 40];
+let baseUrl = 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/acoustic_guitar_nylon-mp3/';
+let stringCount = 6;
+let maxFret = 21;
+
+export function setAudioInstrument(cfg: {
+  openMidi: number[];
+  soundfontUrl: string;
+  stringCount: number;
+  maxFret: number;
+}): void {
+  openMidi = cfg.openMidi;
+  baseUrl = cfg.soundfontUrl;
+  stringCount = cfg.stringCount;
+  maxFret = cfg.maxFret;
+}
+
+// Keyed by soundfont URL + note name: two instruments can need the same pitch
+// from different soundfonts, so the URL must be part of the key.
 const cache: Record<string, AudioBuffer> = {};
 let activeSources: AudioBufferSourceNode[] = [];
 let soundEndTime = 0;
@@ -23,11 +42,12 @@ function midiName(midi: number): string {
 
 async function loadSample(midi: number): Promise<AudioBuffer | null> {
   const name = midiName(midi);
-  if (cache[name]) return cache[name];
+  const key = baseUrl + name;
+  if (cache[key]) return cache[key];
   try {
     const buf = await (await fetch(baseUrl + name + '.mp3')).arrayBuffer();
-    cache[name] = await getCtx().decodeAudioData(buf);
-    return cache[name];
+    cache[key] = await getCtx().decodeAudioData(buf);
+    return cache[key];
   } catch { return null; }
 }
 
@@ -144,8 +164,9 @@ export async function playNoteSequence(stringNum: number, frets: number[], total
 
 export async function preloadAllSamples(): Promise<void> {
   const promises: Promise<unknown>[] = [];
-  for (let s = 0; s < 6; s++)
-    for (let f = 0; f <= 18; f++)
+  const topFret = Math.min(maxFret, 18);
+  for (let s = 0; s < stringCount; s++)
+    for (let f = 0; f <= topFret; f++)
       promises.push(loadSample(openMidi[s] + f));
   await Promise.allSettled(promises);
 }

@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { loadSetting, saveSetting } from '../utils/settings';
 import type { AccidentalMode, OrderMode } from '../utils/music';
+import type { InstrumentConfig } from '../utils/instruments';
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -41,12 +42,40 @@ export interface DerivedSettings {
 
 // ── History key ──────────────────────────────────────────────────────────
 
-export function historyKey(state: SelectorState): string {
+// The instrument id prefixes every key so guitar and bass stats never mix.
+// Guitar keeps its original (unprefixed) key shape for back-compat with
+// history/personal-best records saved before bass existed.
+export function historyKey(state: SelectorState, instrument: InstrumentConfig): string {
   const strings = [...state.selectedStrings].sort((a, b) => a - b).join(',');
-  const fret = `${state.lowerActive ? '0' : '12'}-${state.upperActive ? '21' : '12'}`;
+  const upper = state.upperActive ? instrument.maxFret : 12;
+  const fret = `${state.lowerActive ? '0' : '12'}-${upper}`;
   const mode = state.mode;
   const diff = state.difficulty;
-  return `${strings}|${fret}|${mode}|${diff}`;
+  const base = `${strings}|${fret}|${mode}|${diff}`;
+  return instrument.id === 'guitar' ? base : `${instrument.id}|${base}`;
+}
+
+// Per-instrument localStorage keys for the string picks (a guitar's "string 6"
+// selection is meaningless on a 4-string bass).
+const stringsKey = (id: string) => `sel_strings_${id}`;
+const multiKey = (id: string) => `sel_multi_${id}`;
+
+function loadStrings(instrument: InstrumentConfig): number[] {
+  // Guitar migrates its pre-bass unprefixed `sel_strings` key on first read.
+  const legacy = instrument.id === 'guitar'
+    ? loadSetting<number[] | null>('sel_strings', null)
+    : null;
+  const fallback = legacy ?? [instrument.stringCount];
+  const raw = loadSetting<number[]>(stringsKey(instrument.id), fallback);
+  const valid = raw.filter(s => s >= 1 && s <= instrument.stringCount);
+  return valid.length > 0 ? valid : [instrument.stringCount];
+}
+
+function loadMulti(instrument: InstrumentConfig): boolean {
+  const legacy = instrument.id === 'guitar'
+    ? loadSetting<boolean | null>('sel_multi', null)
+    : null;
+  return loadSetting<boolean>(multiKey(instrument.id), legacy ?? false);
 }
 
 // ── Time lookup ──────────────────────────────────────────────────────────
@@ -89,13 +118,30 @@ export function totalRunQuestions(difficulty: Difficulty, autoAdvance: boolean):
 
 // ── Hook ─────────────────────────────────────────────────────────────────
 
-export function useSelector() {
+export function useSelector(instrument: InstrumentConfig) {
   const [selectedStrings, setSelectedStrings] = useState<number[]>(
-    () => loadSetting('sel_strings', [6])
+    () => loadStrings(instrument)
   );
   const [multiMode, setMultiMode] = useState<boolean>(
-    () => loadSetting('sel_multi', false)
+    () => loadMulti(instrument)
   );
+
+  // On instrument switch: reload that instrument's own string picks. The
+  // effect only runs *after* this render, so `safeStrings` below also clamps
+  // synchronously — otherwise the first render post-switch would index the new
+  // (shorter) note table with an out-of-range string number and crash.
+  const prevInstrumentRef = useRef(instrument.id);
+  useEffect(() => {
+    if (prevInstrumentRef.current === instrument.id) return;
+    prevInstrumentRef.current = instrument.id;
+    setSelectedStrings(loadStrings(instrument));
+    setMultiMode(loadMulti(instrument));
+  }, [instrument]);
+
+  const safeStrings = (() => {
+    const valid = selectedStrings.filter(s => s >= 1 && s <= instrument.stringCount);
+    return valid.length > 0 ? valid : [instrument.stringCount];
+  })();
   const [mode, setMode] = useState<'byNote' | 'byFret'>(
     () => loadSetting('sel_mode', 'byFret')
   );
@@ -114,11 +160,14 @@ export function useSelector() {
 
   // ── Setters with persistence ───────────────────────────────────────
 
+  const sKey = stringsKey(instrument.id);
+  const mKey = multiKey(instrument.id);
+
   const onStringSelect = (stringNum: number) => {
     if (!multiMode) {
       const next = [stringNum];
       setSelectedStrings(next);
-      saveSetting('sel_strings', next);
+      saveSetting(sKey, next);
     } else {
       setSelectedStrings(prev => {
         const idx = prev.indexOf(stringNum);
@@ -131,7 +180,7 @@ export function useSelector() {
         } else {
           next = [...prev, stringNum];
         }
-        saveSetting('sel_strings', next);
+        saveSetting(sKey, next);
         return next;
       });
     }
@@ -140,18 +189,18 @@ export function useSelector() {
   const onMultiToggle = () => {
     setMultiMode(prev => {
       const next = !prev;
-      saveSetting('sel_multi', next);
+      saveSetting(mKey, next);
       if (next) {
-        // Turning on multi: select ALL strings
-        const all = [1, 2, 3, 4, 5, 6];
+        // Turning on multi: select ALL of this instrument's strings
+        const all = Array.from({ length: instrument.stringCount }, (_, i) => i + 1);
         setSelectedStrings(all);
-        saveSetting('sel_strings', all);
+        saveSetting(sKey, all);
       } else {
         // Turning off multi: keep only the last-selected string
         const last = selectedStrings[selectedStrings.length - 1];
         const kept = [last];
         setSelectedStrings(kept);
-        saveSetting('sel_strings', kept);
+        saveSetting(sKey, kept);
       }
       return next;
     });
@@ -192,7 +241,7 @@ export function useSelector() {
   // ── Selector state object ──────────────────────────────────────────
 
   const state: SelectorState = {
-    selectedStrings,
+    selectedStrings: safeStrings,
     multiMode,
     mode,
     lowerActive,
@@ -203,13 +252,14 @@ export function useSelector() {
 
   // ── Derived settings ───────────────────────────────────────────────
 
+  const safeKey = safeStrings.join(',');
   const derivedSettings: DerivedSettings = useMemo(() => {
-    const guitarString = Math.max(...selectedStrings);
-    const multiStrings = (multiMode && selectedStrings.length > 1)
-      ? selectedStrings
+    const guitarString = Math.max(...safeStrings);
+    const multiStrings = (multiMode && safeStrings.length > 1)
+      ? safeStrings
       : [];
     const fretFrom = lowerActive ? 0 : 12;
-    const fretTo = upperActive ? 21 : 12;
+    const fretTo = upperActive ? instrument.maxFret : 12;
     const byNote = mode === 'byNote';
     const dotsOnly = difficulty === 'dots';
     const wholeToneOnly = difficulty === 'naturals';
@@ -233,7 +283,8 @@ export function useSelector() {
       accidental,
       order,
     };
-  }, [selectedStrings, multiMode, mode, lowerActive, upperActive, difficulty]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [safeKey, multiMode, mode, lowerActive, upperActive, difficulty, instrument]);
 
   // ── Return ─────────────────────────────────────────────────────────
 
@@ -246,6 +297,6 @@ export function useSelector() {
     onDifficultySelect,
     onAutoAdvanceToggle,
     derivedSettings,
-    historyKey: () => historyKey(state),
+    historyKey: () => historyKey(state, instrument),
   };
 }

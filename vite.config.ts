@@ -77,15 +77,15 @@ export default defineConfig({
             handler: 'CacheFirst',
             options: {
               cacheName: 'guitar-samples',
-              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              expiration: { maxEntries: 400, maxAgeSeconds: 60 * 60 * 24 * 30 },
             },
           },
         ],
       },
       manifest: {
-        name: 'Guitar Fret Practice',
+        name: 'Fretboard Practice',
         short_name: 'Fret Practice',
-        description: 'Practice guitar fret note recognition',
+        description: 'Practice guitar & bass fretboard note recognition',
         theme_color: '#1a1a2e',
         background_color: '#1a1a2e',
         display: 'standalone',

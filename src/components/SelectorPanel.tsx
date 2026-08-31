@@ -1,9 +1,11 @@
 import type { SelectorState, Difficulty } from '../hooks/useSelector';
 import type { OrderMode, NotationMode } from '../utils/music';
+import type { InstrumentConfig } from '../utils/instruments';
 import { playClickSound, playToggleOnSound, playToggleOffSound } from '../utils/feedback';
 
 interface SelectorPanelProps {
   selector: SelectorState;
+  instrument: InstrumentConfig;
   onStringSelect: (stringNum: number) => void;
   onMultiToggle: () => void;
   onModeSelect: (mode: 'byNote' | 'byFret') => void;
@@ -32,10 +34,13 @@ interface SelectorPanelProps {
 }
 
 const SCALE_FACTOR = 17.817;
+// Positions are computed for the longest neck we support (bass, 24 frets); a
+// shorter neck just indexes the first N entries and rescales (see neckWidth).
+const MAX_SUPPORTED_FRET = 24;
 function computeFretPositions(): number[] {
   const positions: number[] = [0];
   let remaining = 1.0;
-  for (let i = 1; i <= 21; i++) {
+  for (let i = 1; i <= MAX_SUPPORTED_FRET; i++) {
     const fretDist = remaining / SCALE_FACTOR;
     remaining -= fretDist;
     positions.push(1.0 - remaining);
@@ -45,32 +50,38 @@ function computeFretPositions(): number[] {
 
 const FRET_POSITIONS = computeFretPositions();
 
-// Layout: nut at right (fret 0), fret 21 near left edge.
-// Scale NECK_WIDTH so fret 21 lands at FB_LEFT_MARGIN, eliminating empty space.
+// Layout: nut at right (fret 0), last fret near left edge.
 const NECK_RIGHT = 370;
 const FB_LEFT_MARGIN = 28;
-const NECK_WIDTH = (NECK_RIGHT - FB_LEFT_MARGIN) / FRET_POSITIONS[21];
 
 const FB_TOP = 5;
 const FB_HEIGHT = 40;
 const FB_BOTTOM = FB_TOP + FB_HEIGHT;
 
-function fretX(fretNum: number): number {
-  return NECK_RIGHT - FRET_POSITIONS[fretNum] * NECK_WIDTH;
-}
-
-const DOT_FRETS = [3, 5, 7, 9, 12, 15, 17, 19, 21];
-
 export default function SelectorPanel({
-  selector, onStringSelect, onMultiToggle, onModeSelect,
+  selector, instrument, onStringSelect, onMultiToggle, onModeSelect,
   onFretRangeToggle, onDifficultySelect, onAutoAdvanceToggle, isPlaying, activeString, activeFret,
   byString, order, onByStringToggle, onOrderChange, notation, onNotationChange,
   notationOnly, showStats, onStatsToggle, hasHistory, onInfo, showInfo,
 }: SelectorPanelProps) {
-  const strings: { label: string; num: number }[] = [
-    { label: 'E', num: 6 }, { label: 'A', num: 5 }, { label: 'D', num: 4 },
-    { label: 'G', num: 3 }, { label: 'B', num: 2 }, { label: 'E', num: 1 },
-  ];
+  const maxFret = instrument.maxFret;
+  const stringCount = instrument.stringCount;
+  const dotFrets = instrument.dotFrets;
+
+  // Scale so the last fret always lands at the left margin, whatever the neck length.
+  const neckWidth = (NECK_RIGHT - FB_LEFT_MARGIN) / FRET_POSITIONS[maxFret];
+  const fretX = (fretNum: number) => NECK_RIGHT - FRET_POSITIONS[fretNum] * neckWidth;
+
+  // String pills — one per string, labelled by its open-string note name,
+  // highest-pitched string first (string 1).
+  const strings = Array.from({ length: stringCount }, (_, i) => {
+    const num = i + 1;
+    return { label: instrument.notes[num - 1][0], num };
+  });
+
+  // Y of a given 1-based string number inside the fretboard rect.
+  const stringY = (num: number) =>
+    FB_TOP + 5 + (stringCount - num) * (FB_HEIGHT - 10) / (stringCount - 1);
 
   const splitX = fretX(12);
   const fbLeft = FB_LEFT_MARGIN - 3;
@@ -97,7 +108,7 @@ export default function SelectorPanel({
   // During gameplay: show minimized panel with just info + fret neck
   if (isPlaying) {
     const strLabels = selector.selectedStrings.map(n => strings.find(s => s.num === n)?.label ?? '').join(' ');
-    const fretLabel = selector.lowerActive && selector.upperActive ? '0-21' : selector.lowerActive ? '0-12' : '12-21';
+    const fretLabel = selector.lowerActive && selector.upperActive ? `0-${maxFret}` : selector.lowerActive ? '0-12' : `12-${maxFret}`;
     const modeLabel = selector.mode === 'byFret' ? 'N→F' : 'F→N';
     const diffLabel = selector.difficulty === 'dots' ? '●' : selector.difficulty === 'naturals' ? '♮' : '♯♭';
     return (
@@ -112,27 +123,27 @@ export default function SelectorPanel({
           <span className="selector-mini-item">{diffLabel}</span>
         </div>
         <div className="fret-neck">
-          <svg viewBox={`${fbLeft - 5} ${FB_TOP - 3} ${NECK_RIGHT - fbLeft + 12} ${FB_HEIGHT + 16}`} aria-label="Guitar neck">
+          <svg viewBox={`${fbLeft - 5} ${FB_TOP - 3} ${NECK_RIGHT - fbLeft + 12} ${FB_HEIGHT + 16}`} aria-label={`${instrument.label} neck`}>
             <rect x={fbLeft} y={FB_TOP} width={NECK_RIGHT - fbLeft} height={FB_HEIGHT} rx="2" fill="#3d2b1f" />
-            {[0, 1, 2, 3, 4, 5].map((i) => {
-              const y = FB_TOP + 5 + i * (FB_HEIGHT - 10) / 5;
+            {Array.from({ length: stringCount }, (_, i) => {
+              const y = stringY(stringCount - i);
               const thickness = 0.9 - i * 0.1;
               return <line key={`str${i}`} x1={fbLeft} y1={y} x2={NECK_RIGHT} y2={y} stroke="#cba" strokeWidth={thickness} opacity="0.5" />;
             })}
             {activeString != null && (
-              <line key={activeString} className="mini-neck-active-string" x1={fbLeft} y1={FB_TOP + 5 + (6 - activeString) * (FB_HEIGHT - 10) / 5} x2={NECK_RIGHT} y2={FB_TOP + 5 + (6 - activeString) * (FB_HEIGHT - 10) / 5} stroke="#0ff" strokeWidth="1.8" opacity="0.9" />
+              <line key={activeString} className="mini-neck-active-string" x1={fbLeft} y1={stringY(activeString)} x2={NECK_RIGHT} y2={stringY(activeString)} stroke="#0ff" strokeWidth="1.8" opacity="0.9" />
             )}
-            {Array.from({ length: 21 }, (_, i) => i + 1).map((f) => (
+            {Array.from({ length: maxFret }, (_, i) => i + 1).map((f) => (
               <line key={f} x1={fretX(f)} y1={FB_TOP} x2={fretX(f)} y2={FB_BOTTOM} stroke="#999" strokeWidth="1" />
             ))}
-            {DOT_FRETS.map((f) => {
+            {dotFrets.map((f) => {
               const cx = (fretX(f - 1) + fretX(f)) / 2;
               const midY = FB_TOP + FB_HEIGHT / 2;
               if (f === 12) return <g key={f}><circle cx={cx} cy={midY - 7} r="2.5" fill="#ddd" opacity="0.8" /><circle cx={cx} cy={midY + 7} r="2.5" fill="#ddd" opacity="0.8" /></g>;
               return <circle key={f} cx={cx} cy={midY} r="2.5" fill="#ddd" opacity="0.8" />;
             })}
-            {activeFret != null && activeFret >= 0 && activeFret <= 21 && (
-              <circle cx={activeFret === 0 ? NECK_RIGHT + 1 : (fretX(activeFret - 1) + fretX(activeFret)) / 2} cy={activeString ? FB_TOP + 5 + (6 - activeString) * (FB_HEIGHT - 10) / 5 : FB_TOP + FB_HEIGHT / 2} r="4" fill="#0ff" opacity="0.85" />
+            {activeFret != null && activeFret >= 0 && activeFret <= maxFret && (
+              <circle cx={activeFret === 0 ? NECK_RIGHT + 1 : (fretX(activeFret - 1) + fretX(activeFret)) / 2} cy={activeString ? stringY(activeString) : FB_TOP + FB_HEIGHT / 2} r="4" fill="#0ff" opacity="0.85" />
             )}
             <line x1={NECK_RIGHT} y1={FB_TOP} x2={NECK_RIGHT} y2={FB_BOTTOM} stroke="#f5f0e8" strokeWidth="3.5" />
           </svg>
@@ -146,14 +157,14 @@ export default function SelectorPanel({
       {/* ── StringRow ─────────────────────────────────────── */}
       <div className="selector-strings">
         {strings.map(({ label, num }) => (
-          <button key={num} className={`string-pill ${selector.selectedStrings.includes(num) ? 'active' : ''}`} onClick={() => onStringSelect(num)}>{label}</button>
+          <button key={num} className={`string-pill ${selector.selectedStrings.includes(num) ? 'active' : ''}`} onClick={() => { selector.selectedStrings.includes(num) ? playToggleOffSound() : playToggleOnSound(); onStringSelect(num); }}>{label}</button>
         ))}
         <button className={`string-pill string-pill-toggle ${selector.multiMode ? 'active' : ''}`} onClick={() => { selector.multiMode ? playToggleOffSound() : playToggleOnSound(); onMultiToggle(); }}>Multi</button>
       </div>
 
       {/* ── ModeToggle with order options between cards ── */}
       <div className="mode-cards">
-        <button className={`mode-card ${selector.mode === 'byFret' ? 'active' : ''}`} onClick={() => onModeSelect('byFret')}>
+        <button className={`mode-card ${selector.mode === 'byFret' ? 'active' : ''}`} onClick={() => { playClickSound(); onModeSelect('byFret'); }}>
           {onInfo && (
             <span
               className="mode-card-info"
@@ -161,9 +172,9 @@ export default function SelectorPanel({
               tabIndex={0}
               aria-label="How this works"
               title="How this works"
-              onClick={(e) => { e.stopPropagation(); onInfo(); }}
+              onClick={(e) => { e.stopPropagation(); playClickSound(); onInfo(); }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onInfo(); }
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); playClickSound(); onInfo(); }
               }}
             >
               ?
@@ -189,7 +200,7 @@ export default function SelectorPanel({
           {onByStringToggle && <button className={`order-chip chip-toggle${byString ? ' chip-toggle-active' : ''}`} onClick={onByStringToggle}>By String</button>}
         </div>
 
-        <button className={`mode-card ${selector.mode === 'byNote' ? 'active' : ''}`} onClick={() => onModeSelect('byNote')}>
+        <button className={`mode-card ${selector.mode === 'byNote' ? 'active' : ''}`} onClick={() => { playClickSound(); onModeSelect('byNote'); }}>
           <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
             {[
               { x: 2, y: 2, op: 1 }, { x: 12, y: 2, op: 0.2 }, { x: 22, y: 2, op: 0.2 }, { x: 32, y: 2, op: 1 },
@@ -213,13 +224,13 @@ export default function SelectorPanel({
 
       {/* ── FretRangeNeck SVG ─────────────────────────────── */}
       <div className="fret-neck">
-        <svg viewBox={`${fbLeft - 5} ${FB_TOP - 3} ${NECK_RIGHT - fbLeft + 12} ${FB_HEIGHT + 16}`} aria-label="Guitar neck fret range selector">
+        <svg viewBox={`${fbLeft - 5} ${FB_TOP - 3} ${NECK_RIGHT - fbLeft + 12} ${FB_HEIGHT + 16}`} aria-label={`${instrument.label} neck fret range selector`}>
           {/* Fretboard — only covers where frets actually are */}
           <rect x={fbLeft} y={FB_TOP} width={NECK_RIGHT - fbLeft} height={FB_HEIGHT} rx="2" fill="#3d2b1f" />
 
-          {/* 6 strings — low E (thickest) at top, high E (thinnest) at bottom */}
-          {[0, 1, 2, 3, 4, 5].map((i) => {
-            const y = FB_TOP + 5 + i * (FB_HEIGHT - 10) / 5;
+          {/* Strings — lowest (thickest) at top, highest (thinnest) at bottom */}
+          {Array.from({ length: stringCount }, (_, i) => {
+            const y = stringY(stringCount - i);
             const thickness = 0.9 - i * 0.1;
             return <line key={`str${i}`} x1={fbLeft} y1={y} x2={NECK_RIGHT} y2={y} stroke="#cba" strokeWidth={thickness} opacity="0.5" />;
           })}
@@ -228,20 +239,20 @@ export default function SelectorPanel({
           {activeString != null && (
             <line
               x1={fbLeft}
-              y1={FB_TOP + 5 + (6 - activeString) * (FB_HEIGHT - 10) / 5}
+              y1={stringY(activeString)}
               x2={NECK_RIGHT}
-              y2={FB_TOP + 5 + (6 - activeString) * (FB_HEIGHT - 10) / 5}
+              y2={stringY(activeString)}
               stroke="#0ff" strokeWidth="1.8" opacity="0.9"
             />
           )}
 
           {/* Fret lines */}
-          {Array.from({ length: 21 }, (_, i) => i + 1).map((f) => (
+          {Array.from({ length: maxFret }, (_, i) => i + 1).map((f) => (
             <line key={f} x1={fretX(f)} y1={FB_TOP} x2={fretX(f)} y2={FB_BOTTOM} stroke="#999" strokeWidth="1" />
           ))}
 
           {/* Dot markers */}
-          {DOT_FRETS.map((f) => {
+          {dotFrets.map((f) => {
             const cx = (fretX(f - 1) + fretX(f)) / 2;
             const midY = FB_TOP + FB_HEIGHT / 2;
             if (f === 12) return <g key={f}><circle cx={cx} cy={midY - 7} r="2.5" fill="#ddd" opacity="0.8" /><circle cx={cx} cy={midY + 7} r="2.5" fill="#ddd" opacity="0.8" /></g>;
@@ -249,10 +260,10 @@ export default function SelectorPanel({
           })}
 
           {/* Highlight active fret */}
-          {activeFret != null && activeFret >= 0 && activeFret <= 21 && (
+          {activeFret != null && activeFret >= 0 && activeFret <= maxFret && (
             <circle
               cx={activeFret === 0 ? NECK_RIGHT + 1 : (fretX(activeFret - 1) + fretX(activeFret)) / 2}
-              cy={activeString ? FB_TOP + 5 + (6 - activeString) * (FB_HEIGHT - 10) / 5 : FB_TOP + FB_HEIGHT / 2}
+              cy={activeString ? stringY(activeString) : FB_TOP + FB_HEIGHT / 2}
               r="4" fill="#0ff" opacity="0.85"
             />
           )}
@@ -278,17 +289,17 @@ export default function SelectorPanel({
 
           {/* Labels — highlighted when active */}
           <text x={(splitX + NECK_RIGHT) / 2} y={FB_BOTTOM + 11} textAnchor="middle" fontSize="8" fill={selector.lowerActive ? '#0ff' : '#555'} fontWeight={selector.lowerActive ? 'bold' : 'normal'}>0–12</text>
-          <text x={(fbLeft + splitX) / 2} y={FB_BOTTOM + 11} textAnchor="middle" fontSize="8" fill={selector.upperActive ? '#0ff' : '#555'} fontWeight={selector.upperActive ? 'bold' : 'normal'}>12–21</text>
+          <text x={(fbLeft + splitX) / 2} y={FB_BOTTOM + 11} textAnchor="middle" fontSize="8" fill={selector.upperActive ? '#0ff' : '#555'} fontWeight={selector.upperActive ? 'bold' : 'normal'}>12–{maxFret}</text>
         </svg>
       </div>
 
       {/* ── DifficultyRoad ────────────────────────────────── */}
       <div className="difficulty-road">
-        <button className={`diff-btn ${selector.difficulty === 'dots' ? 'active' : ''}`} onClick={() => onDifficultySelect('dots')}><span className="diff-icon">●</span><span className="diff-label">Dots</span></button>
+        <button className={`diff-btn ${selector.difficulty === 'dots' ? 'active' : ''}`} onClick={() => { playClickSound(); onDifficultySelect('dots'); }}><span className="diff-icon">●</span><span className="diff-label">Dots</span></button>
         <span className="diff-arrow">→</span>
-        <button className={`diff-btn ${selector.difficulty === 'naturals' ? 'active' : ''}`} onClick={() => onDifficultySelect('naturals')}><span className="diff-icon">♮</span><span className="diff-label">Naturals</span></button>
+        <button className={`diff-btn ${selector.difficulty === 'naturals' ? 'active' : ''}`} onClick={() => { playClickSound(); onDifficultySelect('naturals'); }}><span className="diff-icon">♮</span><span className="diff-label">Naturals</span></button>
         <span className="diff-arrow">→</span>
-        <button className={`diff-btn ${selector.difficulty === 'full' ? 'active' : ''}`} onClick={() => onDifficultySelect('full')}><span className="diff-icon">♯♭</span><span className="diff-label">Full</span></button>
+        <button className={`diff-btn ${selector.difficulty === 'full' ? 'active' : ''}`} onClick={() => { playClickSound(); onDifficultySelect('full'); }}><span className="diff-icon">♯♭</span><span className="diff-label">Full</span></button>
         {/* Auto Advance: continue straight into the next difficulty when the current one is completed */}
         {onAutoAdvanceToggle && (
           <button

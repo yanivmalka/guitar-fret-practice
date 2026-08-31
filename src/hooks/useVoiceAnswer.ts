@@ -57,6 +57,19 @@ export interface UseVoiceAnswerResult {
 }
 
 const MAX_AUTO_RETRIES = 1;
+// A browser SpeechRecognition instance that was just .stop()'d can still throw
+// "already started" if a new one starts too soon — most visible on the Auto
+// Advance stage boundary, where the driver effect thrashes stop→start several
+// times in a few ms. Coalesce starts behind a short timer, and re-arm a few
+// times if the engine still reports it could not begin.
+const START_DEBOUNCE_MS = 90;
+const MAX_START_RETRIES = 4;
+const START_RETRY_MS = 200;
+// An interim transcript that already parses ("C") must not be submitted right
+// away — the speaker may still be mid-phrase ("C… sharp"). Hold a parseable
+// interim this long after the last interim before committing it; a final
+// result (speech endpoint detected) commits immediately.
+const INTERIM_COMMIT_MS = 650;
 
 export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResult {
   const [engine] = useState<SpeechEngine | null>(() =>
@@ -74,13 +87,28 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
   const permissionRef = useRef<MicPermission>('unknown');
   const handledRef = useRef(false);
   const retriesRef = useRef(0);
+  const startRetriesRef = useRef(0);
   const listeningRef = useRef(false);
+  const startTimerRef = useRef<number | null>(null);
   const listenRef = useRef<() => void>(() => {});
+  // Latest parseable answer from an interim transcript, awaiting the quiet
+  // period before it is submitted.
+  const pendingRef = useRef<{ note?: string; fret?: number } | null>(null);
+  const commitTimerRef = useRef<number | null>(null);
 
   useEffect(() => { pRef.current = params; });
   useEffect(() => { permissionRef.current = permission; }, [permission]);
 
   const stopListening = useCallback(() => {
+    if (startTimerRef.current !== null) {
+      clearTimeout(startTimerRef.current);
+      startTimerRef.current = null;
+    }
+    if (commitTimerRef.current !== null) {
+      clearTimeout(commitTimerRef.current);
+      commitTimerRef.current = null;
+    }
+    pendingRef.current = null;
     const wasListening = listeningRef.current;
     listeningRef.current = false;
     engine?.stop();
@@ -89,27 +117,51 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
     if (wasListening) setStatus((s) => (s === 'listening' ? 'idle' : s));
   }, [engine]);
 
-  const tryParse = useCallback((transcript: string): boolean => {
-    const p = pRef.current;
-    if (p.byNote) {
-      const fret = parseSpokenFret(transcript);
-      if (fret === null) return false;
-      handledRef.current = true;
-      stopListening();
-      setStatus('heard');
-      p.onFret(fret);
-      return true;
+  const commitPending = useCallback(() => {
+    if (commitTimerRef.current !== null) {
+      clearTimeout(commitTimerRef.current);
+      commitTimerRef.current = null;
     }
-    const note = parseSpokenNote(transcript, p.notation);
-    if (note === null) return false;
+    const pend = pendingRef.current;
+    if (!pend || handledRef.current) return;
     handledRef.current = true;
     stopListening();
     setStatus('heard');
-    p.onNote(note);
-    return true;
+    if (pend.fret !== undefined) pRef.current.onFret(pend.fret);
+    else if (pend.note !== undefined) pRef.current.onNote(pend.note);
   }, [stopListening]);
 
-  const listen = useCallback(() => {
+  // Feed a transcript (interim or final) from the engine. A parseable interim
+  // is held as `pendingRef` and only submitted once transcripts go quiet
+  // (INTERIM_COMMIT_MS) so "C" has time to grow into "C sharp"; a final result
+  // is submitted at once. An unparseable transcript never clears an earlier
+  // pending value.
+  const ingest = useCallback((transcript: string, isFinal: boolean) => {
+    if (handledRef.current) return;
+    const p = pRef.current;
+    const parsed: { note?: string; fret?: number } | null = p.byNote
+      ? ((): { fret: number } | null => {
+          const f = parseSpokenFret(transcript);
+          return f === null ? null : { fret: f };
+        })()
+      : ((): { note: string } | null => {
+          const n = parseSpokenNote(transcript, p.notation);
+          return n === null ? null : { note: n };
+        })();
+
+    if (parsed) pendingRef.current = parsed;
+
+    if (isFinal) {
+      commitPending();
+      return;
+    }
+    if (!parsed) return;
+    if (commitTimerRef.current !== null) clearTimeout(commitTimerRef.current);
+    commitTimerRef.current = window.setTimeout(commitPending, INTERIM_COMMIT_MS);
+  }, [commitPending]);
+
+  const startNow = useCallback(() => {
+    startTimerRef.current = null;
     const p = pRef.current;
     if (!engine || engine.kind === 'none') return;
     if (permissionRef.current === 'denied') return;
@@ -126,7 +178,7 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
       onResult: (r) => {
         if (handledRef.current) return;
         setPartial(r.transcript);
-        tryParse(r.transcript);
+        ingest(r.transcript, r.isFinal);
       },
       onError: (e) => {
         if (handledRef.current) return;
@@ -135,13 +187,22 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
           setPermission('denied');
           permissionRef.current = 'denied';
         }
+        // Reaching here with 'aborted' means the engine could not begin
+        // (e.g. a previous recognition still winding down after a stage
+        // change) — a deliberate stop is swallowed by the engine's own turn
+        // guard. Re-arm a few times before giving up.
+        if (e === 'aborted' && startRetriesRef.current < MAX_START_RETRIES) {
+          startRetriesRef.current++;
+          if (startTimerRef.current !== null) clearTimeout(startTimerRef.current);
+          startTimerRef.current = window.setTimeout(() => listenRef.current(), START_RETRY_MS);
+          return;
+        }
         if (e === 'no-speech' && retriesRef.current < MAX_AUTO_RETRIES) {
           retriesRef.current++;
           listenRef.current();
           return;
         }
         if (e === 'aborted') {
-          // We stopped it deliberately (answer submitted / question changed).
           setStatus((s) => (s === 'heard' ? s : 'idle'));
           return;
         }
@@ -154,7 +215,14 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
         setStatus((s) => (s === 'heard' ? s : 'idle'));
       },
     });
-  }, [engine, tryParse]);
+  }, [engine, ingest]);
+
+  // Coalesce rapid (re)start requests behind a short timer so a just-stopped
+  // browser recogniser has a moment to settle before the next one starts.
+  const listen = useCallback(() => {
+    if (startTimerRef.current !== null) clearTimeout(startTimerRef.current);
+    startTimerRef.current = window.setTimeout(startNow, START_DEBOUNCE_MS);
+  }, [startNow]);
 
   useEffect(() => { listenRef.current = listen; }, [listen]);
 
@@ -169,6 +237,7 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
 
   const retry = useCallback(() => {
     retriesRef.current = 0;
+    startRetriesRef.current = 0;
     setError(null);
     listen();
   }, [listen]);
@@ -185,6 +254,7 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
 
     if (active) {
       retriesRef.current = 0;
+      startRetriesRef.current = 0;
       listen();
     } else {
       // Just stop; the engine's abort/end callback settles `status` back to

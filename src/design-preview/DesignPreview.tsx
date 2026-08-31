@@ -3,6 +3,7 @@ import NoteCircle from '../components/NoteCircle';
 import FretGrid from '../components/FretGrid';
 import SelectorPanel from '../components/SelectorPanel';
 import type { SelectorState } from '../hooks/useSelector';
+import { INSTRUMENTS } from '../utils/instruments';
 import { getCofNotes } from '../utils/music';
 
 type Theme = 'dark' | 'light';
@@ -272,6 +273,7 @@ export default function DesignPreview() {
             <div className="dp-card-label">SelectorPanel — live component</div>
             <SelectorPanel
               selector={selDemo}
+              instrument={INSTRUMENTS.guitar}
               onStringSelect={(n) => setSelDemo(s => ({ ...s, selectedStrings: [n], multiMode: false }))}
               onMultiToggle={() => setSelDemo(s => ({ ...s, multiMode: !s.multiMode }))}
               onModeSelect={(m) => setSelDemo(s => ({ ...s, mode: m }))}
@@ -296,6 +298,7 @@ export default function DesignPreview() {
             <div className="dp-card-label">selector-panel-mini — during play</div>
             <SelectorPanel
               selector={selDemo}
+              instrument={INSTRUMENTS.guitar}
               onStringSelect={() => {}} onMultiToggle={() => {}} onModeSelect={() => {}}
               onFretRangeToggle={() => {}} onDifficultySelect={() => {}}
               isPlaying activeString={selDemo.selectedStrings[0]} activeFret={7}

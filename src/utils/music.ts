@@ -1,4 +1,9 @@
-export const notes: string[][] = [
+// Master [string][fret] -> note-name table for the standard 6-string guitar
+// (string index 0 = high E). `notes` below is a *live binding* that points at
+// this table by default and is swapped to the bass table by setActiveInstrument
+// (see utils/instruments.ts) — always read `notes`/`activeMaxFret`/
+// `activeDotFrets` at call time rather than copying them at module load.
+export const GUITAR_NOTES: string[][] = [
   ['E','F','F#','G','G#','A','A#','B','C','C#','D','D#','E','F','F#','G','G#','A','A#','B','C','C#'],
   ['B','C','C#','D','D#','E','F','F#','G','G#','A','A#','B','C','C#','D','D#','E','F','F#','G','G#'],
   ['G','G#','A','A#','B','C','C#','D','D#','E','F','F#','G','G#','A','A#','B','C','C#','D','D#','E'],
@@ -6,6 +11,25 @@ export const notes: string[][] = [
   ['A','A#','B','C','C#','D','D#','E','F','F#','G','G#','A','A#','B','C','C#','D','D#','E','F','F#'],
   ['E','F','F#','G','G#','A','A#','B','C','C#','D','D#','E','F','F#','G','G#','A','A#','B','C','C#'],
 ];
+
+export const GUITAR_DOT_FRETS = [3, 5, 7, 9, 12, 15, 17, 19, 21];
+
+// ── Active instrument (mutable) ──────────────────────────────────────────
+// Guitar by default; App.tsx calls setActiveInstrument() before first paint
+// and again whenever the user switches instrument in the hamburger menu.
+export let notes: string[][] = GUITAR_NOTES;
+export let activeMaxFret = 21;
+export let activeDotFrets: number[] = GUITAR_DOT_FRETS;
+
+export function setActiveInstrument(cfg: {
+  notes: string[][];
+  maxFret: number;
+  dotFrets: number[];
+}): void {
+  notes = cfg.notes;
+  activeMaxFret = cfg.maxFret;
+  activeDotFrets = cfg.dotFrets;
+}
 
 export const cofNotesSharp = ['C','G','D','A','E','B','F#','C#','G#','D#','A#','F'];
 export const cofNotesFlat = ['C','G','D','A','E','B','Gb','Db','Ab','Eb','Bb','F'];
@@ -58,7 +82,9 @@ export function getCofNotes(accidental: AccidentalMode, order: OrderMode, wholeT
 // Returns the index in cofList that should appear at 12 o'clock for the given string
 export function getStringStartIndex(accidental: AccidentalMode, order: OrderMode, wholeToneOnly: boolean, stringIdx: number): number {
   const base = getCofNotes(accidental, order, wholeToneOnly);
-  const openNote = notes[stringIdx][0];
+  // Guard the brief render right after an instrument switch, when a stale
+  // (larger) string number can still be passed against the new note table.
+  const openNote = notes[stringIdx]?.[0] ?? notes[notes.length - 1][0];
   const idx = base.findIndex(n => notesMatch(n, openNote));
   return idx >= 0 ? idx : 0;
 }
@@ -85,11 +111,14 @@ export function getCorrectCofNote(correctNote: string, cofList: string[]): strin
 }
 
 export function getValidFrets(stringIdx: number, fromFret: number, toFret: number, wholeToneOnly: boolean, dotsOnly?: boolean): number[] {
-  const dotAndOpenFrets = [0, 3, 5, 7, 9, 12, 15, 17, 19, 21];
+  const dotAndOpenFrets = [0, ...activeDotFrets];
+  // Fall back to the lowest string if a stale out-of-range index slips through
+  // during an instrument switch (see getStringStartIndex).
+  const row = notes[stringIdx] ?? notes[notes.length - 1];
   const valid: number[] = [];
   for (let f = fromFret; f <= toFret; f++) {
     if (dotsOnly && !dotAndOpenFrets.includes(f)) continue;
-    if (!wholeToneOnly || wholeTones.includes(notes[stringIdx][f])) valid.push(f);
+    if (!wholeToneOnly || wholeTones.includes(row[f])) valid.push(f);
   }
   return valid.length > 0 ? valid : [fromFret];
 }

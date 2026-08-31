@@ -6,9 +6,10 @@ import StatsPanel from './components/StatsPanel';
 import Onboarding from './components/Onboarding';
 import SpeedBar from './components/SpeedBar';
 import AnimatedScore from './components/AnimatedScore';
-import { displayNote } from './utils/music';
+import { displayNote, setActiveInstrument } from './utils/music';
 import type { HistoryEntry, AccidentalMode, OrderMode, NotationMode } from './utils/music';
-import { preloadAllSamples, unlockAudio } from './utils/audio';
+import { getInstrument, type InstrumentId } from './utils/instruments';
+import { preloadAllSamples, unlockAudio, setAudioInstrument } from './utils/audio';
 import { App as CapacitorApp } from '@capacitor/app';
 import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3 } from './utils/feedback';
 import { loadSetting, saveSetting } from './utils/settings';
@@ -20,22 +21,48 @@ import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useGameEngine } from './hooks/useGameEngine';
 import { useHistory } from './hooks/useHistory';
 import { useScoring } from './hooks/useScoring';
+import { useVoiceAnswer } from './hooks/useVoiceAnswer';
+import type { SpeechNotation } from './utils/speechVocab';
 
-const STRING_DISPLAY: Record<number, string> = {
-  1: 'String 1 · high E', 2: 'String 2 · B', 3: 'String 3 · G',
-  4: 'String 4 · D', 5: 'String 5 · A', 6: 'String 6 · low E',
-};
+type AnswerMode = 'tap' | 'voice';
 
 // Uppercase display name for the Auto Advance stage-transition banner.
 const STAGE_NAME: Record<string, string> = { dots: 'DOTS', naturals: 'NATURALS', full: 'FULL' };
 
 export default function App() {
-  const selector = useSelector();
+  // Which instrument is being drilled. Chosen on first launch (Onboarding) and
+  // switchable from the hamburger menu; everything tuning/string/fret/sample
+  // related flows from this config (see utils/instruments.ts).
+  const [instrumentId, setInstrumentId] = useState<InstrumentId>(
+    () => loadSetting('pref_instrument', 'guitar'),
+  );
+  const instrument = getInstrument(instrumentId);
+  // Sync the shared note-table + audio bindings to the active instrument before
+  // any child hook/component reads them this render. Idempotent — this is an
+  // external-store sync, not derived render state.
+  setActiveInstrument(instrument);
+  setAudioInstrument(instrument);
+  const applyInstrument = (id: InstrumentId) => {
+    setInstrumentId(id);
+    saveSetting('pref_instrument', id);
+  };
+
+  const selector = useSelector(instrument);
   const { derivedSettings } = selector;
 
   const [guitarString, setGuitarString] = useState(derivedSettings.guitarString);
+  // `guitarString` is state synced from derivedSettings via an effect, so for
+  // one render right after an instrument switch it can still hold the previous
+  // instrument's (larger) string number. Clamp it before anything indexes the
+  // now-shorter note table with it — an out-of-range index throws and blanks
+  // the whole page.
+  const safeGuitarString = Math.min(Math.max(guitarString, 1), instrument.stringCount);
   const [byString, setByString] = useState(() => loadSetting('pref_byString', true));
   const [notation, setNotation] = useState<NotationMode>(() => loadSetting('pref_notation', 'alpha'));
+  // How the player answers a question: tapping the circle/grid, or speaking the
+  // note name / fret number aloud (WP-4). Voice needs a network connection and
+  // is only offered where a recogniser is actually available.
+  const [answerMode, setAnswerMode] = useState<AnswerMode>(() => loadSetting('pref_answerMode', 'tap'));
   const [order, setOrder] = useState<OrderMode>(() => loadSetting('pref_order', 'fifths'));
   const [accidental] = useState<AccidentalMode>(() => loadSetting('pref_accidental', 'sharps'));
 
@@ -84,9 +111,9 @@ export default function App() {
   }, [auth.user, replaceAllHistory, getAllHistory]);
 
   const derived = useDerivedNotes(
-    guitarString, derivedSettings.fretFrom, derivedSettings.fretTo,
+    safeGuitarString, derivedSettings.fretFrom, derivedSettings.fretTo,
     derivedSettings.wholeToneOnly, derivedSettings.dotsOnly,
-    accidental, order, byString, derivedSettings.multiStrings,
+    accidental, order, byString, derivedSettings.multiStrings, instrumentId,
   );
   const { cofList, startIndex, activeNotes, questionActiveNotes, fretDots, noteFrets, isMulti } = derived;
   const scoring = useScoring();
@@ -122,14 +149,14 @@ export default function App() {
 
   const engine = useGameEngine(
     {
-      guitarString,
+      guitarString: safeGuitarString,
       fretFrom: derivedSettings.fretFrom,
       fretTo: derivedSettings.fretTo,
       wholeToneOnly: derivedSettings.wholeToneOnly,
       dotsOnly: derivedSettings.dotsOnly,
       byNote: derivedSettings.byNote,
       isMulti: derivedSettings.multiStrings.length > 0,
-      activeStrings: derivedSettings.multiStrings.length > 0 ? derivedSettings.multiStrings : [guitarString],
+      activeStrings: derivedSettings.multiStrings.length > 0 ? derivedSettings.multiStrings : [safeGuitarString],
       time: derivedSettings.time,
       accidental,
       order,
@@ -163,6 +190,24 @@ export default function App() {
     questionTime, questionStart, questionSeq, questionNumber,
     start: engineStart, stop, pause, resume, selectFret, selectAnswer,
   } = engine;
+
+  // Voice answering (WP-4): while a question is on screen and answerMode is
+  // 'voice', listen and route the recognised note/fret through the same
+  // selectAnswer/selectFret the tap handlers use.
+  const voice = useVoiceAnswer({
+    enabled: answerMode === 'voice',
+    running,
+    paused,
+    answered,
+    byNote: derivedSettings.byNote,
+    questionSeq,
+    hasActiveQuestion: derivedSettings.byNote ? currentNote !== null : currentFret !== null,
+    notation: notation as SpeechNotation,
+    onNote: selectAnswer,
+    onFret: selectFret,
+  });
+  // Fall back to tap input if voice is selected but no recogniser exists.
+  const voiceActive = answerMode === 'voice' && voice.supported;
 
   // Latest-value mirror so the Auto Advance effect below can depend ONLY on
   // `pendingAutoAdvance`. `engineStart` (and the objects it closes over) get a
@@ -352,6 +397,8 @@ export default function App() {
 
   const start = () => {
     unlockAudio();
+    // Trigger the mic permission prompt from this user gesture, like unlockAudio.
+    if (answerMode === 'voice' && voice.supported) void voice.ensurePermission();
     if (!preloaded) { preloadAllSamples().then(() => setPreloaded(true)); setPreloaded(true); }
     scoring.reset();
     // One continuous timing ramp for the whole run: from this difficulty's
@@ -400,6 +447,7 @@ export default function App() {
   const renderSelectorPanel = (panelPlaying: boolean, notationOnly = false) => (
     <SelectorPanel
       selector={selector.state}
+      instrument={instrument}
       onStringSelect={selector.onStringSelect}
       onMultiToggle={selector.onMultiToggle}
       onModeSelect={selector.onModeSelect}
@@ -408,7 +456,7 @@ export default function App() {
       onAutoAdvanceToggle={() => { if (selector.state.autoAdvance) playToggleOffSound(); else playToggleOnSound(); haptic.tap(); selector.onAutoAdvanceToggle(); }}
       isPlaying={panelPlaying}
       notationOnly={notationOnly}
-      activeString={gameActive ? guitarString : undefined}
+      activeString={gameActive ? safeGuitarString : undefined}
       activeFret={gameActive ? askedFret : undefined}
       byString={byString}
       order={order}
@@ -427,7 +475,10 @@ export default function App() {
   return (
     <div className="app">
       {!onboardingDone && (
-        <Onboarding onDone={() => { setOnboardingDone(true); saveSetting('onboardingDone', true); }} />
+        <Onboarding
+          onInstrument={applyInstrument}
+          onDone={() => { setOnboardingDone(true); saveSetting('onboardingDone', true); }}
+        />
       )}
 
       {/* Pause: dim the entire app screen; .controls (Resume/Stop) sits
@@ -467,7 +518,7 @@ export default function App() {
         </button>
       )}
 
-      <h1>🎸 Guitar Fret Practice</h1>
+      <h1>{instrument.emoji} {instrument.label} Fret Practice</h1>
 
       {/* All playing settings live inline on the page; a compact read-only HUD
           replaces the panel during play. */}
@@ -484,7 +535,35 @@ export default function App() {
             aria-label="Game settings"
             onClick={(e) => e.stopPropagation()}
           >
+            <div className="notation-row">
+              <span className="notation-label">Instrument</span>
+              <button
+                className={`order-chip${instrumentId === 'guitar' ? ' order-chip-active' : ''}`}
+                onClick={click(() => { if (instrumentId !== 'guitar') { if (running || paused) stop(); applyInstrument('guitar'); setPreloaded(false); setSettingsOpen(false); } })}
+              >🎸 Guitar</button>
+              <button
+                className={`order-chip${instrumentId === 'bass' ? ' order-chip-active' : ''}`}
+                onClick={click(() => { if (instrumentId !== 'bass') { if (running || paused) stop(); applyInstrument('bass'); setPreloaded(false); setSettingsOpen(false); } })}
+              >🎵 Bass</button>
+            </div>
             {renderSelectorPanel(false, true)}
+            {voice.supported && (
+              <div className="notation-row">
+                <span className="notation-label">Answer</span>
+                <button
+                  className={`order-chip${answerMode === 'tap' ? ' order-chip-active' : ''}`}
+                  onClick={click(() => { setAnswerMode('tap'); saveSetting('pref_answerMode', 'tap'); })}
+                >👆 Tap</button>
+                <button
+                  className={`order-chip${answerMode === 'voice' ? ' order-chip-active' : ''}`}
+                  onClick={click(() => {
+                    setAnswerMode('voice');
+                    saveSetting('pref_answerMode', 'voice');
+                    void voice.ensurePermission();
+                  })}
+                >🎤 Voice</button>
+              </div>
+            )}
             {auth.configured && (
               <div className="account-row">
                 {auth.user ? (
@@ -541,7 +620,7 @@ export default function App() {
         <div className="question-col">
           {gameActive && (
             <>
-              <div className="string-label" key={guitarString}>{STRING_DISPLAY[guitarString]}</div>
+              <div className="string-label" key={safeGuitarString}>{instrument.stringLabels[safeGuitarString]}</div>
               {derivedSettings.byNote
                 ? <div className={`note-display${stageTransition ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>{currentNote ? displayNote(currentNote, accidental, notation) : '—'}</div>
                 : <div className={`fret-display${stageTransition ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>{currentFret !== null ? currentFret : '—'}</div>
@@ -558,6 +637,24 @@ export default function App() {
               <div className={`feedback ${feedback.startsWith('✓') ? 'good' : feedback.startsWith('✗') ? 'bad' : 'warn'}`}>
                 {feedback}{scoring.session.lastPoints > 0 && feedback.startsWith('✓') ? ` +${scoring.session.lastPoints}` : ''}
               </div>
+              {voiceActive && (
+                <div className={`voice-status voice-${voice.status}`} role="status" aria-live="polite">
+                  {voice.permission === 'denied'
+                    ? '🎤 Microphone blocked — enable it or switch to tap'
+                    : voice.error === 'network'
+                      ? '🎤 Voice needs a connection'
+                      : voice.error
+                        ? '🎤 Didn’t catch that'
+                        : voice.status === 'listening'
+                          ? `🎤 Listening…${voice.partial ? ` “${voice.partial}”` : ''}`
+                          : voice.status === 'heard'
+                            ? `🎤 “${voice.partial}”`
+                            : '🎤 …'}
+                  {(voice.status === 'error') && (
+                    <button className="clear-btn voice-retry" onClick={click(voice.retry)}>Retry</button>
+                  )}
+                </div>
+              )}
             </>
           )}
 
@@ -616,7 +713,7 @@ export default function App() {
             <FretGrid
               fretFrom={derivedSettings.fretFrom}
               fretTo={derivedSettings.fretTo}
-              guitarString={guitarString}
+              guitarString={safeGuitarString}
               validFrets={new Set(Object.values(noteFrets).flat())}
               active={isPlaying && !answered}
               correctFrets={gameActive ? remainingFrets : []}
@@ -632,7 +729,7 @@ export default function App() {
               correctNote={gameActive ? correctCofNote : null}
               wrongNote={gameActive ? wrongCofNote : null}
               onSelect={selectAnswer}
-              guitarString={guitarString}
+              guitarString={safeGuitarString}
               fretDots={fretDots}
               noteFrets={noteFrets}
               byString={byString}

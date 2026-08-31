@@ -25,14 +25,18 @@ const LETTER_TOKENS: Record<string, string> = {
   c: 'C', see: 'C', sea: 'C', ci: 'C', cee: 'C', si: 'C',
   d: 'D', dee: 'D', de: 'D', di: 'D', the: 'D', thee: 'D',
   e: 'E', ee: 'E', ea: 'E',
-  f: 'F', ef: 'F', eff: 'F',
+  // "F" ("eff") is the weakest letter for speech recognition — an isolated
+  // utterance is routinely heard as one of these. None is a note name or an
+  // accidental word, so mapping them all to F is safe.
+  f: 'F', ef: 'F', eff: 'F', effe: 'F', efe: 'F', ff: 'F',
+  if: 'F', of: 'F', off: 'F', half: 'F',
   g: 'G', gee: 'G', jee: 'G', ji: 'G', ji_: 'G',
   // Hebrew letter-name transliterations (best-effort)
   'אֵי': 'A', 'איי': 'A',
   'בי': 'B',
   'סי': 'C',
   'די': 'D',
-  'אף': 'F', 'אפ': 'F',
+  'אף': 'F', 'אפ': 'F', 'עף': 'F', 'אפף': 'F',
 };
 
 const SOLFEGE_TOKENS: Record<string, string> = {

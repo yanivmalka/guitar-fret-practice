@@ -3,6 +3,8 @@ import { saveSetting } from '../utils/settings';
 
 interface Props {
   onDone: () => void;
+  /** Persist the player's instrument pick made on the first screen. */
+  onInstrument?: (id: 'guitar' | 'bass') => void;
 }
 
 // Quick placement questions: string 6, by fret, dots only
@@ -16,11 +18,20 @@ type Step = 'instrument' | 'level' | 'test' | 'result';
 
 const NOTE_OPTIONS = ['E','F','F#','G','G#','A','A#','B','C','C#','D','D#'];
 
-export default function Onboarding({ onDone }: Props) {
+export default function Onboarding({ onDone, onInstrument }: Props) {
   const [step, setStep] = useState<Step>('instrument');
+  const [instrument, setInstrument] = useState<'guitar' | 'bass'>('guitar');
   const [testIdx, setTestIdx]     = useState(0);
   const [correct, setCorrect]     = useState(0);
   const [showFeedback, setShowFeedback] = useState<'correct' | 'wrong' | null>(null);
+
+  const testString = instrument === 'bass' ? 4 : 6;
+
+  const pickInstrument = (id: 'guitar' | 'bass') => {
+    setInstrument(id);
+    onInstrument?.(id);
+    setStep('level');
+  };
 
   const finish = () => {
     saveSetting('onboardingDone', true);
@@ -50,11 +61,11 @@ export default function Onboarding({ onDone }: Props) {
         <p className="onboarding-sub">Master the fretboard with the clock method — one string at a time.</p>
         <p className="onboarding-question">What do you play?</p>
         <div className="onboarding-options">
-          <button className="onboarding-btn" onClick={() => setStep('level')}>
+          <button className="onboarding-btn" onClick={() => pickInstrument('guitar')}>
             🎸 Guitar
           </button>
-          <button className="onboarding-btn onboarding-btn-secondary" disabled title="Coming soon">
-            🎵 Bass <span className="onboarding-soon">soon</span>
+          <button className="onboarding-btn" onClick={() => pickInstrument('bass')}>
+            🎵 Bass
           </button>
         </div>
         <button className="onboarding-skip" onClick={finish}>Skip setup →</button>
@@ -92,7 +103,7 @@ export default function Onboarding({ onDone }: Props) {
       <div className="onboarding">
         <div className="onboarding-card">
           <p className="onboarding-progress">{testIdx + 1} / {PLACEMENT_QUESTIONS.length}</p>
-          <p className="onboarding-question">String 6 — what note is fret <strong>{q.fret}</strong>?</p>
+          <p className="onboarding-question">String {testString} — what note is fret <strong>{q.fret}</strong>?</p>
           <div className="onboarding-note-grid">
             {NOTE_OPTIONS.map(n => (
               <button

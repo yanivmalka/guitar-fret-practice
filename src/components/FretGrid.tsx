@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { playNoteSingle } from '../utils/audio';
-import { notes } from '../utils/music';
+import { notes, activeDotFrets } from '../utils/music';
 
 interface Props {
   fretFrom: number;
@@ -14,12 +14,11 @@ interface Props {
   onSelect: (fret: number) => void;
 }
 
-const DOT_FRETS = new Set([3, 5, 7, 9, 12, 15, 17, 19, 21]);
-
 export default function FretGrid({
   fretFrom, fretTo, guitarString, validFrets,
   active, correctFrets, wrongFret, foundFrets, onSelect,
 }: Props) {
+  const DOT_FRETS = new Set(activeDotFrets);
   const frets = Array.from({ length: fretTo - fretFrom + 1 }, (_, i) => fretFrom + i);
   // Map fret number → button DOM node for direct glow control
   const btnRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
