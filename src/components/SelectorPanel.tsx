@@ -19,6 +19,9 @@ interface SelectorPanelProps {
   onOrderChange?: (o: OrderMode) => void;
   notation?: NotationMode;
   onNotationChange?: (n: NotationMode) => void;
+  /** Render only the A-B-C / Do-Re-Mi notation toggle (used in the hamburger
+   *  overlay); the rest of the panel stays inline on the page. */
+  notationOnly?: boolean;
   showStats?: boolean;
   onStatsToggle?: () => void;
   hasHistory?: boolean;
@@ -58,7 +61,7 @@ export default function SelectorPanel({
   selector, onStringSelect, onMultiToggle, onModeSelect,
   onFretRangeToggle, onDifficultySelect, onAutoAdvanceToggle, isPlaying, activeString, activeFret,
   byString, order, onByStringToggle, onOrderChange, notation, onNotationChange,
-  showStats, onStatsToggle, hasHistory,
+  notationOnly, showStats, onStatsToggle, hasHistory,
 }: SelectorPanelProps) {
   const strings: { label: string; num: number }[] = [
     { label: 'E', num: 6 }, { label: 'A', num: 5 }, { label: 'D', num: 4 },
@@ -67,6 +70,25 @@ export default function SelectorPanel({
 
   const splitX = fretX(12);
   const fbLeft = FB_LEFT_MARGIN - 3;
+
+  // Hamburger overlay: just the note-name notation toggle. Everything else in
+  // the panel stays inline on the page.
+  if (notationOnly) {
+    if (!onNotationChange) return null;
+    return (
+      <div className="notation-row">
+        <span className="notation-label">Notes</span>
+        <button
+          className={`order-chip${notation === 'alpha' ? ' order-chip-active' : ''}`}
+          onClick={() => onNotationChange('alpha')}
+        >A B C</button>
+        <button
+          className={`order-chip${notation === 'solfege' ? ' order-chip-active' : ''}`}
+          onClick={() => onNotationChange('solfege')}
+        >Do Re Mi</button>
+      </div>
+    );
+  }
 
   // During gameplay: show minimized panel with just info + fret neck
   if (isPlaying) {
@@ -259,21 +281,6 @@ export default function SelectorPanel({
           </button>
         )}
       </div>
-
-      {/* ── Note names (A-B-C / solfège) ──────────────────── */}
-      {onNotationChange && (
-        <div className="notation-row">
-          <span className="notation-label">Notes</span>
-          <button
-            className={`order-chip${notation === 'alpha' ? ' order-chip-active' : ''}`}
-            onClick={() => onNotationChange('alpha')}
-          >A B C</button>
-          <button
-            className={`order-chip${notation === 'solfege' ? ' order-chip-active' : ''}`}
-            onClick={() => onNotationChange('solfege')}
-          >Do Re Mi</button>
-        </div>
-      )}
     </div>
   );
 }
