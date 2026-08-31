@@ -12,7 +12,9 @@ import { preloadAllSamples, unlockAudio } from './utils/audio';
 import { App as CapacitorApp } from '@capacitor/app';
 import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3 } from './utils/feedback';
 import { loadSetting, saveSetting } from './utils/settings';
-import { loadBest, saveBest } from './utils/personalBest';
+import { loadBest, saveBest, loadAllBests, writeAllBests } from './utils/personalBest';
+import { useAuth } from './hooks/useAuth';
+import { bootstrapUser, pushAll, syncedUser, clearSyncedUser } from './utils/sync';
 import { useSelector, nextDifficulty, totalRunQuestions } from './hooks/useSelector';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useGameEngine } from './hooks/useGameEngine';
@@ -48,6 +50,38 @@ export default function App() {
     () => markPlayedRaw(histKey),
     [histKey, markPlayedRaw],
   );
+
+  // ── Accounts (optional): guests are unaffected; signing in with Google
+  // syncs History + Personal Best to the account and restores them on other
+  // devices. localStorage stays the source of truth the UI reads from.
+  const auth = useAuth();
+  const { replaceAllHistory, getAllHistory } = historyOps;
+  useEffect(() => {
+    const user = auth.user;
+    if (!user) { clearSyncedUser(); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        if (syncedUser() !== user.id) {
+          // First sign-in on this device: pull cloud, merge with local, push
+          // the merged set back, then commit it locally. Local data is left
+          // untouched unless every step succeeds.
+          const { history, bests } = await bootstrapUser(
+            user.id, getAllHistory(), loadAllBests(),
+          );
+          if (cancelled) return;
+          replaceAllHistory(history);
+          writeAllBests(bests);
+        } else {
+          // Already merged before — just re-push anything written offline.
+          await pushAll(user.id, getAllHistory(), loadAllBests());
+        }
+      } catch {
+        /* offline or transient error — retried on next sign-in / app start */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [auth.user, replaceAllHistory, getAllHistory]);
 
   const derived = useDerivedNotes(
     guitarString, derivedSettings.fretFrom, derivedSettings.fretTo,
@@ -233,6 +267,8 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [gameEnded, setGameEnded] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
+  const infoTimerRef = useRef<number | null>(null);
   const gameRowRef = useRef<HTMLDivElement>(null);
   // Guards the Tier 3 (new personal best) celebration so it fires at most once
   // per completed run. Reset on every Play and whenever the selector combo changes.
@@ -248,6 +284,15 @@ export default function App() {
   const gameActive = running || paused || pendingAutoAdvance;
 
   const click = <T,>(fn: () => T) => () => { playClickSound(); haptic.tap(); return fn(); };
+
+  // Bottom-center "?" affordance: briefly explains the clock / timing method,
+  // then auto-dismisses after 3s. Re-tapping restarts the 3s window.
+  const openInfo = () => {
+    setShowInfo(true);
+    if (infoTimerRef.current) window.clearTimeout(infoTimerRef.current);
+    infoTimerRef.current = window.setTimeout(() => setShowInfo(false), 3000);
+  };
+  useEffect(() => () => { if (infoTimerRef.current) window.clearTimeout(infoTimerRef.current); }, []);
 
   const hasHistory = historyOps.getEntriesForKey(histKey).length > 0;
 
@@ -434,6 +479,30 @@ export default function App() {
             onClick={(e) => e.stopPropagation()}
           >
             {renderSelectorPanel(false)}
+            {auth.configured && (
+              <div className="account-row">
+                {auth.user ? (
+                  <>
+                    <span className="account-email">
+                      {auth.user.email ?? 'Signed in'}
+                    </span>
+                    <button
+                      className="account-btn"
+                      onClick={click(() => { void auth.signOut(); })}
+                    >
+                      Sign out
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="account-btn account-btn-primary"
+                    onClick={click(() => { void auth.signInWithGoogle(); })}
+                  >
+                    Sign in with Google
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -580,6 +649,26 @@ export default function App() {
           />
         </div>
       )}
+
+      {/* Bottom-center "?" — quick explanation of the clock / timing method */}
+      <div className="info-affordance">
+        {showInfo && (
+          <div className="info-bubble" role="status" aria-live="polite">
+            Read the note wheel like a clock: your open string sits at 12 o'clock,
+            and the dots under each note show its fret. Answer before the timing
+            bar empties.
+          </div>
+        )}
+        <button
+          type="button"
+          className="info-btn"
+          onClick={() => { playClickSound(); haptic.tap(); openInfo(); }}
+          aria-label="How this works"
+          title="How this works"
+        >
+          ?
+        </button>
+      </div>
 
       <div className="build-info">
         {__COMMIT_HASH__} · {__COMMIT_DATE__.slice(0, 16)}
