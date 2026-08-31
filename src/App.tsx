@@ -285,8 +285,8 @@ export default function App() {
 
   const click = <T,>(fn: () => T) => () => { playClickSound(); haptic.tap(); return fn(); };
 
-  // Bottom-center "?" affordance: briefly explains the clock / timing method,
-  // then auto-dismisses after 3s. Re-tapping restarts the 3s window.
+  // "?" affordance pinned to the Note-by-Fret card corner: briefly explains the
+  // clock / timing method, then auto-dismisses after 3s. Re-tapping restarts it.
   const openInfo = () => {
     setShowInfo(true);
     if (infoTimerRef.current) window.clearTimeout(infoTimerRef.current);
@@ -419,6 +419,8 @@ export default function App() {
       showStats={showStats}
       onStatsToggle={() => { playClickSound(); setShowStats(s => !s); }}
       hasHistory={hasHistory}
+      onInfo={() => { playClickSound(); haptic.tap(); openInfo(); }}
+      showInfo={showInfo}
     />
   );
 
@@ -659,26 +661,6 @@ export default function App() {
           />
         </div>
       )}
-
-      {/* Bottom-center "?" — quick explanation of the clock / timing method */}
-      <div className="info-affordance">
-        {showInfo && (
-          <div className="info-bubble" role="status" aria-live="polite">
-            Read the note wheel like a clock: your open string sits at 12 o'clock,
-            and the dots under each note show its fret. Answer before the timing
-            bar empties.
-          </div>
-        )}
-        <button
-          type="button"
-          className="info-btn"
-          onClick={() => { playClickSound(); haptic.tap(); openInfo(); }}
-          aria-label="How this works"
-          title="How this works"
-        >
-          ?
-        </button>
-      </div>
 
       <div className="build-info">
         {__COMMIT_HASH__} · {__COMMIT_DATE__.slice(0, 16)}

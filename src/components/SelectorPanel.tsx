@@ -25,6 +25,10 @@ interface SelectorPanelProps {
   showStats?: boolean;
   onStatsToggle?: () => void;
   hasHistory?: boolean;
+  /** Opens the "how the clock method works" bubble; rendered in the corner of
+   *  the Note-by-Fret card. */
+  onInfo?: () => void;
+  showInfo?: boolean;
 }
 
 const SCALE_FACTOR = 17.817;
@@ -61,7 +65,7 @@ export default function SelectorPanel({
   selector, onStringSelect, onMultiToggle, onModeSelect,
   onFretRangeToggle, onDifficultySelect, onAutoAdvanceToggle, isPlaying, activeString, activeFret,
   byString, order, onByStringToggle, onOrderChange, notation, onNotationChange,
-  notationOnly, showStats, onStatsToggle, hasHistory,
+  notationOnly, showStats, onStatsToggle, hasHistory, onInfo, showInfo,
 }: SelectorPanelProps) {
   const strings: { label: string; num: number }[] = [
     { label: 'E', num: 6 }, { label: 'A', num: 5 }, { label: 'D', num: 4 },
@@ -150,6 +154,28 @@ export default function SelectorPanel({
       {/* ── ModeToggle with order options between cards ── */}
       <div className="mode-cards">
         <button className={`mode-card ${selector.mode === 'byFret' ? 'active' : ''}`} onClick={() => onModeSelect('byFret')}>
+          {onInfo && (
+            <span
+              className="mode-card-info"
+              role="button"
+              tabIndex={0}
+              aria-label="How this works"
+              title="How this works"
+              onClick={(e) => { e.stopPropagation(); onInfo(); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onInfo(); }
+              }}
+            >
+              ?
+              {showInfo && (
+                <span className="mode-card-info-bubble" role="status" aria-live="polite">
+                  Read the note wheel like a clock: your open string sits at 12 o'clock,
+                  and the dots under each note show its fret. Answer before the timing
+                  bar empties.
+                </span>
+              )}
+            </span>
+          )}
           <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
             <circle cx="20" cy="20" r="14" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.3" />
             {Array.from({ length: 12 }, (_, i) => {
