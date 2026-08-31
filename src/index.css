@@ -29,9 +29,6 @@ body {
   overflow-x: hidden;
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
-  outline: 1px solid rgba(255, 215, 0, 0.12);
-  outline-offset: -1px;
-  box-shadow: inset 0 0 16px rgba(255, 215, 0, 0.05);
 }
 
 /* On larger (desktop/tablet) screens, render the app at its native
@@ -77,6 +74,24 @@ body {
   .picker-overlay,
   .countdown-overlay {
     position: absolute;
+  }
+}
+
+/* Mobile only: a delicate gold edge tracing the visible app viewport.
+   Drawn on a position:fixed overlay (not on .app, which is the scroll
+   container and whose border box extends past the dynamic viewport /
+   gets clipped by html,body { position: fixed; overflow: hidden }), so
+   the frame stays pinned to the four visible edges and never renders
+   outside them. Desktop keeps its own #root frame - this block can't
+   match there (viewport is always > 600px when the phone frame shows). */
+@media (max-width: 600px) {
+  .app::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    border: 1px solid rgba(255, 215, 0, 0.18);
+    box-shadow: inset 0 0 12px rgba(255, 215, 0, 0.06);
   }
 }
 
@@ -139,6 +154,42 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 .settings-panel .mode-cards,
 .settings-panel .difficulty-road {
   max-width: 100%;
+}
+
+/* Account (Google sign-in / sign-out) row at the bottom of the settings panel. */
+.account-row {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #2a2a4a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.account-email {
+  font-size: 0.75rem;
+  color: #999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.account-btn {
+  background: #1a1a2e;
+  border: 1px solid #444;
+  border-radius: 8px;
+  color: #ccc;
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.account-btn-primary {
+  color: #0ff;
+  border-color: #0ff;
+  width: 100%;
 }
 
 /* Note-names (A-B-C / solfège) row in the settings panel. */
@@ -478,6 +529,57 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   font-size: 10px; color: #444; margin-top: 16px; font-family: monospace;
 }
 
+/* ── Bottom-center "?" info affordance ─────────────────────
+   The bubble is absolutely positioned above the button so showing /
+   hiding it never shifts the surrounding layout. */
+.info-affordance {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+.info-btn {
+  background: none;
+  border: 1px solid #444;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  color: #0ff;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.info-btn:hover { border-color: #0ff; background: rgba(0, 255, 255, 0.1); }
+.info-bubble {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(320px, 88vw);
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #ccc;
+  text-align: center;
+  background: #111120;
+  border: 1px solid #2a2a3a;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  z-index: 20;
+  animation: info-bubble-in 0.18s ease-out;
+}
+@keyframes info-bubble-in {
+  from { opacity: 0; transform: translate(-50%, 4px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .info-bubble { animation: none; }
+}
+
 /* Container query (not a viewport media query) so this tracks the
    .app frame's own rendered width - on desktop .app is a fixed
    390px-wide phone frame regardless of the browser window's width,
@@ -548,6 +650,11 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   justify-content: center;
   overflow: hidden;
   transition: max-width 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+  /* Never let this column drive the .mode-cards row height: its stacked
+     chips are shorter than a mode card, so By Fret <-> By Note only
+     collapses it horizontally and the settings below never shift down. */
+  align-self: center;
+  max-height: 96px;
 }
 .mode-order-show {
   max-width: 80px;
@@ -1026,6 +1133,37 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   border-color: #0ff;
   color: #1a1a2e;
   font-weight: bold;
+}
+
+/* ── Dashed-border treatment for settings toggles ───────────
+   Same visual language as the order "By String" toggle above: a dashed
+   outline signals "tappable setting" and (for genuine on/off toggles)
+   stays dashed while active to read as state rather than selection.
+   Selectors are scoped so they win over the base .string-pill / .diff-btn
+   / .stats-icon-btn rules further down the file regardless of source order,
+   and the border width is left unchanged so no control box resizes. */
+
+/* Multi — an on/off toggle, not one of the string selections. */
+.string-pill.string-pill-toggle {
+  border: 1px dashed #555;
+}
+.string-pill.string-pill-toggle.active {
+  border-color: #0ff;
+  color: #0ff;
+}
+
+/* Difficulty buttons — dashed until one is chosen (discoverability); the
+   selected one switches back to the solid accent via its .active rule. */
+.difficulty-road .diff-btn {
+  border-style: dashed;
+}
+.difficulty-road .diff-btn.active {
+  border-style: solid;
+}
+
+/* Auto Advance — on/off toggle in the difficulty row. */
+.difficulty-road .auto-advance-toggle {
+  border-style: dashed;
 }
 
 /* ── Bottom-center ? button ───────────────────────────────── */

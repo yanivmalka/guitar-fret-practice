@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { HistoryEntry } from '../utils/music';
+import { withIds, cloudInsertEntry } from '../utils/sync';
 
 export function useHistory() {
   // All history keyed by selector-derived string key (e.g. "6|0-12|byFret|dots")
@@ -23,12 +24,22 @@ export function useHistory() {
     localStorage.setItem('selectorHistory', JSON.stringify(allHistory));
   }, [allHistory]);
 
+  // Latest-value mirror so callers (the sign-in sync in App) can read the
+  // current map without taking it as an effect dependency.
+  const allHistoryRef = useRef(allHistory);
+  useEffect(() => { allHistoryRef.current = allHistory; }, [allHistory]);
+  const getAllHistory = useCallback(() => allHistoryRef.current, []);
+
   const addEntry = useCallback((key: string, entry: HistoryEntry) => {
-    setHistory(prev => [...prev, entry]);
+    // Stamp a stable id + timestamp so the row can be synced/merged per account.
+    const stamped = withIds(entry);
+    setHistory(prev => [...prev, stamped]);
     setAllHistory(prev => ({
       ...prev,
-      [key]: [...(prev[key] ?? []), entry],
+      [key]: [...(prev[key] ?? []), stamped],
     }));
+    // Write-through to the cloud for signed-in users (no-op for guests/offline).
+    void cloudInsertEntry(key, stamped);
   }, []);
 
   const markPlayed = useCallback((key: string) => {
@@ -48,5 +59,14 @@ export function useHistory() {
     return allHistory[key] ?? [];
   }, [allHistory]);
 
-  return { history, allHistory, everPlayed, addEntry, markPlayed, clearHistory, resetSession, getEntriesForKey };
+  // Replace all stored history with the post-sign-in merged set.
+  const replaceAllHistory = useCallback((next: Record<string, HistoryEntry[]>) => {
+    setAllHistory(next);
+  }, []);
+
+  return {
+    history, allHistory, everPlayed,
+    addEntry, markPlayed, clearHistory, resetSession, getEntriesForKey,
+    replaceAllHistory, getAllHistory,
+  };
 }

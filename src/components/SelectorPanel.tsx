@@ -122,7 +122,7 @@ export default function SelectorPanel({
         {strings.map(({ label, num }) => (
           <button key={num} className={`string-pill ${selector.selectedStrings.includes(num) ? 'active' : ''}`} onClick={() => onStringSelect(num)}>{label}</button>
         ))}
-        <button className={`string-pill ${selector.multiMode ? 'active' : ''}`} onClick={() => { selector.multiMode ? playToggleOffSound() : playToggleOnSound(); onMultiToggle(); }}>Multi</button>
+        <button className={`string-pill string-pill-toggle ${selector.multiMode ? 'active' : ''}`} onClick={() => { selector.multiMode ? playToggleOffSound() : playToggleOnSound(); onMultiToggle(); }}>Multi</button>
       </div>
 
       {/* ── ModeToggle with order options between cards ── */}
@@ -243,7 +243,7 @@ export default function SelectorPanel({
         {/* Auto Advance: continue straight into the next difficulty when the current one is completed */}
         {onAutoAdvanceToggle && (
           <button
-            className={`stats-icon-btn ${selector.autoAdvance ? 'stats-icon-on' : ''}`}
+            className={`stats-icon-btn auto-advance-toggle ${selector.autoAdvance ? 'stats-icon-on' : ''}`}
             onClick={onAutoAdvanceToggle}
             title="Auto Advance to next difficulty"
             aria-label="Auto Advance to next difficulty"

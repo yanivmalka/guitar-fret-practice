@@ -40,6 +40,10 @@ export interface HistoryEntry {
   seconds: number;
   skipped: boolean;
   correct: boolean | null;
+  // Assigned by useHistory when the entry is recorded (older localStorage
+  // rows predate these). Used to sync/merge with the cloud per account.
+  id?: string;
+  createdAt?: string;
 }
 
 export function getCofNotes(accidental: AccidentalMode, order: OrderMode, wholeToneOnly: boolean): string[] {
