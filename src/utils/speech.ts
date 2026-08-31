@@ -245,9 +245,14 @@ function mapWebError(code: string): SpeechEngineError {
 
 // ── Native (Capacitor) implementation ────────────────────────────────
 //
-// The plugin is an optional peer: imported lazily and typed loosely so the
-// web build compiles without `@capacitor-community/speech-recognition`
-// installed. WP-6 adds the dependency + Android RECORD_AUDIO permission.
+// `@capacitor-community/speech-recognition` (WP-6) is a real dependency now.
+// It is still imported lazily — via a code-split dynamic import — so the web
+// bundle never has to load it: `isCapacitorNative()` is false in a browser,
+// so `NativeSpeechEngine` is never constructed there and the chunk is never
+// fetched. The plugin's Android library manifest contributes the
+// `RECORD_AUDIO` permission and the `RecognitionService` <queries> entry via
+// Gradle manifest merging, so `npx cap sync android` is all that is needed.
+// It is typed loosely here to avoid coupling to the plugin's exact d.ts.
 
 interface NativePlugin {
   available(): Promise<{ available: boolean }>;
@@ -271,11 +276,10 @@ interface NativePlugin {
 
 async function loadNativePlugin(): Promise<NativePlugin | null> {
   try {
-    // Computed specifier: keeps TS/Vite from resolving an optional peer dep
-    // that is only present in the Capacitor native build (added in WP-6).
-    const spec = '@capacitor-community/speech-recognition';
-    const mod = await import(/* @vite-ignore */ spec);
-    return (mod as { SpeechRecognition?: NativePlugin }).SpeechRecognition ?? null;
+    const mod = await import('@capacitor-community/speech-recognition');
+    return (
+      (mod as unknown as { SpeechRecognition?: NativePlugin }).SpeechRecognition ?? null
+    );
   } catch {
     return null;
   }

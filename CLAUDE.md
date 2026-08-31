@@ -15,6 +15,16 @@ A single-page React + TypeScript PWA that drills guitar fretboard note recogniti
 
 There is no test suite/runner configured in this repo.
 
+### Android (Capacitor)
+
+The `android/` project is generated, not committed (it's in `.gitignore`). To build the app:
+
+- `npx cap add android` — one-time, regenerates `android/` from `capacitor.config.ts`
+- `npm run cap:sync` — `npm run build` then `npx cap sync android` (copies `dist/`, installs plugin native code)
+- `npm run android` — `cap:sync` then opens Android Studio
+
+Native plugins in use: `@capacitor/app` and `@capacitor-community/speech-recognition`. The speech plugin's library manifest contributes the `RECORD_AUDIO` permission and the `android.speech.RecognitionService` `<queries>` entry through Gradle manifest merging, so no manual `AndroidManifest.xml` edit is needed after `cap sync`.
+
 Vite `base` is `/guitar-fret-practice/` (GitHub Pages deploy target), and the build embeds `__COMMIT_HASH__`/`__COMMIT_DATE__` globals (from `git rev-parse`/`git log`) shown in the footer — `npm run build` must run inside a git checkout for this to succeed.
 
 ## Architecture
@@ -34,6 +44,8 @@ The whole app is one page (`src/App.tsx`) composed from a handful of hooks that 
 Sharps/flats and circle-of-fifths/alphabetical ordering are handled centrally in `src/utils/music.ts` (`notes` is the master `[string][fret] -> note name` table; `notesMatch`/`displayNote`/`getCofNotes` do all enharmonic/notation conversion — always go through these rather than comparing note strings directly).
 
 **Audio** (`src/utils/audio.ts`): loads guitar note samples from a public soundfont CDN (`gleitz.github.io/midi-js-soundfonts`) via Web Audio, keyed by MIDI note number, with an in-memory buffer cache and `preloadAllSamples()` warmup. `unlockAudio()` must be called from a user gesture (done in `App.tsx`'s `start()`) before playback works on mobile browsers. The PWA service worker (configured in `vite.config.ts`) separately caches these same sample URLs for offline use.
+
+**Voice input** (`src/utils/speech.ts`, `src/hooks/useVoiceAnswer.ts`): an optional answer mode. `getSpeechEngine()` picks one implementation per platform — `WebSpeechEngine` (browser `SpeechRecognition`, needs network, and is unreliable/absent in an installed/standalone PWA), `NativeSpeechEngine` (`@capacitor-community/speech-recognition`, lazily imported so the web bundle never loads it; used inside the Android app), or `NullSpeechEngine` (falls back to tap). The engine only yields raw transcripts; `speechVocab.ts` parses them into a note or fret, and `useVoiceAnswer` routes the result through the same `selectAnswer`/`selectFret` the tap handlers use. Timer/callback values are kept in refs per the repo convention.
 
 **Persistence** (`src/utils/settings.ts`): a thin typed localStorage wrapper (`loadSetting`/`saveSetting`) used by `useSelector`, `App.tsx` preferences, and history. There's no central store — each hook reads/writes its own keys.
 
