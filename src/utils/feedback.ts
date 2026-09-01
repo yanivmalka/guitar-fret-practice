@@ -20,6 +20,17 @@ function getCtx(): AudioContext | null {
   } catch { return null; }
 }
 
+/**
+ * The persistent AudioContext this module already uses for click/toggle/chime
+ * sounds — proven to produce audible sound on this device (unlike a
+ * freshly-constructed context, which some browsers keep silent). Reuse it for
+ * any other one-off playback, e.g. "play back my calibration recording",
+ * instead of constructing a new context per use.
+ */
+export function getFeedbackAudioCtx(): AudioContext | null {
+  return getCtx();
+}
+
 export function playClickSound() {
   const ctx = getCtx();
   if (!ctx) return;

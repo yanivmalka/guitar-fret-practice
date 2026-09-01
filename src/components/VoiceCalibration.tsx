@@ -14,7 +14,7 @@ import {
 import { resemblesSpokenNote } from '../utils/calibrationGate';
 import { resetSpeechEngine } from '../utils/speech';
 import type { SpeechNotation } from '../utils/speechVocab';
-import { playClickSound, haptic } from '../utils/feedback';
+import { playClickSound, getFeedbackAudioCtx, haptic } from '../utils/feedback';
 
 const SAMPLES_PER_LABEL = 2;
 
@@ -223,25 +223,23 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
     };
   }, [running, rec, counts, idx, label, record, stopRun]);
 
-  const playLast = useCallback(async () => {
+  const playLast = useCallback(() => {
     const cap = lastPcmRef.current;
     if (!cap) return;
     playClickSound();
     try {
-      const Ctor = window.AudioContext
-        || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      const ctx = new Ctor();
-      // iOS Safari brings a fresh context up "suspended"; without an explicit
-      // resume() from this tap `src.start()` is silent.
-      if (ctx.state === 'suspended') {
-        try { await ctx.resume(); } catch { /* noop */ }
-      }
+      // Reuse the click-sound module's persistent AudioContext rather than
+      // constructing a fresh one: a freshly-constructed context stayed
+      // silent on at least one iOS device even after resume(), while this
+      // one is already proven to produce audible sound (the click itself).
+      const ctx = getFeedbackAudioCtx();
+      if (!ctx) return;
+      if (ctx.state === 'suspended') ctx.resume();
       const buf = ctx.createBuffer(1, cap.pcm.length, cap.sampleRate);
       buf.getChannelData(0).set(cap.pcm);
       const src = ctx.createBufferSource();
       src.buffer = buf;
       src.connect(ctx.destination);
-      src.onended = () => { void ctx.close().catch(() => { /* noop */ }); };
       src.start();
     } catch { /* playback is a nicety — ignore failures */ }
   }, []);
@@ -368,7 +366,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
         {err && <div className="vcal-err">{err}</div>}
 
         {hasLast && (
-          <button className="vcal-btn vcal-link" onClick={() => { void playLast(); }} disabled={rec !== 'idle'}>
+          <button className="vcal-btn vcal-link" onClick={playLast} disabled={rec !== 'idle'}>
             ▶ Play last recording
           </button>
         )}
