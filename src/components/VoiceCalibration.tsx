@@ -42,10 +42,14 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
 
   const label = PROFILE_LABELS[idx];
   const isAccidental = (ACCIDENTAL_LABELS as readonly string[]).includes(label);
+  // The accidental word follows the notation: "sharp"/"flat" for A-B-C,
+  // "dièse"/"bémol" for do-re-mi. Always shown in its own language, never
+  // transliterated to Hebrew.
+  const accidentalWord = label === '#'
+    ? (notation === 'solfege' ? 'dièse' : 'sharp')
+    : (notation === 'solfege' ? 'bémol' : 'flat');
   const prompt = isAccidental
-    ? (label === '#'
-        ? (notation === 'solfege' ? 'דּיאָז' : 'שארפ')
-        : 'במול')
+    ? accidentalWord
     : displayNote(label, accidental, notation);
   const hint = isAccidental
     ? 'תגיד רק את המילה הזאת, לבד'
