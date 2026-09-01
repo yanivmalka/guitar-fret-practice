@@ -297,16 +297,19 @@ export function segmentUtterance(
     segFrames = merged.slice(0, 2);
   } else {
     const [s, e] = merged[0];
+    segFrames = [[s, e]];
     if (e - s > longWord) {
-      // Force-split at the quietest interior frame (middle 60%).
+      // Force-split at the quietest interior frame (middle 60%) — but only
+      // when that frame is genuinely near the noise floor. A single spoken
+      // letter drawn out ("Eeee") is long without any internal gap; splitting
+      // it produced a phantom second word that then matched the "#"/"b"
+      // accidental templates (turning "E" into "F"+"b").
       const lo = s + Math.floor((e - s) * 0.2);
       const hi = e - Math.floor((e - s) * 0.2);
       let cut = lo;
       let min = Infinity;
       for (let f = lo; f < hi; f++) if (rms[f] < min) { min = rms[f]; cut = f; }
-      segFrames = [[s, cut], [cut, e]];
-    } else {
-      segFrames = [[s, e]];
+      if (min <= gate * 1.2) segFrames = [[s, cut], [cut, e]];
     }
   }
 
