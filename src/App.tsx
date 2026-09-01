@@ -489,9 +489,6 @@ export default function App() {
       onOrderChange={(o) => { playClickSound(); haptic.tap(); setOrder(o); saveSetting('pref_order', o); }}
       notation={notation}
       onNotationChange={(n) => { playClickSound(); haptic.tap(); setNotation(n); saveSetting('pref_notation', n); }}
-      showStats={showStats}
-      onStatsToggle={() => { playClickSound(); setShowStats(s => !s); }}
-      hasHistory={hasHistory}
       onInfo={() => { playClickSound(); haptic.tap(); openInfo(); }}
       showInfo={showInfo}
     />
@@ -527,21 +524,6 @@ export default function App() {
           </svg>
         </button>
       )}
-      {showBurger && hasHistory && (
-        <button
-          className="burger-btn stats-burger-btn"
-          onClick={click(() => setShowStats(s => !s))}
-          aria-label="Toggle statistics"
-          aria-pressed={showStats}
-          title="Statistics"
-        >
-          <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
-            <rect x="2" y="10" width="4" height="8" rx="1" fill="currentColor" />
-            <rect x="8" y="6" width="4" height="12" rx="1" fill="currentColor" />
-            <rect x="14" y="2" width="4" height="16" rx="1" fill="currentColor" />
-          </svg>
-        </button>
-      )}
 
       <h1>{instrument.emoji} {instrument.label} Fret Practice</h1>
 
@@ -572,6 +554,22 @@ export default function App() {
               >🎵 Bass</button>
             </div>
             {renderSelectorPanel(false, true)}
+            {hasHistory && (
+              <div className="notation-row">
+                <span className="notation-label">Stats</span>
+                <button
+                  className={`order-chip${showStats ? ' order-chip-active' : ''}`}
+                  onClick={click(() => { setShowStats(true); setSettingsOpen(false); })}
+                >
+                  <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true" style={{ marginRight: 6, verticalAlign: '-2px' }}>
+                    <rect x="2" y="10" width="4" height="8" rx="1" fill="currentColor" />
+                    <rect x="8" y="6" width="4" height="12" rx="1" fill="currentColor" />
+                    <rect x="14" y="2" width="4" height="16" rx="1" fill="currentColor" />
+                  </svg>
+                  Overall statistics
+                </button>
+              </div>
+            )}
             {voice.supported && (
               <div className="notation-row">
                 <span className="notation-label">Answer</span>

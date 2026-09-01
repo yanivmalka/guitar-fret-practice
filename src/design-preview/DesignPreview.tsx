@@ -287,11 +287,8 @@ export default function DesignPreview() {
               order={selOrder}
               onByStringToggle={() => setSelByString(v => !v)}
               onOrderChange={setSelOrder}
-              hasHistory
-              showStats={false}
-              onStatsToggle={() => {}}
             />
-            <div className="dp-legend">String pills · mode cards · Circle Order chips · fret-range neck · difficulty road · Auto Advance · stats icon</div>
+            <div className="dp-legend">String pills · mode cards · Circle Order chips · fret-range neck · difficulty road · Auto Advance</div>
           </div>
 
           <div className="dp-card" style={{ width: 320 }} data-theme={globalTheme} dir={globalDir}>

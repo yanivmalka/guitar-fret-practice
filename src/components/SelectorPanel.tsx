@@ -24,9 +24,6 @@ interface SelectorPanelProps {
   /** Render only the A-B-C / Do-Re-Mi notation toggle (used in the hamburger
    *  overlay); the rest of the panel stays inline on the page. */
   notationOnly?: boolean;
-  showStats?: boolean;
-  onStatsToggle?: () => void;
-  hasHistory?: boolean;
   /** Opens the "how the clock method works" bubble; rendered in the corner of
    *  the Note-by-Fret card. */
   onInfo?: () => void;
@@ -62,7 +59,7 @@ export default function SelectorPanel({
   selector, instrument, onStringSelect, onMultiToggle, onModeSelect,
   onFretRangeToggle, onDifficultySelect, onAutoAdvanceToggle, isPlaying, activeString, activeFret,
   byString, order, onByStringToggle, onOrderChange, notation, onNotationChange,
-  notationOnly, showStats, onStatsToggle, hasHistory, onInfo, showInfo,
+  notationOnly, onInfo, showInfo,
 }: SelectorPanelProps) {
   const maxFret = instrument.maxFret;
   const stringCount = instrument.stringCount;
@@ -310,12 +307,6 @@ export default function SelectorPanel({
             aria-pressed={selector.autoAdvance}
           >
             <svg viewBox="0 0 20 20" width="16" height="16"><polygon points="3,3 10,10 3,17" fill="currentColor"/><polygon points="10,3 17,10 10,17" fill="currentColor"/></svg>
-          </button>
-        )}
-        {/* Stats dashboard icon */}
-        {hasHistory && onStatsToggle && (
-          <button className={`stats-icon-btn ${showStats ? 'stats-icon-on' : ''}`} onClick={onStatsToggle} title="Statistics">
-            <svg viewBox="0 0 20 20" width="16" height="16"><rect x="2" y="10" width="4" height="8" rx="1" fill="currentColor"/><rect x="8" y="6" width="4" height="12" rx="1" fill="currentColor"/><rect x="14" y="2" width="4" height="16" rx="1" fill="currentColor"/></svg>
           </button>
         )}
       </div>
