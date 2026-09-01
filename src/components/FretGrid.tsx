@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { playNoteSingle } from '../utils/audio';
 import { notes, activeDotFrets } from '../utils/music';
+import type { MasteryStat } from '../utils/mastery';
 
 interface Props {
   fretFrom: number;
@@ -12,11 +13,14 @@ interface Props {
   wrongFret: number | null;
   foundFrets: number[];
   onSelect: (fret: number) => void;
+  masteryByFret?: Record<number, MasteryStat>;
+  showMastery?: boolean;
 }
 
 export default function FretGrid({
   fretFrom, fretTo, guitarString, validFrets,
   active, correctFrets, wrongFret, foundFrets, onSelect,
+  masteryByFret, showMastery,
 }: Props) {
   const DOT_FRETS = new Set(activeDotFrets);
   const frets = Array.from({ length: fretTo - fretFrom + 1 }, (_, i) => fretFrom + i);
@@ -66,6 +70,7 @@ export default function FretGrid({
 
         const dot = DOT_FRETS.has(f) ? (f === 12 ? '●●' : '●') : '';
         const noteName = isFilterDisabled ? notes[guitarString - 1][f] : '';
+        const mastery = showMastery ? masteryByFret?.[f] : undefined;
 
         return (
           <button
@@ -78,6 +83,12 @@ export default function FretGrid({
           >
             <span className="fret-btn-num">{f}</span>
             {dot && <span className="fret-btn-dot">{dot}</span>}
+            {mastery && mastery.level !== 'unplayed' && (
+              <span
+                className={`mastery-bar mastery-${mastery.level}`}
+                style={{ height: `${Math.round(3 + mastery.accuracy * 17)}px` }}
+              />
+            )}
           </button>
         );
       })}

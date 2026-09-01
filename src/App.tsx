@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import NoteCircle from './components/NoteCircle';
 import FretGrid from './components/FretGrid';
@@ -15,6 +15,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3 } from './utils/feedback';
 import { loadSetting, saveSetting } from './utils/settings';
 import { loadBest, saveBest, loadAllBests, writeAllBests } from './utils/personalBest';
+import { flattenHistory, fretMasteryMap, noteMasteryMap } from './utils/mastery';
 import { useAuth } from './hooks/useAuth';
 import { bootstrapUser, pushAll, syncedUser, clearSyncedUser } from './utils/sync';
 import { useSelector, nextDifficulty, totalRunQuestions } from './hooks/useSelector';
@@ -136,6 +137,20 @@ export default function App() {
   );
   const { cofList, startIndex, activeNotes, questionActiveNotes, fretDots, noteFrets, isMulti } = derived;
   const scoring = useScoring();
+
+  // All-time (every settings combo ever played) mastery, shown as a small
+  // equalizer-style overlay on the fretboard/note-circle so the user can see
+  // at a glance what they know vs. what needs work, in both directions:
+  // frets on the current string, and each note across all strings.
+  const allHistoryEntries = useMemo(() => flattenHistory(historyOps.allHistory), [historyOps.allHistory]);
+  const fretMastery = useMemo(
+    () => fretMasteryMap(allHistoryEntries, safeGuitarString),
+    [allHistoryEntries, safeGuitarString],
+  );
+  const noteMastery = useMemo(
+    () => noteMasteryMap(allHistoryEntries, cofList),
+    [allHistoryEntries, cofList],
+  );
 
   // Auto Advance: when the current stage/selection is actually completed
   // (every question answered, not a manual Stop), bump to the next
@@ -983,6 +998,8 @@ export default function App() {
               wrongFret={gameActive ? wrongFret : null}
               foundFrets={gameActive ? foundFrets : []}
               onSelect={selectFret}
+              masteryByFret={fretMastery}
+              showMastery={!(isPlaying && !answered)}
             />
           ) : (
             <NoteCircle
@@ -1000,6 +1017,8 @@ export default function App() {
               showDots={!(isMulti && derivedSettings.multiStrings.length > 1) || gameActive}
               accidental={accidental}
               notation={notation}
+              masteryByNote={noteMastery}
+              showMastery={!(isPlaying && !answered)}
             />
           )
         )}
