@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+import type { ReactNode } from 'react';
 import NoteCircle from './components/NoteCircle';
 import FretGrid from './components/FretGrid';
 import SelectorPanel from './components/SelectorPanel';
@@ -365,6 +366,8 @@ export default function App() {
   const [onboardingDone, setOnboardingDone] = useState(() => loadSetting<boolean>('onboardingDone', false));
   const [showStats, setShowStats] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Which settings sub-page is open inside the drawer; null = the list of titles.
+  const [drawerSection, setDrawerSection] = useState<string | null>(null);
   // Friendly in-app microphone card shown *before* the browser's own bare
   // permission prompt: 'primer' explains why we need the mic, 'denied' is the
   // recovery card for when the browser has already refused (it won't re-ask).
@@ -429,10 +432,19 @@ export default function App() {
 
   useEffect(() => { setShowStats(false); setGameEnded(false); tier3FiredRef.current = false; }, [histKey]);
 
-  // Close the settings overlay with Escape (desktop / keyboard users).
+  // Mirror the open sub-page in a ref so the Escape handler (bound once per
+  // open) reads the current value without re-subscribing on every navigation.
+  const drawerSectionRef = useRef<string | null>(null);
+  useEffect(() => { drawerSectionRef.current = drawerSection; }, [drawerSection]);
+
+  // Escape steps back to the list of titles first, then closes the drawer.
   useEffect(() => {
     if (!settingsOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSettingsOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (drawerSectionRef.current !== null) setDrawerSection(null);
+      else setSettingsOpen(false);
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [settingsOpen]);
@@ -571,6 +583,140 @@ export default function App() {
     />
   );
 
+  // The hamburger drawer is a list of section titles; tapping one opens a
+  // sub-page with a short blurb plus just that section's controls.
+  const settingsSections: Array<{ id: string; title: string; blurb: string; body: ReactNode }> = [
+    {
+      id: 'instrument',
+      title: '🎸 Instrument',
+      blurb: 'Switch between guitar and bass. Changing this updates the tuning, string count and fret range, and reloads the note samples.',
+      body: (
+        <div className="notation-row">
+          <button
+            className={`order-chip${instrumentId === 'guitar' ? ' order-chip-active' : ''}`}
+            onClick={click(() => { if (instrumentId !== 'guitar') { if (running || paused) stop(); applyInstrument('guitar'); setPreloaded(false); setSettingsOpen(false); } })}
+          >🎸 Guitar</button>
+          <button
+            className={`order-chip${instrumentId === 'bass' ? ' order-chip-active' : ''}`}
+            onClick={click(() => { if (instrumentId !== 'bass') { if (running || paused) stop(); applyInstrument('bass'); setPreloaded(false); setSettingsOpen(false); } })}
+          >🎵 Bass</button>
+        </div>
+      ),
+    },
+    {
+      id: 'notes',
+      title: '🎵 Note names',
+      blurb: 'Show note names as letters (A B C) or as solfège (Do Re Mi). This only changes how names are displayed, not the drill itself.',
+      body: renderSelectorPanel(false, true),
+    },
+    ...(hasHistory ? [{
+      id: 'stats',
+      title: '📊 Statistics',
+      blurb: 'Open the summary screen with cumulative accuracy and response times for the current settings combination.',
+      body: (
+        <button
+          className={`order-chip${showStats ? ' order-chip-active' : ''}`}
+          onClick={click(() => { setShowStats(true); setSettingsOpen(false); })}
+        >
+          <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true" style={{ marginRight: 6, verticalAlign: '-2px' }}>
+            <rect x="2" y="10" width="4" height="8" rx="1" fill="currentColor" />
+            <rect x="8" y="6" width="4" height="12" rx="1" fill="currentColor" />
+            <rect x="14" y="2" width="4" height="16" rx="1" fill="currentColor" />
+          </svg>
+          Overall statistics
+        </button>
+      ),
+    }] : []),
+    ...(voice.supported ? [{
+      id: 'answer',
+      title: '👆 Answer mode',
+      blurb: 'Choose whether you answer by tapping the screen or by saying the answer out loud. Voice mode asks for microphone permission.',
+      body: (
+        <div className="notation-row">
+          <button
+            className={`order-chip${answerMode === 'tap' ? ' order-chip-active' : ''}`}
+            onClick={click(() => { setAnswerMode('tap'); saveSetting('pref_answerMode', 'tap'); })}
+          >👆 Tap</button>
+          <button
+            className={`order-chip${answerMode === 'voice' ? ' order-chip-active' : ''}`}
+            onClick={click(() => {
+              setAnswerMode('voice');
+              saveSetting('pref_answerMode', 'voice');
+              askForMic();
+            })}
+          >🎤 Voice</button>
+        </div>
+      ),
+    }] : []),
+    {
+      id: 'voiceEngine',
+      title: '🗣️ Voice engine',
+      blurb: 'Auto picks the best recognizer automatically. Personal uses your own calibrated voice profile. General uses a built-in model.',
+      body: (
+        <div className="notation-row">
+          <button
+            className={`order-chip${voiceEnginePref === 'auto' ? ' order-chip-active' : ''}`}
+            onClick={click(() => pickVoiceEngine('auto'))}
+          >Auto</button>
+          <button
+            className={`order-chip${voiceEnginePref === 'profile' ? ' order-chip-active' : ''}`}
+            onClick={click(() => pickVoiceEngine('profile'))}
+          >Personal</button>
+          <button
+            className={`order-chip${voiceEnginePref === 'general' ? ' order-chip-active' : ''}`}
+            onClick={click(() => pickVoiceEngine('general'))}
+          >General</button>
+        </div>
+      ),
+    },
+    {
+      id: 'voiceProfile',
+      title: '🎙️ Voice profile',
+      blurb: 'Calibrate your voice to improve recognition accuracy when answering by voice.',
+      body: (
+        <button
+          className="order-chip"
+          onClick={click(() => { setSettingsOpen(false); setShowVoiceCalibration(true); })}
+        >🎙️ Calibrate my voice</button>
+      ),
+    },
+    ...(auth.configured ? [{
+      id: 'account',
+      title: '👤 Account',
+      blurb: 'Sign in with Google to keep your preferences and data across devices, or sign out.',
+      body: (
+        <div className="account-row">
+          {auth.user ? (
+            <>
+              <span className="account-email">
+                {auth.user.email ?? 'Signed in'}
+              </span>
+              <button
+                className="account-btn"
+                onClick={click(() => { void auth.signOut(); })}
+              >
+                Sign out
+              </button>
+            </>
+          ) : (
+            <button
+              className="account-btn account-btn-primary"
+              onClick={click(() => { void auth.signInWithGoogle(); })}
+            >
+              <svg className="google-icon" viewBox="0 0 18 18" width="16" height="16" aria-hidden="true">
+                <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z" />
+                <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z" />
+                <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1z" />
+                <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" />
+              </svg>
+              Sign in with Google
+            </button>
+          )}
+        </div>
+      ),
+    }] : []),
+  ];
+
   return (
     <div className="app">
       {!onboardingDone && (
@@ -589,7 +735,7 @@ export default function App() {
       {showBurger && (
         <button
           className="burger-btn"
-          onClick={click(() => setSettingsOpen(o => !o))}
+          onClick={click(() => { setDrawerSection(null); setSettingsOpen(o => !o); })}
           aria-label={settingsOpen ? 'Close settings' : 'Open settings'}
           aria-expanded={settingsOpen}
           title="Settings"
@@ -608,117 +754,52 @@ export default function App() {
           replaces the panel during play. */}
       {renderSelectorPanel(gameActive)}
 
-      {/* Hamburger overlay: only the note-name notation toggle + account row.
-          Backdrop click or Escape dismisses. */}
-      {settingsOpen && (
-        <div className="settings-overlay" onClick={click(() => setSettingsOpen(false))}>
-          <div
-            className="settings-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Game settings"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="notation-row">
-              <span className="notation-label">Instrument</span>
-              <button
-                className={`order-chip${instrumentId === 'guitar' ? ' order-chip-active' : ''}`}
-                onClick={click(() => { if (instrumentId !== 'guitar') { if (running || paused) stop(); applyInstrument('guitar'); setPreloaded(false); setSettingsOpen(false); } })}
-              >🎸 Guitar</button>
-              <button
-                className={`order-chip${instrumentId === 'bass' ? ' order-chip-active' : ''}`}
-                onClick={click(() => { if (instrumentId !== 'bass') { if (running || paused) stop(); applyInstrument('bass'); setPreloaded(false); setSettingsOpen(false); } })}
-              >🎵 Bass</button>
-            </div>
-            {renderSelectorPanel(false, true)}
-            {hasHistory && (
-              <div className="notation-row">
-                <span className="notation-label">Stats</span>
-                <button
-                  className={`order-chip${showStats ? ' order-chip-active' : ''}`}
-                  onClick={click(() => { setShowStats(true); setSettingsOpen(false); })}
-                >
-                  <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true" style={{ marginRight: 6, verticalAlign: '-2px' }}>
-                    <rect x="2" y="10" width="4" height="8" rx="1" fill="currentColor" />
-                    <rect x="8" y="6" width="4" height="12" rx="1" fill="currentColor" />
-                    <rect x="14" y="2" width="4" height="16" rx="1" fill="currentColor" />
-                  </svg>
-                  Overall statistics
-                </button>
-              </div>
-            )}
-            {voice.supported && (
-              <div className="notation-row">
-                <span className="notation-label">Answer</span>
-                <button
-                  className={`order-chip${answerMode === 'tap' ? ' order-chip-active' : ''}`}
-                  onClick={click(() => { setAnswerMode('tap'); saveSetting('pref_answerMode', 'tap'); })}
-                >👆 Tap</button>
-                <button
-                  className={`order-chip${answerMode === 'voice' ? ' order-chip-active' : ''}`}
-                  onClick={click(() => {
-                    setAnswerMode('voice');
-                    saveSetting('pref_answerMode', 'voice');
-                    askForMic();
-                  })}
-                >🎤 Voice</button>
-              </div>
-            )}
-            <div className="notation-row">
-              <span className="notation-label">Voice engine</span>
-              <button
-                className={`order-chip${voiceEnginePref === 'auto' ? ' order-chip-active' : ''}`}
-                onClick={click(() => pickVoiceEngine('auto'))}
-              >Auto</button>
-              <button
-                className={`order-chip${voiceEnginePref === 'profile' ? ' order-chip-active' : ''}`}
-                onClick={click(() => pickVoiceEngine('profile'))}
-              >Personal</button>
-              <button
-                className={`order-chip${voiceEnginePref === 'general' ? ' order-chip-active' : ''}`}
-                onClick={click(() => pickVoiceEngine('general'))}
-              >General</button>
-            </div>
-            <div className="notation-row">
-              <span className="notation-label">Voice profile</span>
-              <button
-                className="order-chip"
-                onClick={click(() => { setSettingsOpen(false); setShowVoiceCalibration(true); })}
-              >🎙️ Calibrate my voice</button>
-            </div>
-            {auth.configured && (
-              <div className="account-row">
-                {auth.user ? (
-                  <>
-                    <span className="account-email">
-                      {auth.user.email ?? 'Signed in'}
-                    </span>
+      {/* Hamburger drawer: a list of setting titles; tapping one opens that
+          section's sub-page. Backdrop click or Escape dismisses / steps back. */}
+      {settingsOpen && (() => {
+        const activeSection = drawerSection === null
+          ? null
+          : settingsSections.find(s => s.id === drawerSection) ?? null;
+        return (
+          <div className="settings-overlay" onClick={click(() => setSettingsOpen(false))}>
+            <div
+              className="settings-panel"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Game settings"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {activeSection === null ? (
+                <nav className="settings-menu">
+                  <h2 className="settings-menu-title">Settings</h2>
+                  {settingsSections.map(s => (
                     <button
-                      className="account-btn"
-                      onClick={click(() => { void auth.signOut(); })}
+                      key={s.id}
+                      className="settings-menu-item"
+                      onClick={click(() => setDrawerSection(s.id))}
                     >
-                      Sign out
+                      <span className="settings-menu-item-label">{s.title}</span>
+                      <span className="settings-menu-item-chevron" aria-hidden="true">‹</span>
                     </button>
-                  </>
-                ) : (
+                  ))}
+                </nav>
+              ) : (
+                <div className="settings-detail">
                   <button
-                    className="account-btn account-btn-primary"
-                    onClick={click(() => { void auth.signInWithGoogle(); })}
+                    className="settings-back"
+                    onClick={click(() => setDrawerSection(null))}
                   >
-                    <svg className="google-icon" viewBox="0 0 18 18" width="16" height="16" aria-hidden="true">
-                      <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z" />
-                      <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z" />
-                      <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1z" />
-                      <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" />
-                    </svg>
-                    Sign in with Google
+                    <span aria-hidden="true">›</span> Back
                   </button>
-                )}
-              </div>
-            )}
+                  <h2 className="settings-detail-title">{activeSection.title}</h2>
+                  <p className="settings-detail-blurb">{activeSection.blurb}</p>
+                  {activeSection.body}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Microphone permission card — our own copy + styling, shown ahead of
           (primer) or in place of (denied) the browser's native prompt. */}

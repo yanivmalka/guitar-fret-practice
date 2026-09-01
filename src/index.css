@@ -189,6 +189,69 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   font-size: 0.9rem;
 }
 
+/* Drawer: list of section titles. */
+.settings-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.settings-menu-title,
+.settings-detail-title {
+  margin: 0 0 6px;
+  font-size: 1.15rem;
+  color: #eee;
+}
+.settings-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 18px 16px;
+  border: 1px solid #2a2a4a;
+  border-radius: 14px;
+  background: #1a1a2e;
+  color: #eee;
+  font-size: 1rem;
+  text-align: start;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.settings-menu-item:hover,
+.settings-menu-item:focus-visible {
+  border-color: #0ff;
+  background: #20203a;
+}
+.settings-menu-item-chevron {
+  color: #0ff;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+/* Drawer: one section's sub-page. */
+.settings-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.settings-back {
+  align-self: flex-start;
+  padding: 8px 12px 8px 8px;
+  border: none;
+  background: none;
+  color: #0ff;
+  font-size: 0.95rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.settings-detail-blurb {
+  margin: 0 0 4px;
+  color: #aaa;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
 /* Account (Google sign-in / sign-out) row at the bottom of the settings panel. */
 .account-row {
   margin-top: 14px;
