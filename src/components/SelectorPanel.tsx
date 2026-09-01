@@ -1,5 +1,6 @@
 import type { SelectorState, Difficulty } from '../hooks/useSelector';
-import type { OrderMode, NotationMode } from '../utils/music';
+import type { AccidentalMode, OrderMode, NotationMode } from '../utils/music';
+import { displayNote } from '../utils/music';
 import type { InstrumentConfig } from '../utils/instruments';
 import { playClickSound, playToggleOnSound, playToggleOffSound } from '../utils/feedback';
 
@@ -19,6 +20,7 @@ interface SelectorPanelProps {
   order?: OrderMode;
   onByStringToggle?: () => void;
   onOrderChange?: (o: OrderMode) => void;
+  accidental?: AccidentalMode;
   notation?: NotationMode;
   onNotationChange?: (n: NotationMode) => void;
   /** Render only the A-B-C / Do-Re-Mi notation toggle (used in the hamburger
@@ -58,7 +60,7 @@ const FB_BOTTOM = FB_TOP + FB_HEIGHT;
 export default function SelectorPanel({
   selector, instrument, onStringSelect, onMultiToggle, onModeSelect,
   onFretRangeToggle, onDifficultySelect, onAutoAdvanceToggle, isPlaying, activeString, activeFret,
-  byString, order, onByStringToggle, onOrderChange, notation, onNotationChange,
+  byString, order, onByStringToggle, onOrderChange, accidental, notation, onNotationChange,
   notationOnly, onInfo, showInfo,
 }: SelectorPanelProps) {
   const maxFret = instrument.maxFret;
@@ -75,7 +77,7 @@ export default function SelectorPanel({
   // written in chord charts / tab: guitar E A D G B E, bass E A D G.
   const strings = Array.from({ length: stringCount }, (_, i) => {
     const num = stringCount - i;
-    return { label: instrument.notes[num - 1][0], num };
+    return { label: displayNote(instrument.notes[num - 1][0], accidental ?? 'sharps', notation), num };
   });
 
   // Y of a given 1-based string number inside the fretboard rect.
@@ -91,7 +93,7 @@ export default function SelectorPanel({
   const selectedStringLabels = selector.selectedStrings
     .slice()
     .sort((a, b) => b - a) // low-pitch (higher string number) first
-    .map((n) => instrument.notes[n - 1][0]);
+    .map((n) => displayNote(instrument.notes[n - 1][0], accidental ?? 'sharps', notation));
   const stringsPhrase = selectedStringLabels.length === stringCount
     ? `all ${stringCount} strings`
     : selectedStringLabels.length === 1
