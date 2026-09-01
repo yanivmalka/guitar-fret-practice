@@ -73,6 +73,11 @@ export function isSoundPlaying(): boolean {
   return Date.now() < soundEndTime;
 }
 
+/** Milliseconds until the currently-scheduled note playback has finished (0 if idle). */
+export function soundRemainingMs(): number {
+  return Math.max(0, soundEndTime - Date.now());
+}
+
 export async function playNote(stringNum: number, fret: number, rate = 1) {
   stopPlayback();
   const ctx = getCtx();
@@ -84,6 +89,11 @@ export async function playNote(stringNum: number, fret: number, rate = 1) {
   // (playbackRate) AND the grain offsets / envelope durations compress by the
   // same 1/rate factor, so a faster question compresses the entire note event
   // rather than only shifting its pitch.
+  //
+  // On top of that 1/rate compression, once the run's timing ramp pushes rate
+  // above 1× each pluck's ring-out is shortened further (tailScale) so the
+  // three fast plucks stay crisp and distinct instead of smearing together.
+  const tailScale = rate > 1 ? 1 / rate : 1;
   [0, 0.4, 0.8].forEach((t, i) => {
     const src = ctx.createBufferSource();
     const gain = ctx.createGain();
@@ -92,14 +102,14 @@ export async function playNote(stringNum: number, fret: number, rate = 1) {
     src.connect(gain);
     gain.connect(ctx.destination);
     const offset = t / rate;
-    const dur = (i < 2 ? 0.4 : 0.8) / rate;
+    const dur = (i < 2 ? 0.4 : 0.8) / rate * tailScale;
     gain.gain.setValueAtTime(0.7, ctx.currentTime + offset);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + offset + dur);
     src.start(ctx.currentTime + offset);
     src.stop(ctx.currentTime + offset + dur);
     activeSources.push(src);
   });
-  soundEndTime = Date.now() + 1600 / rate;
+  soundEndTime = Date.now() + (0.8 / rate) * (1 + tailScale) * 1000;
 }
 
 export function beep() {

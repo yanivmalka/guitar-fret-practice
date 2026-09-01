@@ -490,21 +490,25 @@ export default function App() {
     );
     setGameEnded(false);
     tier3FiredRef.current = false;
-    // Countdown 3-2-1
+    // Count-in: the on-screen countdown steps 3 → 2 → 1 once a second and the
+    // game comes in on "0" at t = 3s. The four drum-stick clicks run on their
+    // own faster cadence (t = 0, 0.8, 1.6, 2.4s) so they read as a drummer
+    // counting the band in rather than ticking with the displayed seconds.
     setCountdown(3);
     playStickClick();
+    [800, 1600, 2400].forEach((t) => window.setTimeout(playStickClick, t));
     let c = 3;
     const interval = setInterval(() => {
       c--;
-      if (c > 0) { setCountdown(c); playStickClick(); }
-      else {
+      if (c > 0) {
+        setCountdown(c);
+      } else {
         clearInterval(interval);
         setCountdown(null);
-        playStickClick();
         engineStart(derivedSettings.maxQuestions, derivedSettings.time, derivedSettings.byNote);
         setTimeout(() => gameRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
       }
-    }, 700);
+    }, 1000);
   };
 
   // Multiplier display tracks the streak-tier multiplier from useScoring

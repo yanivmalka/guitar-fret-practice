@@ -46,6 +46,13 @@ const STREAK_TIERS = [
 // Absolute floor: no difficulty/streak combination is ever squeezed below this.
 const MIN_QUESTION_TIME = 3;
 
+// A single wrong answer or timeout still breaks the score multiplier, but the
+// timing ramp (question seconds + note-playback speed) is only snapped back to
+// the current difficulty's base after this many *consecutive* misses. Until
+// then the player keeps practising at the speed they had reached, so one slip
+// does not undo a long climb.
+const MISSES_BEFORE_RAMP_RESET = 3;
+
 function getTier(streak: number): (typeof STREAK_TIERS)[number] {
   let tier: (typeof STREAK_TIERS)[number] = STREAK_TIERS[0];
   for (const t of STREAK_TIERS) if (streak >= t.min) tier = t;
@@ -133,11 +140,13 @@ export function useScoring() {
   const runBaseRef = useRef(0);              // base time of the difficulty the run started on
   const runStepsToFloorRef = useRef(1);      // = max(1, total run questions - 2)
   const currentBaseRef = useRef(0);          // current difficulty's base (last asked question)
+  const missStreakRef = useRef(0);           // consecutive wrong/timeout since the last correct
 
   const reset = useCallback(() => {
     sessionRef.current = INITIAL_SESSION;
     setSession(INITIAL_SESSION);
     runStreakRef.current = 0;
+    missStreakRef.current = 0;
   }, []);
 
   // Called once from App.start() when a run begins. `runBase` is the starting
@@ -148,6 +157,7 @@ export function useScoring() {
     currentBaseRef.current = runBase;
     runStepsToFloorRef.current = Math.max(1, runQuestions - 2);
     runStreakRef.current = 0;
+    missStreakRef.current = 0;
   }, []);
 
   // Time limit for the question about to be asked. `baseTime` is the CURRENT
@@ -163,6 +173,7 @@ export function useScoring() {
   const onCorrect = useCallback((elapsedSeconds: number, timeLimit: number): ScoreResult => {
     const previous = sessionRef.current;
     runStreakRef.current += 1;
+    missStreakRef.current = 0;
     const streak = previous.streak + 1;
     const speedBonus = getSpeedBonus(elapsedSeconds, timeLimit);
     const multiplier = getMultiplier(streak);
@@ -182,14 +193,18 @@ export function useScoring() {
     return { points, streak, multiplier, speedBonus, milestone: getMilestone(streak) };
   }, []);
 
-  // Shared by wrong answer and timeout: break the multiplier streak and snap
-  // the timing ramp back to the current difficulty's base, so the next
-  // question is at that base and the progression rebuilds from there within
-  // the same continuous run.
+  // Shared by wrong answer and timeout: break the multiplier streak. The timing
+  // ramp is left where it is for the first couple of misses (the player keeps
+  // their hard-won speed) and only snapped back to the current difficulty's
+  // base once MISSES_BEFORE_RAMP_RESET consecutive misses have piled up.
   const registerMiss = useCallback(() => {
-    runStreakRef.current = missResetStreak(
-      runBaseRef.current, runStepsToFloorRef.current, currentBaseRef.current,
-    );
+    missStreakRef.current += 1;
+    if (missStreakRef.current >= MISSES_BEFORE_RAMP_RESET) {
+      runStreakRef.current = missResetStreak(
+        runBaseRef.current, runStepsToFloorRef.current, currentBaseRef.current,
+      );
+      missStreakRef.current = 0;
+    }
     const next: SessionScore = {
       ...sessionRef.current,
       streak: 0,
