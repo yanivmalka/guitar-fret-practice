@@ -127,41 +127,53 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
     setRec('recording');
     const abort = new AbortController();
     abortRef.current = abort;
-    const captured = await captureUtterance({
-      signal: abort.signal,
-      onLevel: (rms) => setLevel(Math.min(1, rms * 6)),
-    });
-    setLevel(0);
-    if (abort.signal.aborted) { setRec('idle'); return; }
-    if (!captured) {
-      setErr('No sound captured — try again, closer to the mic');
-      autoMissRef.current++;
-      setRec('idle');
-      return;
-    }
-    lastPcmRef.current = captured;
-    setHasLast(true);
-    setRec('thinking');
+    // Everything from here is wrapped so a failure in capture, feature
+    // extraction or storage can never leave `rec` stuck non-idle — that
+    // would disable every button on the panel (Previous/Next/Delete/…).
     try {
-      const { frames } = computeMfcc(captured.pcm, captured.sampleRate);
-      if (!frames.length) {
-        setErr('Recording too short — try again');
+      let captured: { pcm: Float32Array; sampleRate: number } | null = null;
+      try {
+        captured = await captureUtterance({
+          signal: abort.signal,
+          onLevel: (rms) => setLevel(Math.min(1, rms * 6)),
+        });
+      } catch {
+        setErr('Could not use the microphone — try again');
         autoMissRef.current++;
-      } else if (!(await resemblesSpokenNote(frames, label, vocabId))) {
-        // Sounded like noise, not a spoken note — don't save it.
-        setErr("That didn't sound like a note — try again");
-        autoMissRef.current++;
-      } else {
-        await addTemplate(profile, vocabId, label, framesToJson(frames));
-        await refreshCounts(profile);
-        autoMissRef.current = 0;
-        haptic.tap();
+        return;
       }
-    } catch {
-      setErr('Saving the recording failed');
-      autoMissRef.current++;
+      setLevel(0);
+      if (abort.signal.aborted) return;
+      if (!captured) {
+        setErr('No sound captured — try again, closer to the mic');
+        autoMissRef.current++;
+        return;
+      }
+      lastPcmRef.current = captured;
+      setHasLast(true);
+      setRec('thinking');
+      try {
+        const { frames } = computeMfcc(captured.pcm, captured.sampleRate);
+        if (!frames.length) {
+          setErr('Recording too short — try again');
+          autoMissRef.current++;
+        } else if (!(await resemblesSpokenNote(frames, label, vocabId))) {
+          // Sounded like noise, not a spoken note — don't save it.
+          setErr("That didn't sound like a note — try again");
+          autoMissRef.current++;
+        } else {
+          await addTemplate(profile, vocabId, label, framesToJson(frames));
+          await refreshCounts(profile);
+          autoMissRef.current = 0;
+          haptic.tap();
+        }
+      } catch {
+        setErr('Saving the recording failed');
+        autoMissRef.current++;
+      }
+    } finally {
+      setRec('idle');
     }
-    setRec('idle');
   }, [rec, profile, vocabId, label, refreshCounts]);
 
   const stopRun = useCallback(() => {
@@ -391,11 +403,11 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
         </div>
 
         <div className="vcal-actions vcal-actions-sec">
-          <button className="vcal-btn vcal-link vcal-danger" onClick={wipe} disabled={rec !== 'idle' || running}>Delete profile</button>
+          <button className="vcal-btn vcal-link vcal-danger" onClick={wipe} disabled={running}>Delete profile</button>
         </div>
 
         <div className="vcal-actions vcal-actions-sec">
-          <button className="vcal-btn vcal-link" onClick={wipeLearned} disabled={rec !== 'idle' || running}>
+          <button className="vcal-btn vcal-link" onClick={wipeLearned} disabled={running}>
             Reset automatic learning of the general mode
           </button>
         </div>
