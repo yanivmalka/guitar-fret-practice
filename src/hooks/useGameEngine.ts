@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { notes, getCofNotes, getCorrectCofNote, getValidFrets, notesMatch, displayNote } from '../utils/music';
 import type { AccidentalMode, OrderMode, HistoryEntry } from '../utils/music';
 import type { ScoreResult } from './useScoring';
-import { playNote, playNoteSingle, stopPlayback, beep, isSoundPlaying, pauseAudioContext, resumeAudioContext } from '../utils/audio';
+import { playNote, playNoteSingle, stopPlayback, beep, isSoundPlaying, soundRemainingMs, pauseAudioContext, resumeAudioContext } from '../utils/audio';
 import { haptic, playCorrectChime, correctChimeRemainingMs, celebrateTier1, celebrateTier2 } from '../utils/feedback';
 
 interface GameSettings {
@@ -162,12 +162,14 @@ export function useGameEngine(
     return result;
   }, [onCorrect]);
 
-  // After a correct answer the success chime is still ringing. Defer the next
-  // question (and its note) until the chime's actual end time so the two never
-  // overlap — no fixed padding delay. Routed through scheduleAdvance so pause
-  // cancels it like any other pending advance.
-  const advanceAfterChime = useCallback((fn: () => void) => {
-    scheduleAdvance(fn, correctChimeRemainingMs());
+  // Defer the next question (and its note) until every feedback sound has
+  // finished — the success chime after a correct answer, or a reveal note after
+  // a wrong answer / timeout — so a question note never starts on top of the
+  // sound that scored the previous one. `minDelay` keeps the existing
+  // read-the-answer pauses; the effective wait is whichever is longest. Routed
+  // through scheduleAdvance so pause cancels it like any other pending advance.
+  const advanceAfterSound = useCallback((fn: () => void, minDelay = 0) => {
+    scheduleAdvance(fn, Math.max(minDelay, correctChimeRemainingMs(), soundRemainingMs()));
   }, [scheduleAdvance]);
 
   const clearTimers = () => {
@@ -282,9 +284,9 @@ export function useGameEngine(
       addEntry({ note, fret: askedFretRef.current, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null });
       setFeedback(`⏱ Frets: ${remainingFretsRef.current.join(', ')}`);
       playNoteSingle(qString, askedFretRef.current, questionPlaybackRate());
-      scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
+      advanceAfterSound(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
     });
-  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, onComplete, getQuestionTime]);
+  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, advanceAfterSound, onComplete, getQuestionTime]);
 
   // ── SELECT FRET (by note mode) ────────────────────────────────
   const selectFret = useCallback((selectedFret: number) => {
@@ -313,7 +315,7 @@ export function useGameEngine(
         // Visual celebration (floating text, rings/banner) plays independently
         // on its own overlay, but the success chime must finish before the next
         // question note so they don't overlap.
-        advanceAfterChime(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); });
+        advanceAfterSound(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); });
       } else {
         clearTimers();
         setFeedback(`✓ Where else? (${newRem.length} more)`);
@@ -334,7 +336,7 @@ export function useGameEngine(
             addEntry({ note, fret: remainingFretsRef.current[0], string: qString, seconds: Math.round(elapsed2 * 10) / 10, skipped: true, correct: null });
             setFeedback(`⏱ Also on: ${remainingFretsRef.current.join(', ')}`);
             playNoteSingle(qString, remainingFretsRef.current[0], questionPlaybackRate());
-            scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
+            advanceAfterSound(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
           });
         };
 
@@ -358,9 +360,9 @@ export function useGameEngine(
       const elapsed = (Date.now() - questionStartRef.current) / 1000;
       addEntry({ note, fret: selectedFret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: false, correct: false });
       setFeedback(`✗ Correct: ${rem.join(', ')}`);
-      scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
+      advanceAfterSound(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
     }
-  }, [paused, addEntry, nextByNote, onTimeout, onWrong, scoreCorrect, scheduleAdvance, advanceAfterChime]);
+  }, [paused, addEntry, nextByNote, onTimeout, onWrong, scoreCorrect, scheduleAdvance, advanceAfterSound]);
 
   // ── BY FRET MODE ──────────────────────────────────────────────
   const next = useCallback(() => {
@@ -438,7 +440,7 @@ export function useGameEngine(
     if (isCorrect) {
       // Wait for the success chime to finish before advancing so its tail does
       // not overlap the next question note (visible esp. during Auto Advance).
-      advanceAfterChime(() => { if (runningRef.current && sessionRef.current === mySession) next(); });
+      advanceAfterSound(() => { if (runningRef.current && sessionRef.current === mySession) next(); });
       return;
     }
 
@@ -450,7 +452,7 @@ export function useGameEngine(
       }
     };
     scheduleAdvance(waitForSound, 800);
-  }, [paused, currentFret, accidental, order, wholeToneOnly, addEntry, next, onWrong, scoreCorrect, scheduleAdvance, advanceAfterChime]);
+  }, [paused, currentFret, accidental, order, wholeToneOnly, addEntry, next, onWrong, scoreCorrect, scheduleAdvance, advanceAfterSound]);
 
   // ── CONTROLS ─────────────────────────────────────────────────
   const start = useCallback((maxQ: number, currentTime: number, isByNote: boolean) => {

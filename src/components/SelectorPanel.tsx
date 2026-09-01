@@ -69,10 +69,12 @@ export default function SelectorPanel({
   const neckWidth = (NECK_RIGHT - FB_LEFT_MARGIN) / FRET_POSITIONS[maxFret];
   const fretX = (fretNum: number) => NECK_RIGHT - FRET_POSITIONS[fretNum] * neckWidth;
 
-  // String pills — one per string, labelled by its open-string note name,
-  // highest-pitched string first (string 1).
+  // String pills — one per string, labelled by its open-string note name.
+  // Ordered low-pitch → high-pitch left-to-right (lowest string, i.e. the
+  // highest string *number*, first) so it reads the way string names are
+  // written in chord charts / tab: guitar E A D G B E, bass E A D G.
   const strings = Array.from({ length: stringCount }, (_, i) => {
-    const num = i + 1;
+    const num = stringCount - i;
     return { label: instrument.notes[num - 1][0], num };
   });
 
@@ -82,6 +84,53 @@ export default function SelectorPanel({
 
   const splitX = fretX(12);
   const fbLeft = FB_LEFT_MARGIN - 3;
+
+  // Plain-language summary of everything the current selection means, shown at
+  // the top of the "?" bubble so the player can read what this round will drill
+  // before starting it. Reads from the same SelectorState the pills/cards set.
+  const selectedStringLabels = selector.selectedStrings
+    .slice()
+    .sort((a, b) => b - a) // low-pitch (higher string number) first
+    .map((n) => instrument.notes[n - 1][0]);
+  const stringsPhrase = selectedStringLabels.length === stringCount
+    ? `all ${stringCount} strings`
+    : selectedStringLabels.length === 1
+      ? `the ${selectedStringLabels[0]} string`
+      : `strings ${selectedStringLabels.join(', ')}`;
+  const fretsPhrase = selector.lowerActive && selector.upperActive
+    ? `frets 0–${maxFret}`
+    : selector.lowerActive ? 'frets 0–12' : `frets 12–${maxFret}`;
+  const difficultyPhrase = selector.difficulty === 'dots'
+    ? 'only the dot-marker frets'
+    : selector.difficulty === 'naturals'
+      ? 'natural notes only (no sharps or flats)'
+      : 'every note, sharps and flats included';
+  const orderPhrase = order === 'alphabet' ? 'alphabetical order' : 'circle-of-fifths order';
+  const modeSentence = selector.mode === 'byFret'
+    ? `A fret lights up and you pick its note from the wheel (${orderPhrase}${byString ? ', rotated to the string' : ''}).`
+    : 'A note name is shown and you tap every fret on the neck where it lands.';
+  const selectionSummary =
+    `${selector.mode === 'byFret' ? 'Note-by-Fret' : 'Fret-by-Note'} · ${stringsPhrase}, ${fretsPhrase}, ${difficultyPhrase}. ${modeSentence}`
+    + (selector.autoAdvance ? ' Auto-advances through the difficulty stages.' : '');
+
+  // The "?" marker, pinned to a mode card's corner. Rendered on whichever mode
+  // card is currently selected (originally only Note-by-Fret) so the summary is
+  // reachable in both modes.
+  const infoBadge = (
+    <span
+      className="mode-card-info"
+      role="button"
+      tabIndex={0}
+      aria-label="How this works"
+      title="How this works"
+      onClick={(e) => { e.stopPropagation(); playClickSound(); onInfo?.(); }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); playClickSound(); onInfo?.(); }
+      }}
+    >
+      ?
+    </span>
+  );
 
   // Hamburger overlay: just the note-name notation toggle. Everything else in
   // the panel stays inline on the page.
@@ -162,21 +211,7 @@ export default function SelectorPanel({
       {/* ── ModeToggle with order options between cards ── */}
       <div className="mode-cards">
         <button className={`mode-card ${selector.mode === 'byFret' ? 'active' : ''}`} onClick={() => { playClickSound(); onModeSelect('byFret'); }}>
-          {onInfo && (
-            <span
-              className="mode-card-info"
-              role="button"
-              tabIndex={0}
-              aria-label="How this works"
-              title="How this works"
-              onClick={(e) => { e.stopPropagation(); playClickSound(); onInfo(); }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); playClickSound(); onInfo(); }
-              }}
-            >
-              ?
-            </span>
-          )}
+          {onInfo && selector.mode === 'byFret' && infoBadge}
           <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
             <circle cx="20" cy="20" r="14" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.3" />
             {Array.from({ length: 12 }, (_, i) => {
@@ -198,6 +233,7 @@ export default function SelectorPanel({
         </div>
 
         <button className={`mode-card ${selector.mode === 'byNote' ? 'active' : ''}`} onClick={() => { playClickSound(); onModeSelect('byNote'); }}>
+          {onInfo && selector.mode === 'byNote' && infoBadge}
           <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
             {[
               { x: 2, y: 2, op: 1 }, { x: 12, y: 2, op: 0.2 }, { x: 22, y: 2, op: 0.2 }, { x: 32, y: 2, op: 1 },
@@ -212,9 +248,10 @@ export default function SelectorPanel({
 
         {onInfo && showInfo && (
           <div className="mode-card-info-bubble" role="status" aria-live="polite">
-            Read the note wheel like a clock: your open string sits at 12 o'clock,
-            and the dots under each note show its fret. Answer before the timing
-            bar empties.
+            <span className="mode-card-info-summary">{selectionSummary}</span>
+            {selector.mode === 'byFret'
+              ? "Read the note wheel like a clock: your open string sits at 12 o'clock, and the dots under each note show its fret. Answer before the timing bar empties."
+              : 'Answer before the timing bar empties.'}
           </div>
         )}
       </div>
@@ -232,8 +269,11 @@ export default function SelectorPanel({
             return <line key={`str${i}`} x1={fbLeft} y1={y} x2={NECK_RIGHT} y2={y} stroke="#cba" strokeWidth={thickness} opacity="0.5" />;
           })}
 
-          {/* Highlight active string during play */}
-          {activeString != null && (
+          {/* Highlight the string(s) being drilled: the single active string
+              during play, or every currently-selected string while setting up —
+              so the neck preview shows where the round will test before it
+              starts (same cyan the play view uses). */}
+          {activeString != null ? (
             <line
               x1={fbLeft}
               y1={stringY(activeString)}
@@ -241,6 +281,17 @@ export default function SelectorPanel({
               y2={stringY(activeString)}
               stroke="#0ff" strokeWidth="1.8" opacity="0.9"
             />
+          ) : (
+            selector.selectedStrings.map((sn) => (
+              <line
+                key={`sel${sn}`}
+                x1={fbLeft}
+                y1={stringY(sn)}
+                x2={NECK_RIGHT}
+                y2={stringY(sn)}
+                stroke="#0ff" strokeWidth="1.8" opacity="0.9"
+              />
+            ))
           )}
 
           {/* Fret lines */}
@@ -301,7 +352,7 @@ export default function SelectorPanel({
         {onAutoAdvanceToggle && (
           <button
             className={`stats-icon-btn auto-advance-toggle ${selector.autoAdvance ? 'stats-icon-on' : ''}`}
-            onClick={onAutoAdvanceToggle}
+            onClick={(e) => { e.currentTarget.blur(); onAutoAdvanceToggle(); }}
             title="Auto Advance to next difficulty"
             aria-label="Auto Advance to next difficulty"
             aria-pressed={selector.autoAdvance}

@@ -108,7 +108,8 @@ export function playToggleOffSound() {
 // Satisfying chime for correct answer (major triad: C5 + E5 + G5)
 const CHIME_STAGGER = 0.03; // gap between the three notes
 const CHIME_TAIL = 0.4;     // per-note ring-out
-let _chimeEndTime = 0;      // wall-clock ms when the chime has fully finished
+const CHIME_GAP = 0.1;      // extra silence held after the tail before the next question note
+let _chimeEndTime = 0;      // wall-clock ms when the chime has fully finished (incl. CHIME_GAP)
 
 export function playCorrectChime() {
   const ctx = getCtx();
@@ -131,7 +132,7 @@ export function playCorrectChime() {
     osc.start(t);
     osc.stop(t + CHIME_TAIL);
   });
-  _chimeEndTime = Date.now() + Math.ceil((2 * CHIME_STAGGER + CHIME_TAIL) * 1000);
+  _chimeEndTime = Date.now() + Math.ceil((2 * CHIME_STAGGER + CHIME_TAIL + CHIME_GAP) * 1000);
 }
 
 /** Milliseconds until the correct-answer chime has fully finished (0 if done). */
