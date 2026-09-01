@@ -68,7 +68,9 @@ export function playStickClick() {
     const src = ctx.createBufferSource();
     src.buffer = buffer;
     const gain = ctx.createGain();
-    gain.gain.value = 0.9;
+    // A quiet, clear pulse — like drumsticks tapped together to count a band
+    // in — not a sound that fills the room.
+    gain.gain.value = 0.4;
     src.connect(gain);
     gain.connect(ctx.destination);
     src.start();

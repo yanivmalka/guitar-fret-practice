@@ -1335,6 +1335,21 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   color: #0ff;
   background: #1a2a3a;
 }
+/* Touch devices latch :hover on the last-tapped element, which would keep the
+   cyan "on" look painted after toggling Auto Advance off. Neutralise :hover
+   where there's no real pointer so the button always shows its true state. */
+@media (hover: none) {
+  .difficulty-road .auto-advance-toggle:hover {
+    border-color: #444;
+    color: #666;
+    background: none;
+  }
+  .difficulty-road .auto-advance-toggle.stats-icon-on:hover {
+    border-color: #0ff;
+    color: #0ff;
+    background: #1a2a3a;
+  }
+}
 
 /* ── Bottom-center ? button ───────────────────────────────── */
 .desc-question-btn-bottom {

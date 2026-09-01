@@ -372,8 +372,8 @@ export default function App() {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [gameEnded, setGameEnded] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
-  const infoTimerRef = useRef<number | null>(null);
   const gameRowRef = useRef<HTMLDivElement>(null);
+  const playBtnRef = useRef<HTMLButtonElement>(null);
   // Guards the Tier 3 (new personal best) celebration so it fires at most once
   // per completed run. Reset on every Play and whenever the selector combo changes.
   const tier3FiredRef = useRef(false);
@@ -402,14 +402,24 @@ export default function App() {
     setMicPrompt(ok ? null : 'denied');
   };
 
-  // "?" affordance pinned to the Note-by-Fret card corner: briefly explains the
-  // clock / timing method, then auto-dismisses after 3s. Re-tapping restarts it.
-  const openInfo = () => {
-    setShowInfo(true);
-    if (infoTimerRef.current) window.clearTimeout(infoTimerRef.current);
-    infoTimerRef.current = window.setTimeout(() => setShowInfo(false), 3000);
-  };
-  useEffect(() => () => { if (infoTimerRef.current) window.clearTimeout(infoTimerRef.current); }, []);
+  // "?" affordance pinned to the active mode card: opens the setup-summary
+  // bubble and keeps it open until the user taps the "?" again or clicks
+  // anywhere else on the page (no auto-dismiss timer).
+  const openInfo = () => setShowInfo(v => !v);
+  useEffect(() => {
+    if (!showInfo) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!(e.target as Element | null)?.closest('.mode-card-info')) setShowInfo(false);
+    };
+    // Defer so the click that opened the bubble doesn't immediately close it.
+    const id = window.setTimeout(
+      () => document.addEventListener('pointerdown', onPointerDown), 0,
+    );
+    return () => {
+      window.clearTimeout(id);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [showInfo]);
 
   const hasHistory = historyOps.getEntriesForKey(histKey).length > 0;
 
@@ -492,11 +502,11 @@ export default function App() {
     tier3FiredRef.current = false;
     // Count-in: the on-screen countdown steps 3 → 2 → 1 once a second and the
     // game comes in on "0" at t = 3s. The four drum-stick clicks run on their
-    // own faster cadence (t = 0, 0.8, 1.6, 2.4s) so they read as a drummer
-    // counting the band in rather than ticking with the displayed seconds.
+    // own steady, faster cadence — one every 750ms (t = 0, 0.75, 1.5, 2.25s),
+    // "1-2-3-4" — so the game arrives exactly one beat after the last click.
     setCountdown(3);
     playStickClick();
-    [800, 1600, 2400].forEach((t) => window.setTimeout(playStickClick, t));
+    [750, 1500, 2250].forEach((t) => window.setTimeout(playStickClick, t));
     let c = 3;
     const interval = setInterval(() => {
       c--;
@@ -537,7 +547,15 @@ export default function App() {
       onModeSelect={selector.onModeSelect}
       onFretRangeToggle={selector.onFretRangeToggle}
       onDifficultySelect={selector.onDifficultySelect}
-      onAutoAdvanceToggle={() => { if (selector.state.autoAdvance) playToggleOffSound(); else playToggleOnSound(); haptic.tap(); selector.onAutoAdvanceToggle(); }}
+      onAutoAdvanceToggle={() => {
+        if (selector.state.autoAdvance) playToggleOffSound(); else playToggleOnSound();
+        haptic.tap();
+        selector.onAutoAdvanceToggle();
+        // Pull focus/hover off the toggle onto Play so a touch device repaints
+        // it to its new on/off colour immediately instead of holding the
+        // pressed look until the next tap.
+        playBtnRef.current?.focus();
+      }}
       isPlaying={panelPlaying}
       notationOnly={notationOnly}
       activeString={gameActive ? safeGuitarString : undefined}
@@ -838,7 +856,7 @@ export default function App() {
           {/* Controls: Play (centered) → becomes a Pause/Resume toggle plus a separate Stop when playing/paused */}
           <div className="controls">
             {!running && !paused && !countdown ? (
-              <button className="icon-btn play-btn" onClick={click(start)} title="Start">
+              <button ref={playBtnRef} className="icon-btn play-btn" onClick={click(start)} title="Start">
                 <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
               </button>
             ) : running || paused ? (
