@@ -26,6 +26,9 @@ export const ACCIDENTAL_LABELS = ['#', 'b'] as const;
 /** Every label a v2 profile stores, in calibration order. */
 export const PROFILE_LABELS = [...LETTER_LABELS, ...ACCIDENTAL_LABELS] as const;
 
+/** Recordings required per label before a label counts as "done". */
+export const SAMPLES_PER_LABEL = 2;
+
 export type LetterLabel = (typeof LETTER_LABELS)[number];
 export type AccidentalLabel = (typeof ACCIDENTAL_LABELS)[number];
 

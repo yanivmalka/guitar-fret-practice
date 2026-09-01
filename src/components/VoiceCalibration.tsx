@@ -9,14 +9,14 @@ import {
   ADAPTIVE_PROFILE,
 } from '../utils/voiceProfile';
 import {
-  LETTER_LABELS, ACCIDENTAL_LABELS, PROFILE_LABELS, profileVocabId,
+  LETTER_LABELS, ACCIDENTAL_LABELS, PROFILE_LABELS, SAMPLES_PER_LABEL, profileVocabId,
 } from '../utils/voiceProfileVocab';
 import { resemblesSpokenNote } from '../utils/calibrationGate';
 import { resetSpeechEngine } from '../utils/speech';
+import { cloudInsertTemplate, cloudDeleteTemplate, cloudDeleteProfile } from '../utils/voiceSync';
 import type { SpeechNotation } from '../utils/speechVocab';
 import { playClickSound, getFeedbackAudioCtx, haptic } from '../utils/feedback';
 
-const SAMPLES_PER_LABEL = 2;
 
 interface Props {
   notation: NotationMode;
@@ -162,7 +162,8 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
           setErr("That didn't sound like a note — try again");
           autoMissRef.current++;
         } else {
-          await addTemplate(profile, vocabId, label, framesToJson(frames));
+          const stored = await addTemplate(profile, vocabId, label, framesToJson(frames));
+          void cloudInsertTemplate(stored);
           await refreshCounts(profile);
           autoMissRef.current = 0;
           haptic.tap();
@@ -292,6 +293,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
   const removeTake = async (key: string) => {
     playClickSound(); haptic.tap();
     await deleteTemplateByKey(key);
+    void cloudDeleteTemplate(key);
     await refreshCounts(profile);
   };
 
@@ -312,6 +314,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
   const wipe = async () => {
     playClickSound();
     await deleteProfile(profile);
+    void cloudDeleteProfile(profile);
     await recomputeReady(vocabId, [...PROFILE_LABELS]);
     resetSpeechEngine();
     onProfileChanged();

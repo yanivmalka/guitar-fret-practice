@@ -104,6 +104,28 @@ function setProfileReady(ready: boolean): void {
 
 // ── CRUD ─────────────────────────────────────────────────────────────
 
+/** Every stored row, across every profile/vocab — used to bootstrap cloud sync. */
+export async function listAllTemplates(): Promise<StoredTemplate[]> {
+  try {
+    const db = await openDb();
+    return await reqToPromise(tx(db, 'readonly').getAll() as IDBRequest<StoredTemplate[]>);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Idempotent bulk write (put, not add) keyed by `key` — used to merge rows
+ * pulled from the cloud into local storage without duplicating anything
+ * already present.
+ */
+export async function putTemplates(rows: StoredTemplate[]): Promise<void> {
+  if (!rows.length) return;
+  const db = await openDb();
+  const store = tx(db, 'readwrite');
+  for (const r of rows) store.put(r);
+}
+
 export async function listProfiles(): Promise<string[]> {
   try {
     const db = await openDb();
@@ -150,7 +172,7 @@ export async function addTemplate(
   label: string,
   frames: number[][],
   source: 'cal' | 'learned' = 'cal',
-): Promise<string> {
+): Promise<StoredTemplate> {
   const db = await openDb();
   const store = tx(db, 'readwrite');
   const existing = await reqToPromise(
@@ -162,7 +184,7 @@ export async function addTemplate(
     key, profile, vocabId, label, frames, createdAt: Date.now(), source,
   };
   await reqToPromise(store.add(rec) as IDBRequest);
-  return key;
+  return rec;
 }
 
 /**

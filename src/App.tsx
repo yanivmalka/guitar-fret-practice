@@ -30,7 +30,11 @@ import VoiceCalibration from './components/VoiceCalibration';
 import { vlog } from './utils/debugLog';
 import type { SpeechNotation } from './utils/speechVocab';
 import { resetSpeechEngine, type VoiceEnginePref } from './utils/speech';
-import { getActiveProfile, isProfileReady, templateCounts } from './utils/voiceProfile';
+import {
+  getActiveProfile, setActiveProfile, isProfileReady, recomputeReady, templateCounts,
+} from './utils/voiceProfile';
+import { PROFILE_LABELS, SAMPLES_PER_LABEL, profileVocabId } from './utils/voiceProfileVocab';
+import { bootstrapVoiceProfile, voiceSyncedUser, clearVoiceSyncedUser } from './utils/voiceSync';
 
 type AnswerMode = 'tap' | 'voice';
 
@@ -93,19 +97,15 @@ export default function App() {
       const active = getActiveProfile();
       if (!active) { if (alive) setVoiceProfileStat({ enabled: false, count: 0 }); return; }
       try {
-        const [n, a] = await Promise.all([
-          templateCounts(active, 'notes-alpha', true),
-          templateCounts(active, 'accidentals-alpha', true),
-        ]);
-        const count = [...Object.values(n), ...Object.values(a)]
-          .reduce((s, v) => s + v, 0);
+        const counts = await templateCounts(active, profileVocabId(notation as SpeechNotation), true);
+        const count = Object.values(counts).reduce((s, v) => s + v, 0);
         if (alive) setVoiceProfileStat({ enabled: isProfileReady(), count });
       } catch {
         if (alive) setVoiceProfileStat(null);
       }
     })();
     return () => { alive = false; };
-  }, [showVoiceCalibration, voiceEngineEpoch]);
+  }, [showVoiceCalibration, voiceEngineEpoch, notation]);
   // How the player answers a question: tapping the circle/grid, or speaking the
   // note name / fret number aloud (WP-4). Voice needs a network connection and
   // is only offered where a recogniser is actually available.
@@ -156,6 +156,40 @@ export default function App() {
     })();
     return () => { cancelled = true; };
   }, [auth.user, replaceAllHistory, getAllHistory]);
+
+  // Same model, for the personal voice profile: pull/merge/push once per
+  // sign-in on this device, then switch the app onto the restored profile.
+  useEffect(() => {
+    const user = auth.user;
+    if (!user) { clearVoiceSyncedUser(); return; }
+    if (voiceSyncedUser() === user.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const merged = await bootstrapVoiceProfile(user.id);
+        if (cancelled || !merged.length) return;
+        // Keep the device's current profile if it's among the restored rows;
+        // otherwise switch to whichever profile was touched most recently.
+        const current = getActiveProfile();
+        const profiles = [...new Set(merged.map((r) => r.profile))];
+        const chosen = current && profiles.includes(current)
+          ? current
+          : merged.reduce((a, b) => (a.createdAt >= b.createdAt ? a : b)).profile;
+        setActiveProfile(chosen);
+        const vocabIds = [...new Set(
+          merged.filter((r) => r.profile === chosen).map((r) => r.vocabId),
+        )];
+        for (const vocabId of vocabIds) {
+          await recomputeReady(vocabId, [...PROFILE_LABELS], SAMPLES_PER_LABEL);
+        }
+        resetSpeechEngine();
+        setVoiceEngineEpoch((n) => n + 1);
+      } catch {
+        /* offline or transient error — retried on next sign-in / app start */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [auth.user]);
 
   const derived = useDerivedNotes(
     safeGuitarString, derivedSettings.fretFrom, derivedSettings.fretTo,

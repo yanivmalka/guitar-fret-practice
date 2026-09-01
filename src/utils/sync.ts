@@ -22,6 +22,11 @@ export function setSyncUser(id: string | null) {
   currentUserId = id;
 }
 
+/** The signed-in user id, or null for a guest. Read-only access for other sync modules. */
+export function getSyncUserId(): string | null {
+  return currentUserId;
+}
+
 function cloudReady(): boolean {
   return !!supabase && !!currentUserId && navigator.onLine;
 }
