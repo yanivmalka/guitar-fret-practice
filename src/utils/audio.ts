@@ -85,16 +85,19 @@ export async function playNote(stringNum: number, fret: number, rate = 1) {
   const midi = openMidi[stringNum - 1] + fret;
   const buffer = await loadSample(midi);
   if (!buffer) return;
-  // The whole triple-pluck event scales with `rate`: the sample plays faster
+  // The whole pluck event scales with `rate`: the sample plays faster
   // (playbackRate) AND the grain offsets / envelope durations compress by the
   // same 1/rate factor, so a faster question compresses the entire note event
   // rather than only shifting its pitch.
   //
-  // On top of that 1/rate compression, once the run's timing ramp pushes rate
-  // above 1× each pluck's ring-out is shortened further (tailScale) so the
-  // three fast plucks stay crisp and distinct instead of smearing together.
-  const tailScale = rate > 1 ? 1 / rate : 1;
-  [0, 0.4, 0.8].forEach((t, i) => {
+  // As the run's timing ramp accelerates (rate climbs above 1×) the note is
+  // also plucked fewer times — three plucks at normal speed, two once the
+  // questions tighten, then a single pluck when it's fastest — so a fast
+  // question stays short and clear instead of a rushed triplet. Each pluck
+  // keeps its full ring-out (only the 1/rate compression applies).
+  const offsets = rate >= 1.9 ? [0] : rate >= 1.35 ? [0, 0.4] : [0, 0.4, 0.8];
+  const lastIdx = offsets.length - 1;
+  offsets.forEach((t, i) => {
     const src = ctx.createBufferSource();
     const gain = ctx.createGain();
     src.buffer = buffer;
@@ -102,14 +105,14 @@ export async function playNote(stringNum: number, fret: number, rate = 1) {
     src.connect(gain);
     gain.connect(ctx.destination);
     const offset = t / rate;
-    const dur = (i < 2 ? 0.4 : 0.8) / rate * tailScale;
+    const dur = (i < lastIdx ? 0.4 : 0.8) / rate;
     gain.gain.setValueAtTime(0.7, ctx.currentTime + offset);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + offset + dur);
     src.start(ctx.currentTime + offset);
     src.stop(ctx.currentTime + offset + dur);
     activeSources.push(src);
   });
-  soundEndTime = Date.now() + (0.8 / rate) * (1 + tailScale) * 1000;
+  soundEndTime = Date.now() + (offsets[lastIdx] + 0.8) * 1000 / rate;
 }
 
 export function beep() {
