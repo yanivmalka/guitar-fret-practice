@@ -25,7 +25,7 @@ import { knnVote, matchTemplates, type Template } from './dtw';
 import { addTemplate, pruneTemplates, ADAPTIVE_PROFILE } from './voiceProfile';
 import { isLetterLabel, isAccidentalLabel } from './voiceProfileVocab';
 import { SHARP_WRAP, FLAT_TO_SHARP } from './speechVocab';
-import { vlog } from './debugLog';
+import { verror, vlog } from './debugLog';
 
 // How many self-learned templates the "General" engine keeps per label.
 const MAX_LEARNED_PER_LABEL = 6;
@@ -294,7 +294,7 @@ export class TemplateSpeechEngine implements SpeechEngine {
       this.cache = null; // next match picks up the new template
       vlog('[voice] general learned', { label, vocabId });
     } catch (e) {
-      vlog('[voice] general learn failed', String(e));
+      verror('[voice] general learn failed', String(e));
     }
   }
 

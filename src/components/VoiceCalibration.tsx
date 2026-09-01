@@ -38,7 +38,12 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
   const [rec, setRec] = useState<RecState>('idle');
   const [level, setLevel] = useState(0);
   const [err, setErr] = useState<string | null>(null);
+  const [auto, setAuto] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const autoTimerRef = useRef<number | null>(null);
+  // Consecutive failed/empty captures while auto-running; a short run of them
+  // means the mic is unusable, so auto mode stops instead of looping forever.
+  const autoMissRef = useRef(0);
 
   const label = PROFILE_LABELS[idx];
   const isAccidental = (ACCIDENTAL_LABELS as readonly string[]).includes(label);
@@ -68,13 +73,16 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
     })();
     return () => { alive = false; };
   }, [profile, vocabId]);
-  useEffect(() => () => abortRef.current?.abort(), []);
+  useEffect(() => () => {
+    abortRef.current?.abort();
+    if (autoTimerRef.current !== null) clearTimeout(autoTimerRef.current);
+  }, []);
 
   const total = PROFILE_LABELS.length;
   const doneLabels = PROFILE_LABELS.filter((n) => (counts[n] ?? 0) >= SAMPLES_PER_LABEL).length;
   const allDone = doneLabels === total;
 
-  const record = async () => {
+  const record = useCallback(async () => {
     if (rec !== 'idle') return;
     playClickSound(); haptic.tap();
     setErr(null);
@@ -89,6 +97,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
     if (abort.signal.aborted) { setRec('idle'); return; }
     if (!captured) {
       setErr('לא נקלט קול — נסה שוב, קרוב יותר למיקרופון');
+      autoMissRef.current++;
       setRec('idle');
       return;
     }
@@ -97,16 +106,66 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
       const { frames } = computeMfcc(captured.pcm, captured.sampleRate);
       if (!frames.length) {
         setErr('ההקלטה קצרה מדי — נסה שוב');
+        autoMissRef.current++;
       } else {
         await addTemplate(profile, vocabId, label, framesToJson(frames));
         await refreshCounts(profile);
+        autoMissRef.current = 0;
         haptic.tap();
       }
     } catch {
       setErr('שמירת ההקלטה נכשלה');
+      autoMissRef.current++;
     }
     setRec('idle');
+  }, [rec, profile, vocabId, label, refreshCounts]);
+
+  const stopAuto = useCallback(() => {
+    setAuto(false);
+    autoMissRef.current = 0;
+    if (autoTimerRef.current !== null) {
+      clearTimeout(autoTimerRef.current);
+      autoTimerRef.current = null;
+    }
+    abortRef.current?.abort();
+  }, []);
+
+  const toggleAuto = () => {
+    playClickSound(); haptic.tap();
+    if (auto) { stopAuto(); return; }
+    autoMissRef.current = 0;
+    setErr(null);
+    setAuto(true);
   };
+
+  // Auto mode: once armed, keep cycling — record the current word, and when it
+  // has enough samples jump to the next word that still needs some — so the
+  // user only has to speak, never tap "הקלט"/"הבא" between takes.
+  useEffect(() => {
+    if (!auto || rec !== 'idle') return;
+    if (autoMissRef.current >= 2) { stopAuto(); return; }
+
+    const needsHere = (counts[label] ?? 0) < SAMPLES_PER_LABEL;
+    if (needsHere) {
+      autoTimerRef.current = window.setTimeout(() => { void record(); }, 800);
+    } else {
+      const nextAfter = PROFILE_LABELS.findIndex(
+        (n, i) => i > idx && (counts[n] ?? 0) < SAMPLES_PER_LABEL,
+      );
+      const nextAny = nextAfter >= 0
+        ? nextAfter
+        : PROFILE_LABELS.findIndex((n) => (counts[n] ?? 0) < SAMPLES_PER_LABEL);
+      if (nextAny >= 0) setIdx(nextAny);
+      else stopAuto(); // everything recorded
+    }
+
+    return () => {
+      if (autoTimerRef.current !== null) {
+        clearTimeout(autoTimerRef.current);
+        autoTimerRef.current = null;
+      }
+    };
+  }, [auto, rec, counts, idx, label, record, stopAuto]);
 
   const redo = async () => {
     playClickSound();
@@ -184,21 +243,32 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
 
         {err && <div className="vcal-err">{err}</div>}
 
+        <button
+          className="vcal-btn vcal-auto"
+          onClick={toggleAuto}
+          disabled={allDone && !auto}
+        >
+          {auto ? '⏸ עצור הקלטה אוטומטית' : '▶️ הקלטה אוטומטית'}
+        </button>
+        {auto && (
+          <div className="vcal-hint">דבר כשמופיע תו — הכיול מתקדם לבד</div>
+        )}
+
         <div className="vcal-actions">
-          <button className="vcal-btn" onClick={() => step(-1)} disabled={idx === 0 || rec !== 'idle'}>הקודם</button>
-          <button className="vcal-btn vcal-rec" onClick={record} disabled={rec !== 'idle'}>
+          <button className="vcal-btn" onClick={() => step(-1)} disabled={idx === 0 || rec !== 'idle' || auto}>הקודם</button>
+          <button className="vcal-btn vcal-rec" onClick={record} disabled={rec !== 'idle' || auto}>
             {rec === 'recording' ? '● מקליט…' : rec === 'thinking' ? '…' : '🎤 הקלט'}
           </button>
-          <button className="vcal-btn" onClick={() => step(1)} disabled={idx === total - 1 || rec !== 'idle'}>הבא</button>
+          <button className="vcal-btn" onClick={() => step(1)} disabled={idx === total - 1 || rec !== 'idle' || auto}>הבא</button>
         </div>
 
         <div className="vcal-actions vcal-actions-sec">
-          <button className="vcal-btn vcal-link" onClick={redo} disabled={here === 0 || rec !== 'idle'}>הקלט מחדש</button>
-          <button className="vcal-btn vcal-link vcal-danger" onClick={wipe} disabled={rec !== 'idle'}>מחק פרופיל</button>
+          <button className="vcal-btn vcal-link" onClick={redo} disabled={here === 0 || rec !== 'idle' || auto}>הקלט מחדש</button>
+          <button className="vcal-btn vcal-link vcal-danger" onClick={wipe} disabled={rec !== 'idle' || auto}>מחק פרופיל</button>
         </div>
 
         <div className="vcal-actions vcal-actions-sec">
-          <button className="vcal-btn vcal-link" onClick={wipeLearned} disabled={rec !== 'idle'}>
+          <button className="vcal-btn vcal-link" onClick={wipeLearned} disabled={rec !== 'idle' || auto}>
             אפס למידה אוטומטית של המצב הכללי
           </button>
         </div>

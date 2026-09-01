@@ -10,13 +10,18 @@
 // - Auto-clears once per calendar day so it can't grow forever; `clear()`
 //   wipes it on demand.
 //
-// Write through `vlog(tag, data?)`. It also `console.debug`s in dev builds so
-// the browser console still works as before.
+// Write through `vlog(tag, data?)` for diagnostics, or `verror(tag, data?)` for
+// failures. Only error entries are surfaced by the on-screen panel
+// (`debugLogAsText`); everything is still kept in the buffer and mirrored to the
+// dev console.
+
+export type DebugLevel = 'info' | 'error';
 
 export interface DebugEntry {
   t: number;          // epoch ms
   tag: string;        // e.g. "[voice] start"
   data?: string;      // JSON-stringified payload (best-effort)
+  level: DebugLevel;  // 'info' unless logged via verror()
 }
 
 const MAX_ENTRIES = 400;
@@ -41,7 +46,9 @@ function load(): void {
       return;
     }
     const raw = localStorage.getItem(LS_KEY);
-    entries = raw ? (JSON.parse(raw) as DebugEntry[]) : [];
+    const parsed = raw ? (JSON.parse(raw) as DebugEntry[]) : [];
+    // Tolerate entries written before `level` existed.
+    entries = parsed.map((e) => ({ ...e, level: e.level ?? 'info' }));
   } catch {
     entries = [];
   }
@@ -65,9 +72,10 @@ function emit(): void {
   listeners.forEach((fn) => { try { fn(); } catch { /* ignore */ } });
 }
 
-export function vlog(tag: string, data?: unknown): void {
+export function vlog(tag: string, data?: unknown, level: DebugLevel = 'info'): void {
   if (import.meta.env.DEV) {
-    console.debug(tag, data ?? '');
+    if (level === 'error') console.error(tag, data ?? '');
+    else console.debug(tag, data ?? '');
   }
   let payload: string | undefined;
   if (data !== undefined) {
@@ -77,10 +85,15 @@ export function vlog(tag: string, data?: unknown): void {
       payload = String(data);
     }
   }
-  entries.push({ t: Date.now(), tag, data: payload });
+  entries.push({ t: Date.now(), tag, data: payload, level });
   if (entries.length > MAX_ENTRIES) entries.splice(0, entries.length - MAX_ENTRIES);
   scheduleFlush();
   emit();
+}
+
+/** Like `vlog`, but flagged as an error so it shows in the debug panel. */
+export function verror(tag: string, data?: unknown): void {
+  vlog(tag, data, 'error');
 }
 
 export function getDebugEntries(): readonly DebugEntry[] {
@@ -103,9 +116,10 @@ export function subscribeDebugLog(fn: () => void): () => void {
   return () => { listeners.delete(fn); };
 }
 
-/** Whole log as copy-pasteable text, oldest first. */
+/** Error entries only, as copy-pasteable text, oldest first. */
 export function debugLogAsText(): string {
   return entries
+    .filter((e) => e.level === 'error')
     .map((e) => {
       const ts = new Date(e.t).toISOString().slice(11, 23);
       return e.data ? `${ts}  ${e.tag}  ${e.data}` : `${ts}  ${e.tag}`;

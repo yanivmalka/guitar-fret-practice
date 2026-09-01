@@ -16,7 +16,7 @@ export default function DebugLogPanel() {
 
   const count = useSyncExternalStore(
     subscribeDebugLog,
-    () => getDebugEntries().length,
+    () => getDebugEntries().filter((e) => e.level === 'error').length,
   );
 
   const preRef = useRef<HTMLPreElement | null>(null);
@@ -60,7 +60,7 @@ export default function DebugLogPanel() {
   return (
     <div className="debuglog-panel" role="dialog" aria-label="Debug log">
       <div className="debuglog-head">
-        <span className="debuglog-title">Debug log · auto-clears daily</span>
+        <span className="debuglog-title">Errors · auto-clears daily</span>
         <div className="debuglog-actions">
           <button className="debuglog-btn" onClick={() => { void copy(); }}>
             {copied ? 'Copied' : 'Copy'}
@@ -69,7 +69,7 @@ export default function DebugLogPanel() {
           <button className="debuglog-btn" onClick={() => setOpen(false)}>Close</button>
         </div>
       </div>
-      <pre ref={preRef} className="debuglog-body">{text || '(empty)'}</pre>
+      <pre ref={preRef} className="debuglog-body">{text || '(no errors)'}</pre>
     </div>
   );
 }
