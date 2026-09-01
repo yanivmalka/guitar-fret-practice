@@ -116,10 +116,34 @@ export function subscribeDebugLog(fn: () => void): () => void {
   return () => { listeners.delete(fn); };
 }
 
+/**
+ * Whether to also surface `[voice]` info lines in the on-screen panel. Off by
+ * default (the panel is errors-only); flip it on a device with no DevTools to
+ * diagnose why an utterance was accepted or rejected:
+ *   localStorage.debugVoiceVerbose = '1'
+ */
+export function isVoiceVerbose(): boolean {
+  try { return localStorage.getItem('debugVoiceVerbose') === '1'; } catch { return false; }
+}
+
+/** Toggle whether `[voice]` info lines show in the on-screen panel. */
+export function setVoiceVerbose(on: boolean): void {
+  try {
+    if (on) localStorage.setItem('debugVoiceVerbose', '1');
+    else localStorage.removeItem('debugVoiceVerbose');
+  } catch { /* ignore */ }
+  emit();
+}
+
+function voiceVerbose(): boolean {
+  return isVoiceVerbose();
+}
+
 /** Error entries only, as copy-pasteable text, oldest first. */
 export function debugLogAsText(): string {
+  const verbose = voiceVerbose();
   return entries
-    .filter((e) => e.level === 'error')
+    .filter((e) => e.level === 'error' || (verbose && e.tag.startsWith('[voice]')))
     .map((e) => {
       const ts = new Date(e.t).toISOString().slice(11, 23);
       return e.data ? `${ts}  ${e.tag}  ${e.data}` : `${ts}  ${e.tag}`;

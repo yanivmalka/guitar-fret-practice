@@ -3,6 +3,8 @@ import {
   clearDebugLog,
   debugLogAsText,
   getDebugEntries,
+  isVoiceVerbose,
+  setVoiceVerbose,
   subscribeDebugLog,
 } from '../utils/debugLog';
 
@@ -18,6 +20,8 @@ export default function DebugLogPanel() {
     subscribeDebugLog,
     () => getDebugEntries().filter((e) => e.level === 'error').length,
   );
+
+  const voiceOn = useSyncExternalStore(subscribeDebugLog, isVoiceVerbose);
 
   const preRef = useRef<HTMLPreElement | null>(null);
   const text = open ? debugLogAsText() : '';
@@ -60,8 +64,16 @@ export default function DebugLogPanel() {
   return (
     <div className="debuglog-panel" role="dialog" aria-label="Debug log">
       <div className="debuglog-head">
-        <span className="debuglog-title">Errors · auto-clears daily</span>
+        <span className="debuglog-title">
+          {voiceOn ? 'Errors + voice · auto-clears daily' : 'Errors · auto-clears daily'}
+        </span>
         <div className="debuglog-actions">
+          <button
+            className="debuglog-btn"
+            onClick={() => setVoiceVerbose(!voiceOn)}
+          >
+            {voiceOn ? 'Voice: on' : 'Voice: off'}
+          </button>
           <button className="debuglog-btn" onClick={() => { void copy(); }}>
             {copied ? 'Copied' : 'Copy'}
           </button>

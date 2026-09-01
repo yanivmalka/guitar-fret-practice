@@ -20,7 +20,7 @@ import type {
   MicPermissionState,
 } from './speech';
 import {
-  captureUtterance, segmentUtterance, openMicSession, type MicSession,
+  captureUtterance, segmentUtterance, type MicSession,
 } from './utteranceCapture';
 import { computeMfcc, framesFromJson, framesToJson } from './mfcc';
 import { knnVote, matchTemplates, type Template } from './dtw';
@@ -50,15 +50,20 @@ function relMax(key: string, fallback: number): number {
 // Absolute ceiling on the nearest-template distance. Even when the best
 // match is clearly ahead of the runner-up (the `relMax` ratio gate), reject
 // it when nothing is actually close — a cough or an unrelated word can be
-// "clearly closest" and still be nothing like any note. Deliberately loose;
-// watch the "[voice] template match" debug lines and lower it per engine:
+// "clearly closest" and still be nothing like any note.
+//
+// OFF by default: real phone-mic distances run higher than the synthetic
+// numbers this was tuned against, and a too-tight cap silently rejected every
+// in-game answer. Opt in per engine once you have watched the
+// "[voice] template match" debug lines (localStorage.debugVoiceVerbose = '1')
+// and know a safe number:
 //   localStorage.voiceProfileAbsMax = '40'   /  localStorage.voiceGeneralAbsMax = '45'
-function absMax(key: string, fallback: number): number {
+function absMax(key: string): number {
   try {
     const v = parseFloat(localStorage.getItem(key) ?? '');
     if (!Number.isNaN(v) && v > 0) return v;
   } catch { /* ignore */ }
-  return fallback;
+  return Infinity;
 }
 
 function hasGetUserMedia(): boolean {
@@ -174,18 +179,22 @@ export class TemplateSpeechEngine implements SpeechEngine {
     if (myTurn !== this.turn) return;
     if (!templates.length) { opts.onError('not-supported'); return; }
 
-    // Reuse one microphone for every keep-alive turn within a question.
-    if (!this.mic) this.mic = await openMicSession();
-    if (myTurn !== this.turn) return;
-
+    // Open a fresh microphone per listen turn. A shared long-lived MicSession
+    // was tried here for latency, but on mobile browsers a reused
+    // AudioContext/getUserMedia stream sometimes stopped delivering audio
+    // mid-question, so every subsequent answer went unheard.
     const captured = await captureUtterance({
       signal: abort.signal,
-      session: this.mic ?? undefined,
       // A segmented answer has a mid-word pause ("C" … "sharp"); give it more
       // room before the trailing-silence cutoff, and a longer hard cap.
       ...(this.cfg.segmented ? { trailingSilenceMs: 500, maxSpeechMs: 3500 } : {}),
     });
     if (myTurn !== this.turn) return;
+    vlog('[voice] capture', {
+      engine: this.kind, vocabId,
+      got: !!captured, samples: captured?.pcm.length ?? 0,
+      sampleRate: captured?.sampleRate ?? 0,
+    });
     if (!captured) { opts.onEnd?.(); return; }
 
     if (this.cfg.segmented) {
@@ -209,7 +218,7 @@ export class TemplateSpeechEngine implements SpeechEngine {
       firstLabel = ranked[0]?.label;
       secondLabel = ranked[1]?.label;
       const ratioCap = relMax(this.cfg.relMaxKey, this.cfg.relMaxDefault);
-      const absCap = absMax(this.cfg.absMaxKey, this.cfg.absMaxDefault);
+      const absCap = absMax(this.cfg.absMaxKey);
       const nearOk = Number.isFinite(nearest) && nearest <= absCap;
       const ratioOk = !ranked[1] || ranked[1].score <= ranked[0].score * ratioCap;
       confident = !!firstLabel && nearOk && ratioOk;
@@ -229,7 +238,7 @@ export class TemplateSpeechEngine implements SpeechEngine {
       firstLabel = best?.label;
       secondLabel = second?.label;
       const ratioCap = relMax(this.cfg.relMaxKey, this.cfg.relMaxDefault);
-      const absCap = absMax(this.cfg.absMaxKey, this.cfg.absMaxDefault);
+      const absCap = absMax(this.cfg.absMaxKey);
       const absOk = !!best && Number.isFinite(best.distance) && best.distance <= absCap;
       const ratioOk = !!best && (!second || best.distance <= second.distance * ratioCap);
       confident = absOk && ratioOk;
@@ -280,7 +289,7 @@ export class TemplateSpeechEngine implements SpeechEngine {
     const letters = templates.filter((t) => isLetterLabel(t.label));
     const accidentals = templates.filter((t) => isAccidentalLabel(t.label));
     const ratioCap = relMax(this.cfg.relMaxKey, this.cfg.relMaxDefault);
-    const absCap = absMax(this.cfg.absMaxKey, this.cfg.absMaxDefault);
+    const absCap = absMax(this.cfg.absMaxKey);
 
     const gate = (ranked: { label: string; distance: number }[], part: string): string | null => {
       const [best, second] = ranked;
