@@ -13,10 +13,12 @@ import { loadSetting, saveSetting } from './settings';
 
 const DB_NAME = 'voiceProfiles';
 // v2: the personal profile switched from twelve whole-phrase note templates
-// ("C sharp", …) to nine segmented ones (seven letters + "#"/"b"). The old
-// templates are incompatible with segmented matching, so the upgrade drops
-// the store and clears the ready flag — the user re-calibrates once.
-const DB_VERSION = 2;
+// ("C sharp", …) to nine segmented ones (seven letters + "#"/"b").
+// v3: the MFCC frame layout gained Δ/ΔΔ streams (13 → 39 dims) plus
+// variance normalisation, so every stored template is incompatible.
+// Each bump drops the store and clears the ready flag — the user
+// re-calibrates once.
+const DB_VERSION = 3;
 const STORE = 'templates';
 const ACTIVE_KEY = 'voice.profile.active';
 const READY_KEY = 'voice.profile.ready';

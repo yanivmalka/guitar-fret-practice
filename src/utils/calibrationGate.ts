@@ -88,6 +88,9 @@ export async function resemblesSpokenNote(
 
   const templates = await refSet(key);
   if (!templates.length) return true; // no reference yet — can't gate
+  // Stale bundled set from an older MFCC layout — not comparable, so don't
+  // block calibration on it (the user re-runs build-general-voice.mts).
+  if (templates[0].frames[0]?.length !== frames[0]?.length) return true;
 
   const best = matchTemplates(frames, templates)[0];
   const pass = !!best && Number.isFinite(best.distance) && best.distance <= gateMax();
