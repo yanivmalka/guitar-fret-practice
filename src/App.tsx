@@ -654,6 +654,7 @@ export default function App() {
       order={order}
       onByStringToggle={() => { byString ? playToggleOffSound() : playToggleOnSound(); haptic.tap(); const next = !byString; setByString(next); saveSetting('pref_byString', next); }}
       onOrderChange={(o) => { playClickSound(); haptic.tap(); setOrder(o); saveSetting('pref_order', o); }}
+      accidental={accidental}
       notation={notation}
       onNotationChange={(n) => { playClickSound(); haptic.tap(); setNotation(n); saveSetting('pref_notation', n); }}
       onInfo={() => { playClickSound(); haptic.tap(); openInfo(); }}
