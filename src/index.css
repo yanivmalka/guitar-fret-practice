@@ -2037,6 +2037,7 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 .vcal-prompt-label { font-size: 13px; color: #9aa; }
 .vcal-note { font-size: 44px; font-weight: 800; letter-spacing: 1px; }
 .vcal-here { font-size: 12px; color: #9aa; }
+.vcal-hint { font-size: 12px; color: #9aa; text-align: center; margin: -2px 0 8px; }
 .vcal-meter { height: 10px; background: #12121f; border-radius: 5px; overflow: hidden; margin: 8px 0; }
 .vcal-meter.is-live { box-shadow: 0 0 0 1px #4caf50 inset; }
 .vcal-meter-fill { height: 100%; background: #4caf50; transition: width 0.08s linear; }

@@ -6,7 +6,9 @@ import {
   addTemplate, clearLabel, deleteProfile, getActiveProfile,
   recomputeReady, setActiveProfile, templateCounts, ADAPTIVE_PROFILE,
 } from '../utils/voiceProfile';
-import { CHROMATIC_NOTES, profileVocabId } from '../utils/voiceProfileVocab';
+import {
+  LETTER_LABELS, ACCIDENTAL_LABELS, PROFILE_LABELS, profileVocabId,
+} from '../utils/voiceProfileVocab';
 import { resetSpeechEngine } from '../utils/speech';
 import type { SpeechNotation } from '../utils/speechVocab';
 import { playClickSound, haptic } from '../utils/feedback';
@@ -23,9 +25,11 @@ interface Props {
 
 type RecState = 'idle' | 'recording' | 'thinking';
 
-// A one-time, on-device calibration: the user says each of the twelve
-// chromatic note names a couple of times, and the recordings (as MFCC
-// templates) become their personal recogniser. Nothing leaves the device.
+// A one-time, on-device calibration. Instead of every accidental note as a
+// whole phrase, the user records nine short isolated words: the seven
+// natural letters plus the accidental words "sharp"/"dièse" and "flat".
+// At question time the recogniser splits the spoken answer and matches each
+// part. Nothing leaves the device.
 export default function VoiceCalibration({ notation, accidental, onClose, onProfileChanged }: Props) {
   const vocabId = profileVocabId(notation as SpeechNotation);
   const [profile, setProfile] = useState(() => getActiveProfile() ?? 'הפרופיל שלי');
@@ -36,8 +40,16 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
   const [err, setErr] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const note = CHROMATIC_NOTES[idx];
-  const label = displayNote(note, accidental, notation);
+  const label = PROFILE_LABELS[idx];
+  const isAccidental = (ACCIDENTAL_LABELS as readonly string[]).includes(label);
+  const prompt = isAccidental
+    ? (label === '#'
+        ? (notation === 'solfege' ? 'דּיאָז' : 'שארפ')
+        : 'במול')
+    : displayNote(label, accidental, notation);
+  const hint = isAccidental
+    ? 'תגיד רק את המילה הזאת, לבד'
+    : 'תגיד רק את שם התו, לבד';
 
   const refreshCounts = useCallback(async (name: string) => {
     const c = await templateCounts(name, vocabId);
@@ -54,8 +66,8 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
   }, [profile, vocabId]);
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  const total = CHROMATIC_NOTES.length;
-  const doneLabels = CHROMATIC_NOTES.filter((n) => (counts[n] ?? 0) >= SAMPLES_PER_LABEL).length;
+  const total = PROFILE_LABELS.length;
+  const doneLabels = PROFILE_LABELS.filter((n) => (counts[n] ?? 0) >= SAMPLES_PER_LABEL).length;
   const allDone = doneLabels === total;
 
   const record = async () => {
@@ -82,7 +94,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
       if (!frames.length) {
         setErr('ההקלטה קצרה מדי — נסה שוב');
       } else {
-        await addTemplate(profile, vocabId, note, framesToJson(frames));
+        await addTemplate(profile, vocabId, label, framesToJson(frames));
         await refreshCounts(profile);
         haptic.tap();
       }
@@ -94,7 +106,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
 
   const redo = async () => {
     playClickSound();
-    await clearLabel(profile, vocabId, note);
+    await clearLabel(profile, vocabId, label);
     await refreshCounts(profile);
   };
 
@@ -106,7 +118,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
   const finish = async () => {
     playClickSound(); haptic.tap();
     setActiveProfile(profile);
-    await recomputeReady(vocabId, [...CHROMATIC_NOTES], SAMPLES_PER_LABEL - 1 || 1);
+    await recomputeReady(vocabId, [...PROFILE_LABELS], SAMPLES_PER_LABEL - 1 || 1);
     resetSpeechEngine();
     onProfileChanged();
     onClose();
@@ -115,7 +127,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
   const wipe = async () => {
     playClickSound();
     await deleteProfile(profile);
-    await recomputeReady(vocabId, [...CHROMATIC_NOTES]);
+    await recomputeReady(vocabId, [...PROFILE_LABELS]);
     resetSpeechEngine();
     onProfileChanged();
     await refreshCounts(profile);
@@ -128,7 +140,8 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
     onProfileChanged();
   };
 
-  const here = counts[note] ?? 0;
+  const here = counts[label] ?? 0;
+  const lettersDone = LETTER_LABELS.filter((n) => (counts[n] ?? 0) >= SAMPLES_PER_LABEL).length;
 
   return (
     <div className="vcal-backdrop" role="dialog" aria-label="כיול קול">
@@ -148,7 +161,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
         </label>
 
         <div className="vcal-progress">
-          נקלטו {doneLabels}/{total} תווים
+          נקלטו {doneLabels}/{total} ({lettersDone}/{LETTER_LABELS.length} תווים, {doneLabels - lettersDone}/{ACCIDENTAL_LABELS.length} סימנים)
           <div className="vcal-progress-track">
             <div className="vcal-progress-fill" style={{ width: `${(doneLabels / total) * 100}%` }} />
           </div>
@@ -156,9 +169,10 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
 
         <div className="vcal-prompt">
           <span className="vcal-prompt-label">תגיד:</span>
-          <span className="vcal-note">{label}</span>
+          <span className="vcal-note">{prompt}</span>
           <span className="vcal-here">{here} / {SAMPLES_PER_LABEL} הקלטות</span>
         </div>
+        <div className="vcal-hint">{hint}</div>
 
         <div className={`vcal-meter${rec === 'recording' ? ' is-live' : ''}`}>
           <div className="vcal-meter-fill" style={{ width: `${level * 100}%` }} />
@@ -175,7 +189,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
         </div>
 
         <div className="vcal-actions vcal-actions-sec">
-          <button className="vcal-btn vcal-link" onClick={redo} disabled={here === 0 || rec !== 'idle'}>הקלט תו זה מחדש</button>
+          <button className="vcal-btn vcal-link" onClick={redo} disabled={here === 0 || rec !== 'idle'}>הקלט מחדש</button>
           <button className="vcal-btn vcal-link vcal-danger" onClick={wipe} disabled={rec !== 'idle'}>מחק פרופיל</button>
         </div>
 
@@ -186,7 +200,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
         </div>
 
         <button className="vcal-btn vcal-finish" onClick={finish} disabled={!allDone || rec !== 'idle'}>
-          {allDone ? 'סיום והפעלה' : `עוד ${total - doneLabels} תווים`}
+          {allDone ? 'סיום והפעלה' : `עוד ${total - doneLabels}`}
         </button>
       </div>
     </div>

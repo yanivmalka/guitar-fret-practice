@@ -506,6 +506,7 @@ function makeProfileEngine(): TemplateSpeechEngine {
     kind: 'profile',
     isReady: () => getActiveProfile() !== null && isProfileReady(),
     strategy: 'best',
+    segmented: true,
     relMaxKey: 'voiceProfileRelMax',
     relMaxDefault: 0.97,
     loadTemplates: async (vocabId) => {

@@ -74,10 +74,10 @@ const FILLER_TOKENS = new Set([
 
 // Enharmonic collapse: letter + accidental → canonical sharp spelling
 // used by the `notes` table.
-const FLAT_TO_SHARP: Record<string, string> = {
+export const FLAT_TO_SHARP: Record<string, string> = {
   A: 'G#', B: 'A#', C: 'B', D: 'C#', E: 'D#', F: 'E', G: 'F#',
 };
-const SHARP_WRAP: Record<string, string> = {
+export const SHARP_WRAP: Record<string, string> = {
   'E#': 'F', 'B#': 'C',
 };
 

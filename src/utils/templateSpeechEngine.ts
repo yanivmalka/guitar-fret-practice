@@ -19,10 +19,12 @@ import type {
   SpeechEngineKind,
   MicPermissionState,
 } from './speech';
-import { captureUtterance } from './utteranceCapture';
+import { captureUtterance, segmentUtterance } from './utteranceCapture';
 import { computeMfcc, framesFromJson, framesToJson } from './mfcc';
 import { knnVote, matchTemplates, type Template } from './dtw';
 import { addTemplate, pruneTemplates, ADAPTIVE_PROFILE } from './voiceProfile';
+import { isLetterLabel, isAccidentalLabel } from './voiceProfileVocab';
+import { SHARP_WRAP, FLAT_TO_SHARP } from './speechVocab';
 import { vlog } from './debugLog';
 
 // How many self-learned templates the "General" engine keeps per label.
@@ -61,6 +63,14 @@ export interface TemplateEngineConfig {
    * robust with many uneven templates, i.e. the synthetic general set).
    */
   strategy: 'best' | 'knn';
+  /**
+   * When set, the spoken answer is split into one or two words
+   * (`segmentUtterance`) and matched in two stages: segment 0 against the
+   * seven letter templates, an optional segment 1 against the "#"/"b"
+   * accidental templates, then composed into a note name. Only the personal
+   * profile ('best') uses this; the bundled 'general' set stays whole-word.
+   */
+  segmented?: boolean;
 }
 
 export class TemplateSpeechEngine implements SpeechEngine {
@@ -128,9 +138,19 @@ export class TemplateSpeechEngine implements SpeechEngine {
     if (myTurn !== this.turn) return;
     if (!templates.length) { opts.onError('not-supported'); return; }
 
-    const captured = await captureUtterance({ signal: abort.signal });
+    const captured = await captureUtterance({
+      signal: abort.signal,
+      // A segmented answer has a mid-word pause ("C" … "sharp"); give it more
+      // room before the trailing-silence cutoff, and a longer hard cap.
+      ...(this.cfg.segmented ? { trailingSilenceMs: 500, maxSpeechMs: 3500 } : {}),
+    });
     if (myTurn !== this.turn) return;
     if (!captured) { opts.onEnd?.(); return; }
+
+    if (this.cfg.segmented) {
+      await this.runSegmented(captured, templates, myTurn, opts);
+      return;
+    }
 
     const { frames } = computeMfcc(captured.pcm, captured.sampleRate);
     if (!frames.length) { opts.onEnd?.(); return; }
@@ -184,6 +204,71 @@ export class TemplateSpeechEngine implements SpeechEngine {
     if (confident && firstLabel) {
       const alts = secondLabel ? [firstLabel, secondLabel] : [firstLabel];
       opts.onResult({ transcript: firstLabel, alternatives: alts, isFinal: true });
+    }
+    opts.onEnd?.();
+  }
+
+  /**
+   * Two-stage segmented match for the personal profile: split the answer
+   * into words, match the first against the letter templates and an optional
+   * second against the "#"/"b" templates, then compose a canonical note
+   * name. Emits nothing (so the caller listens again) unless every segment
+   * present clears the confidence gate.
+   */
+  private async runSegmented(
+    captured: { pcm: Float32Array; sampleRate: number },
+    templates: Template[],
+    myTurn: number,
+    opts: SpeechListenOptions,
+  ): Promise<void> {
+    this.lastFrames = null; // segmented profile never feeds the learn store
+
+    const segFrames = segmentUtterance(captured.pcm, captured.sampleRate)
+      .map((s) => computeMfcc(s, captured.sampleRate).frames)
+      .filter((f) => f.length);
+    if (myTurn !== this.turn) return;
+    if (!segFrames.length) { opts.onEnd?.(); return; }
+
+    const letters = templates.filter((t) => isLetterLabel(t.label));
+    const accidentals = templates.filter((t) => isAccidentalLabel(t.label));
+    const ratioCap = relMax(this.cfg.relMaxKey, this.cfg.relMaxDefault);
+
+    const gate = (ranked: { label: string; distance: number }[]): string | null => {
+      const [best, second] = ranked;
+      if (!best || !Number.isFinite(best.distance)) return null;
+      if (second && best.distance > second.distance * ratioCap) return null;
+      return best.label;
+    };
+
+    const lRanked = matchTemplates(segFrames[0], letters);
+    const letter = gate(lRanked);
+    let note: string | null = letter;
+    let accLabel: string | null = null;
+
+    if (letter && segFrames.length >= 2) {
+      const aRanked = matchTemplates(segFrames[1], accidentals);
+      accLabel = gate(aRanked);
+      if (!accLabel) {
+        // A second word was spoken but "#" vs "b" is unclear — ask again
+        // rather than guess a natural note.
+        note = null;
+      } else if (accLabel === '#') {
+        note = SHARP_WRAP[`${letter}#`] ?? `${letter}#`;
+      } else {
+        note = FLAT_TO_SHARP[letter] ?? letter;
+      }
+    }
+
+    vlog('[voice] segmented match', {
+      engine: this.kind, segments: segFrames.length,
+      letter: lRanked[0] && { label: lRanked[0].label, d: +lRanked[0].distance.toFixed(2) },
+      letter2: lRanked[1] && { label: lRanked[1].label, d: +lRanked[1].distance.toFixed(2) },
+      accidental: accLabel, note,
+    });
+
+    if (myTurn !== this.turn) return;
+    if (note) {
+      opts.onResult({ transcript: note, alternatives: [note], isFinal: true });
     }
     opts.onEnd?.();
   }
