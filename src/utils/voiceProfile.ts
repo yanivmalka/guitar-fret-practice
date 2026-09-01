@@ -12,7 +12,11 @@
 import { loadSetting, saveSetting } from './settings';
 
 const DB_NAME = 'voiceProfiles';
-const DB_VERSION = 1;
+// v2: the personal profile switched from twelve whole-phrase note templates
+// ("C sharp", …) to nine segmented ones (seven letters + "#"/"b"). The old
+// templates are incompatible with segmented matching, so the upgrade drops
+// the store and clears the ready flag — the user re-calibrates once.
+const DB_VERSION = 2;
 const STORE = 'templates';
 const ACTIVE_KEY = 'voice.profile.active';
 const READY_KEY = 'voice.profile.ready';
@@ -35,11 +39,14 @@ function openDb(): Promise<IDBDatabase> {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
-      if (!db.objectStoreNames.contains(STORE)) {
-        const os = db.createObjectStore(STORE, { keyPath: 'key' });
-        os.createIndex('byProfileVocab', ['profile', 'vocabId'], { unique: false });
-        os.createIndex('byProfile', 'profile', { unique: false });
+      // Any pre-v2 store holds incompatible whole-phrase templates — drop it.
+      if (db.objectStoreNames.contains(STORE)) {
+        db.deleteObjectStore(STORE);
+        try { saveSetting(READY_KEY, false); } catch { /* noop */ }
       }
+      const os = db.createObjectStore(STORE, { keyPath: 'key' });
+      os.createIndex('byProfileVocab', ['profile', 'vocabId'], { unique: false });
+      os.createIndex('byProfile', 'profile', { unique: false });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);

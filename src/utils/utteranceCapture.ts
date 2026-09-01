@@ -159,3 +159,94 @@ export async function captureUtterance(
     sink.connect(ctx.destination);
   });
 }
+
+// ── Post-capture segmentation ─────────────────────────────────────────
+//
+// The segmented personal-profile recogniser (`templateSpeechEngine.ts`)
+// needs the spoken answer split into its words: "C" on its own, or
+// "C" + "sharp". `captureUtterance` hands back one PCM blob covering the
+// whole answer; this splits it on the internal silence between words.
+//
+// When the speaker runs the two words together with no real gap only one
+// voiced run is found. If that run is clearly longer than a single word it
+// is force-split at its quietest interior frame so "Csharp" still yields
+// two segments.
+
+const SEG_FRAME_MS = 20;
+/** A silence gap shorter than this is within one word; longer splits words. */
+const SEG_SPLIT_GAP_MS = 110;
+/** A lone voiced run longer than this is force-split (assumed letter+accidental). */
+const SEG_LONG_WORD_MS = 480;
+/** Padding kept around each extracted segment. */
+const SEG_PAD_MS = 30;
+
+export function segmentUtterance(
+  pcm: Float32Array,
+  sampleRate: number,
+): Float32Array[] {
+  const frame = Math.max(1, Math.round((SEG_FRAME_MS / 1000) * sampleRate));
+  const nFrames = Math.floor(pcm.length / frame);
+  if (nFrames < 2) return pcm.length ? [pcm] : [];
+
+  const rms = new Float32Array(nFrames);
+  for (let f = 0; f < nFrames; f++) {
+    let sumSq = 0;
+    const base = f * frame;
+    for (let i = 0; i < frame; i++) { const s = pcm[base + i]; sumSq += s * s; }
+    rms[f] = Math.sqrt(sumSq / frame);
+  }
+
+  // Noise floor: 20th-percentile frame energy.
+  const sorted = [...rms].sort((a, b) => a - b);
+  const noiseFloor = sorted[Math.floor(sorted.length * 0.2)] || 0;
+  const gate = Math.max(0.010, noiseFloor * 2.5);
+
+  // Contiguous voiced frame runs.
+  const runs: [number, number][] = [];
+  let start = -1;
+  for (let f = 0; f < nFrames; f++) {
+    if (rms[f] > gate) {
+      if (start < 0) start = f;
+    } else if (start >= 0) {
+      runs.push([start, f]);
+      start = -1;
+    }
+  }
+  if (start >= 0) runs.push([start, nFrames]);
+  if (!runs.length) return [pcm];
+
+  // Merge runs separated by a gap shorter than SEG_SPLIT_GAP_MS.
+  const splitGap = Math.round(SEG_SPLIT_GAP_MS / SEG_FRAME_MS);
+  const merged: [number, number][] = [[runs[0][0], runs[0][1]]];
+  for (let i = 1; i < runs.length; i++) {
+    const prev = merged[merged.length - 1];
+    if (runs[i][0] - prev[1] < splitGap) prev[1] = runs[i][1];
+    else merged.push([runs[i][0], runs[i][1]]);
+  }
+
+  let segFrames: [number, number][];
+  const longWord = Math.round(SEG_LONG_WORD_MS / SEG_FRAME_MS);
+  if (merged.length >= 2) {
+    segFrames = merged.slice(0, 2);
+  } else {
+    const [s, e] = merged[0];
+    if (e - s > longWord) {
+      // Force-split at the quietest interior frame (middle 60%).
+      const lo = s + Math.floor((e - s) * 0.2);
+      const hi = e - Math.floor((e - s) * 0.2);
+      let cut = lo;
+      let min = Infinity;
+      for (let f = lo; f < hi; f++) if (rms[f] < min) { min = rms[f]; cut = f; }
+      segFrames = [[s, cut], [cut, e]];
+    } else {
+      segFrames = [[s, e]];
+    }
+  }
+
+  const pad = Math.round((SEG_PAD_MS / 1000) * sampleRate);
+  return segFrames.map(([s, e]) => {
+    const a = Math.max(0, s * frame - pad);
+    const b = Math.min(pcm.length, e * frame + pad);
+    return pcm.slice(a, b);
+  });
+}
