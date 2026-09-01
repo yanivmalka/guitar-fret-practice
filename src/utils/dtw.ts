@@ -9,45 +9,31 @@
 // matters because matching runs against every stored template on the main
 // thread right after the user speaks.
 
-// Kept in sync with mfcc.ts by hand (that pair is already tightly coupled):
-// NUM_CEPS * 3  =  static + Δ + ΔΔ.
-const MFCC_DIM = 39;
-
-function readWeight(key: string, dflt: number): number {
+// MFCC coefficient 0 is overall log-energy — it mostly tracks loudness and
+// differs a lot between a clean synthetic template and a real microphone,
+// so it is heavily down-weighted rather than dropped (dropping it would
+// change the feature dimension and invalidate stored templates). Tunable
+// for offline calibration work:  localStorage.voiceC0Weight = '0.1'
+function readC0Weight(): number {
   try {
-    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('voiceC0Weight') : null;
     const v = parseFloat(raw ?? '');
     if (!Number.isNaN(v) && v >= 0 && v <= 1) return v;
   } catch { /* ignore */ }
-  return dflt;
+  return 0.2;
 }
+let C0_WEIGHT = readC0Weight();
 
-// Frame layout is [static(13) | Δ(13) | ΔΔ(13)].
-//  • index 0 is static log-energy — mostly loudness, which differs a lot
-//    between a synthetic template and a real mic, so down-weight it.
-//    Tunable:  localStorage.voiceC0Weight = '0.1'
-//  • the ΔΔ block is the noisiest stream, so down-weight it too.
-//    Tunable:  localStorage.voiceDDeltaWeight = '0.4'
-let C0_WEIGHT = readWeight('voiceC0Weight', 0.2);
-let DDELTA_WEIGHT = readWeight('voiceDDeltaWeight', 0.5);
-const DDELTA_START = (MFCC_DIM / 3) * 2;
-
-/** Override the matcher weights at runtime (test / tuning hook). */
+/** Override the C0 weight at runtime (test / tuning hook). */
 export function setC0Weight(w: number): void {
   if (w >= 0 && w <= 1) C0_WEIGHT = w;
-}
-export function setDDeltaWeight(w: number): void {
-  if (w >= 0 && w <= 1) DDELTA_WEIGHT = w;
 }
 
 function frameDistance(a: Float32Array, b: Float32Array): number {
   let acc = 0;
-  const n = a.length;
-  const ddStart = n === MFCC_DIM ? DDELTA_START : n;
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < a.length; i++) {
     const d = a[i] - b[i];
-    const w = i === 0 ? C0_WEIGHT : i >= ddStart ? DDELTA_WEIGHT : 1;
-    acc += w * d * d;
+    acc += (i === 0 ? C0_WEIGHT : 1) * d * d;
   }
   return Math.sqrt(acc);
 }
@@ -60,9 +46,6 @@ export function dtwDistance(seqA: Float32Array[], seqB: Float32Array[]): number 
   const n = seqA.length;
   const m = seqB.length;
   if (!n || !m) return Infinity;
-  // Frame-dimension mismatch means one side is a stale template from an
-  // older MFCC layout — not comparable.
-  if (seqA[0].length !== seqB[0].length) return Infinity;
 
   const band = Math.max(10, Math.abs(n - m) + 5);
   const INF = Infinity;
