@@ -571,7 +571,14 @@ export function getSpeechEngine(): SpeechEngine {
   if (isCapacitorNative()) {
     cached = new NativeSpeechEngine();
   } else if (pref === 'profile') {
-    cached = canProfile ? makeProfileEngine() : (web ?? new NullSpeechEngine());
+    // Asked for the personal profile but it isn't calibrated/enabled yet:
+    // fall back to the offline General template engine, not the flaky
+    // network Web Speech API.
+    cached = canProfile
+      ? makeProfileEngine()
+      : canTemplate
+        ? makeGeneralEngine()
+        : (web ?? new NullSpeechEngine());
   } else if (pref === 'general') {
     cached = canTemplate ? makeGeneralEngine() : (web ?? new NullSpeechEngine());
   } else if (pref === 'web') {
