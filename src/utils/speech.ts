@@ -20,6 +20,9 @@ import { speechVocabulary } from './speechVocab';
 
 export type SpeechEngineKind = 'web' | 'native' | 'none';
 
+/** Result of a silent, non-prompting microphone-permission check. */
+export type MicPermissionState = 'granted' | 'denied' | 'unknown';
+
 export type SpeechEngineError =
   | 'not-supported'
   | 'no-permission'
@@ -51,6 +54,12 @@ export interface SpeechListenOptions {
 export interface SpeechEngine {
   readonly kind: SpeechEngineKind;
   isSupported(): boolean;
+  /**
+   * Silent, non-prompting permission check — used on start-up to seed the
+   * permission state so an already-granted mic doesn't re-trigger the primer
+   * card. Resolves to 'unknown' when the platform can't answer without a prompt.
+   */
+  checkPermission(): Promise<MicPermissionState>;
   /** Prompt for / verify microphone permission. Resolves to granted. */
   requestPermission(): Promise<boolean>;
   /** Begin a single listen turn. Rejects only on synchronous setup failure. */
@@ -125,6 +134,19 @@ class WebSpeechEngine implements SpeechEngine {
 
   isSupported(): boolean {
     return getSRConstructor() !== null;
+  }
+
+  async checkPermission(): Promise<MicPermissionState> {
+    try {
+      const status = await navigator.permissions?.query({
+        name: 'microphone' as PermissionName,
+      });
+      if (status?.state === 'granted') return 'granted';
+      if (status?.state === 'denied') return 'denied';
+    } catch {
+      /* Permissions API doesn't support "microphone" here — can't tell silently */
+    }
+    return 'unknown';
   }
 
   async requestPermission(): Promise<boolean> {
@@ -246,6 +268,7 @@ function mapWebError(code: string): SpeechEngineError {
   switch (code) {
     case 'not-allowed':
     case 'service-not-allowed':
+    case 'audio-capture':
       return 'no-permission';
     case 'no-speech':
       return 'no-speech';
@@ -314,6 +337,26 @@ class NativeSpeechEngine implements SpeechEngine {
   isSupported(): boolean {
     // Cheap synchronous guess; the async check happens in start().
     return true;
+  }
+
+  async checkPermission(): Promise<MicPermissionState> {
+    const p = await this.getPlugin();
+    if (!p) return 'unknown';
+    try {
+      if (p.checkPermissions) {
+        const r = await p.checkPermissions();
+        if (r.speechRecognition === 'granted') return 'granted';
+        if (r.speechRecognition === 'denied') return 'denied';
+        return 'unknown';
+      }
+      if (p.hasPermission) {
+        const h = await p.hasPermission();
+        return h.permission ? 'granted' : 'unknown';
+      }
+    } catch {
+      /* can't determine silently */
+    }
+    return 'unknown';
   }
 
   async requestPermission(): Promise<boolean> {
@@ -407,6 +450,7 @@ class NativeSpeechEngine implements SpeechEngine {
 class NullSpeechEngine implements SpeechEngine {
   readonly kind = 'none' as const;
   isSupported(): boolean { return false; }
+  async checkPermission(): Promise<MicPermissionState> { return 'unknown'; }
   async requestPermission(): Promise<boolean> { return false; }
   async start(opts: SpeechListenOptions): Promise<void> { opts.onError('not-supported'); }
   stop(): void { /* noop */ }

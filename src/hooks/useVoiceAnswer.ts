@@ -98,6 +98,12 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
   const retriesRef = useRef(0);
   const startRetriesRef = useRef(0);
   const keepAliveRef = useRef(0);
+  // Detect a recogniser that starts but never produces anything (Samsung
+  // Internet, Edge with no speech backend, …): if several listen turns in a
+  // row end near-instantly with no result, stop retrying and surface an error.
+  const gotResultRef = useRef(false);
+  const emptyEndsRef = useRef(0);
+  const turnStartRef = useRef(0);
   // Signature of the last parseable answer seen on an interim, to detect when
   // the same answer repeats and can be committed early.
   const lastParsedSigRef = useRef<string | null>(null);
@@ -111,6 +117,20 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
 
   useEffect(() => { pRef.current = params; });
   useEffect(() => { permissionRef.current = permission; }, [permission]);
+
+  // Seed the permission state from a silent, non-prompting check on mount.
+  // Without this `permission` stays 'unknown' after every launch even when the
+  // mic was granted long ago, so App's askForMic() shows the primer card on
+  // every Play. A later ensurePermission() (real prompt) still takes over.
+  useEffect(() => {
+    if (!engine || engine.kind === 'none') return;
+    let cancelled = false;
+    void engine.checkPermission().then((state) => {
+      if (cancelled || state === 'unknown') return;
+      setPermission((prev) => (prev === 'unknown' ? state : prev));
+    });
+    return () => { cancelled = true; };
+  }, [engine]);
 
   const stopListening = useCallback(() => {
     if (startTimerRef.current !== null) {
@@ -191,6 +211,7 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
 
     handledRef.current = false;
     listeningRef.current = true;
+    turnStartRef.current = Date.now();
     setError(null);
     setPartial('');
     setStatus('listening');
@@ -200,6 +221,8 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
       vocabulary: vocabularyFor(p.notation),
       onResult: (r) => {
         if (handledRef.current) return;
+        gotResultRef.current = true;
+        emptyEndsRef.current = 0;
         setPartial(r.transcript);
         ingest(r.alternatives?.length ? r.alternatives : [r.transcript], r.isFinal);
       },
@@ -220,9 +243,25 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
           startTimerRef.current = window.setTimeout(() => listenRef.current(), START_RETRY_MS);
           return;
         }
-        if (e === 'no-speech' && retriesRef.current < MAX_AUTO_RETRIES) {
-          retriesRef.current++;
-          listenRef.current();
+        if (e === 'no-speech') {
+          // Chrome delivers end-of-silence as an error rather than a clean
+          // `onEnd`, so the keep-alive resume has to be reachable from here
+          // too — otherwise the mic dies a silence or two into a question
+          // despite MAX_KEEPALIVE.
+          if (retriesRef.current < MAX_AUTO_RETRIES) {
+            retriesRef.current++;
+            listenRef.current();
+            return;
+          }
+          const q = pRef.current;
+          const stillActive =
+            q.enabled && q.running && !q.paused && !q.answered && q.hasActiveQuestion;
+          if (!handledRef.current && stillActive && keepAliveRef.current < MAX_KEEPALIVE) {
+            keepAliveRef.current++;
+            listenRef.current();
+            return;
+          }
+          setStatus((s) => (s === 'heard' ? s : 'idle'));
           return;
         }
         if (e === 'aborted') {
@@ -238,6 +277,22 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
         // The recogniser stopped on its own. If no answer has been committed
         // and the question is still up, transparently resume so the mic keeps
         // listening for the whole question rather than going dead.
+        // A turn that ended almost immediately having never produced a result
+        // is the signature of a browser with no real speech engine. Count
+        // those; after a few in a row, give up and tell the user.
+        if (!gotResultRef.current && Date.now() - turnStartRef.current < 1200) {
+          emptyEndsRef.current++;
+        } else {
+          // A turn that actually ran for a while (or produced a result) clears
+          // the counter, so only a genuine run of instant, empty turns — the
+          // signature of a browser with no speech backend — trips the error.
+          emptyEndsRef.current = 0;
+        }
+        if (emptyEndsRef.current >= 3) {
+          setError('not-supported');
+          setStatus('error');
+          return;
+        }
         const q = pRef.current;
         const stillActive =
           q.enabled && q.running && !q.paused && !q.answered && q.hasActiveQuestion;
@@ -273,6 +328,8 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
     retriesRef.current = 0;
     startRetriesRef.current = 0;
     keepAliveRef.current = 0;
+    emptyEndsRef.current = 0;
+    gotResultRef.current = false;
     lastParsedSigRef.current = null;
     setError(null);
     listen();
@@ -292,6 +349,8 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
       retriesRef.current = 0;
       startRetriesRef.current = 0;
       keepAliveRef.current = 0;
+      emptyEndsRef.current = 0;
+      gotResultRef.current = false;
       lastParsedSigRef.current = null;
       listen();
     } else {
