@@ -3,8 +3,23 @@
 // Reads the synthetic TTS WAVs generated from Windows System.Speech and
 // turns them into MFCC templates for the "General" voice engine. Output is
 // checked in as src/utils/generalVoiceTemplates.ts so the app ships a tiny,
-// accent-neutral reference set for the twelve note names — no model
-// download at all.
+// accent-neutral reference set — no model download at all.
+//
+// It rebuilds the file wholesale from whatever is in <wav-dir>, so the
+// directory must hold the COMPLETE set every time, not just new additions.
+//
+// Expected WAV filenames (everything after the shown prefix is free, e.g.
+// the voice name and an index):
+//
+//   notes, whole-word:   alpha_C_*.wav  alpha_Cs_*.wav  … solfege_do_*.wav
+//                        (frag = ALPHA / SOLFEGE key below)
+//   accidental words:    alpha_sharp_*.wav   alpha_flat_*.wav
+//                        solfege_diese_*.wav solfege_bemol_*.wav
+//   fret numbers:        frets_1_*.wav … frets_24_*.wav
+//
+// Output vocab keys: 'notes-alpha', 'notes-solfege', 'accidentals-alpha',
+// 'accidentals-solfege', 'frets-1-24'. Keys with no matching WAVs come out
+// as empty arrays, which consumers treat as "no reference, don't gate".
 //
 // Usage:  node --experimental-strip-types scripts/build-general-voice.mts <wav-dir>
 
@@ -12,12 +27,17 @@ import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { computeMfcc, framesToJson } from '../src/utils/mfcc.ts';
 
-const wavDir = process.argv[2];
+const args = process.argv.slice(2);
+const merge = args.includes('--merge');
+const wavDir = args.find((a) => !a.startsWith('--'));
 if (!wavDir) {
-  console.error('pass the WAV directory as the first argument');
+  console.error('usage: build-general-voice.mts <wav-dir> [--merge]');
   process.exit(1);
 }
 
+// --merge: start from the checked-in file and only replace vocab keys that
+// this run actually produced WAVs for, so you can add e.g. the fret numbers
+// without also having every note WAV on hand.
 const OUT = resolve(import.meta.dirname, '../src/utils/generalVoiceTemplates.ts');
 
 // filename label fragment -> canonical note the engine emits
@@ -28,6 +48,15 @@ const ALPHA: Record<string, string> = {
 const SOLFEGE: Record<string, string> = {
   do: 'C', dos: 'C#', re: 'D', res: 'D#', mi: 'E', fa: 'F',
   fas: 'F#', sol: 'G', sols: 'G#', la: 'A', las: 'A#', si: 'B',
+};
+
+// Isolated accidental words → the segmented label the personal profile
+// also stores ('#' / 'b'), grouped by notation.
+const ACCIDENTAL_WORDS: Record<string, { set: 'alpha' | 'solfege'; label: string }> = {
+  sharp: { set: 'alpha', label: '#' },
+  flat: { set: 'alpha', label: 'b' },
+  diese: { set: 'solfege', label: '#' },
+  bemol: { set: 'solfege', label: 'b' },
 };
 
 // ── WAV decode (16-bit PCM mono, chunk-scanned) ──────────────────────
@@ -111,20 +140,37 @@ function formantShift(pcm: Float32Array, factor: number): Float32Array {
 }
 const SHIFTS = [0.9, 0.95, 1.0, 1.06, 1.12];
 
-const out: Record<string, { label: string; frames: number[][] }[]> = {
-  'notes-alpha': [],
-  'notes-solfege': [],
-};
+type Tmpl = { label: string; frames: number[][] };
+const KEYS = [
+  'notes-alpha', 'notes-solfege',
+  'accidentals-alpha', 'accidentals-solfege',
+  'frets-1-24',
+] as const;
+
+const built: Record<string, Tmpl[]> = Object.fromEntries(KEYS.map((k) => [k, []]));
+
+// Map one WAV filename to its output vocab key + label, or null to skip.
+function classify(file: string): { key: string; label: string } | null {
+  let m = file.match(/^frets_(\d{1,2})_/);
+  if (m) {
+    const num = Number(m[1]);
+    return num >= 1 && num <= 24 ? { key: 'frets-1-24', label: String(num) } : null;
+  }
+  m = file.match(/^(alpha|solfege)_([A-Za-z]+)_/);
+  if (!m) return null;
+  const set = m[1] as 'alpha' | 'solfege';
+  const frag = m[2];
+  const acc = ACCIDENTAL_WORDS[frag.toLowerCase()];
+  if (acc && acc.set === set) return { key: `accidentals-${set}`, label: acc.label };
+  const label = (set === 'alpha' ? ALPHA : SOLFEGE)[frag];
+  return label ? { key: `notes-${set}`, label } : null;
+}
 
 let n = 0;
 for (const file of readdirSync(wavDir)) {
   if (!file.endsWith('.wav')) continue;
-  const m = file.match(/^(alpha|solfege)_([A-Za-z]+)_/);
-  if (!m) { console.warn('skip (name)', file); continue; }
-  const [, set, frag] = m;
-  const map = set === 'alpha' ? ALPHA : SOLFEGE;
-  const label = map[frag];
-  if (!label) { console.warn('skip (label)', file); continue; }
+  const target = classify(file);
+  if (!target) { console.warn('skip (name/label)', file); continue; }
 
   const { pcm, sampleRate } = decodeWav(readFileSync(join(wavDir, file)));
   const trimmed = trimSilence(pcm, sampleRate);
@@ -132,16 +178,28 @@ for (const file of readdirSync(wavDir)) {
   for (const shift of SHIFTS) {
     const { frames } = computeMfcc(formantShift(trimmed, shift), sampleRate);
     if (frames.length < 4) { console.warn('skip (too short)', file, shift); continue; }
-    out[`notes-${set}`].push({ label, frames: round2(framesToJson(frames)) });
+    built[target.key].push({ label: target.label, frames: round2(framesToJson(frames)) });
     n++;
   }
+}
+
+// Assemble the final set. In --merge mode, keep every checked-in key and
+// overwrite only the ones this run produced templates for.
+let out: Record<string, Tmpl[]> = built;
+if (merge) {
+  const prev = (await import('../src/utils/generalVoiceTemplates.ts'))
+    .default as Record<string, Tmpl[]>;
+  out = { ...Object.fromEntries(KEYS.map((k) => [k, []])), ...prev };
+  for (const k of KEYS) if (built[k].length) out[k] = built[k];
 }
 
 const body = `// AUTO-GENERATED by scripts/build-general-voice.mts — do not edit by hand.
 //
 // Synthetic-TTS (Windows System.Speech, David + Zira voices) MFCC reference
-// templates for the "General" voice engine — an accent-neutral fallback for
-// the twelve note names that needs no model download. Regenerate with:
+// templates for the "General" voice engine — an accent-neutral fallback
+// that needs no model download. Keys: notes-alpha, notes-solfege,
+// accidentals-alpha, accidentals-solfege, frets-1-24 (any may be empty).
+// Regenerate with:
 //   node --experimental-strip-types scripts/build-general-voice.mts <wav-dir>
 
 export interface GeneralTemplate {
