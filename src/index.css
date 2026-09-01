@@ -2068,3 +2068,4 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 .vcal-link { background: none; border: none; color: #8ab4f8; font-size: 12px; padding: 6px; }
 .vcal-danger { color: #ff8a8a; }
 .vcal-finish { width: 100%; margin-top: 14px; background: #4caf50; border-color: #4caf50; color: #06210a; font-weight: 700; }
+.vcal-auto { width: 100%; margin: 4px 0 2px; background: #1f3a5f; border-color: #2f5c93; font-weight: 700; }

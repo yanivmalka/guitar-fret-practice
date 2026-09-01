@@ -8,7 +8,7 @@ import {
 } from '../utils/speech';
 import { parseSpokenFret, parseSpokenNote, type SpeechNotation } from '../utils/speechVocab';
 import { profileVocabId } from '../utils/voiceProfileVocab';
-import { vlog } from '../utils/debugLog';
+import { verror, vlog } from '../utils/debugLog';
 
 // ── useVoiceAnswer ──────────────────────────────────────────────────────
 //
@@ -261,7 +261,7 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
         ingest(r.alternatives?.length ? r.alternatives : [r.transcript], r.isFinal);
       },
       onError: (e) => {
-        vlog('[voice] onError', e);
+        verror('[voice] onError', e);
         if (handledRef.current) return;
         listeningRef.current = false;
         if (e === 'no-permission') {
