@@ -3,12 +3,14 @@ import { displayNote, type AccidentalMode, type NotationMode } from '../utils/mu
 import { captureUtterance } from '../utils/utteranceCapture';
 import { computeMfcc, framesToJson } from '../utils/mfcc';
 import {
-  addTemplate, clearLabel, deleteProfile, getActiveProfile,
-  recomputeReady, setActiveProfile, templateCounts, ADAPTIVE_PROFILE,
+  addTemplate, deleteProfile, deleteTemplateByKey, getActiveProfile,
+  listLabelTemplates, recomputeReady, setActiveProfile, templateCounts,
+  ADAPTIVE_PROFILE,
 } from '../utils/voiceProfile';
 import {
   LETTER_LABELS, ACCIDENTAL_LABELS, PROFILE_LABELS, profileVocabId,
 } from '../utils/voiceProfileVocab';
+import { resemblesSpokenNote } from '../utils/calibrationGate';
 import { resetSpeechEngine } from '../utils/speech';
 import type { SpeechNotation } from '../utils/speechVocab';
 import { playClickSound, haptic } from '../utils/feedback';
@@ -30,19 +32,27 @@ type RecState = 'idle' | 'recording' | 'thinking';
 // natural letters plus the accidental words "sharp"/"dièse" and "flat".
 // At question time the recogniser splits the spoken answer and matches each
 // part. Nothing leaves the device.
+//
+// Recording is automatic: the user presses "Start" once and then just
+// speaks each word as it appears. Every capture is checked against the
+// bundled general reference (`calibrationGate`) so background noise is not
+// saved as a template, and each take can be deleted individually if it
+// still came out wrong.
 export default function VoiceCalibration({ notation, accidental, onClose, onProfileChanged }: Props) {
   const vocabId = profileVocabId(notation as SpeechNotation);
   const [profile, setProfile] = useState(() => getActiveProfile() ?? 'My profile');
   const [idx, setIdx] = useState(0);
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [takes, setTakes] = useState<{ key: string; createdAt: number }[]>([]);
   const [rec, setRec] = useState<RecState>('idle');
   const [level, setLevel] = useState(0);
   const [err, setErr] = useState<string | null>(null);
-  const [auto, setAuto] = useState(false);
+  const [running, setRunning] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const autoTimerRef = useRef<number | null>(null);
-  // Consecutive failed/empty captures while auto-running; a short run of them
-  // means the mic is unusable, so auto mode stops instead of looping forever.
+  // Consecutive failed/empty/rejected captures while running; a short run of
+  // them means the mic is unusable or the room is too noisy, so auto mode
+  // stops instead of looping forever.
   const autoMissRef = useRef(0);
 
   const label = PROFILE_LABELS[idx];
@@ -73,6 +83,18 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
     })();
     return () => { alive = false; };
   }, [profile, vocabId]);
+
+  // The individual takes for the word on screen, so the user can delete a
+  // specific bad recording rather than wiping the whole label.
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const t = await listLabelTemplates(profile, vocabId, label);
+      if (alive) setTakes(t);
+    })();
+    return () => { alive = false; };
+  }, [profile, vocabId, label, counts]);
+
   useEffect(() => () => {
     abortRef.current?.abort();
     if (autoTimerRef.current !== null) clearTimeout(autoTimerRef.current);
@@ -107,6 +129,10 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
       if (!frames.length) {
         setErr('Recording too short — try again');
         autoMissRef.current++;
+      } else if (!(await resemblesSpokenNote(frames, label, vocabId))) {
+        // Sounded like noise, not a spoken note — don't save it.
+        setErr("That didn't sound like a note — try again");
+        autoMissRef.current++;
       } else {
         await addTemplate(profile, vocabId, label, framesToJson(frames));
         await refreshCounts(profile);
@@ -120,8 +146,8 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
     setRec('idle');
   }, [rec, profile, vocabId, label, refreshCounts]);
 
-  const stopAuto = useCallback(() => {
-    setAuto(false);
+  const stopRun = useCallback(() => {
+    setRunning(false);
     autoMissRef.current = 0;
     if (autoTimerRef.current !== null) {
       clearTimeout(autoTimerRef.current);
@@ -130,20 +156,20 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
     abortRef.current?.abort();
   }, []);
 
-  const toggleAuto = () => {
+  const toggleRun = () => {
     playClickSound(); haptic.tap();
-    if (auto) { stopAuto(); return; }
+    if (running) { stopRun(); return; }
     autoMissRef.current = 0;
     setErr(null);
-    setAuto(true);
+    setRunning(true);
   };
 
-  // Auto mode: once armed, keep cycling — record the current word, and when it
-  // has enough samples jump to the next word that still needs some — so the
-  // user only has to speak, never tap "Record"/"Next" between takes.
+  // Once started, keep cycling — record the current word, and when it has
+  // enough samples jump to the next word that still needs some — so the user
+  // only has to speak, never tap anything between takes.
   useEffect(() => {
-    if (!auto || rec !== 'idle') return;
-    if (autoMissRef.current >= 2) { stopAuto(); return; }
+    if (!running || rec !== 'idle') return;
+    if (autoMissRef.current >= 3) { stopRun(); return; }
 
     const needsHere = (counts[label] ?? 0) < SAMPLES_PER_LABEL;
     if (needsHere) {
@@ -156,7 +182,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
         ? nextAfter
         : PROFILE_LABELS.findIndex((n) => (counts[n] ?? 0) < SAMPLES_PER_LABEL);
       if (nextAny >= 0) setIdx(nextAny);
-      else stopAuto(); // everything recorded
+      else stopRun(); // everything recorded
     }
 
     return () => {
@@ -165,11 +191,11 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
         autoTimerRef.current = null;
       }
     };
-  }, [auto, rec, counts, idx, label, record, stopAuto]);
+  }, [running, rec, counts, idx, label, record, stopRun]);
 
-  const redo = async () => {
-    playClickSound();
-    await clearLabel(profile, vocabId, label);
+  const removeTake = async (key: string) => {
+    playClickSound(); haptic.tap();
+    await deleteTemplateByKey(key);
     await refreshCounts(profile);
   };
 
@@ -245,30 +271,44 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
 
         <button
           className="vcal-btn vcal-auto"
-          onClick={toggleAuto}
-          disabled={allDone && !auto}
+          onClick={toggleRun}
+          disabled={allDone && !running}
         >
-          {auto ? '⏸ Stop auto-record' : '▶️ Auto-record'}
+          {running
+            ? (rec === 'recording' ? '● Listening…' : '⏸ Stop')
+            : '▶️ Start'}
         </button>
-        {auto && (
-          <div className="vcal-hint">Speak when a note appears — calibration advances on its own</div>
+        {running && (
+          <div className="vcal-hint">Speak the word on screen — calibration advances on its own</div>
         )}
 
+        <div className="vcal-takes">
+          {takes.length === 0
+            ? <span className="vcal-here">No recordings for “{prompt}” yet</span>
+            : takes.map((t, i) => (
+              <span key={t.key} className="vcal-take">
+                Take {i + 1}
+                <button
+                  className="vcal-take-x"
+                  onClick={() => void removeTake(t.key)}
+                  disabled={rec !== 'idle' || running}
+                  aria-label={`Delete take ${i + 1} of ${prompt}`}
+                >✕</button>
+              </span>
+            ))}
+        </div>
+
         <div className="vcal-actions">
-          <button className="vcal-btn" onClick={() => step(-1)} disabled={idx === 0 || rec !== 'idle' || auto}>Previous</button>
-          <button className="vcal-btn vcal-rec" onClick={record} disabled={rec !== 'idle' || auto}>
-            {rec === 'recording' ? '● Recording…' : rec === 'thinking' ? '…' : '🎤 Record'}
-          </button>
-          <button className="vcal-btn" onClick={() => step(1)} disabled={idx === total - 1 || rec !== 'idle' || auto}>Next</button>
+          <button className="vcal-btn" onClick={() => step(-1)} disabled={idx === 0 || rec !== 'idle' || running}>Previous</button>
+          <button className="vcal-btn" onClick={() => step(1)} disabled={idx === total - 1 || rec !== 'idle' || running}>Next</button>
         </div>
 
         <div className="vcal-actions vcal-actions-sec">
-          <button className="vcal-btn vcal-link" onClick={redo} disabled={here === 0 || rec !== 'idle' || auto}>Re-record</button>
-          <button className="vcal-btn vcal-link vcal-danger" onClick={wipe} disabled={rec !== 'idle' || auto}>Delete profile</button>
+          <button className="vcal-btn vcal-link vcal-danger" onClick={wipe} disabled={rec !== 'idle' || running}>Delete profile</button>
         </div>
 
         <div className="vcal-actions vcal-actions-sec">
-          <button className="vcal-btn vcal-link" onClick={wipeLearned} disabled={rec !== 'idle' || auto}>
+          <button className="vcal-btn vcal-link" onClick={wipeLearned} disabled={rec !== 'idle' || running}>
             Reset automatic learning of the general mode
           </button>
         </div>

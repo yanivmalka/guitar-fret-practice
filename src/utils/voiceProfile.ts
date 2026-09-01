@@ -132,18 +132,50 @@ export async function addTemplate(
   vocabId: string,
   label: string,
   frames: number[][],
-): Promise<void> {
+): Promise<string> {
   const db = await openDb();
   const store = tx(db, 'readwrite');
   const existing = await reqToPromise(
     store.index('byProfileVocab').getAll(IDBKeyRange.only([profile, vocabId])) as IDBRequest<StoredTemplate[]>,
   );
   const n = existing.filter((r) => r.label === label).length;
+  const key = `${profile}::${vocabId}::${label}::${n}::${Date.now()}`;
   const rec: StoredTemplate = {
-    key: `${profile}::${vocabId}::${label}::${n}::${Date.now()}`,
-    profile, vocabId, label, frames, createdAt: Date.now(),
+    key, profile, vocabId, label, frames, createdAt: Date.now(),
   };
   await reqToPromise(store.add(rec) as IDBRequest);
+  return key;
+}
+
+/**
+ * The individual stored takes for one label (newest last), so calibration
+ * can list them and let the user delete a specific bad recording rather
+ * than wiping the whole label.
+ */
+export async function listLabelTemplates(
+  profile: string,
+  vocabId: string,
+  label: string,
+): Promise<{ key: string; createdAt: number }[]> {
+  try {
+    const db = await openDb();
+    const rows = await reqToPromise(
+      tx(db, 'readonly').index('byProfileVocab')
+        .getAll(IDBKeyRange.only([profile, vocabId])) as IDBRequest<StoredTemplate[]>,
+    );
+    return rows
+      .filter((r) => r.label === label)
+      .sort((a, b) => a.createdAt - b.createdAt)
+      .map((r) => ({ key: r.key, createdAt: r.createdAt }));
+  } catch {
+    return [];
+  }
+}
+
+/** Delete one take by its primary key. */
+export async function deleteTemplateByKey(key: string): Promise<void> {
+  const db = await openDb();
+  await reqToPromise(tx(db, 'readwrite').delete(key) as IDBRequest);
 }
 
 export async function clearLabel(

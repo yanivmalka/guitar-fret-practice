@@ -3,3 +3,7 @@ dist
 android
 .env
 .env.local
+
+# Generated TTS WAVs for the General voice engine (regenerate with
+# scripts/synth-extra-voice.ps1); only the derived .ts file is committed.
+scripts/extra-wav
