@@ -556,7 +556,15 @@ export function getSpeechEngine(): SpeechEngine {
   const pref = loadSetting<VoiceEnginePref>('pref_voiceEngine', 'auto');
   const hasMic =
     typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
-  const canTemplate = hasMic && typeof AudioContext !== 'undefined';
+  // iOS Safari exposes only `webkitAudioContext`; `utteranceCapture` already
+  // falls back to it, so the template engines are usable there too. Checking
+  // the un-prefixed name alone silently forced Safari onto the flaky Web
+  // Speech path instead of the personal profile.
+  const hasAudioContext =
+    typeof AudioContext !== 'undefined' ||
+    typeof (window as unknown as { webkitAudioContext?: unknown }).webkitAudioContext !==
+      'undefined';
+  const canTemplate = hasMic && hasAudioContext;
   const canProfile = canTemplate && getActiveProfile() !== null && isProfileReady();
   const web = getSRConstructor() ? new WebSpeechEngine() : null;
 
