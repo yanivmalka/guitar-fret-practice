@@ -428,7 +428,9 @@ export default function App() {
 
   // While actively playing the game stays clean and focused — the hamburger
   // (and the stats shortcut) are only offered when stopped or paused.
-  const showBurger = !isPlaying && !pendingAutoAdvance && countdown === null;
+  // The burger icon is hidden while the drawer itself is open — the drawer's
+  // own Back control takes over from there.
+  const showBurger = !isPlaying && !pendingAutoAdvance && countdown === null && !settingsOpen;
 
   useEffect(() => { setShowStats(false); setGameEnded(false); tier3FiredRef.current = false; }, [histKey]);
 
@@ -771,6 +773,12 @@ export default function App() {
             >
               {activeSection === null ? (
                 <nav className="settings-menu">
+                  <button
+                    className="settings-back"
+                    onClick={click(() => setSettingsOpen(false))}
+                  >
+                    <span aria-hidden="true">›</span> Back
+                  </button>
                   <h2 className="settings-menu-title">Settings</h2>
                   {settingsSections.map(s => (
                     <button
