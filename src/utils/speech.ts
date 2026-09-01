@@ -89,6 +89,12 @@ export interface SpeechEngine {
    * the on-device "general" template engine implements this.
    */
   learn?(label: string): Promise<void>;
+  /**
+   * Optional: pre-load whatever the engine needs for its first match
+   * (template store, lazy chunk) so the first question is not slow. Only the
+   * on-device template engines implement it.
+   */
+  warmUp?(vocabId?: string): Promise<void>;
 }
 
 // ── Language helper ───────────────────────────────────────────────────
@@ -509,6 +515,10 @@ function makeProfileEngine(): TemplateSpeechEngine {
     segmented: true,
     relMaxKey: 'voiceProfileRelMax',
     relMaxDefault: 0.97,
+    // Matching the user's own voice — self-distances are small; this only
+    // catches captures that look nothing like any recorded word.
+    absMaxKey: 'voiceProfileAbsMax',
+    absMaxDefault: 55,
     loadTemplates: async (vocabId) => {
       const profile = getActiveProfile();
       return profile ? loadProfileTemplates(profile, vocabId) : [];
@@ -525,6 +535,10 @@ function makeGeneralEngine(): TemplateSpeechEngine {
     // knn: accept only when the runner-up's vote score is <= this fraction
     // of the winner's (i.e. the winner is clearly ahead).
     relMaxDefault: 0.75,
+    // Matching a real voice against synthetic templates — legitimate
+    // distances run higher than the personal profile's, so keep this loose.
+    absMaxKey: 'voiceGeneralAbsMax',
+    absMaxDefault: 60,
     loadTemplates: async (vocabId) => {
       // Bundled synthetic-TTS set (lazy chunk) + anything the engine has
       // self-learned from correct in-game answers.

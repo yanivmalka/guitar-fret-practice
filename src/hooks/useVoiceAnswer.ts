@@ -374,8 +374,15 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
   // Drive listening from game state. A change in questionSeq means a fresh
   // question, so retries reset and a new listen turn begins.
   const {
-    enabled, running, paused, answered, hasActiveQuestion, questionSeq,
+    enabled, running, paused, answered, hasActiveQuestion, questionSeq, notation,
   } = params;
+
+  // Warm the engine's template store (IndexedDB read / lazy chunk import) as
+  // soon as it is known, so the first question isn't slow. Cheap and cached.
+  useEffect(() => {
+    if (!engine || engine.kind === 'none' || !enabled) return;
+    void engine.warmUp?.(profileVocabId(notation));
+  }, [engine, enabled, notation]);
 
   useEffect(() => {
     const active =

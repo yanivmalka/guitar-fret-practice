@@ -29,6 +29,14 @@ export interface StoredTemplate {
   label: string;
   frames: number[][];
   createdAt: number;
+  /**
+   * How the template got here. `cal` = the user recorded it on the
+   * calibration screen; `learned` = the recogniser added it from a correct
+   * in-game answer. Absent on records written before this field existed —
+   * treat those as `cal`. Only `learned` takes are ever auto-pruned, so
+   * self-learning can never evict a calibration recording.
+   */
+  source?: 'cal' | 'learned';
 }
 
 let dbPromise: Promise<IDBDatabase> | null = null;
@@ -104,14 +112,14 @@ export async function listProfiles(): Promise<string[]> {
 export async function loadTemplates(
   profile: string,
   vocabId: string,
-): Promise<{ label: string; frames: number[][] }[]> {
+): Promise<{ label: string; frames: number[][]; source?: 'cal' | 'learned' }[]> {
   try {
     const db = await openDb();
     const idx = tx(db, 'readonly').index('byProfileVocab');
     const rows = await reqToPromise(
       idx.getAll(IDBKeyRange.only([profile, vocabId])) as IDBRequest<StoredTemplate[]>,
     );
-    return rows.map((r) => ({ label: r.label, frames: r.frames }));
+    return rows.map((r) => ({ label: r.label, frames: r.frames, source: r.source }));
   } catch {
     return [];
   }
@@ -120,10 +128,14 @@ export async function loadTemplates(
 export async function templateCounts(
   profile: string,
   vocabId: string,
+  calOnly = false,
 ): Promise<Record<string, number>> {
   const rows = await loadTemplates(profile, vocabId);
   const out: Record<string, number> = {};
-  for (const r of rows) out[r.label] = (out[r.label] ?? 0) + 1;
+  for (const r of rows) {
+    if (calOnly && r.source === 'learned') continue;
+    out[r.label] = (out[r.label] ?? 0) + 1;
+  }
   return out;
 }
 
@@ -132,6 +144,7 @@ export async function addTemplate(
   vocabId: string,
   label: string,
   frames: number[][],
+  source: 'cal' | 'learned' = 'cal',
 ): Promise<string> {
   const db = await openDb();
   const store = tx(db, 'readwrite');
@@ -141,7 +154,7 @@ export async function addTemplate(
   const n = existing.filter((r) => r.label === label).length;
   const key = `${profile}::${vocabId}::${label}::${n}::${Date.now()}`;
   const rec: StoredTemplate = {
-    key, profile, vocabId, label, frames, createdAt: Date.now(),
+    key, profile, vocabId, label, frames, createdAt: Date.now(), source,
   };
   await reqToPromise(store.add(rec) as IDBRequest);
   return key;
@@ -214,6 +227,28 @@ export async function pruneTemplates(
   for (const r of mine.slice(0, Math.max(0, mine.length - keep))) store.delete(r.key);
 }
 
+/**
+ * Like `pruneTemplates`, but only ever deletes `source: 'learned'` takes —
+ * the calibration recordings for a label are left untouched however many
+ * self-learned ones pile up on top.
+ */
+export async function pruneLearnedTemplates(
+  profile: string,
+  vocabId: string,
+  label: string,
+  keep: number,
+): Promise<void> {
+  const db = await openDb();
+  const store = tx(db, 'readwrite');
+  const rows = await reqToPromise(
+    store.index('byProfileVocab').getAll(IDBKeyRange.only([profile, vocabId])) as IDBRequest<StoredTemplate[]>,
+  );
+  const learned = rows
+    .filter((r) => r.label === label && r.source === 'learned')
+    .sort((a, b) => a.createdAt - b.createdAt);
+  for (const r of learned.slice(0, Math.max(0, learned.length - keep))) store.delete(r.key);
+}
+
 export async function deleteProfile(profile: string): Promise<void> {
   const db = await openDb();
   const store = tx(db, 'readwrite');
@@ -236,7 +271,8 @@ export async function recomputeReady(
 ): Promise<boolean> {
   const profile = getActiveProfile();
   if (!profile) { setProfileReady(false); return false; }
-  const counts = await templateCounts(profile, vocabId);
+  // "Ready" reflects what the user actually recorded, not self-learned takes.
+  const counts = await templateCounts(profile, vocabId, true);
   const ready = requiredLabels.every((l) => (counts[l] ?? 0) >= minPerLabel);
   setProfileReady(ready);
   return ready;

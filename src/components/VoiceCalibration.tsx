@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { displayNote, type AccidentalMode, type NotationMode } from '../utils/music';
 import { captureUtterance } from '../utils/utteranceCapture';
-import { computeMfcc, framesToJson } from '../utils/mfcc';
+import { computeMfcc, framesToJson, framesFromJson } from '../utils/mfcc';
+import { dtwDistance } from '../utils/dtw';
 import {
   addTemplate, deleteProfile, deleteTemplateByKey, getActiveProfile,
-  listLabelTemplates, recomputeReady, setActiveProfile, templateCounts,
+  listLabelTemplates, loadTemplates, recomputeReady, setActiveProfile, templateCounts,
   ADAPTIVE_PROFILE,
 } from '../utils/voiceProfile';
 import {
@@ -48,6 +49,11 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
   const [level, setLevel] = useState(0);
   const [err, setErr] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  // Raw PCM of the most recent capture, so the user can hear what was recorded.
+  const lastPcmRef = useRef<{ pcm: Float32Array; sampleRate: number } | null>(null);
+  const [hasLast, setHasLast] = useState(false);
+  const [selfTest, setSelfTest] = useState<string[] | null>(null);
+  const [testing, setTesting] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const autoTimerRef = useRef<number | null>(null);
   // Consecutive failed/empty/rejected captures while running; a short run of
@@ -70,15 +76,25 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
     ? 'Say just this word, on its own'
     : 'Say just the note name, on its own';
 
+  // Display text for any label (letter or accidental), for the self-test list.
+  const labelText = useCallback((l: string) => {
+    if ((ACCIDENTAL_LABELS as readonly string[]).includes(l)) {
+      return l === '#'
+        ? (notation === 'solfege' ? 'dièse' : 'sharp')
+        : (notation === 'solfege' ? 'bémol' : 'flat');
+    }
+    return displayNote(l, accidental, notation);
+  }, [notation, accidental]);
+
   const refreshCounts = useCallback(async (name: string) => {
-    const c = await templateCounts(name, vocabId);
+    const c = await templateCounts(name, vocabId, true);
     setCounts(c);
   }, [vocabId]);
 
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const c = await templateCounts(profile, vocabId);
+      const c = await templateCounts(profile, vocabId, true);
       if (alive) setCounts(c);
     })();
     return () => { alive = false; };
@@ -123,6 +139,8 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
       setRec('idle');
       return;
     }
+    lastPcmRef.current = captured;
+    setHasLast(true);
     setRec('thinking');
     try {
       const { frames } = computeMfcc(captured.pcm, captured.sampleRate);
@@ -193,6 +211,69 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
     };
   }, [running, rec, counts, idx, label, record, stopRun]);
 
+  const playLast = useCallback(() => {
+    const cap = lastPcmRef.current;
+    if (!cap) return;
+    playClickSound();
+    try {
+      const Ctor = window.AudioContext
+        || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new Ctor();
+      const buf = ctx.createBuffer(1, cap.pcm.length, cap.sampleRate);
+      buf.getChannelData(0).set(cap.pcm);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.onended = () => { void ctx.close().catch(() => { /* noop */ }); };
+      src.start();
+    } catch { /* playback is a nicety — ignore failures */ }
+  }, []);
+
+  // Compare every recorded word against every other and flag pairs that are
+  // acoustically too close to tell apart — the usual culprits are B/E/G/D.
+  const runSelfTest = useCallback(async () => {
+    setTesting(true);
+    try {
+      const rows = await loadTemplates(profile, vocabId);
+      const byLabel = new Map<string, Float32Array[][]>();
+      for (const r of rows) {
+        const arr = byLabel.get(r.label) ?? [];
+        arr.push(framesFromJson(r.frames));
+        byLabel.set(r.label, arr);
+      }
+      const labels = [...byLabel.keys()];
+      const warns: string[] = [];
+      for (let i = 0; i < labels.length; i++) {
+        for (let j = i + 1; j < labels.length; j++) {
+          const a = byLabel.get(labels[i])!;
+          const b = byLabel.get(labels[j])!;
+          let cross = Infinity;
+          for (const x of a) for (const y of b) cross = Math.min(cross, dtwDistance(x, y));
+          // Tightest spread within either label, as a yardstick for "close".
+          let within = Infinity;
+          for (const set of [a, b]) {
+            for (let p = 0; p < set.length; p++) {
+              for (let q = p + 1; q < set.length; q++) {
+                within = Math.min(within, dtwDistance(set[p], set[q]));
+              }
+            }
+          }
+          // Without at least one within-label pair there is no yardstick for
+          // "close", so skip rather than warn on everything.
+          if (!Number.isFinite(within) || !Number.isFinite(cross)) continue;
+          if (cross <= within * 1.15) {
+            warns.push(
+              `“${labelText(labels[i])}” and “${labelText(labels[j])}” sound very similar — re-record one of them.`,
+            );
+          }
+        }
+      }
+      setSelfTest(warns);
+    } finally {
+      setTesting(false);
+    }
+  }, [profile, vocabId, labelText]);
+
   const removeTake = async (key: string) => {
     playClickSound(); haptic.tap();
     await deleteTemplateByKey(key);
@@ -207,7 +288,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
   const finish = async () => {
     playClickSound(); haptic.tap();
     setActiveProfile(profile);
-    await recomputeReady(vocabId, [...PROFILE_LABELS], SAMPLES_PER_LABEL - 1 || 1);
+    await recomputeReady(vocabId, [...PROFILE_LABELS], SAMPLES_PER_LABEL);
     resetSpeechEngine();
     onProfileChanged();
     onClose();
@@ -269,6 +350,12 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
 
         {err && <div className="vcal-err">{err}</div>}
 
+        {hasLast && (
+          <button className="vcal-btn vcal-link" onClick={playLast} disabled={rec !== 'idle'}>
+            ▶ Play last recording
+          </button>
+        )}
+
         <button
           className="vcal-btn vcal-auto"
           onClick={toggleRun}
@@ -312,6 +399,25 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
             Reset automatic learning of the general mode
           </button>
         </div>
+
+        {allDone && (
+          <div className="vcal-actions vcal-actions-sec">
+            <button
+              className="vcal-btn vcal-link"
+              onClick={() => void runSelfTest()}
+              disabled={testing || rec !== 'idle' || running}
+            >
+              {testing ? 'Checking recordings…' : 'Self-test recordings'}
+            </button>
+          </div>
+        )}
+        {selfTest && (
+          <div className="vcal-selftest">
+            {selfTest.length === 0
+              ? <span className="vcal-here">All words are distinct enough — looks good.</span>
+              : selfTest.map((w, i) => <div key={i} className="vcal-err">{w}</div>)}
+          </div>
+        )}
 
         <button className="vcal-btn vcal-finish" onClick={finish} disabled={!allDone || rec !== 'idle'}>
           {allDone ? 'Finish & enable' : `${total - doneLabels} to go`}

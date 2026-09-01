@@ -12,8 +12,22 @@
 // MFCC coefficient 0 is overall log-energy — it mostly tracks loudness and
 // differs a lot between a clean synthetic template and a real microphone,
 // so it is heavily down-weighted rather than dropped (dropping it would
-// change the feature dimension and invalidate stored templates).
-const C0_WEIGHT = 0.2;
+// change the feature dimension and invalidate stored templates). Tunable
+// for offline calibration work:  localStorage.voiceC0Weight = '0.1'
+function readC0Weight(): number {
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('voiceC0Weight') : null;
+    const v = parseFloat(raw ?? '');
+    if (!Number.isNaN(v) && v >= 0 && v <= 1) return v;
+  } catch { /* ignore */ }
+  return 0.2;
+}
+let C0_WEIGHT = readC0Weight();
+
+/** Override the C0 weight at runtime (test / tuning hook). */
+export function setC0Weight(w: number): void {
+  if (w >= 0 && w <= 1) C0_WEIGHT = w;
+}
 
 function frameDistance(a: Float32Array, b: Float32Array): number {
   let acc = 0;
@@ -68,13 +82,55 @@ export interface Template {
   frames: Float32Array[];
 }
 
+// ── Coarse pre-filter ────────────────────────────────────────────────
+//
+// Full DTW against every template is O(templates · n · band) on the main
+// thread. When a set is large — the bundled "general" templates plus
+// anything self-learned — most templates are nowhere near the input. Rank
+// all templates cheaply by the L2 distance between their time-averaged MFCC
+// vector and the input's, and run full DTW only on the closest few. Left
+// off for small sets so the personal profile stays exact.
+const PREFILTER_MIN_SET = 60;
+const PREFILTER_KEEP = 30;
+
+const meanCache = new WeakMap<Float32Array[], Float32Array>();
+
+function meanVec(frames: Float32Array[]): Float32Array {
+  const hit = meanCache.get(frames);
+  if (hit) return hit;
+  const dim = frames[0]?.length ?? 0;
+  const m = new Float32Array(dim);
+  for (const f of frames) for (let i = 0; i < dim; i++) m[i] += f[i];
+  if (frames.length) for (let i = 0; i < dim; i++) m[i] /= frames.length;
+  meanCache.set(frames, m);
+  return m;
+}
+
+function l2(a: Float32Array, b: Float32Array): number {
+  let acc = 0;
+  const n = Math.min(a.length, b.length);
+  for (let i = 0; i < n; i++) { const d = a[i] - b[i]; acc += d * d; }
+  return Math.sqrt(acc);
+}
+
+/** Closest `PREFILTER_KEEP` templates by mean-vector distance, or all of them. */
+function prefilter(input: Float32Array[], templates: Template[]): Template[] {
+  if (templates.length <= PREFILTER_MIN_SET || !input.length) return templates;
+  const q = meanVec(input);
+  return templates
+    .map((t) => ({ t, d: l2(q, meanVec(t.frames)) }))
+    .sort((a, b) => a.d - b.d)
+    .slice(0, PREFILTER_KEEP)
+    .map((x) => x.t);
+}
+
 /**
  * Match `input` against every template, then collapse to the best distance
  * per label. Returns the per-label results sorted best (smallest) first.
  */
 export function matchTemplates(input: Float32Array[], templates: Template[]): DtwMatch[] {
   const bestByLabel = new Map<string, number>();
-  for (const t of templates) {
+  for (const t of prefilter(input, templates)) {
     const d = dtwDistance(input, t.frames);
     const prev = bestByLabel.get(t.label);
     if (prev === undefined || d < prev) bestByLabel.set(t.label, d);
@@ -96,7 +152,7 @@ export function knnVote(
   templates: Template[],
   k = 5,
 ): { ranked: { label: string; score: number }[]; nearest: number } {
-  const dists = templates
+  const dists = prefilter(input, templates)
     .map((t) => ({ label: t.label, distance: dtwDistance(input, t.frames) }))
     .sort((a, b) => a.distance - b.distance);
   const score = new Map<string, number>();

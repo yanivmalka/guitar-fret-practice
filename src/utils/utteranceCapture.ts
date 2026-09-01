@@ -1,9 +1,13 @@
 // ── Single-utterance microphone capture with simple VAD ─────────────────
 //
 // Shared by the voice-calibration screen and the template-matching
-// recogniser (`templateSpeechEngine.ts`). Opens its own getUserMedia stream,
-// waits for speech to start, records until a short trailing silence (or a
-// hard cap), then tears everything down and resolves with the raw mono PCM.
+// recogniser (`templateSpeechEngine.ts`). Records until a short trailing
+// silence (or a hard cap), then resolves with the raw mono PCM.
+//
+// It can either open its own short-lived microphone, or reuse a long-lived
+// `MicSession` (see `openMicSession`) so the recogniser does not tear down
+// and re-open getUserMedia + a fresh AudioContext on every keep-alive listen
+// turn within one question.
 //
 // It intentionally does NOT go through the Web Speech API or any network —
 // that is the whole point of the personal-profile path.
@@ -11,6 +15,24 @@
 export interface CapturedUtterance {
   pcm: Float32Array;
   sampleRate: number;
+}
+
+type MinimalAudioContext = AudioContext & { close(): Promise<void> };
+
+/**
+ * A microphone kept open across several `captureUtterance` calls. The
+ * template recogniser opens one per question and reuses it for every
+ * keep-alive listen turn, instead of re-opening getUserMedia (and a new
+ * AudioContext) each turn — which added latency and made the OS microphone
+ * indicator flicker on and off.
+ */
+export interface MicSession {
+  ctx: MinimalAudioContext;
+  stream: MediaStream;
+  source: MediaStreamAudioSourceNode;
+  sampleRate: number;
+  /** Stop the tracks and close the context. Safe to call more than once. */
+  close(): void;
 }
 
 export interface CaptureOptions {
@@ -24,6 +46,11 @@ export interface CaptureOptions {
   signal?: AbortSignal;
   /** Called once per audio block with the current RMS level (0..~1). */
   onLevel?: (rms: number) => void;
+  /**
+   * Reuse an already-open microphone instead of opening (and later closing)
+   * a fresh one. The session is left open for its owner to close.
+   */
+  session?: MicSession;
 }
 
 const DEFAULTS = {
@@ -32,7 +59,48 @@ const DEFAULTS = {
   maxSpeechMs: 2500,
 };
 
-type MinimalAudioContext = AudioContext & { close(): Promise<void> };
+function makeAudioContext(): MinimalAudioContext {
+  const Ctor: typeof AudioContext =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  return new Ctor() as MinimalAudioContext;
+}
+
+/**
+ * Open a microphone that outlives a single utterance. Resolves `null` when
+ * the mic is unavailable or permission was refused.
+ */
+export async function openMicSession(): Promise<MicSession | null> {
+  let stream: MediaStream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+  } catch {
+    return null;
+  }
+  const ctx = makeAudioContext();
+  // A context can come up "suspended" (autoplay policy, backgrounded tab);
+  // resume it so `onaudioprocess` actually fires.
+  if (ctx.state === 'suspended') {
+    try { await ctx.resume(); } catch { /* noop */ }
+  }
+  const source = ctx.createMediaStreamSource(stream);
+  let closed = false;
+  return {
+    ctx,
+    stream,
+    source,
+    sampleRate: ctx.sampleRate,
+    close() {
+      if (closed) return;
+      closed = true;
+      try { source.disconnect(); } catch { /* noop */ }
+      stream.getTracks().forEach((t) => t.stop());
+      void ctx.close().catch(() => { /* noop */ });
+    },
+  };
+}
 
 /**
  * Record one spoken word. Resolves `null` if nothing was said before the
@@ -45,28 +113,22 @@ export async function captureUtterance(
   const cfg = { ...DEFAULTS, ...opts };
   if (opts.signal?.aborted) return null;
 
-  let stream: MediaStream | null = null;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    });
-  } catch {
-    return null;
-  }
+  const owned = !opts.session;
+  const session = opts.session ?? (await openMicSession());
+  if (!session) return null;
   if (opts.signal?.aborted) {
-    stream.getTracks().forEach((t) => t.stop());
+    if (owned) session.close();
     return null;
   }
 
-  const Ctor: typeof AudioContext =
-    window.AudioContext ||
-    (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-  const ctx = new Ctor() as MinimalAudioContext;
-  const source = ctx.createMediaStreamSource(stream);
+  const { ctx, source, sampleRate } = session;
+  if (ctx.state === 'suspended') {
+    try { await ctx.resume(); } catch { /* noop */ }
+  }
+
   const BLOCK = 2048;
   const processor = ctx.createScriptProcessor(BLOCK, 1, 1);
 
-  const sampleRate = ctx.sampleRate;
   const preRollBlocks = Math.ceil((0.15 * sampleRate) / BLOCK);
   const preRoll: Float32Array[] = [];
   const speech: Float32Array[] = [];
@@ -79,16 +141,24 @@ export async function captureUtterance(
 
   return await new Promise<CapturedUtterance | null>((resolve) => {
     let done = false;
+    // ScriptProcessor needs a sink to pump; route to a muted gain so it is
+    // silent. Created per capture and disconnected in `cleanup` so a shared
+    // session does not accumulate orphan nodes.
+    const sink = ctx.createGain();
 
     const cleanup = () => {
       if (done) return;
       done = true;
       clearTimeout(onsetTimer);
       opts.signal?.removeEventListener('abort', onAbort);
+      // Drop this capture's graph. `source` belongs to the session, so only
+      // the edge into our processor is removed, not the source itself.
+      try { source.disconnect(processor); } catch { /* noop */ }
       try { processor.disconnect(); } catch { /* noop */ }
-      try { source.disconnect(); } catch { /* noop */ }
-      stream?.getTracks().forEach((t) => t.stop());
-      void ctx.close().catch(() => { /* noop */ });
+      try { sink.disconnect(); } catch { /* noop */ }
+      // Only a session we opened ourselves is torn down here; a shared
+      // MicSession outlives the capture and is closed by its owner.
+      if (owned) session.close();
     };
 
     const finish = (value: CapturedUtterance | null) => {
@@ -151,9 +221,6 @@ export async function captureUtterance(
     };
 
     source.connect(processor);
-    // ScriptProcessor needs a sink to pump; route to a muted gain so it is
-    // silent.
-    const sink = ctx.createGain();
     sink.gain.value = 0;
     processor.connect(sink);
     sink.connect(ctx.destination);

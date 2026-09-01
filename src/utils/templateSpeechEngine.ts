@@ -19,10 +19,15 @@ import type {
   SpeechEngineKind,
   MicPermissionState,
 } from './speech';
-import { captureUtterance, segmentUtterance } from './utteranceCapture';
+import {
+  captureUtterance, segmentUtterance, openMicSession, type MicSession,
+} from './utteranceCapture';
 import { computeMfcc, framesFromJson, framesToJson } from './mfcc';
 import { knnVote, matchTemplates, type Template } from './dtw';
-import { addTemplate, pruneTemplates, ADAPTIVE_PROFILE } from './voiceProfile';
+import {
+  addTemplate, pruneTemplates, pruneLearnedTemplates, getActiveProfile,
+  ADAPTIVE_PROFILE,
+} from './voiceProfile';
 import { isLetterLabel, isAccidentalLabel } from './voiceProfileVocab';
 import { SHARP_WRAP, FLAT_TO_SHARP } from './speechVocab';
 import { verror, vlog } from './debugLog';
@@ -42,6 +47,20 @@ function relMax(key: string, fallback: number): number {
   return fallback;
 }
 
+// Absolute ceiling on the nearest-template distance. Even when the best
+// match is clearly ahead of the runner-up (the `relMax` ratio gate), reject
+// it when nothing is actually close — a cough or an unrelated word can be
+// "clearly closest" and still be nothing like any note. Deliberately loose;
+// watch the "[voice] template match" debug lines and lower it per engine:
+//   localStorage.voiceProfileAbsMax = '40'   /  localStorage.voiceGeneralAbsMax = '45'
+function absMax(key: string, fallback: number): number {
+  try {
+    const v = parseFloat(localStorage.getItem(key) ?? '');
+    if (!Number.isNaN(v) && v > 0) return v;
+  } catch { /* ignore */ }
+  return fallback;
+}
+
 function hasGetUserMedia(): boolean {
   return typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
 }
@@ -56,6 +75,10 @@ export interface TemplateEngineConfig {
   relMaxKey: string;
   /** Default confidence ratio (best.distance <= second.distance * this). */
   relMaxDefault: number;
+  /** localStorage key for the absolute nearest-distance ceiling. */
+  absMaxKey: string;
+  /** Reject a match whose nearest template distance exceeds this. */
+  absMaxDefault: number;
   /**
    * 'best' — single closest template wins (good when there are few, clean
    * templates per label, i.e. the personal profile).
@@ -83,6 +106,17 @@ export class TemplateSpeechEngine implements SpeechEngine {
   // answer can be added to the self-learning store (see `learn`).
   private lastFrames: Float32Array[] | null = null;
   private lastVocabId = 'notes-alpha';
+  // The segment frames + labels of the most recent segmented profile match,
+  // so a correct in-game answer can reinforce the personal profile.
+  private lastSegmented: {
+    letter: { label: string; frames: Float32Array[] } | null;
+    accidental: { label: string; frames: Float32Array[] } | null;
+  } | null = null;
+  // A microphone kept open for the length of one question and reused across
+  // every keep-alive listen turn, then released a few seconds after the last
+  // turn ends (see `scheduleMicRelease`).
+  private mic: MicSession | null = null;
+  private micIdleTimer: number | null = null;
 
   constructor(cfg: TemplateEngineConfig) {
     this.cfg = cfg;
@@ -128,8 +162,10 @@ export class TemplateSpeechEngine implements SpeechEngine {
   async start(opts: SpeechListenOptions): Promise<void> {
     if (!hasGetUserMedia()) { opts.onError('not-supported'); return; }
     const vocabId = opts.profileVocabId ?? 'notes-alpha';
+    this.lastVocabId = vocabId;
 
     this.stop();
+    this.clearMicIdle();
     const myTurn = ++this.turn;
     const abort = new AbortController();
     this.abort = abort;
@@ -138,8 +174,13 @@ export class TemplateSpeechEngine implements SpeechEngine {
     if (myTurn !== this.turn) return;
     if (!templates.length) { opts.onError('not-supported'); return; }
 
+    // Reuse one microphone for every keep-alive turn within a question.
+    if (!this.mic) this.mic = await openMicSession();
+    if (myTurn !== this.turn) return;
+
     const captured = await captureUtterance({
       signal: abort.signal,
+      session: this.mic ?? undefined,
       // A segmented answer has a mid-word pause ("C" … "sharp"); give it more
       // room before the trailing-silence cutoff, and a longer hard cap.
       ...(this.cfg.segmented ? { trailingSilenceMs: 500, maxSpeechMs: 3500 } : {}),
@@ -168,12 +209,14 @@ export class TemplateSpeechEngine implements SpeechEngine {
       firstLabel = ranked[0]?.label;
       secondLabel = ranked[1]?.label;
       const ratioCap = relMax(this.cfg.relMaxKey, this.cfg.relMaxDefault);
+      const absCap = absMax(this.cfg.absMaxKey, this.cfg.absMaxDefault);
       confident =
         !!firstLabel &&
         Number.isFinite(nearest) &&
+        nearest <= absCap &&
         (!ranked[1] || ranked[1].score <= ranked[0].score * ratioCap);
       vlog('[voice] template match', {
-        engine: this.kind, vocabId, strategy: 'knn',
+        engine: this.kind, vocabId, strategy: 'knn', absCap,
         first: ranked[0] && { label: ranked[0].label, s: +ranked[0].score.toFixed(3) },
         second: ranked[1] && { label: ranked[1].label, s: +ranked[1].score.toFixed(3) },
         voteRatio: ranked[1] ? +(ranked[1].score / ranked[0].score).toFixed(3) : null,
@@ -186,12 +229,14 @@ export class TemplateSpeechEngine implements SpeechEngine {
       firstLabel = best?.label;
       secondLabel = second?.label;
       const ratioCap = relMax(this.cfg.relMaxKey, this.cfg.relMaxDefault);
+      const absCap = absMax(this.cfg.absMaxKey, this.cfg.absMaxDefault);
       confident =
         !!best &&
         Number.isFinite(best.distance) &&
+        best.distance <= absCap &&
         (!second || best.distance <= second.distance * ratioCap);
       vlog('[voice] template match', {
-        engine: this.kind, vocabId, strategy: 'best',
+        engine: this.kind, vocabId, strategy: 'best', absCap,
         best: best && { label: best.label, d: +best.distance.toFixed(2) },
         second: second && { label: second.label, d: +second.distance.toFixed(2) },
         ratio: best && second ? +(best.distance / second.distance).toFixed(3) : null,
@@ -221,7 +266,10 @@ export class TemplateSpeechEngine implements SpeechEngine {
     myTurn: number,
     opts: SpeechListenOptions,
   ): Promise<void> {
-    this.lastFrames = null; // segmented profile never feeds the learn store
+    // The whole-utterance `lastFrames` learn path is for the general engine
+    // only; the segmented profile reinforces itself via `lastSegmented`.
+    this.lastFrames = null;
+    this.lastSegmented = null;
 
     const segFrames = segmentUtterance(captured.pcm, captured.sampleRate)
       .map((s) => computeMfcc(s, captured.sampleRate).frames)
@@ -232,10 +280,12 @@ export class TemplateSpeechEngine implements SpeechEngine {
     const letters = templates.filter((t) => isLetterLabel(t.label));
     const accidentals = templates.filter((t) => isAccidentalLabel(t.label));
     const ratioCap = relMax(this.cfg.relMaxKey, this.cfg.relMaxDefault);
+    const absCap = absMax(this.cfg.absMaxKey, this.cfg.absMaxDefault);
 
     const gate = (ranked: { label: string; distance: number }[]): string | null => {
       const [best, second] = ranked;
       if (!best || !Number.isFinite(best.distance)) return null;
+      if (best.distance > absCap) return null;
       if (second && best.distance > second.distance * ratioCap) return null;
       return best.label;
     };
@@ -266,6 +316,17 @@ export class TemplateSpeechEngine implements SpeechEngine {
       accidental: accLabel, note,
     });
 
+    if (note && this.kind === 'profile') {
+      // Both segments already cleared the confidence gate above; keep them so
+      // a correct in-game answer can reinforce the profile (see `learn`).
+      this.lastSegmented = {
+        letter: letter ? { label: letter, frames: segFrames[0] } : null,
+        accidental: accLabel && segFrames[1]
+          ? { label: accLabel, frames: segFrames[1] }
+          : null,
+      };
+    }
+
     if (myTurn !== this.turn) return;
     if (note) {
       opts.onResult({ transcript: note, alternatives: [note], isFinal: true });
@@ -279,17 +340,32 @@ export class TemplateSpeechEngine implements SpeechEngine {
   }
 
   /**
-   * Add the most recent utterance to the self-learning store under `label`
-   * — called by the game when a voice answer was scored correct. No-op
-   * unless this is the 'general' engine and there is a captured utterance.
+   * Warm the template cache (IndexedDB read for the profile engine, lazy
+   * chunk import for the general one) so the first question does not pay for
+   * it. Best-effort — failures are swallowed.
+   */
+  async warmUp(vocabId = 'notes-alpha'): Promise<void> {
+    try { await this.getTemplates(vocabId); } catch { /* best effort */ }
+  }
+
+  /**
+   * Reinforce the recogniser from an answer the game just scored correct.
+   * The general engine folds the whole utterance into its adaptive store;
+   * the personal profile adds the matched segments back to itself, capped
+   * per label and never touching the user's own calibration takes.
    */
   async learn(label: string): Promise<void> {
-    if (this.kind !== 'general' || !this.lastFrames) return;
+    if (this.kind === 'general') { await this.learnGeneral(label); return; }
+    if (this.kind === 'profile') { await this.learnProfile(); return; }
+  }
+
+  private async learnGeneral(label: string): Promise<void> {
+    if (!this.lastFrames) return;
     const vocabId = this.lastVocabId;
     const frames = this.lastFrames;
     this.lastFrames = null; // consume so one answer is learned once
     try {
-      await addTemplate(ADAPTIVE_PROFILE, vocabId, label, framesToJson(frames));
+      await addTemplate(ADAPTIVE_PROFILE, vocabId, label, framesToJson(frames), 'learned');
       await pruneTemplates(ADAPTIVE_PROFILE, vocabId, label, MAX_LEARNED_PER_LABEL);
       this.cache = null; // next match picks up the new template
       vlog('[voice] general learned', { label, vocabId });
@@ -298,16 +374,60 @@ export class TemplateSpeechEngine implements SpeechEngine {
     }
   }
 
+  private async learnProfile(): Promise<void> {
+    const seg = this.lastSegmented;
+    this.lastSegmented = null; // consume so one answer is learned once
+    if (!seg) return;
+    const profile = getActiveProfile();
+    if (!profile) return;
+    const vocabId = this.lastVocabId;
+    try {
+      for (const part of [seg.letter, seg.accidental]) {
+        if (!part) continue;
+        await addTemplate(profile, vocabId, part.label, framesToJson(part.frames), 'learned');
+        await pruneLearnedTemplates(profile, vocabId, part.label, MAX_LEARNED_PER_LABEL);
+      }
+      this.cache = null; // next match picks up the new templates
+      vlog('[voice] profile learned', {
+        vocabId, letter: seg.letter?.label, accidental: seg.accidental?.label,
+      });
+    } catch (e) {
+      verror('[voice] profile learn failed', String(e));
+    }
+  }
+
+  private clearMicIdle(): void {
+    if (this.micIdleTimer !== null) {
+      clearTimeout(this.micIdleTimer);
+      this.micIdleTimer = null;
+    }
+  }
+
+  /** Release the shared microphone a few seconds after the last listen turn. */
+  private scheduleMicRelease(): void {
+    this.clearMicIdle();
+    if (!this.mic || typeof window === 'undefined') return;
+    this.micIdleTimer = window.setTimeout(() => {
+      this.micIdleTimer = null;
+      this.mic?.close();
+      this.mic = null;
+    }, 4000);
+  }
+
   stop(): void {
     this.turn++;
     if (this.abort) {
       this.abort.abort();
       this.abort = null;
     }
+    this.scheduleMicRelease();
   }
 
   destroy(): void {
     this.stop();
+    this.clearMicIdle();
+    this.mic?.close();
+    this.mic = null;
     this.cache = null;
   }
 }
