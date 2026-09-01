@@ -12,11 +12,16 @@
 import { loadSetting, saveSetting } from './settings';
 
 const DB_NAME = 'voiceProfiles';
+// Each bump drops the store and clears the ready flag — the user
+// re-calibrates once.
 // v2: the personal profile switched from twelve whole-phrase note templates
-// ("C sharp", …) to nine segmented ones (seven letters + "#"/"b"). The old
-// templates are incompatible with segmented matching, so the upgrade drops
-// the store and clears the ready flag — the user re-calibrates once.
-const DB_VERSION = 2;
+//     ("C sharp", …) to nine segmented ones (seven letters + "#"/"b").
+// v3: a short-lived MFCC layout change (39-dim Δ/ΔΔ frames) that was later
+//     reverted. The version can't go back down — IndexedDB rejects a lower
+//     open() — and any profile calibrated during v3 holds 39-dim frames the
+//     reverted 13-dim matcher can't compare. So skip straight to v4 to drop
+//     those and force one clean re-calibration at the current layout.
+const DB_VERSION = 4;
 const STORE = 'templates';
 const ACTIVE_KEY = 'voice.profile.active';
 const READY_KEY = 'voice.profile.ready';
