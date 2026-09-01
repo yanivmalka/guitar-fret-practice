@@ -30,6 +30,7 @@ import VoiceCalibration from './components/VoiceCalibration';
 import { vlog } from './utils/debugLog';
 import type { SpeechNotation } from './utils/speechVocab';
 import { resetSpeechEngine, type VoiceEnginePref } from './utils/speech';
+import { getActiveProfile, isProfileReady, templateCounts } from './utils/voiceProfile';
 
 type AnswerMode = 'tap' | 'voice';
 
@@ -70,6 +71,11 @@ export default function App() {
   // useVoiceAnswer re-selects the speech engine (on-device vs Web).
   const [voiceEngineEpoch, setVoiceEngineEpoch] = useState(0);
   const [showVoiceCalibration, setShowVoiceCalibration] = useState(false);
+  // Summary of the stored personal voice profile, shown in Settings so it is
+  // obvious that recordings exist and can be extended.
+  const [voiceProfileStat, setVoiceProfileStat] = useState<
+    { enabled: boolean; count: number } | null
+  >(null);
   const [voiceEnginePref, setVoiceEnginePref] = useState<VoiceEnginePref>(
     () => loadSetting('pref_voiceEngine', 'auto'),
   );
@@ -79,6 +85,27 @@ export default function App() {
     resetSpeechEngine();
     setVoiceEngineEpoch((n) => n + 1);
   };
+  // Refresh the voice-profile summary on mount and whenever a calibration
+  // session ends or the engine preference changes.
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const active = getActiveProfile();
+      if (!active) { if (alive) setVoiceProfileStat({ enabled: false, count: 0 }); return; }
+      try {
+        const [n, a] = await Promise.all([
+          templateCounts(active, 'notes-alpha', true),
+          templateCounts(active, 'accidentals-alpha', true),
+        ]);
+        const count = [...Object.values(n), ...Object.values(a)]
+          .reduce((s, v) => s + v, 0);
+        if (alive) setVoiceProfileStat({ enabled: isProfileReady(), count });
+      } catch {
+        if (alive) setVoiceProfileStat(null);
+      }
+    })();
+    return () => { alive = false; };
+  }, [showVoiceCalibration, voiceEngineEpoch]);
   // How the player answers a question: tapping the circle/grid, or speaking the
   // note name / fret number aloud (WP-4). Voice needs a network connection and
   // is only offered where a recogniser is actually available.
@@ -691,10 +718,21 @@ export default function App() {
       title: '🎙️ Voice profile',
       blurb: 'Calibrate your voice to improve recognition accuracy when answering by voice.',
       body: (
-        <button
-          className="order-chip"
-          onClick={click(() => { setSettingsOpen(false); setShowVoiceCalibration(true); })}
-        >🎙️ Calibrate my voice</button>
+        <div className="notation-row" style={{ flexWrap: 'wrap', gap: 8 }}>
+          {voiceProfileStat && voiceProfileStat.count > 0 && (
+            <span className="vcal-here" style={{ flexBasis: '100%' }}>
+              {voiceProfileStat.enabled
+                ? `✓ Personal profile enabled · ${voiceProfileStat.count} recordings`
+                : `Personal profile started · ${voiceProfileStat.count} recordings (not enabled yet)`}
+            </span>
+          )}
+          <button
+            className="order-chip"
+            onClick={click(() => { setSettingsOpen(false); setShowVoiceCalibration(true); })}
+          >🎙️ {voiceProfileStat && voiceProfileStat.count > 0
+            ? 'Add / review recordings'
+            : 'Calibrate my voice'}</button>
+        </div>
       ),
     },
     ...(auth.configured ? [{

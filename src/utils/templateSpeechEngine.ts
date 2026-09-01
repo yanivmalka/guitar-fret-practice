@@ -70,6 +70,46 @@ function hasGetUserMedia(): boolean {
   return typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
 }
 
+// ── Standard-score ("z-norm") re-ranking ──────────────────────────────
+//
+// Opt-in via  localStorage.voiceProfileZNorm = '1'
+//
+// The default matcher picks the label with the smallest raw DTW distance.
+// One calibration take that came out acoustically "central" is then close to
+// *every* spoken word and wins every turn (the stuck-on-"F" symptom). Z-norm
+// instead scores each label by how many standard deviations its distance
+// sits below the mean label distance for this one utterance, so a globally
+// close template stops standing out. A match is kept only when the best
+// label leads the runner-up by at least `voiceProfileZGap` std-devs
+// (default 0.5).
+function zNormEnabled(): boolean {
+  try { return localStorage.getItem('voiceProfileZNorm') === '1'; } catch { return false; }
+}
+
+function zGap(): number {
+  try {
+    const v = parseFloat(localStorage.getItem('voiceProfileZGap') ?? '');
+    if (!Number.isNaN(v) && v >= 0) return v;
+  } catch { /* ignore */ }
+  return 0.5;
+}
+
+function zScores(
+  ranked: { label: string; distance: number }[],
+): { label: string; distance: number; z: number }[] {
+  const ds = ranked.map((r) => r.distance).filter((d) => Number.isFinite(d));
+  if (ds.length < 2) return ranked.map((r) => ({ ...r, z: 0 }));
+  const mean = ds.reduce((a, b) => a + b, 0) / ds.length;
+  const variance = ds.reduce((a, b) => a + (b - mean) ** 2, 0) / (ds.length - 1);
+  const std = Math.sqrt(variance) || 1;
+  return ranked
+    .map((r) => ({
+      ...r,
+      z: Number.isFinite(r.distance) ? (r.distance - mean) / std : Infinity,
+    }))
+    .sort((a, b) => a.z - b.z);
+}
+
 export interface TemplateEngineConfig {
   kind: Extract<SpeechEngineKind, 'profile' | 'general'>;
   /** Load every template for a vocab set (e.g. "notes-alpha"). */
@@ -296,6 +336,24 @@ export class TemplateSpeechEngine implements SpeechEngine {
       if (!best || !Number.isFinite(best.distance)) {
         vlog('[voice] segmented reject', { engine: this.kind, part, reason: 'no-match' });
         return null;
+      }
+
+      if (zNormEnabled()) {
+        const [zb, zs] = zScores(ranked);
+        const need = zGap();
+        if (zs && zs.z - zb.z < need) {
+          vlog('[voice] segmented reject', {
+            engine: this.kind, part, reason: 'z-gap',
+            zBest: +zb.z.toFixed(2), zSecond: +zs.z.toFixed(2), need,
+          });
+          return null;
+        }
+        vlog('[voice] segmented znorm', {
+          engine: this.kind, part,
+          best: { label: zb.label, z: +zb.z.toFixed(2), d: +zb.distance.toFixed(2) },
+          second: zs ? { label: zs.label, z: +zs.z.toFixed(2) } : null,
+        });
+        return zb.label;
       }
       if (best.distance > absCap) {
         vlog('[voice] segmented reject', {
