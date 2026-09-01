@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { notesMatch, notes as allNotes, displayNote } from '../utils/music';
 import type { AccidentalMode, NotationMode } from '../utils/music';
 import { playNoteSequence, stopPlayback } from '../utils/audio';
+import type { MasteryStat } from '../utils/mastery';
 
 interface Props {
   notes: string[];
@@ -18,13 +19,15 @@ interface Props {
   showDots: boolean;
   accidental: AccidentalMode;
   notation: NotationMode;
+  masteryByNote?: Record<string, MasteryStat>;
+  showMastery?: boolean;
 }
 
 function easeOut(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
-export default function NoteCircle({ notes, activeNotes, active, correctNote, wrongNote, onSelect, guitarString, fretDots, noteFrets, byString, startIndex, showDots, accidental, notation }: Props) {
+export default function NoteCircle({ notes, activeNotes, active, correctNote, wrongNote, onSelect, guitarString, fretDots, noteFrets, byString, startIndex, showDots, accidental, notation, masteryByNote, showMastery }: Props) {
   const size = 340;
   const cx = size / 2;
   const cy = size / 2;
@@ -159,6 +162,7 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
           const inRange = isNoteInRange(note);
           const dotInfo = hasDot(note);
           const isGlowing = !isCorrect && !isWrong && glowNote === note;
+          const mastery = showMastery ? masteryByNote?.[note] : undefined;
 
           let bg = '#2a2a4a';
           let border = '#555';
@@ -187,6 +191,14 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
               }}>
                 <span style={{ lineHeight: 1.1 }}>{displayNote(note, accidental, notation)}</span>
                 {showDots && dotInfo && <span className="fret-dot" style={{ color: dotInfo.color }}>{dotInfo.dots}</span>}
+                {mastery && mastery.level !== 'unplayed' && (
+                  <span className="note-mastery-track">
+                    <span
+                      className={`note-mastery-fill mastery-${mastery.level}`}
+                      style={{ width: `${Math.round(mastery.accuracy * 100)}%` }}
+                    />
+                  </span>
+                )}
               </span>            </button>
           );
         })}
