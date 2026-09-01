@@ -210,17 +210,17 @@ export class TemplateSpeechEngine implements SpeechEngine {
       secondLabel = ranked[1]?.label;
       const ratioCap = relMax(this.cfg.relMaxKey, this.cfg.relMaxDefault);
       const absCap = absMax(this.cfg.absMaxKey, this.cfg.absMaxDefault);
-      confident =
-        !!firstLabel &&
-        Number.isFinite(nearest) &&
-        nearest <= absCap &&
-        (!ranked[1] || ranked[1].score <= ranked[0].score * ratioCap);
+      const nearOk = Number.isFinite(nearest) && nearest <= absCap;
+      const ratioOk = !ranked[1] || ranked[1].score <= ranked[0].score * ratioCap;
+      confident = !!firstLabel && nearOk && ratioOk;
       vlog('[voice] template match', {
         engine: this.kind, vocabId, strategy: 'knn', absCap,
         first: ranked[0] && { label: ranked[0].label, s: +ranked[0].score.toFixed(3) },
         second: ranked[1] && { label: ranked[1].label, s: +ranked[1].score.toFixed(3) },
         voteRatio: ranked[1] ? +(ranked[1].score / ranked[0].score).toFixed(3) : null,
         nearest: +nearest.toFixed(2), frames: frames.length,
+        confident,
+        reject: confident ? null : !firstLabel ? 'no-match' : !nearOk ? 'abs-cap' : 'ratio-cap',
       });
     } else {
       const ranked = matchTemplates(frames, templates);
@@ -230,17 +230,17 @@ export class TemplateSpeechEngine implements SpeechEngine {
       secondLabel = second?.label;
       const ratioCap = relMax(this.cfg.relMaxKey, this.cfg.relMaxDefault);
       const absCap = absMax(this.cfg.absMaxKey, this.cfg.absMaxDefault);
-      confident =
-        !!best &&
-        Number.isFinite(best.distance) &&
-        best.distance <= absCap &&
-        (!second || best.distance <= second.distance * ratioCap);
+      const absOk = !!best && Number.isFinite(best.distance) && best.distance <= absCap;
+      const ratioOk = !!best && (!second || best.distance <= second.distance * ratioCap);
+      confident = absOk && ratioOk;
       vlog('[voice] template match', {
         engine: this.kind, vocabId, strategy: 'best', absCap,
         best: best && { label: best.label, d: +best.distance.toFixed(2) },
         second: second && { label: second.label, d: +second.distance.toFixed(2) },
         ratio: best && second ? +(best.distance / second.distance).toFixed(3) : null,
         frames: frames.length,
+        confident,
+        reject: confident ? null : !best ? 'no-match' : !absOk ? 'abs-cap' : 'ratio-cap',
       });
     }
 
@@ -282,22 +282,37 @@ export class TemplateSpeechEngine implements SpeechEngine {
     const ratioCap = relMax(this.cfg.relMaxKey, this.cfg.relMaxDefault);
     const absCap = absMax(this.cfg.absMaxKey, this.cfg.absMaxDefault);
 
-    const gate = (ranked: { label: string; distance: number }[]): string | null => {
+    const gate = (ranked: { label: string; distance: number }[], part: string): string | null => {
       const [best, second] = ranked;
-      if (!best || !Number.isFinite(best.distance)) return null;
-      if (best.distance > absCap) return null;
-      if (second && best.distance > second.distance * ratioCap) return null;
+      if (!best || !Number.isFinite(best.distance)) {
+        vlog('[voice] segmented reject', { engine: this.kind, part, reason: 'no-match' });
+        return null;
+      }
+      if (best.distance > absCap) {
+        vlog('[voice] segmented reject', {
+          engine: this.kind, part, reason: 'abs-cap',
+          d: +best.distance.toFixed(2), absCap,
+        });
+        return null;
+      }
+      if (second && best.distance > second.distance * ratioCap) {
+        vlog('[voice] segmented reject', {
+          engine: this.kind, part, reason: 'ratio-cap',
+          ratio: +(best.distance / second.distance).toFixed(3), ratioCap,
+        });
+        return null;
+      }
       return best.label;
     };
 
     const lRanked = matchTemplates(segFrames[0], letters);
-    const letter = gate(lRanked);
+    const letter = gate(lRanked, 'letter');
     let note: string | null = letter;
     let accLabel: string | null = null;
 
     if (letter && segFrames.length >= 2) {
       const aRanked = matchTemplates(segFrames[1], accidentals);
-      accLabel = gate(aRanked);
+      accLabel = gate(aRanked, 'accidental');
       if (!accLabel) {
         // A second word was spoken but "#" vs "b" is unclear — ask again
         // rather than guess a natural note.
@@ -313,7 +328,7 @@ export class TemplateSpeechEngine implements SpeechEngine {
       engine: this.kind, segments: segFrames.length,
       letter: lRanked[0] && { label: lRanked[0].label, d: +lRanked[0].distance.toFixed(2) },
       letter2: lRanked[1] && { label: lRanked[1].label, d: +lRanked[1].distance.toFixed(2) },
-      accidental: accLabel, note,
+      accidental: accLabel, note, confident: !!note,
     });
 
     if (note && this.kind === 'profile') {
