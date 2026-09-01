@@ -71,7 +71,19 @@ export default defineConfig({
       registerType: 'autoUpdate',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,mp3}'],
+        // The synthetic-voice template set (~280 KB) is a lazy import used
+        // only by the "General" voice engine — keep it out of the precache
+        // and cache it at runtime the first time that engine runs.
+        globIgnores: ['**/generalVoiceTemplates-*.js'],
         runtimeCaching: [
+          {
+            urlPattern: /\/assets\/generalVoiceTemplates-.*\.js$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'voice-templates',
+              expiration: { maxEntries: 2, maxAgeSeconds: 60 * 60 * 24 * 180 },
+            },
+          },
           {
             urlPattern: /^https:\/\/gleitz\.github\.io\/midi-js-soundfonts\/.*/,
             handler: 'CacheFirst',

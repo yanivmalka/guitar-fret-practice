@@ -4,6 +4,7 @@ import type { AccidentalMode, OrderMode, HistoryEntry } from '../utils/music';
 import type { ScoreResult } from './useScoring';
 import { playNote, playNoteSingle, stopPlayback, beep, isSoundPlaying, pauseAudioContext, resumeAudioContext } from '../utils/audio';
 import { haptic, playCorrectChime, correctChimeRemainingMs, celebrateTier1, celebrateTier2 } from '../utils/feedback';
+import { vlog } from '../utils/debugLog';
 
 interface GameSettings {
   guitarString: number;
@@ -413,7 +414,8 @@ export function useGameEngine(
   }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, accidental, order, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, onComplete, getQuestionTime]);
 
   const selectAnswer = useCallback((selectedNote: string) => {
-    if (!runningRef.current || paused || answeredRef.current || currentFret === null) return;
+    vlog('[voice] selectAnswer', { selectedNote, running: runningRef.current, paused, answered: answeredRef.current, currentFret });
+    if (!runningRef.current || paused || answeredRef.current || currentFret === null) return undefined;
     const mySession = sessionRef.current;
     answeredRef.current = true;
     setAnswered(true);
@@ -439,7 +441,7 @@ export function useGameEngine(
       // Wait for the success chime to finish before advancing so its tail does
       // not overlap the next question note (visible esp. during Auto Advance).
       advanceAfterChime(() => { if (runningRef.current && sessionRef.current === mySession) next(); });
-      return;
+      return true;
     }
 
     const waitForSound = () => {
@@ -450,6 +452,7 @@ export function useGameEngine(
       }
     };
     scheduleAdvance(waitForSound, 800);
+    return false;
   }, [paused, currentFret, accidental, order, wholeToneOnly, addEntry, next, onWrong, scoreCorrect, scheduleAdvance, advanceAfterChime]);
 
   // ── CONTROLS ─────────────────────────────────────────────────

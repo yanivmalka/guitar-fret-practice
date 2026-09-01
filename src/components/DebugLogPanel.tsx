@@ -1,0 +1,75 @@
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  clearDebugLog,
+  debugLogAsText,
+  getDebugEntries,
+  subscribeDebugLog,
+} from '../utils/debugLog';
+
+// A small on-screen viewer for the in-app debug log (see utils/debugLog.ts).
+// Always mounted so it is reachable on a device with no DevTools — most of all
+// the installed Android PWA. Collapsed to a single unobtrusive 🐞 button until
+// tapped.
+export default function DebugLogPanel() {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const count = useSyncExternalStore(
+    subscribeDebugLog,
+    () => getDebugEntries().length,
+  );
+
+  const preRef = useRef<HTMLPreElement | null>(null);
+  const text = open ? debugLogAsText() : '';
+  useEffect(() => {
+    if (open && preRef.current) preRef.current.scrollTop = preRef.current.scrollHeight;
+  }, [open, text]);
+
+  const copy = async () => {
+    const body = debugLogAsText();
+    try {
+      await navigator.clipboard.writeText(body);
+    } catch {
+      // WebView / insecure context fallback.
+      const ta = document.createElement('textarea');
+      ta.value = body;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch { /* nothing else to try */ }
+      document.body.removeChild(ta);
+    }
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1200);
+  };
+
+  if (!open) {
+    return (
+      <button
+        className="debuglog-fab"
+        onClick={() => setOpen(true)}
+        title="Debug log"
+        aria-label="Open debug log"
+      >
+        🐞{count ? <span className="debuglog-fab-count">{count}</span> : null}
+      </button>
+    );
+  }
+
+  return (
+    <div className="debuglog-panel" role="dialog" aria-label="Debug log">
+      <div className="debuglog-head">
+        <span className="debuglog-title">Debug log · auto-clears daily</span>
+        <div className="debuglog-actions">
+          <button className="debuglog-btn" onClick={() => { void copy(); }}>
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+          <button className="debuglog-btn" onClick={clearDebugLog}>Clear</button>
+          <button className="debuglog-btn" onClick={() => setOpen(false)}>Close</button>
+        </div>
+      </div>
+      <pre ref={preRef} className="debuglog-body">{text || '(empty)'}</pre>
+    </div>
+  );
+}

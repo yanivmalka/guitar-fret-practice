@@ -17,8 +17,17 @@
 
 import type { SpeechNotation } from './speechVocab';
 import { speechVocabulary } from './speechVocab';
+import { loadSetting } from './settings';
+import {
+  getActiveProfile, isProfileReady, loadTemplates as loadProfileTemplates,
+  ADAPTIVE_PROFILE,
+} from './voiceProfile';
+import { TemplateSpeechEngine } from './templateSpeechEngine';
 
-export type SpeechEngineKind = 'web' | 'native' | 'none';
+export type SpeechEngineKind = 'web' | 'native' | 'none' | 'profile' | 'general';
+
+/** User preference for which recogniser to use on the web platform. */
+export type VoiceEnginePref = 'auto' | 'profile' | 'general' | 'web';
 
 /** Result of a silent, non-prompting microphone-permission check. */
 export type MicPermissionState = 'granted' | 'denied' | 'unknown';
@@ -45,6 +54,12 @@ export interface SpeechListenOptions {
   lang: string;
   /** Phrases to bias the recogniser towards (from `speechVocabulary()`). */
   vocabulary?: string[];
+  /**
+   * Grouping key for the on-device personal-profile engine — which set of
+   * calibration recordings to match against (see `voiceProfileVocab.ts`).
+   * Ignored by the Web and native engines.
+   */
+  profileVocabId?: string;
   onResult: (r: SpeechResult) => void;
   onError: (e: SpeechEngineError) => void;
   /** Fired once the recogniser has stopped, for any reason. */
@@ -68,6 +83,12 @@ export interface SpeechEngine {
   stop(): void;
   /** Release any retained resources. */
   destroy(): void;
+  /**
+   * Optional: fold the most recent utterance into a self-learning store
+   * under `label`, e.g. after the game scored a voice answer correct. Only
+   * the on-device "general" template engine implements this.
+   */
+  learn?(label: string): Promise<void>;
 }
 
 // ── Language helper ───────────────────────────────────────────────────
@@ -461,6 +482,16 @@ class NullSpeechEngine implements SpeechEngine {
 
 let cached: SpeechEngine | null = null;
 
+/**
+ * Drop the cached engine so the next `getSpeechEngine()` re-picks. Call
+ * after the user finishes / clears a voice-profile calibration, since that
+ * changes whether the on-device engine is eligible.
+ */
+export function resetSpeechEngine(): void {
+  try { cached?.destroy(); } catch { /* noop */ }
+  cached = null;
+}
+
 function isCapacitorNative(): boolean {
   const cap = (window as unknown as {
     Capacitor?: { isNativePlatform?: () => boolean; getPlatform?: () => string };
@@ -470,12 +501,66 @@ function isCapacitorNative(): boolean {
   return cap.getPlatform?.() === 'android' || cap.getPlatform?.() === 'ios';
 }
 
+function makeProfileEngine(): TemplateSpeechEngine {
+  return new TemplateSpeechEngine({
+    kind: 'profile',
+    isReady: () => getActiveProfile() !== null && isProfileReady(),
+    strategy: 'best',
+    relMaxKey: 'voiceProfileRelMax',
+    relMaxDefault: 0.97,
+    loadTemplates: async (vocabId) => {
+      const profile = getActiveProfile();
+      return profile ? loadProfileTemplates(profile, vocabId) : [];
+    },
+  });
+}
+
+function makeGeneralEngine(): TemplateSpeechEngine {
+  return new TemplateSpeechEngine({
+    kind: 'general',
+    isReady: () => true,
+    strategy: 'knn',
+    relMaxKey: 'voiceGeneralRelMax',
+    // knn: accept only when the runner-up's vote score is <= this fraction
+    // of the winner's (i.e. the winner is clearly ahead).
+    relMaxDefault: 0.75,
+    loadTemplates: async (vocabId) => {
+      // Bundled synthetic-TTS set (lazy chunk) + anything the engine has
+      // self-learned from correct in-game answers.
+      const mod = await import('./generalVoiceTemplates');
+      const bundled = mod.default[vocabId] ?? [];
+      const learned = await loadProfileTemplates(ADAPTIVE_PROFILE, vocabId);
+      return [...bundled, ...learned];
+    },
+  });
+}
+
 /** Singleton engine for the current platform. */
 export function getSpeechEngine(): SpeechEngine {
   if (cached) return cached;
-  if (isCapacitorNative()) cached = new NativeSpeechEngine();
-  else if (getSRConstructor()) cached = new WebSpeechEngine();
-  else cached = new NullSpeechEngine();
+  const pref = loadSetting<VoiceEnginePref>('pref_voiceEngine', 'auto');
+  const hasMic =
+    typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
+  const canTemplate = hasMic && typeof AudioContext !== 'undefined';
+  const canProfile = canTemplate && getActiveProfile() !== null && isProfileReady();
+  const web = getSRConstructor() ? new WebSpeechEngine() : null;
+
+  if (isCapacitorNative()) {
+    cached = new NativeSpeechEngine();
+  } else if (pref === 'profile') {
+    cached = canProfile ? makeProfileEngine() : (web ?? new NullSpeechEngine());
+  } else if (pref === 'general') {
+    cached = canTemplate ? makeGeneralEngine() : (web ?? new NullSpeechEngine());
+  } else if (pref === 'web') {
+    cached = web ?? (canTemplate ? makeGeneralEngine() : new NullSpeechEngine());
+  } else {
+    // 'auto': personal profile if the user has calibrated one, otherwise
+    // the bundled general template set, otherwise the browser's Web Speech
+    // API. Nothing here needs a network round trip.
+    if (canProfile) cached = makeProfileEngine();
+    else if (canTemplate) cached = makeGeneralEngine();
+    else cached = web ?? new NullSpeechEngine();
+  }
   return cached;
 }
 

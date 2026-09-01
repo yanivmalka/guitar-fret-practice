@@ -22,7 +22,12 @@ import { useGameEngine } from './hooks/useGameEngine';
 import { useHistory } from './hooks/useHistory';
 import { useScoring } from './hooks/useScoring';
 import { useVoiceAnswer } from './hooks/useVoiceAnswer';
+import VoiceLevelMeter from './components/VoiceLevelMeter';
+import DebugLogPanel from './components/DebugLogPanel';
+import VoiceCalibration from './components/VoiceCalibration';
+import { vlog } from './utils/debugLog';
 import type { SpeechNotation } from './utils/speechVocab';
+import { resetSpeechEngine, type VoiceEnginePref } from './utils/speech';
 
 type AnswerMode = 'tap' | 'voice';
 
@@ -59,6 +64,19 @@ export default function App() {
   const safeGuitarString = Math.min(Math.max(guitarString, 1), instrument.stringCount);
   const [byString, setByString] = useState(() => loadSetting('pref_byString', true));
   const [notation, setNotation] = useState<NotationMode>(() => loadSetting('pref_notation', 'alpha'));
+  // Bumped when a personal voice-profile calibration finishes, so
+  // useVoiceAnswer re-selects the speech engine (on-device vs Web).
+  const [voiceEngineEpoch, setVoiceEngineEpoch] = useState(0);
+  const [showVoiceCalibration, setShowVoiceCalibration] = useState(false);
+  const [voiceEnginePref, setVoiceEnginePref] = useState<VoiceEnginePref>(
+    () => loadSetting('pref_voiceEngine', 'auto'),
+  );
+  const pickVoiceEngine = (p: VoiceEnginePref) => {
+    setVoiceEnginePref(p);
+    saveSetting('pref_voiceEngine', p);
+    resetSpeechEngine();
+    setVoiceEngineEpoch((n) => n + 1);
+  };
   // How the player answers a question: tapping the circle/grid, or speaking the
   // note name / fret number aloud (WP-4). Voice needs a network connection and
   // is only offered where a recogniser is actually available.
@@ -194,6 +212,9 @@ export default function App() {
   // Voice answering (WP-4): while a question is on screen and answerMode is
   // 'voice', listen and route the recognised note/fret through the same
   // selectAnswer/selectFret the tap handlers use.
+  // Held in a ref because the callback below is defined inside the same
+  // useVoiceAnswer() call that produces `voice.learn`.
+  const voiceLearnRef = useRef<(label: string) => void>(() => {});
   const voice = useVoiceAnswer({
     enabled: answerMode === 'voice',
     running,
@@ -203,9 +224,13 @@ export default function App() {
     questionSeq,
     hasActiveQuestion: derivedSettings.byNote ? currentNote !== null : currentFret !== null,
     notation: notation as SpeechNotation,
-    onNote: selectAnswer,
+    engineEpoch: voiceEngineEpoch,
+    // A correct spoken answer is fed back to the engine so the "general"
+    // recogniser can learn the user's own voice over time.
+    onNote: (n) => { if (selectAnswer(n)) voiceLearnRef.current(n); },
     onFret: selectFret,
   });
+  useEffect(() => { voiceLearnRef.current = voice.learn; }, [voice.learn]);
   // Fall back to tap input if voice is selected but no recogniser exists.
   const voiceActive = answerMode === 'voice' && voice.supported;
 
@@ -284,11 +309,40 @@ export default function App() {
   runningRef2.current = running;
   useEffect(() => {
     const pauseEverything = () => {
+      vlog('[voice] pauseEverything', {
+        running: runningRef2.current,
+        hidden: document.hidden,
+        visibilityState: document.visibilityState,
+      });
       if (runningRef2.current) pauseRef.current();
     };
-    const onVisibilityChange = () => { if (document.hidden) pauseEverything(); };
+
+    // `visibilitychange` → hidden is a noisy signal on desktop: some setups
+    // (remote-desktop sessions, an undocked/focused DevTools window, brief
+    // OS-level occlusion) flip the tab to "hidden" for a moment while the user
+    // is still looking at it. That was freezing the game — and killing Voice
+    // mode's microphone — mid-round. Genuinely backgrounding the app (switching
+    // tab/app, minimising) keeps it hidden for far longer, so wait a short
+    // beat and only pause if it is still hidden. Becoming visible again cancels.
+    let hiddenTimer: number | null = null;
+    const clearHiddenTimer = () => {
+      if (hiddenTimer !== null) { clearTimeout(hiddenTimer); hiddenTimer = null; }
+    };
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        clearHiddenTimer();
+        hiddenTimer = window.setTimeout(() => {
+          hiddenTimer = null;
+          if (document.hidden) pauseEverything();
+        }, 2000);
+      } else {
+        clearHiddenTimer();
+      }
+    };
     document.addEventListener('visibilitychange', onVisibilityChange);
-    document.addEventListener('pagehide', pauseEverything);
+    // `pagehide` means the page is actually being torn down — pause at once.
+    const onPageHide = () => { clearHiddenTimer(); pauseEverything(); };
+    document.addEventListener('pagehide', onPageHide);
 
     let removeAppStateListener: (() => void) | undefined;
     CapacitorApp.addListener('appStateChange', ({ isActive }) => {
@@ -300,8 +354,9 @@ export default function App() {
     });
 
     return () => {
+      clearHiddenTimer();
       document.removeEventListener('visibilitychange', onVisibilityChange);
-      document.removeEventListener('pagehide', pauseEverything);
+      document.removeEventListener('pagehide', onPageHide);
       removeAppStateListener?.();
     };
   }, [pause]);
@@ -587,6 +642,28 @@ export default function App() {
                 >🎤 Voice</button>
               </div>
             )}
+            <div className="notation-row">
+              <span className="notation-label">Voice engine</span>
+              <button
+                className={`order-chip${voiceEnginePref === 'auto' ? ' order-chip-active' : ''}`}
+                onClick={click(() => pickVoiceEngine('auto'))}
+              >Auto</button>
+              <button
+                className={`order-chip${voiceEnginePref === 'profile' ? ' order-chip-active' : ''}`}
+                onClick={click(() => pickVoiceEngine('profile'))}
+              >Personal</button>
+              <button
+                className={`order-chip${voiceEnginePref === 'general' ? ' order-chip-active' : ''}`}
+                onClick={click(() => pickVoiceEngine('general'))}
+              >General</button>
+            </div>
+            <div className="notation-row">
+              <span className="notation-label">Voice profile</span>
+              <button
+                className="order-chip"
+                onClick={click(() => { setSettingsOpen(false); setShowVoiceCalibration(true); })}
+              >🎙️ Calibrate my voice</button>
+            </div>
             {auth.configured && (
               <div className="account-row">
                 {auth.user ? (
@@ -698,12 +775,12 @@ export default function App() {
         <div className="question-col">
           {gameActive && (
             <>
-              <div className="string-label" key={safeGuitarString}>{instrument.stringLabels[safeGuitarString]}</div>
+              <div className="string-label" key={`str-${safeGuitarString}`}>{instrument.stringLabels[safeGuitarString]}</div>
               {derivedSettings.byNote
                 ? <div className={`note-display${stageTransition ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>{currentNote ? displayNote(currentNote, accidental, notation) : '—'}</div>
                 : <div className={`fret-display${stageTransition ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>{currentFret !== null ? currentFret : '—'}</div>
               }
-              <SpeedBar key={questionSeq} remaining={remaining} total={questionTime} startAt={questionStart} answered={answered} paused={paused} />
+              <SpeedBar key={`sb-${questionSeq}`} remaining={remaining} total={questionTime} startAt={questionStart} answered={answered} paused={paused} />
               <div className="game-info-row">
                 <span className="game-timer">{remaining}s</span>
                 <span className="game-progress-text">{questionNumber}/{derivedSettings.maxQuestions}</span>
@@ -721,6 +798,8 @@ export default function App() {
                     ? '🎤 Microphone blocked — enable it or switch to tap'
                     : voice.error === 'network'
                       ? '🎤 Voice needs a connection'
+                      : voice.error === 'not-supported'
+                        ? '🎤 Voice isn’t working in this browser — try Chrome, or use tap'
                       : voice.error
                         ? '🎤 Didn’t catch that'
                         : voice.status === 'listening'
@@ -732,6 +811,9 @@ export default function App() {
                     <button className="clear-btn voice-retry" onClick={click(voice.retry)}>Retry</button>
                   )}
                 </div>
+              )}
+              {voiceActive && running && !paused && voice.permission !== 'denied' && (
+                <VoiceLevelMeter active={running && !paused} />
               )}
             </>
           )}
@@ -841,6 +923,17 @@ export default function App() {
         {__COMMIT_HASH__} · {__COMMIT_DATE__.slice(0, 16)}
         <button className="refresh-btn" onClick={() => window.location.reload()} title="Refresh">↻</button>
       </div>
+
+      <DebugLogPanel />
+
+      {showVoiceCalibration && (
+        <VoiceCalibration
+          notation={notation}
+          accidental={accidental}
+          onClose={() => setShowVoiceCalibration(false)}
+          onProfileChanged={() => setVoiceEngineEpoch((n) => n + 1)}
+        />
+      )}
     </div>
   );
 }

@@ -7,6 +7,8 @@ import {
   type SpeechEngineError,
 } from '../utils/speech';
 import { parseSpokenFret, parseSpokenNote, type SpeechNotation } from '../utils/speechVocab';
+import { profileVocabId } from '../utils/voiceProfileVocab';
+import { vlog } from '../utils/debugLog';
 
 // ── useVoiceAnswer ──────────────────────────────────────────────────────
 //
@@ -37,6 +39,12 @@ export interface UseVoiceAnswerParams {
   notation: SpeechNotation;
   /** BCP-47 override, e.g. "he-IL" for spoken Hebrew solfège. */
   langOverride?: string;
+  /**
+   * Bump to force the speech engine to be re-selected (e.g. after the user
+   * finishes a personal voice-profile calibration, which makes the
+   * on-device engine eligible). See `resetSpeechEngine()`.
+   */
+  engineEpoch?: number;
   /** Called with a recognised note name ("C", "F#") — wire to selectAnswer. */
   onNote: (note: string) => void;
   /** Called with a recognised fret number — wire to selectFret. */
@@ -54,6 +62,11 @@ export interface UseVoiceAnswerResult {
   ensurePermission: () => Promise<boolean>;
   /** Manually restart listening for the current question. */
   retry: () => void;
+  /**
+   * Tell the engine the last spoken answer was correct so it can learn from
+   * it (on-device "general" engine only; a no-op otherwise).
+   */
+  learn: (label: string) => void;
 }
 
 const MAX_AUTO_RETRIES = 1;
@@ -81,9 +94,23 @@ const STABLE_COMMIT_MS = 250;
 const MAX_KEEPALIVE = 30;
 
 export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResult {
-  const [engine] = useState<SpeechEngine | null>(() =>
-    typeof window === 'undefined' ? null : getSpeechEngine(),
+  // The engine is re-picked whenever `engineEpoch` changes (a personal
+  // voice-profile calibration finished, which can flip eligibility between
+  // the on-device and Web engines). This uses React's sanctioned
+  // "adjust state when a prop changes during render" pattern — not an
+  // effect — so `getSpeechEngine()` (a cheap cached lookup) runs at most
+  // once per epoch.
+  const engineEpoch = params.engineEpoch ?? 0;
+  const [engineHolder, setEngineHolder] = useState<{ epoch: number; engine: SpeechEngine | null }>(
+    () => ({ epoch: engineEpoch, engine: typeof window === 'undefined' ? null : getSpeechEngine() }),
   );
+  if (engineHolder.epoch !== engineEpoch) {
+    setEngineHolder({
+      epoch: engineEpoch,
+      engine: typeof window === 'undefined' ? null : getSpeechEngine(),
+    });
+  }
+  const engine = engineHolder.engine;
   const supported = !!engine && engine.kind !== 'none';
 
   const [status, setStatus] = useState<VoiceStatus>('idle');
@@ -156,6 +183,7 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
       commitTimerRef.current = null;
     }
     const pend = pendingRef.current;
+    vlog('[voice] commitPending', { pend, handled: handledRef.current });
     if (!pend || handledRef.current) return;
     handledRef.current = true;
     stopListening();
@@ -183,6 +211,8 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
         if (n !== null) { parsed = { note: n }; break; }
       }
     }
+
+    vlog('[voice] ingest', { isFinal, byNote: p.byNote, notation: p.notation, transcripts, parsed });
 
     if (parsed) pendingRef.current = parsed;
 
@@ -216,10 +246,14 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
     setPartial('');
     setStatus('listening');
 
+    vlog('[voice] start', { engine: engine.kind, lang: speechLangForNotation(p.notation, p.langOverride), byNote: p.byNote, notation: p.notation, permission: permissionRef.current });
+
     void engine.start({
       lang: speechLangForNotation(p.notation, p.langOverride),
       vocabulary: vocabularyFor(p.notation),
+      profileVocabId: profileVocabId(p.notation),
       onResult: (r) => {
+        vlog('[voice] onResult', { isFinal: r.isFinal, transcript: r.transcript, alternatives: r.alternatives });
         if (handledRef.current) return;
         gotResultRef.current = true;
         emptyEndsRef.current = 0;
@@ -227,6 +261,7 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
         ingest(r.alternatives?.length ? r.alternatives : [r.transcript], r.isFinal);
       },
       onError: (e) => {
+        vlog('[voice] onError', e);
         if (handledRef.current) return;
         listeningRef.current = false;
         if (e === 'no-permission') {
@@ -272,6 +307,7 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
         setStatus('error');
       },
       onEnd: () => {
+        vlog('[voice] onEnd', { wasListening: listeningRef.current, gotResult: gotResultRef.current, emptyEnds: emptyEndsRef.current, keepAlive: keepAliveRef.current });
         if (!listeningRef.current) return;
         listeningRef.current = false;
         // The recogniser stopped on its own. If no answer has been committed
@@ -345,6 +381,8 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
     const active =
       enabled && supported && running && !paused && !answered && hasActiveQuestion;
 
+    vlog('[voice] driver effect', { active, enabled, running, paused, answered, hasActiveQuestion, questionSeq });
+
     if (active) {
       retriesRef.current = 0;
       startRetriesRef.current = 0;
@@ -366,5 +404,9 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
   // Tear the engine down on unmount.
   useEffect(() => () => { engine?.destroy(); }, [engine]);
 
-  return { supported, status, partial, error, permission, ensurePermission, retry };
+  const learn = useCallback((label: string) => {
+    void engine?.learn?.(label);
+  }, [engine]);
+
+  return { supported, status, partial, error, permission, ensurePermission, retry, learn };
 }
