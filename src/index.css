@@ -1316,40 +1316,35 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   border-style: solid;
 }
 
-/* Auto Advance — on/off toggle in the difficulty row. */
-.difficulty-road .auto-advance-toggle {
+/* Auto Advance — on/off toggle in the difficulty row.
+   Its colours are driven ONLY by the .stats-icon-on class (the JS on/off
+   state), never by :hover or :focus. Touch devices latch :hover (and often
+   :focus-visible) onto the last-tapped element and only clear it on the next
+   tap elsewhere, which was leaving the button painted cyan for a beat after
+   it had been switched off. Pinning every interaction state to the current
+   on/off look makes it flip to grey the instant it's deselected. */
+.difficulty-road .auto-advance-toggle,
+.difficulty-road .auto-advance-toggle:hover,
+.difficulty-road .auto-advance-toggle:focus,
+.difficulty-road .auto-advance-toggle:focus-visible,
+.difficulty-road .auto-advance-toggle:active {
   border-style: dashed;
-  -webkit-tap-highlight-color: transparent;
-}
-/* On touch devices the tapped button keeps :focus afterwards, leaving it
-   showing the cyan "on" colours even when it's off. The click handler blurs
-   it, and this makes sure a lingering non-keyboard focus never paints the
-   active look. */
-.difficulty-road .auto-advance-toggle:focus:not(:focus-visible) {
   border-color: #444;
   color: #666;
   background: none;
+  -webkit-tap-highlight-color: transparent;
 }
-.difficulty-road .auto-advance-toggle.stats-icon-on:focus:not(:focus-visible) {
+.difficulty-road .auto-advance-toggle.stats-icon-on,
+.difficulty-road .auto-advance-toggle.stats-icon-on:hover,
+.difficulty-road .auto-advance-toggle.stats-icon-on:focus,
+.difficulty-road .auto-advance-toggle.stats-icon-on:focus-visible,
+.difficulty-road .auto-advance-toggle.stats-icon-on:active {
   border-color: #0ff;
   color: #0ff;
   background: #1a2a3a;
 }
-/* Touch devices latch :hover on the last-tapped element, which would keep the
-   cyan "on" look painted after toggling Auto Advance off. Neutralise :hover
-   where there's no real pointer so the button always shows its true state. */
-@media (hover: none) {
-  .difficulty-road .auto-advance-toggle:hover {
-    border-color: #444;
-    color: #666;
-    background: none;
-  }
-  .difficulty-road .auto-advance-toggle.stats-icon-on:hover {
-    border-color: #0ff;
-    color: #0ff;
-    background: #1a2a3a;
-  }
-}
+/* No UA focus ring after a pointer/touch tap (keyboard :focus-visible keeps one). */
+.difficulty-road .auto-advance-toggle:focus:not(:focus-visible) { outline: none; }
 
 /* ── Bottom-center ? button ───────────────────────────────── */
 .desc-question-btn-bottom {
