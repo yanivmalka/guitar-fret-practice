@@ -223,7 +223,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
     };
   }, [running, rec, counts, idx, label, record, stopRun]);
 
-  const playLast = useCallback(() => {
+  const playLast = useCallback(async () => {
     const cap = lastPcmRef.current;
     if (!cap) return;
     playClickSound();
@@ -231,6 +231,11 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
       const Ctor = window.AudioContext
         || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       const ctx = new Ctor();
+      // iOS Safari brings a fresh context up "suspended"; without an explicit
+      // resume() from this tap `src.start()` is silent.
+      if (ctx.state === 'suspended') {
+        try { await ctx.resume(); } catch { /* noop */ }
+      }
       const buf = ctx.createBuffer(1, cap.pcm.length, cap.sampleRate);
       buf.getChannelData(0).set(cap.pcm);
       const src = ctx.createBufferSource();
@@ -363,7 +368,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
         {err && <div className="vcal-err">{err}</div>}
 
         {hasLast && (
-          <button className="vcal-btn vcal-link" onClick={playLast} disabled={rec !== 'idle'}>
+          <button className="vcal-btn vcal-link" onClick={() => { void playLast(); }} disabled={rec !== 'idle'}>
             ▶ Play last recording
           </button>
         )}
