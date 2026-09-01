@@ -32,7 +32,7 @@ type RecState = 'idle' | 'recording' | 'thinking';
 // part. Nothing leaves the device.
 export default function VoiceCalibration({ notation, accidental, onClose, onProfileChanged }: Props) {
   const vocabId = profileVocabId(notation as SpeechNotation);
-  const [profile, setProfile] = useState(() => getActiveProfile() ?? 'הפרופיל שלי');
+  const [profile, setProfile] = useState(() => getActiveProfile() ?? 'My profile');
   const [idx, setIdx] = useState(0);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [rec, setRec] = useState<RecState>('idle');
@@ -57,8 +57,8 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
     ? accidentalWord
     : displayNote(label, accidental, notation);
   const hint = isAccidental
-    ? 'תגיד רק את המילה הזאת, לבד'
-    : 'תגיד רק את שם התו, לבד';
+    ? 'Say just this word, on its own'
+    : 'Say just the note name, on its own';
 
   const refreshCounts = useCallback(async (name: string) => {
     const c = await templateCounts(name, vocabId);
@@ -96,7 +96,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
     setLevel(0);
     if (abort.signal.aborted) { setRec('idle'); return; }
     if (!captured) {
-      setErr('לא נקלט קול — נסה שוב, קרוב יותר למיקרופון');
+      setErr('No sound captured — try again, closer to the mic');
       autoMissRef.current++;
       setRec('idle');
       return;
@@ -105,7 +105,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
     try {
       const { frames } = computeMfcc(captured.pcm, captured.sampleRate);
       if (!frames.length) {
-        setErr('ההקלטה קצרה מדי — נסה שוב');
+        setErr('Recording too short — try again');
         autoMissRef.current++;
       } else {
         await addTemplate(profile, vocabId, label, framesToJson(frames));
@@ -114,7 +114,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
         haptic.tap();
       }
     } catch {
-      setErr('שמירת ההקלטה נכשלה');
+      setErr('Saving the recording failed');
       autoMissRef.current++;
     }
     setRec('idle');
@@ -140,7 +140,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
 
   // Auto mode: once armed, keep cycling — record the current word, and when it
   // has enough samples jump to the next word that still needs some — so the
-  // user only has to speak, never tap "הקלט"/"הבא" between takes.
+  // user only has to speak, never tap "Record"/"Next" between takes.
   useEffect(() => {
     if (!auto || rec !== 'idle') return;
     if (autoMissRef.current >= 2) { stopAuto(); return; }
@@ -207,15 +207,15 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
   const lettersDone = LETTER_LABELS.filter((n) => (counts[n] ?? 0) >= SAMPLES_PER_LABEL).length;
 
   return (
-    <div className="vcal-backdrop" role="dialog" aria-label="כיול קול">
+    <div className="vcal-backdrop" role="dialog" aria-label="Voice calibration">
       <div className="vcal-card">
         <div className="vcal-head">
-          <span className="vcal-title">כיול קול אישי</span>
-          <button className="vcal-x" onClick={() => { playClickSound(); onClose(); }} aria-label="סגור">✕</button>
+          <span className="vcal-title">Personal voice calibration</span>
+          <button className="vcal-x" onClick={() => { playClickSound(); onClose(); }} aria-label="Close">✕</button>
         </div>
 
         <label className="vcal-profile">
-          שם פרופיל
+          Profile name
           <input
             value={profile}
             onChange={(e) => setProfile(e.target.value)}
@@ -224,16 +224,16 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
         </label>
 
         <div className="vcal-progress">
-          נקלטו {doneLabels}/{total} ({lettersDone}/{LETTER_LABELS.length} תווים, {doneLabels - lettersDone}/{ACCIDENTAL_LABELS.length} סימנים)
+          Recorded {doneLabels}/{total} ({lettersDone}/{LETTER_LABELS.length} notes, {doneLabels - lettersDone}/{ACCIDENTAL_LABELS.length} accidentals)
           <div className="vcal-progress-track">
             <div className="vcal-progress-fill" style={{ width: `${(doneLabels / total) * 100}%` }} />
           </div>
         </div>
 
         <div className="vcal-prompt">
-          <span className="vcal-prompt-label">תגיד:</span>
+          <span className="vcal-prompt-label">Say:</span>
           <span className="vcal-note">{prompt}</span>
-          <span className="vcal-here">{here} / {SAMPLES_PER_LABEL} הקלטות</span>
+          <span className="vcal-here">{here} / {SAMPLES_PER_LABEL} recordings</span>
         </div>
         <div className="vcal-hint">{hint}</div>
 
@@ -248,33 +248,33 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
           onClick={toggleAuto}
           disabled={allDone && !auto}
         >
-          {auto ? '⏸ עצור הקלטה אוטומטית' : '▶️ הקלטה אוטומטית'}
+          {auto ? '⏸ Stop auto-record' : '▶️ Auto-record'}
         </button>
         {auto && (
-          <div className="vcal-hint">דבר כשמופיע תו — הכיול מתקדם לבד</div>
+          <div className="vcal-hint">Speak when a note appears — calibration advances on its own</div>
         )}
 
         <div className="vcal-actions">
-          <button className="vcal-btn" onClick={() => step(-1)} disabled={idx === 0 || rec !== 'idle' || auto}>הקודם</button>
+          <button className="vcal-btn" onClick={() => step(-1)} disabled={idx === 0 || rec !== 'idle' || auto}>Previous</button>
           <button className="vcal-btn vcal-rec" onClick={record} disabled={rec !== 'idle' || auto}>
-            {rec === 'recording' ? '● מקליט…' : rec === 'thinking' ? '…' : '🎤 הקלט'}
+            {rec === 'recording' ? '● Recording…' : rec === 'thinking' ? '…' : '🎤 Record'}
           </button>
-          <button className="vcal-btn" onClick={() => step(1)} disabled={idx === total - 1 || rec !== 'idle' || auto}>הבא</button>
+          <button className="vcal-btn" onClick={() => step(1)} disabled={idx === total - 1 || rec !== 'idle' || auto}>Next</button>
         </div>
 
         <div className="vcal-actions vcal-actions-sec">
-          <button className="vcal-btn vcal-link" onClick={redo} disabled={here === 0 || rec !== 'idle' || auto}>הקלט מחדש</button>
-          <button className="vcal-btn vcal-link vcal-danger" onClick={wipe} disabled={rec !== 'idle' || auto}>מחק פרופיל</button>
+          <button className="vcal-btn vcal-link" onClick={redo} disabled={here === 0 || rec !== 'idle' || auto}>Re-record</button>
+          <button className="vcal-btn vcal-link vcal-danger" onClick={wipe} disabled={rec !== 'idle' || auto}>Delete profile</button>
         </div>
 
         <div className="vcal-actions vcal-actions-sec">
           <button className="vcal-btn vcal-link" onClick={wipeLearned} disabled={rec !== 'idle' || auto}>
-            אפס למידה אוטומטית של המצב הכללי
+            Reset automatic learning of the general mode
           </button>
         </div>
 
         <button className="vcal-btn vcal-finish" onClick={finish} disabled={!allDone || rec !== 'idle'}>
-          {allDone ? 'סיום והפעלה' : `עוד ${total - doneLabels}`}
+          {allDone ? 'Finish & enable' : `${total - doneLabels} to go`}
         </button>
       </div>
     </div>
