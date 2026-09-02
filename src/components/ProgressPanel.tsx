@@ -7,6 +7,7 @@ import {
 } from '../utils/progress';
 import type { InstrumentConfig } from '../utils/instruments';
 import { playClickSound, haptic } from '../utils/feedback';
+import StatsPanel from './StatsPanel';
 
 interface Props {
   allHistory: Record<string, HistoryEntry[]>;
@@ -15,9 +16,25 @@ interface Props {
   notation?: NotationMode;
   instrument: InstrumentConfig;
   onClose: () => void;
+  // "This setup" tab: cumulative stats + session score for the current settings combination.
+  currentHistory: HistoryEntry[];
+  maxTime: number;
+  maxQuestions: number;
+  sessionScore?: number;
+  longestStreak?: number;
+  currentHistoryKey?: string;
+  onClearCurrent?: () => void;
 }
 
-type Tab = 'overview' | 'timeline' | 'fretboard' | 'focus';
+type Tab = 'current' | 'overview' | 'timeline' | 'fretboard' | 'focus';
+
+const TAB_LABEL: Record<Tab, string> = {
+  current: 'This setup',
+  overview: 'Overview',
+  timeline: 'Timeline',
+  fretboard: 'Fretboard',
+  focus: 'Focus',
+};
 
 const HEAT: Record<string, string> = {
   unplayed: 'var(--surface-2, #2a2a2a)',
@@ -37,8 +54,11 @@ function describeKey(key: string): string {
   return `${inst}str ${strings} · fr ${fret} · ${modeText} · ${diff}`;
 }
 
-export default function ProgressPanel({ allHistory, noteNames, accidental, notation, instrument, onClose }: Props) {
-  const [tab, setTab] = useState<Tab>('overview');
+export default function ProgressPanel({
+  allHistory, noteNames, accidental, notation, instrument, onClose,
+  currentHistory, maxTime, maxQuestions, sessionScore, longestStreak, currentHistoryKey, onClearCurrent,
+}: Props) {
+  const [tab, setTab] = useState<Tab>('current');
   const click = (fn: () => void) => () => { playClickSound(); haptic.tap(); fn(); };
 
   const all = useMemo(() => flattenHistory(allHistory), [allHistory]);
@@ -52,7 +72,7 @@ export default function ProgressPanel({ allHistory, noteNames, accidental, notat
     return (
       <div className="stats-panel">
         <div className="stats-header-row">
-          <span className="score">Progress</span>
+          <span className="score">Stats &amp; progress</span>
           <button className="stats-clear-history" onClick={click(onClose)}>Close ✕</button>
         </div>
         <p className="encouragement">Play a few rounds and your all-time progress shows up here.</p>
@@ -66,21 +86,37 @@ export default function ProgressPanel({ allHistory, noteNames, accidental, notat
   return (
     <div className="stats-panel">
       <div className="stats-header-row">
-        <span className="score">Progress</span>
+        <span className="score">Stats &amp; progress</span>
         <button className="stats-clear-history" onClick={click(onClose)}>Close ✕</button>
       </div>
 
       <div className="stats-tabs">
-        {(['overview', 'timeline', 'fretboard', 'focus'] as Tab[]).map(t => (
+        {(['current', 'overview', 'timeline', 'fretboard', 'focus'] as Tab[]).map(t => (
           <button
             key={t}
             className={`stats-tab ${tab === t ? 'stats-tab-active' : ''}`}
             onClick={click(() => setTab(t))}
           >
-            {t === 'overview' ? 'Overview' : t === 'timeline' ? 'Timeline' : t === 'fretboard' ? 'Fretboard' : 'Focus'}
+            {TAB_LABEL[t]}
           </button>
         ))}
       </div>
+
+      {tab === 'current' && (
+        <StatsPanel
+          embedded
+          history={currentHistory}
+          maxTime={maxTime}
+          maxQuestions={maxQuestions}
+          accidental={accidental}
+          notation={notation}
+          everPlayed
+          sessionScore={sessionScore}
+          longestStreak={longestStreak}
+          historyKey={currentHistoryKey}
+          onClear={onClearCurrent}
+        />
+      )}
 
       {tab === 'overview' && (
         <div className="score-summary">

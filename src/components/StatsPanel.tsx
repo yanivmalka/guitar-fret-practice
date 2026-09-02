@@ -15,6 +15,9 @@ interface Props {
   longestStreak?: number;
   historyKey?: string;
   onClear?: () => void;
+  // When rendered inside another panel (the unified Stats & progress screen),
+  // drop the outer .stats-panel chrome so it doesn't double up.
+  embedded?: boolean;
 }
 
 type TopTab = 'score' | 'details';
@@ -74,7 +77,7 @@ function GroupSection({ title, cls, items, filter, accidental, notation }: {
   );
 }
 
-export default function StatsPanel({ history, maxTime: _maxTime, accidental, notation, sessionScore, longestStreak, historyKey: hKey, onClear }: Props) {
+export default function StatsPanel({ history, maxTime: _maxTime, accidental, notation, sessionScore, longestStreak, historyKey: hKey, onClear, embedded }: Props) {
   const [topTab, setTopTab] = useState<TopTab>('score');
   const [tab, setTab] = useState<MainTab>('notes');
   const [filter, setFilter] = useState<Filter>('all');
@@ -97,7 +100,11 @@ export default function StatsPanel({ history, maxTime: _maxTime, accidental, not
     }
   }, [hKey, currentScore, currentStreak, accuracy, total]);
 
-  if (total === 0) return null;
+  if (total === 0) {
+    return embedded
+      ? <p className="encouragement">No rounds recorded for this setup yet. Play a round and its stats show up here.</p>
+      : null;
+  }
 
   const wrong = history.filter(h => h.correct === false).length;
   const timedOut = history.filter(h => h.skipped).length;
@@ -169,8 +176,8 @@ export default function StatsPanel({ history, maxTime: _maxTime, accidental, not
     growing: stringGroups.growing.map(([k, v]) => [STRING_NAME[Number(k)] ?? `S${k}`, v] as [string, StatBucket]),
   };
 
-  return (
-    <div className="stats-panel">
+  const inner = (
+    <>
       {/* Top-level tabs: Score / Details */}
       <div className="stats-tabs">
         <button className={`stats-tab ${topTab === 'score' ? 'stats-tab-active' : ''}`} onClick={click(() => setTopTab('score'))}>Score</button>
@@ -291,6 +298,8 @@ export default function StatsPanel({ history, maxTime: _maxTime, accidental, not
           )}
         </>
       )}
-    </div>
+    </>
   );
+
+  return embedded ? inner : <div className="stats-panel">{inner}</div>;
 }

@@ -3,7 +3,6 @@ import type { ReactNode } from 'react';
 import NoteCircle from './components/NoteCircle';
 import FretGrid from './components/FretGrid';
 import SelectorPanel from './components/SelectorPanel';
-import StatsPanel from './components/StatsPanel';
 import ProgressPanel from './components/ProgressPanel';
 import Onboarding from './components/Onboarding';
 import SpeedBar from './components/SpeedBar';
@@ -476,8 +475,8 @@ export default function App() {
 
   const [preloaded, setPreloaded] = useState(false);
   const [onboardingDone, setOnboardingDone] = useState(() => loadSetting<boolean>('onboardingDone', false));
+  // The unified "Stats & progress" screen (current-setup stats + all-time progress tabs).
   const [showStats, setShowStats] = useState(false);
-  const [showProgress, setShowProgress] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Which settings sub-page is open inside the drawer; null = the list of titles.
   const [drawerSection, setDrawerSection] = useState<string | null>(null);
@@ -546,7 +545,7 @@ export default function App() {
   // own Back control takes over from there.
   const showBurger = !isPlaying && !pendingAutoAdvance && countdown === null && !settingsOpen;
 
-  useEffect(() => { setShowStats(false); setShowProgress(false); setGameEnded(false); tier3FiredRef.current = false; }, [histKey]);
+  useEffect(() => { setShowStats(false); setGameEnded(false); tier3FiredRef.current = false; }, [histKey]);
 
   // Mirror the open sub-page in a ref so the Escape handler (bound once per
   // open) reads the current value without re-subscribing on every navigation.
@@ -704,7 +703,9 @@ export default function App() {
 
   // The hamburger drawer is a list of section titles; tapping one opens a
   // sub-page with a short blurb plus just that section's controls.
-  const settingsSections: Array<{ id: string; title: string; blurb: string; body: ReactNode }> = [
+  // `onSelect`, when set, fires on tap instead of opening the section's sub-page —
+  // used by "Stats & progress" to jump straight to its full screen like a page.
+  const settingsSections: Array<{ id: string; title: string; blurb: string; body: ReactNode; onSelect?: () => void }> = [
     {
       id: 'instrument',
       title: '🎸 Instrument',
@@ -745,36 +746,12 @@ export default function App() {
         </div>
       ),
     },
-    ...(hasHistory ? [{
-      id: 'stats',
-      title: '📊 Statistics',
-      blurb: 'Open the summary screen with cumulative accuracy and response times for the current settings combination.',
-      body: (
-        <button
-          className={`order-chip${showStats ? ' order-chip-active' : ''}`}
-          onClick={click(() => { setShowProgress(false); setShowStats(true); setSettingsOpen(false); })}
-        >
-          <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true" style={{ marginRight: 6, verticalAlign: '-2px' }}>
-            <rect x="2" y="10" width="4" height="8" rx="1" fill="currentColor" />
-            <rect x="8" y="6" width="4" height="12" rx="1" fill="currentColor" />
-            <rect x="14" y="2" width="4" height="16" rx="1" fill="currentColor" />
-          </svg>
-          Overall statistics
-        </button>
-      ),
-    }] : []),
     ...(hasAnyHistory ? [{
-      id: 'progress',
-      title: '📈 Progress',
-      blurb: 'Your all-time progress across every settings combination: lifetime accuracy and speed, a practice-day streak, a per-day timeline, a fretboard mastery heatmap and your weakest notes.',
-      body: (
-        <button
-          className={`order-chip${showProgress ? ' order-chip-active' : ''}`}
-          onClick={click(() => { setShowStats(false); setShowProgress(true); setSettingsOpen(false); })}
-        >
-          📈 Open progress
-        </button>
-      ),
+      id: 'stats',
+      title: '📊 Stats & progress',
+      blurb: '',
+      body: null,
+      onSelect: () => { setShowStats(true); setSettingsOpen(false); },
     }] : []),
     ...(voice.supported ? [{
       id: 'answer',
@@ -942,7 +919,7 @@ export default function App() {
                     <button
                       key={s.id}
                       className="settings-menu-item"
-                      onClick={click(() => setDrawerSection(s.id))}
+                      onClick={click(() => { if (s.onSelect) s.onSelect(); else setDrawerSection(s.id); })}
                     >
                       <span className="settings-menu-item-label">{s.title}</span>
                       <span className="settings-menu-item-chevron" aria-hidden="true">‹</span>
@@ -1139,7 +1116,7 @@ export default function App() {
         </div>
 
         {/* Keep the grid/circle visible (frozen) while paused; hide only when fully stopped and showing stats/end summary */}
-        {(gameActive || (isStopped && !showStats && !showProgress && !gameEnded)) && (
+        {(gameActive || (isStopped && !showStats && !gameEnded)) && (
           derivedSettings.byNote ? (
             <FretGrid
               fretFrom={derivedSettings.fretFrom}
@@ -1179,30 +1156,20 @@ export default function App() {
 
       {isStopped && showStats && (
         <div className="stats-wrapper">
-          <StatsPanel
-            history={historyOps.getEntriesForKey(histKey)}
-            maxTime={derivedSettings.time}
-            maxQuestions={derivedSettings.maxQuestions}
-            accidental={accidental}
-            notation={notation}
-            everPlayed={true}
-            sessionScore={scoring.session.score}
-            longestStreak={scoring.session.longestStreak}
-            historyKey={histKey}
-            onClear={() => { historyOps.clearAllHistory(); setShowStats(false); }}
-          />
-        </div>
-      )}
-
-      {isStopped && showProgress && (
-        <div className="stats-wrapper">
           <ProgressPanel
             allHistory={historyOps.allHistory}
             noteNames={cofList}
             accidental={accidental}
             notation={notation}
             instrument={instrument}
-            onClose={() => setShowProgress(false)}
+            currentHistory={historyOps.getEntriesForKey(histKey)}
+            maxTime={derivedSettings.time}
+            maxQuestions={derivedSettings.maxQuestions}
+            sessionScore={scoring.session.score}
+            longestStreak={scoring.session.longestStreak}
+            currentHistoryKey={histKey}
+            onClearCurrent={() => { historyOps.clearAllHistory(); }}
+            onClose={() => setShowStats(false)}
           />
         </div>
       )}
