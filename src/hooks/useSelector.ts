@@ -2,6 +2,9 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { loadSetting, saveSetting } from '../utils/settings';
 import type { AccidentalMode, OrderMode } from '../utils/music';
 import type { InstrumentConfig } from '../utils/instruments';
+import {
+  buildStageSequence, stageStepIndex, nextStageStep, type StageStep,
+} from '../utils/stageSequence';
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -17,9 +20,9 @@ export interface SelectorState {
   autoAdvance: boolean;
 }
 
-// The current Selector-model's only progression axis is difficulty
-// (dots -> naturals -> full). Returns the next step up, or null if
-// already at the hardest difficulty (nothing further to advance to).
+// Difficulty-only progression, kept as the fallback for when the current
+// selection is a custom combo that isn't part of the ordered stage sequence.
+// Returns the next step up, or null if already at the hardest difficulty.
 export function nextDifficulty(difficulty: Difficulty): Difficulty | null {
   if (difficulty === 'dots') return 'naturals';
   if (difficulty === 'naturals') return 'full';
@@ -102,9 +105,8 @@ function getMaxQuestions(difficulty: Difficulty): number {
   }
 }
 
-// Total questions a run will ask. With Auto Advance on, that's every stage from
-// the current difficulty through the last one; otherwise just this stage. Used
-// to scale the continuous-run timing progression (see useScoring).
+// Difficulty-only run length — the fallback when the current selection isn't
+// part of the ordered stage sequence (a custom combo).
 export function totalRunQuestions(difficulty: Difficulty, autoAdvance: boolean): number {
   if (!autoAdvance) return getMaxQuestions(difficulty);
   let total = 0;
@@ -114,6 +116,16 @@ export function totalRunQuestions(difficulty: Difficulty, autoAdvance: boolean):
     d = nextDifficulty(d);
   }
   return total;
+}
+
+// Total questions a run will ask. With Auto Advance on, that's every stage from
+// the current position in the sequence through the last one; otherwise just
+// this stage. Used to scale the continuous-run timing progression (useScoring).
+function runQuestions(seq: StageStep[], state: SelectorState): number {
+  if (!state.autoAdvance) return getMaxQuestions(state.difficulty);
+  const idx = stageStepIndex(seq, state);
+  if (idx < 0) return totalRunQuestions(state.difficulty, true);
+  return seq.slice(idx).reduce((sum, s) => sum + getMaxQuestions(s.difficulty), 0);
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────────
@@ -238,6 +250,24 @@ export function useSelector(instrument: InstrumentConfig) {
     });
   };
 
+  // Apply a whole stage at once (used by Auto Advance to march through the
+  // ordered curriculum). Every field is set and persisted together so the one
+  // resulting re-render carries the complete next stage.
+  const applyStage = (step: StageStep) => {
+    setSelectedStrings(step.selectedStrings);
+    saveSetting(sKey, step.selectedStrings);
+    setMultiMode(step.multiMode);
+    saveSetting(mKey, step.multiMode);
+    setMode(step.mode);
+    saveSetting('sel_mode', step.mode);
+    setLowerActive(step.lowerActive);
+    saveSetting('sel_lower', step.lowerActive);
+    setUpperActive(step.upperActive);
+    saveSetting('sel_upper', step.upperActive);
+    setDifficulty(step.difficulty);
+    saveSetting('sel_difficulty', step.difficulty);
+  };
+
   // ── Selector state object ──────────────────────────────────────────
 
   const state: SelectorState = {
@@ -249,6 +279,13 @@ export function useSelector(instrument: InstrumentConfig) {
     difficulty,
     autoAdvance,
   };
+
+  // The ordered stage curriculum for this instrument, and the stage Auto
+  // Advance should move into after the current one completes (null at the end
+  // of the sequence, or when the current selection is an off-sequence combo).
+  const stageSequence = useMemo(() => buildStageSequence(instrument), [instrument]);
+  const nextStage = (): StageStep | null => nextStageStep(stageSequence, state);
+  const runQuestionCount = (): number => runQuestions(stageSequence, state);
 
   // ── Derived settings ───────────────────────────────────────────────
 
@@ -296,6 +333,9 @@ export function useSelector(instrument: InstrumentConfig) {
     onFretRangeToggle,
     onDifficultySelect,
     onAutoAdvanceToggle,
+    applyStage,
+    nextStage,
+    runQuestionCount,
     derivedSettings,
     historyKey: () => historyKey(state, instrument),
   };

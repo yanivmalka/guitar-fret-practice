@@ -20,7 +20,7 @@ import { historyForInstrument, fretMasteryMap, noteMasteryMap } from './utils/ma
 import { useAuth } from './hooks/useAuth';
 import { bootstrapUser, reconcileUser, syncedUser, clearSyncedUser } from './utils/sync';
 import { bootstrapSettings, syncedSettingsUser, clearSyncedSettingsUser, cloudPushSettings } from './utils/settingsSync';
-import { useSelector, nextDifficulty, totalRunQuestions } from './hooks/useSelector';
+import { useSelector } from './hooks/useSelector';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useGameEngine } from './hooks/useGameEngine';
 import { useHistory } from './hooks/useHistory';
@@ -40,9 +40,6 @@ import { PROFILE_LABELS, SAMPLES_PER_LABEL, profileVocabId } from './utils/voice
 import { bootstrapVoiceProfile, voiceSyncedUser, clearVoiceSyncedUser } from './utils/voiceSync';
 
 type AnswerMode = 'tap' | 'voice';
-
-// Uppercase display name for the Auto Advance stage-transition banner.
-const STAGE_NAME: Record<string, string> = { dots: 'DOTS', naturals: 'NATURALS', full: 'FULL' };
 
 export default function App() {
   // Which instrument is being drilled. Chosen on first launch (Onboarding) and
@@ -292,31 +289,34 @@ export default function App() {
   );
 
   // Auto Advance: when the current stage/selection is actually completed
-  // (every question answered, not a manual Stop), bump to the next
-  // difficulty and continue straight into it, keeping the same score/
-  // streak/session. selector.onDifficultySelect and setPendingAutoAdvance
-  // are called together in the same tick as the engine's setRunning(false),
-  // so React batches them into one render — the game-end-summary effect
-  // (below) sees pendingAutoAdvance already true at that same render and
-  // skips showing the "round complete" screen for this transition.
+  // (every question answered, not a manual Stop), move into the next stage of
+  // the ordered curriculum (see utils/stageSequence.ts) and continue straight
+  // into it, keeping the same score/streak/session. selector.applyStage and
+  // setPendingAutoAdvance are called together in the same tick as the engine's
+  // setRunning(false), so React batches them into one render — the
+  // game-end-summary effect (below) sees pendingAutoAdvance already true at
+  // that same render and skips showing the "round complete" screen.
   const [pendingAutoAdvance, setPendingAutoAdvance] = useState(false);
   // Data for the brief Auto Advance stage-transition banner (null = not shown).
   const [stageTransition, setStageTransition] = useState<{ name: string; from: number; to: number } | null>(null);
   // Mirror of the *current* stage's question count, read at the moment a stage
-  // completes (before the difficulty bump re-renders) to show "15 → 20".
+  // completes (before the next stage re-renders) to show "15 → 20".
   const stageMaxQRef = useRef(derivedSettings.maxQuestions);
   stageMaxQRef.current = derivedSettings.maxQuestions;
   const autoAdvanceFromRef = useRef(0);
+  // Label of the stage being advanced into, captured for the transition banner.
+  const autoAdvanceLabelRef = useRef('');
   const handleAutoComplete = useCallback(() => {
     if (!selector.state.autoAdvance) return;
-    const next = nextDifficulty(selector.state.difficulty);
-    if (!next) return;
+    const next = selector.nextStage();
+    if (!next) return; // end of the curriculum — let the run finish normally
     autoAdvanceFromRef.current = stageMaxQRef.current;
+    autoAdvanceLabelRef.current = next.label;
     // Continuous run: carry score / streak / timing progression straight into
     // the next stage. runStreak keeps counting across this boundary — the
     // engine's next start() must NOT call scoring.beginRun (only manual Play
     // does), so the single run-length ramp is preserved.
-    selector.onDifficultySelect(next);
+    selector.applyStage(next);
     setPendingAutoAdvance(true);
   }, [selector]);
 
@@ -394,8 +394,8 @@ export default function App() {
   // `pendingAutoAdvance`. `engineStart` (and the objects it closes over) get a
   // fresh identity on every render, so listing it as a dep would re-run the
   // effect mid-hold and restart the timer forever.
-  const autoAdvanceLatestRef = useRef({ engineStart, derivedSettings, difficulty: selector.state.difficulty });
-  autoAdvanceLatestRef.current = { engineStart, derivedSettings, difficulty: selector.state.difficulty };
+  const autoAdvanceLatestRef = useRef({ engineStart, derivedSettings });
+  autoAdvanceLatestRef.current = { engineStart, derivedSettings };
 
   // On an Auto Advance boundary: show the "STAGE COMPLETE / <NAME>" banner,
   // hold briefly, then start the next stage exactly the way it started before —
@@ -407,9 +407,9 @@ export default function App() {
   useLayoutEffect(() => {
     if (!pendingAutoAdvance) return;
     const reduced = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    const { difficulty, derivedSettings: ds } = autoAdvanceLatestRef.current;
+    const { derivedSettings: ds } = autoAdvanceLatestRef.current;
     setStageTransition({
-      name: STAGE_NAME[difficulty] ?? '',
+      name: autoAdvanceLabelRef.current,
       from: autoAdvanceFromRef.current,
       to: ds.maxQuestions,
     });
@@ -716,7 +716,7 @@ export default function App() {
     // (all Auto Advance stages, or just this one).
     scoring.beginRun(
       derivedSettings.time,
-      totalRunQuestions(selector.state.difficulty, selector.state.autoAdvance),
+      selector.runQuestionCount(),
     );
     setGameEnded(false);
     tier3FiredRef.current = false;
