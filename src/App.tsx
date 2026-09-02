@@ -19,6 +19,7 @@ import { loadBest, saveBest, loadAllBests, writeAllBests } from './utils/persona
 import { flattenHistory, fretMasteryMap, noteMasteryMap } from './utils/mastery';
 import { useAuth } from './hooks/useAuth';
 import { bootstrapUser, reconcileUser, syncedUser, clearSyncedUser } from './utils/sync';
+import { bootstrapSettings, syncedSettingsUser, clearSyncedSettingsUser } from './utils/settingsSync';
 import { useSelector, nextDifficulty, totalRunQuestions } from './hooks/useSelector';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useGameEngine } from './hooks/useGameEngine';
@@ -168,6 +169,28 @@ export default function App() {
     })();
     return () => { cancelled = true; };
   }, [auth.user, replaceAllHistory, getAllHistory]);
+
+  // Selector picks + UI preferences: once per sign-in on this device, adopt
+  // the account's settings blob if it's newer than what this device last
+  // synced. Applied by writing localStorage then reloading, so the settings
+  // hooks read the restored values at mount (they only read localStorage
+  // once). A no-op when the cloud blob isn't newer.
+  useEffect(() => {
+    const user = auth.user;
+    if (!user) { clearSyncedSettingsUser(); return; }
+    if (syncedSettingsUser() === user.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { applied } = await bootstrapSettings(user.id);
+        if (cancelled) return;
+        if (applied) window.location.reload();
+      } catch {
+        /* offline or transient error — retried on next sign-in / app start */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [auth.user]);
 
   // Same model, for the personal voice profile: pull/merge/push once per
   // sign-in on this device, then switch the app onto the restored profile.
