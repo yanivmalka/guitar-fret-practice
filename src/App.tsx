@@ -1565,7 +1565,7 @@ export default function App() {
         <button className="refresh-btn" onClick={() => window.location.reload()} title="Refresh">↻</button>
       </div>
 
-      <DebugLogPanel />
+      {auth.admin && <DebugLogPanel />}
 
       {showVoiceCalibration && (
         <VoiceCalibration
