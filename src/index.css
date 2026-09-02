@@ -407,9 +407,15 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
    screen; here they navigate rather than expand, so add a hover/active state
    and keep a comfortable touch target. */
 .settings-menu .sp2-exp {
-  min-height: 44px;
+  min-height: 52px;
+  padding: 14px 14px;
+  font-size: 1rem;
+  border-radius: 10px;
   transition: border-color 0.15s, background 0.15s;
   -webkit-tap-highlight-color: transparent;
+}
+.settings-menu .sp2-chev {
+  font-size: 1.1rem;
 }
 .settings-menu .sp2-exp:hover,
 .settings-menu .sp2-exp:focus-visible {
