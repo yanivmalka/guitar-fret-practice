@@ -52,7 +52,19 @@ let dbPromise: Promise<IDBDatabase> | null = null;
 function openDb(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    // When the store can't be opened at all (IndexedDB disabled, blocked, or a
+    // VersionError after an app rollback) its templates are unreachable, yet
+    // the synchronous `voice.profile.ready` hint in localStorage may still say
+    // "ready" — which would keep `getSpeechEngine()` picking the profile engine
+    // with no templates. Demote the hint on any open-time failure.
+    let req: IDBOpenDBRequest;
+    try {
+      req = indexedDB.open(DB_NAME, DB_VERSION);
+    } catch (e) {
+      try { saveSetting(READY_KEY, false); } catch { /* noop */ }
+      reject(e);
+      return;
+    }
     req.onupgradeneeded = () => {
       const db = req.result;
       // Any pre-v2 store holds incompatible whole-phrase templates — drop it.
@@ -65,7 +77,10 @@ function openDb(): Promise<IDBDatabase> {
       os.createIndex('byProfile', 'profile', { unique: false });
     };
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onerror = () => {
+      try { saveSetting(READY_KEY, false); } catch { /* noop */ }
+      reject(req.error);
+    };
   });
   return dbPromise;
 }
