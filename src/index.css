@@ -267,13 +267,34 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   gap: 10px;
   flex-wrap: wrap;
 }
+.account-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+  border: 1px solid #444;
+}
+.account-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.account-name {
+  font-size: 0.85rem;
+  color: #ddd;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .account-email {
   font-size: 0.75rem;
   color: #999;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
   min-width: 0;
 }
 .account-btn {

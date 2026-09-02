@@ -849,8 +849,23 @@ export default function App() {
         <div className="account-row">
           {auth.user ? (
             <>
-              <span className="account-email">
-                {auth.user.email ?? 'Signed in'}
+              {auth.profile?.avatarUrl && (
+                <img
+                  className="account-avatar"
+                  src={auth.profile.avatarUrl}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  width={32}
+                  height={32}
+                />
+              )}
+              <span className="account-identity">
+                {auth.profile?.name && (
+                  <span className="account-name">{auth.profile.name}</span>
+                )}
+                <span className="account-email">
+                  {auth.profile?.email ?? auth.user.email ?? 'Signed in'}
+                </span>
               </span>
               <button
                 className="account-btn"
