@@ -968,6 +968,7 @@ export default function App() {
       title: '👆 Answer mode',
       blurb: '',
       body: (
+        <>
         <SettingCard
           label="How you answer"
           help="Voice mode asks for microphone permission the first time."
@@ -986,62 +987,55 @@ export default function App() {
             }}
           />
         </SettingCard>
+        {/* Voice engine + personal profile only matter once Voice is the
+            chosen answer mode, so they live nested under it. */}
+        {answerMode === 'voice' && (
+          <>
+          <SettingCard
+            label="Voice engine"
+            help="Auto picks the best available. Personal uses your calibrated profile; General uses the built-in model."
+          >
+            <SegmentedControl
+              ariaLabel="Voice engine"
+              value={voiceEnginePref}
+              options={[
+                { value: 'auto', label: 'Auto' },
+                { value: 'profile', label: 'Personal' },
+                { value: 'general', label: 'General' },
+              ]}
+              onChange={(v) => pickVoiceEngine(v)}
+            />
+          </SettingCard>
+          <SettingCard
+            label="Your voice profile"
+            help="Calibrating your own voice improves recognition when answering by voice."
+          >
+            {voiceProfileStat && voiceProfileStat.count > 0 && (
+              <div className="sp2-hero">
+                <div className="sp2-tile">
+                  <span className="sp2-tile-v">{voiceProfileStat.count}</span>
+                  <span className="sp2-tile-l">recordings</span>
+                </div>
+                <div className="sp2-tile">
+                  <span className="sp2-tile-v" style={{ color: voiceProfileStat.enabled ? '#34e07a' : '#ff9d2e' }}>
+                    {voiceProfileStat.enabled ? 'On' : 'Off'}
+                  </span>
+                  <span className="sp2-tile-l">enabled</span>
+                </div>
+              </div>
+            )}
+            <button
+              className="set-card-btn"
+              onClick={click(() => { setSettingsOpen(false); setShowVoiceCalibration(true); })}
+            >🎙️ {voiceProfileStat && voiceProfileStat.count > 0
+              ? 'Add / review recordings'
+              : 'Calibrate my voice'}</button>
+          </SettingCard>
+          </>
+        )}
+        </>
       ),
     }] : []),
-    {
-      id: 'voiceEngine',
-      title: '🗣️ Voice engine',
-      blurb: '',
-      body: (
-        <SettingCard
-          label="Recognizer"
-          help="Auto picks the best available. Personal uses your calibrated profile; General uses the built-in model."
-        >
-          <SegmentedControl
-            ariaLabel="Voice engine"
-            value={voiceEnginePref}
-            options={[
-              { value: 'auto', label: 'Auto' },
-              { value: 'profile', label: 'Personal' },
-              { value: 'general', label: 'General' },
-            ]}
-            onChange={(v) => pickVoiceEngine(v)}
-          />
-        </SettingCard>
-      ),
-    },
-    {
-      id: 'voiceProfile',
-      title: '🎙️ Voice profile',
-      blurb: '',
-      body: (
-        <SettingCard
-          label="Your voice profile"
-          help="Calibrating your own voice improves recognition when answering by voice."
-        >
-          {voiceProfileStat && voiceProfileStat.count > 0 && (
-            <div className="sp2-hero">
-              <div className="sp2-tile">
-                <span className="sp2-tile-v">{voiceProfileStat.count}</span>
-                <span className="sp2-tile-l">recordings</span>
-              </div>
-              <div className="sp2-tile">
-                <span className="sp2-tile-v" style={{ color: voiceProfileStat.enabled ? '#34e07a' : '#ff9d2e' }}>
-                  {voiceProfileStat.enabled ? 'On' : 'Off'}
-                </span>
-                <span className="sp2-tile-l">enabled</span>
-              </div>
-            </div>
-          )}
-          <button
-            className="set-card-btn"
-            onClick={click(() => { setSettingsOpen(false); setShowVoiceCalibration(true); })}
-          >🎙️ {voiceProfileStat && voiceProfileStat.count > 0
-            ? 'Add / review recordings'
-            : 'Calibrate my voice'}</button>
-        </SettingCard>
-      ),
-    },
     ...(auth.configured ? [{
       id: 'board',
       title: '💬 Feedback board',
