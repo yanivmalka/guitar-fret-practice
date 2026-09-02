@@ -16,12 +16,20 @@ import { supabase } from './supabase';
 import { getSyncUserId } from './sync';
 
 // Exact keys + key prefixes that count as "settings". Everything else in
-// localStorage (onboarding flag, voice-profile bookkeeping, sync flags,
-// tombstones, per-combination history/best) is intentionally left out.
+// localStorage (voice-profile bookkeeping, sync flags, tombstones,
+// per-combination history/best) is intentionally left out.
+//
+// `onboardingDone` and `infoBubbleSeen` are one-way "already seen this"
+// flags: syncing them spares a returning user from re-running onboarding
+// or getting the first-time hint again on every new device. They only ever
+// go false -> true, and a blob that lacks them never clears a local `true`
+// (applyBlob only writes keys the blob actually contains), so a device that
+// has completed onboarding can never be pushed back into it.
 const SYNCED_KEYS = new Set([
   'sel_mode', 'sel_lower', 'sel_upper', 'sel_difficulty', 'sel_autoAdvance',
   'pref_accidental', 'pref_order', 'pref_notation', 'pref_byString',
   'pref_answerMode', 'pref_showScore', 'pref_instrument', 'pref_voiceEngine',
+  'onboardingDone', 'infoBubbleSeen',
 ]);
 const SYNCED_PREFIXES = ['sel_strings_', 'sel_multi_'];
 
