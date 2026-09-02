@@ -5,7 +5,7 @@
 // this module answers "am I improving over time?".
 
 import type { HistoryEntry } from './music';
-import { noteMasteryMap } from './mastery';
+import { noteMasteryMap, instrumentOfKey } from './mastery';
 import { loadAllBests, type PersonalBest } from './personalBest';
 
 export interface DayStat {
@@ -126,8 +126,12 @@ export interface BestSummary {
   best: PersonalBest;
 }
 
-export function allBestsSummary(): BestSummary[] {
+// `instrumentId` (optional) restricts the list to personal bests recorded on
+// that instrument — the `best_<key>` records share the `historyKey` shape, so
+// the same prefix convention identifies the instrument.
+export function allBestsSummary(instrumentId?: string): BestSummary[] {
   return Object.entries(loadAllBests())
+    .filter(([key]) => !instrumentId || instrumentOfKey(key) === instrumentId)
     .map(([key, best]) => ({ key, best }))
     .sort((a, b) => b.best.score - a.best.score);
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { HistoryEntry, AccidentalMode, NotationMode } from '../utils/music';
 import { displayNote } from '../utils/music';
-import { flattenHistory, fretMasteryMap } from '../utils/mastery';
+import { historyForInstrument, fretMasteryMap } from '../utils/mastery';
 import {
   dailyStats, practiceStreak, lifetimeTotals, weakNotes, allBestsSummary,
 } from '../utils/progress';
@@ -204,7 +204,7 @@ function ScopeView({
   const streak = useMemo(() => practiceStreak(days), [days]);
   const totals = useMemo(() => lifetimeTotals(history, days), [history, days]);
   const weak = useMemo(() => weakNotes(history, noteNames), [history, noteNames]);
-  const bests = useMemo(() => allBestsSummary(), [history]);
+  const bests = useMemo(() => allBestsSummary(instrument.id), [history, instrument.id]);
 
   const noteRows = useMemo(() => {
     const m = tallyBuckets(history, h => displayNote(h.note, accidental, notation));
@@ -322,7 +322,10 @@ export default function ProgressPanel({
   const [confirm, setConfirm] = useState<null | Scope>(null);
   const click = (fn: () => void) => () => { playClickSound(); haptic.tap(); fn(); };
 
-  const all = useMemo(() => flattenHistory(allHistory), [allHistory]);
+  const all = useMemo(
+    () => historyForInstrument(allHistory, instrument.id),
+    [allHistory, instrument.id],
+  );
 
   // Persist the current session's personal best, same as the old panel did.
   const currentScore = sessionScore ?? 0;
@@ -360,7 +363,7 @@ export default function ProgressPanel({
       <p className="sp2-scope-cap">
         {scope === 'setup'
           ? (currentHistoryKey ? describeKey(currentHistoryKey) : 'the current settings')
-          : 'across every settings combination'}
+          : `across every ${instrument.label.toLowerCase()} settings combination`}
       </p>
 
       <ScopeView

@@ -16,7 +16,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3 } from './utils/feedback';
 import { loadSetting, saveSetting } from './utils/settings';
 import { loadBest, saveBest, loadAllBests, writeAllBests } from './utils/personalBest';
-import { flattenHistory, fretMasteryMap, noteMasteryMap } from './utils/mastery';
+import { historyForInstrument, fretMasteryMap, noteMasteryMap } from './utils/mastery';
 import { useAuth } from './hooks/useAuth';
 import { bootstrapUser, reconcileUser, syncedUser, clearSyncedUser } from './utils/sync';
 import { bootstrapSettings, syncedSettingsUser, clearSyncedSettingsUser, cloudPushSettings } from './utils/settingsSync';
@@ -273,7 +273,10 @@ export default function App() {
   // equalizer-style overlay on the fretboard/note-circle so the user can see
   // at a glance what they know vs. what needs work, in both directions:
   // frets on the current string, and each note across all strings.
-  const allHistoryEntries = useMemo(() => flattenHistory(historyOps.allHistory), [historyOps.allHistory]);
+  const allHistoryEntries = useMemo(
+    () => historyForInstrument(historyOps.allHistory, instrument.id),
+    [historyOps.allHistory, instrument.id],
+  );
   const fretMastery = useMemo(
     () => fretMasteryMap(allHistoryEntries, safeGuitarString),
     [allHistoryEntries, safeGuitarString],

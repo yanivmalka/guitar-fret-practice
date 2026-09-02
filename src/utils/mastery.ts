@@ -26,6 +26,29 @@ export function flattenHistory(allHistory: Record<string, HistoryEntry[]>): Hist
   return Object.values(allHistory).flat();
 }
 
+// The instrument a stored `historyKey` belongs to. Guitar keys are unprefixed
+// and start with their comma-joined string list ("3,4|0-12|byFret|dots"); any
+// other leading `|`-segment is an explicit instrument id ("bass|3,4|…",
+// "ukulele|…"). Future string instruments work here with no change.
+export function instrumentOfKey(key: string): string {
+  const first = key.split('|', 1)[0];
+  return /^[0-9,]+$/.test(first) ? 'guitar' : first;
+}
+
+// All-time history for one instrument only — the per-combination stats are
+// already instrument-clean (the id prefixes the key), this restores that
+// separation for the flattened all-time roll-ups.
+export function historyForInstrument(
+  allHistory: Record<string, HistoryEntry[]>,
+  instrumentId: string,
+): HistoryEntry[] {
+  const out: HistoryEntry[] = [];
+  for (const [key, rows] of Object.entries(allHistory)) {
+    if (instrumentOfKey(key) === instrumentId) out.push(...rows);
+  }
+  return out;
+}
+
 // Mastery per fret on one string, across all-time history (any settings combo).
 export function fretMasteryMap(entries: HistoryEntry[], guitarString: number): Record<number, MasteryStat> {
   const byFret = new Map<number, HistoryEntry[]>();
