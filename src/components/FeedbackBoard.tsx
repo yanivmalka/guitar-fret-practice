@@ -16,11 +16,14 @@ import {
  *
  * Any signed-in user can post an idea / comment / suggestion and see the list
  * of posts they have written. Admins (a row in public.admins, seeded in
- * migration 0005) instead see every post, with controls to mark one handled or
- * delete it. Guests get a sign-in prompt.
+ * migration 0005) instead get two tabs on the same page — "Write" (the
+ * compose box) and "Inbox" (every user's posts, with a count badge and
+ * handled / delete controls). Guests get a sign-in prompt.
  */
 
 const MAX_LEN = 4000;
+
+type AdminTab = 'write' | 'inbox';
 
 function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-GB', {
@@ -28,6 +31,11 @@ function fmtDate(iso: string): string {
     month: 'short',
     year: 'numeric',
   });
+}
+
+function preview(body: string, max = 140): string {
+  const s = body.trim().replace(/\s+/g, ' ');
+  return s.length > max ? `${s.slice(0, max)}…` : s;
 }
 
 export function FeedbackBoard({
@@ -47,6 +55,15 @@ export function FeedbackBoard({
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+
+  // Admin-only: which of the two tabs is showing. Ignored for regular users,
+  // who see the compose box and their own posts on one scroll.
+  const [adminTab, setAdminTab] = useState<AdminTab>('write');
+  // Admin Inbox: whether the collapsed "Handled" section is expanded.
+  const [showHandled, setShowHandled] = useState(false);
+  // The post an admin has tapped "Delete" on, awaiting confirmation in our
+  // own styled dialog (never the browser's window.confirm).
+  const [pendingDelete, setPendingDelete] = useState<BoardPost | null>(null);
 
   const userId = user?.id ?? null;
 
@@ -124,10 +141,14 @@ export function FeedbackBoard({
     }
   };
 
-  const remove = async (post: BoardPost) => {
-    if (!window.confirm('Delete this post? This can’t be undone.')) return;
+  // Admin delete: hard-deletes the row (RLS: admins only), so it is gone for
+  // every user including the author. Optimistic; a failed write reloads.
+  const confirmRemove = async () => {
+    const post = pendingDelete;
+    if (!post) return;
     playClickSound();
     haptic.tap();
+    setPendingDelete(null);
     setPosts((ps) => ps.filter((p) => p.id !== post.id));
     try {
       await deletePost(post.id);
@@ -157,92 +178,240 @@ export function FeedbackBoard({
     );
   }
 
-  return (
-    <div className="board">
-      <p className="board-intro">
-        {isAdmin
-          ? 'Every post from every user. Mark one handled once you’ve dealt with it, or delete it.'
-          : 'Share a comment, idea, or suggestion. Admins read every post; below you can see the ones you’ve sent.'}
-      </p>
+  const compose = (
+    <div className="board-compose">
+      <textarea
+        className="board-textarea"
+        placeholder="What’s on your mind?"
+        value={draft}
+        maxLength={MAX_LEN}
+        rows={4}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          setSent(false);
+        }}
+      />
+      <div className="board-compose-foot">
+        <span className="board-count">
+          {draft.length}/{MAX_LEN}
+        </span>
+        <button
+          className="set-card-btn set-card-btn-primary board-send"
+          disabled={!draft.trim() || sending}
+          onClick={() => void send()}
+        >
+          {sending ? 'Sending…' : 'Send'}
+        </button>
+      </div>
+      {sent && !error && (
+        <p className="board-thanks">Thanks — your message was sent.</p>
+      )}
+    </div>
+  );
 
-      <div className="board-compose">
-        <textarea
-          className="board-textarea"
-          placeholder="What’s on your mind?"
-          value={draft}
-          maxLength={MAX_LEN}
-          rows={4}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            setSent(false);
-          }}
-        />
-        <div className="board-compose-foot">
-          <span className="board-count">
-            {draft.length}/{MAX_LEN}
-          </span>
+  const renderItem = (post: BoardPost) => (
+    <li
+      key={post.id}
+      className={`board-item${post.handled ? ' board-item-handled' : ''}`}
+    >
+      <div className="board-item-head">
+        <span className="board-item-who">
+          {isAdmin ? post.authorName || post.authorEmail || 'Unknown' : 'You'}
+        </span>
+        <span className="board-item-date">{fmtDate(post.createdAt)}</span>
+      </div>
+      {isAdmin && post.authorEmail && post.authorName && (
+        <span className="board-item-email">{post.authorEmail}</span>
+      )}
+      <p className="board-item-body">{post.body}</p>
+      {post.handled && <span className="board-item-tag">Handled</span>}
+      {isAdmin && (
+        <div className="board-item-actions">
           <button
-            className="set-card-btn set-card-btn-primary board-send"
-            disabled={!draft.trim() || sending}
-            onClick={() => void send()}
+            className="board-action"
+            onClick={() => void toggleHandled(post)}
           >
-            {sending ? 'Sending…' : 'Send'}
+            {post.handled ? 'Mark unhandled' : 'Mark handled'}
+          </button>
+          <button
+            className="board-action board-action-danger"
+            onClick={() => {
+              playClickSound();
+              haptic.tap();
+              setPendingDelete(post);
+            }}
+          >
+            Delete
           </button>
         </div>
-        {sent && !error && (
-          <p className="board-thanks">Thanks — your message was sent.</p>
-        )}
+      )}
+    </li>
+  );
+
+  // Regular user's own posts, all together (the "Handled" tag already marks
+  // the ones an admin has actioned).
+  const myList = loading ? (
+    <p className="board-empty">Loading…</p>
+  ) : posts.length === 0 ? (
+    <p className="board-empty">You haven’t sent anything yet.</p>
+  ) : (
+    <ul className="board-list">{posts.map(renderItem)}</ul>
+  );
+
+  // Regular user: one scroll — compose box, then the posts they've sent.
+  if (!isAdmin) {
+    return (
+      <div className="board">
+        <p className="board-intro">
+          Share a comment, idea, or suggestion. Admins read every post; below
+          you can see the ones you’ve sent.
+        </p>
+        {compose}
+        {error && <p className="board-error">{error}</p>}
+        {myList}
+      </div>
+    );
+  }
+
+  // Admin: the compose box and the incoming posts are two separate tabs on
+  // the same page. The Inbox tab carries a badge with the post count, and
+  // splits into an "open" list plus a collapsed "Handled" section.
+  const open = posts.filter((p) => !p.handled);
+  const done = posts.filter((p) => p.handled);
+  const unhandled = open.length;
+  return (
+    <div className="board">
+      <div className="board-tabs" role="tablist" aria-label="Feedback board">
+        <button
+          role="tab"
+          aria-selected={adminTab === 'write'}
+          className={`board-tab${adminTab === 'write' ? ' board-tab-on' : ''}`}
+          onClick={() => {
+            playClickSound();
+            haptic.tap();
+            setAdminTab('write');
+          }}
+        >
+          Write
+        </button>
+        <button
+          role="tab"
+          aria-selected={adminTab === 'inbox'}
+          className={`board-tab${adminTab === 'inbox' ? ' board-tab-on' : ''}`}
+          onClick={() => {
+            playClickSound();
+            haptic.tap();
+            setAdminTab('inbox');
+          }}
+        >
+          Inbox
+          <span
+            className={`board-tab-badge${unhandled > 0 ? ' board-tab-badge-alert' : ''}`}
+          >
+            {posts.length}
+          </span>
+        </button>
       </div>
 
       {error && <p className="board-error">{error}</p>}
 
-      {loading ? (
-        <p className="board-empty">Loading…</p>
-      ) : posts.length === 0 ? (
-        <p className="board-empty">
-          {isAdmin ? 'No posts yet.' : 'You haven’t sent anything yet.'}
-        </p>
+      {adminTab === 'write' ? (
+        <>
+          <p className="board-intro">
+            Post a comment, idea, or suggestion of your own.
+          </p>
+          {compose}
+        </>
       ) : (
-        <ul className="board-list">
-          {posts.map((post) => (
-            <li
-              key={post.id}
-              className={`board-item${post.handled ? ' board-item-handled' : ''}`}
-            >
-              <div className="board-item-head">
-                <span className="board-item-who">
-                  {isAdmin
-                    ? post.authorName || post.authorEmail || 'Unknown'
-                    : 'You'}
-                </span>
-                <span className="board-item-date">{fmtDate(post.createdAt)}</span>
-              </div>
-              {isAdmin && post.authorEmail && post.authorName && (
-                <span className="board-item-email">{post.authorEmail}</span>
+        <>
+          <p className="board-intro">
+            Every post from every user
+            {unhandled > 0 ? ` — ${unhandled} still to handle` : ''}. Mark one
+            handled once you’ve dealt with it, or delete it.
+          </p>
+
+          {loading ? (
+            <p className="board-empty">Loading…</p>
+          ) : posts.length === 0 ? (
+            <p className="board-empty">No posts yet.</p>
+          ) : (
+            <>
+              {open.length > 0 ? (
+                <ul className="board-list">{open.map(renderItem)}</ul>
+              ) : (
+                <p className="board-empty">Nothing open — all caught up.</p>
               )}
-              <p className="board-item-body">{post.body}</p>
-              {post.handled && (
-                <span className="board-item-tag">Handled</span>
-              )}
-              {isAdmin && (
-                <div className="board-item-actions">
+
+              {done.length > 0 && (
+                <div className="board-handled">
                   <button
-                    className="board-action"
-                    onClick={() => void toggleHandled(post)}
+                    className="board-handled-toggle"
+                    aria-expanded={showHandled}
+                    onClick={() => {
+                      playClickSound();
+                      haptic.tap();
+                      setShowHandled((v) => !v);
+                    }}
                   >
-                    {post.handled ? 'Mark unhandled' : 'Mark handled'}
+                    <span>Handled ({done.length})</span>
+                    <span className="board-handled-chev" aria-hidden="true">
+                      {showHandled ? '▾' : '▸'}
+                    </span>
                   </button>
-                  <button
-                    className="board-action board-action-danger"
-                    onClick={() => void remove(post)}
-                  >
-                    Delete
-                  </button>
+                  {showHandled && (
+                    <ul className="board-list board-list-handled">
+                      {done.map(renderItem)}
+                    </ul>
+                  )}
                 </div>
               )}
-            </li>
-          ))}
-        </ul>
+            </>
+          )}
+        </>
+      )}
+
+      {pendingDelete && (
+        <div
+          className="board-confirm-overlay"
+          onClick={() => setPendingDelete(null)}
+        >
+          <div
+            className="board-confirm-card"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Delete post"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="board-confirm-icon" aria-hidden="true">🗑️</div>
+            <div className="board-confirm-title">Delete this post?</div>
+            <p className="board-confirm-quote">“{preview(pendingDelete.body)}”</p>
+            <p className="board-confirm-note">
+              This permanently removes it for everyone, including{' '}
+              {pendingDelete.authorName ||
+                pendingDelete.authorEmail ||
+                'the author'}
+              . It can’t be undone.
+            </p>
+            <div className="board-confirm-actions">
+              <button
+                className="board-confirm-btn board-confirm-cancel"
+                onClick={() => {
+                  playClickSound();
+                  haptic.tap();
+                  setPendingDelete(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="board-confirm-btn board-confirm-delete"
+                onClick={() => void confirmRemove()}
+              >
+                Delete for everyone
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
