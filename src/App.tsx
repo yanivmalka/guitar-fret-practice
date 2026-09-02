@@ -364,7 +364,6 @@ export default function App() {
     if (!pendingAutoAdvance) return;
     const reduced = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const { difficulty, derivedSettings: ds } = autoAdvanceLatestRef.current;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setStageTransition({
       name: STAGE_NAME[difficulty] ?? '',
       from: autoAdvanceFromRef.current,

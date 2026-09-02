@@ -93,7 +93,7 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
     // Target angle: -startIndex * degPerStep (rotate so startIndex note is at top)
     const target = -nextIdx * degPerStep;
     animateTo(target);
-  }, [startIndex, byString]);
+  }, [startIndex, byString, degPerStep]);
 
   const isNoteInRange = (note: string) => {
     for (const an of activeNotes) { if (notesMatch(an, note)) return true; }

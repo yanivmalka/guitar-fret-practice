@@ -460,7 +460,7 @@ export function useGameEngine(
     };
     scheduleAdvance(waitForSound, 800);
     return false;
-  }, [paused, currentFret, accidental, order, wholeToneOnly, addEntry, next, onWrong, scoreCorrect, scheduleAdvance, advanceAfterSound]);
+  }, [paused, currentFret, accidental, order, addEntry, next, onWrong, scoreCorrect, scheduleAdvance, advanceAfterSound]);
 
   // ── CONTROLS ─────────────────────────────────────────────────
   const start = useCallback((maxQ: number, currentTime: number, isByNote: boolean) => {
