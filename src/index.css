@@ -1,5 +1,9 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Single dark palette — opt out of mobile browsers' automatic dark-mode
+   re-tinting (see the matching <meta name="color-scheme"> in index.html). */
+:root { color-scheme: dark; }
+
 html, body {
   overflow: hidden;
   overscroll-behavior: none;
