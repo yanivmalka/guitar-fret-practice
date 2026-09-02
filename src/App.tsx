@@ -930,7 +930,6 @@ export default function App() {
       title: '🎯 Score',
       blurb: '',
       body: (
-        <>
         <SettingCard
           label="Score & celebrations"
           help={<>Live score, streak multiplier and celebrations are shown. <em>Every answer is still recorded to your stats and personal bests either way.</em></>}
@@ -945,6 +944,15 @@ export default function App() {
             onChange={(v) => { const on = v === 'on'; setShowScore(on); saveSetting('pref_showScore', on); }}
           />
         </SettingCard>
+      ),
+    },
+    {
+      // Lives next to "Stats & progress", not under "Score" — it only governs
+      // whether the tracked accuracy is *drawn on the fretboard*, nothing scoring.
+      id: 'fretboard-mastery',
+      title: '📈 Mastery on the fretboard',
+      blurb: '',
+      body: (
         <SettingCard
           label="Mastery on the fretboard"
           help={<>The per-note / per-fret accuracy bars drawn over the circle and grid while stopped or paused. <em>Mastery keeps being tracked and shows on the Stats screen either way.</em></>}
@@ -959,7 +967,6 @@ export default function App() {
             onChange={(v) => { const on = v === 'on'; setShowMastery(on); saveSetting('pref_showMastery', on); }}
           />
         </SettingCard>
-        </>
       ),
     },
     ...(hasAnyHistory ? [{
