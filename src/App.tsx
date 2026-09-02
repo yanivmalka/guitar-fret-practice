@@ -487,6 +487,11 @@ export default function App() {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [gameEnded, setGameEnded] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  // True only while the first-time auto-popped hint is showing (a brand-new
+  // player who has never seen it). It changes the dismiss rule to "any click
+  // anywhere closes it"; existing users never enter this state and keep the
+  // manual "?" open/close/position behavior untouched.
+  const [infoAutoShown, setInfoAutoShown] = useState(false);
   const gameRowRef = useRef<HTMLDivElement>(null);
   const playBtnRef = useRef<HTMLButtonElement>(null);
   // Guards the Tier 3 (new personal best) celebration so it fires at most once
@@ -520,10 +525,14 @@ export default function App() {
   // "?" affordance pinned to the active mode card: opens the setup-summary
   // bubble and keeps it open until the user taps the "?" again or clicks
   // anywhere else on the page (no auto-dismiss timer).
-  const openInfo = () => setShowInfo(v => !v);
+  // Any interaction with the "?" itself drops the first-time auto-shown state,
+  // so from then on the bubble behaves the normal (manual) way for this user.
+  const openInfo = () => { setInfoAutoShown(false); setShowInfo(v => !v); };
   useEffect(() => {
     if (!showInfo) return;
     const onPointerDown = (e: PointerEvent) => {
+      // First-time auto-popped hint: a click anywhere collapses it back.
+      if (infoAutoShown) { setInfoAutoShown(false); setShowInfo(false); return; }
       if (!(e.target as Element | null)?.closest('.mode-card-info')) setShowInfo(false);
     };
     // Defer so the click that opened the bubble doesn't immediately close it.
@@ -534,10 +543,26 @@ export default function App() {
       window.clearTimeout(id);
       document.removeEventListener('pointerdown', onPointerDown);
     };
-  }, [showInfo]);
+  }, [showInfo, infoAutoShown]);
 
   const hasHistory = historyOps.getEntriesForKey(histKey).length > 0;
   const hasAnyHistory = hasHistory || Object.values(historyOps.allHistory).some(list => list.length > 0);
+
+  // First-time hint: a brand-new player (no history at all, hint never seen)
+  // gets the setup-summary bubble popped open automatically the first time they
+  // reach the selector. It collapses on the first click anywhere and never
+  // auto-opens again. Runs once on mount.
+  const firstHintRef = useRef(false);
+  useEffect(() => {
+    if (firstHintRef.current) return;
+    firstHintRef.current = true;
+    if (loadSetting<boolean>('infoBubbleSeen', false)) return;
+    saveSetting('infoBubbleSeen', true);
+    if (hasAnyHistory) return;
+    setShowInfo(true);
+    setInfoAutoShown(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // While actively playing the game stays clean and focused — the hamburger
   // (and the stats shortcut) are only offered when stopped or paused.
