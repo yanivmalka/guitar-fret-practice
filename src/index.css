@@ -1888,6 +1888,12 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   color: #9a9ab8;
 }
 .mic-btn-ghost:hover { color: #ccc; border-color: #444; }
+.mic-btn-danger {
+  background: #b3261e;
+  border: none;
+  color: #fff;
+}
+.mic-btn-danger:hover { background: #cc3a30; }
 @keyframes mic-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes mic-pop {
   from { transform: scale(0.94) translateY(6px); opacity: 0; }

@@ -81,6 +81,9 @@ export default function StatsPanel({ history, maxTime: _maxTime, accidental, not
   const [topTab, setTopTab] = useState<TopTab>('score');
   const [tab, setTab] = useState<MainTab>('notes');
   const [filter, setFilter] = useState<Filter>('all');
+  // "Clear History" wipes every settings combination and the all-time
+  // mastery bars, so it goes through a confirmation step first.
+  const [confirmClear, setConfirmClear] = useState(false);
 
   // Same click feedback wrapper used across the app (sound + haptic).
   const click = (fn: () => void) => () => { playClickSound(); haptic.tap(); fn(); };
@@ -187,7 +190,7 @@ export default function StatsPanel({ history, maxTime: _maxTime, accidental, not
       {/* Clear history + accuracy header */}
       <div className="stats-header-row">
         <span className="score">{accuracy}% <span className="score-detail">({correct}/{total})</span></span>
-        {onClear && <button className="stats-clear-history" onClick={click(onClear)}>Clear History ✕</button>}
+        {onClear && <button className="stats-clear-history" onClick={click(() => setConfirmClear(true))}>Clear History ✕</button>}
       </div>
 
       {topTab === 'score' && (
@@ -297,6 +300,34 @@ export default function StatsPanel({ history, maxTime: _maxTime, accidental, not
             </>
           )}
         </>
+      )}
+
+      {confirmClear && (
+        <div className="mic-overlay" onClick={click(() => setConfirmClear(false))}>
+          <div className="mic-card" onClick={e => e.stopPropagation()}>
+            <div className="mic-card-title">Clear all stats?</div>
+            <p className="mic-card-body">
+              This permanently erases your entire practice history and resets the
+              all-time mastery bars for every note, string and settings
+              combination. Your personal bests are kept. <strong>This can't be
+              undone.</strong>
+            </p>
+            <div className="mic-card-actions">
+              <button
+                className="mic-btn mic-btn-danger"
+                onClick={click(() => { setConfirmClear(false); onClear?.(); })}
+              >
+                Delete anyway
+              </button>
+              <button
+                className="mic-btn mic-btn-ghost"
+                onClick={click(() => setConfirmClear(false))}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
