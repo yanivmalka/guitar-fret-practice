@@ -1299,7 +1299,7 @@ export default function App() {
               foundFrets={gameActive ? foundFrets : []}
               onSelect={selectFret}
               masteryByFret={fretMastery}
-              showMastery={!(isPlaying && !answered)}
+              showMastery={!gameActive}
             />
           ) : (
             <NoteCircle
@@ -1318,7 +1318,7 @@ export default function App() {
               accidental={accidental}
               notation={notation}
               masteryByNote={noteMastery}
-              showMastery={!(isPlaying && !answered)}
+              showMastery={!gameActive}
             />
           )
         )}
