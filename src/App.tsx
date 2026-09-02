@@ -1021,13 +1021,17 @@ export default function App() {
       return (
         <div className="app settings-page">
           <div className="sp2 settings-page-inner">
-            <div className="sp2-head">
+            <div className="sp2-head settings-page-head">
               <button className="sp2-back" onClick={click(() => setDrawerSection(null))}>‹ Back</button>
-              <span className="sp2-title">{activeSection.title}</span>
             </div>
-            {activeSection.blurb && (
-              <p className="settings-page-blurb">{activeSection.blurb}</p>
-            )}
+            <header className="settings-page-hero">
+              <span className="settings-page-emoji" aria-hidden="true">
+                {activeSection.title.split(' ')[0]}
+              </span>
+              <h2 className="settings-page-name">
+                {activeSection.title.slice(activeSection.title.indexOf(' ') + 1)}
+              </h2>
+            </header>
             <div className="settings-page-body">{activeSection.body}</div>
           </div>
         </div>

@@ -173,21 +173,99 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 /* Hamburger settings: each section opens as its own full page, styled to
    match the Stats & progress screen (sp2) rather than a cramped side sheet. */
 .settings-page {
-  padding-top: 18px;
+  padding-top: 22px;
 }
 .settings-page-inner {
   text-align: left;
 }
-.settings-page-blurb {
-  margin: 2px 0 4px;
-  color: #9a9ab8;
-  font-size: 0.8rem;
-  line-height: 1.55;
+/* Back button on its own line — no divider under it; the divider belongs
+   under the page hero below. */
+.settings-page-head {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.settings-page .sp2-back {
+  font-size: 0.95rem;
+}
+/* Page hero: the section's emoji as a large glyph, its name beneath, then a
+   hairline — gives the single-card pages a proper head instead of a tiny
+   title floating over empty space. */
+.settings-page-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 16px 0 16px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #2a2a4a;
+}
+.settings-page-emoji {
+  font-size: 2.4rem;
+  line-height: 1;
+}
+.settings-page-name {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #f0f0f8;
+  letter-spacing: -0.01em;
 }
 .settings-page-body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+}
+
+/* Roomier card internals on the settings pages — the shared sp2 metrics are
+   tuned for a dense stats screen; a settings page shows one control, so it
+   gets more air and a larger touch/type scale. */
+.settings-page .set-card {
+  padding: 18px;
+  gap: 14px;
+  border-radius: 14px;
+}
+.settings-page .set-card-k {
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  color: #b6b6cc;
+}
+.settings-page .set-card-help {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #b6b6cc;
+}
+.settings-page .set-seg {
+  padding: 4px;
+}
+.settings-page .set-seg-btn {
+  padding: 14px 0;
+  font-size: 1.05rem;
+}
+.settings-page .set-card-btn {
+  padding: 14px 18px;
+  font-size: 1rem;
+}
+.settings-page .sp2-tile {
+  padding: 16px 6px;
+}
+.settings-page .sp2-tile-v {
+  font-size: 1.35rem;
+}
+.settings-page .sp2-tile-l {
+  font-size: 0.72rem;
+}
+.settings-page .account-name {
+  font-size: 1.05rem;
+}
+.settings-page .account-email {
+  font-size: 0.9rem;
+}
+.settings-page .account-member-since {
+  font-size: 0.82rem;
+  margin-top: 3px;
+}
+.settings-page .set-card-danger {
+  font-size: 0.85rem;
 }
 
 /* Roomier, easier-to-hit controls on the settings pages. */
