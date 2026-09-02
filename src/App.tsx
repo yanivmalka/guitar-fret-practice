@@ -866,6 +866,13 @@ export default function App() {
                 <span className="account-email">
                   {auth.profile?.email ?? auth.user.email ?? 'Signed in'}
                 </span>
+                {auth.user.created_at && (
+                  <span className="account-member-since">
+                    חבר מ־{new Date(auth.user.created_at).toLocaleDateString('he-IL', {
+                      day: 'numeric', month: 'long', year: 'numeric',
+                    })}
+                  </span>
+                )}
               </span>
               <button
                 className="account-btn"

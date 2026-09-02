@@ -297,6 +297,14 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   white-space: nowrap;
   min-width: 0;
 }
+.account-member-since {
+  font-size: 0.7rem;
+  color: #777;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
 .account-btn {
   display: inline-flex;
   align-items: center;
