@@ -19,9 +19,7 @@ import type {
   SpeechEngineKind,
   MicPermissionState,
 } from './speech';
-import {
-  captureUtterance, segmentUtterance, type MicSession,
-} from './utteranceCapture';
+import { captureUtterance, segmentUtterance } from './utteranceCapture';
 import { computeMfcc, framesFromJson, framesToJson } from './mfcc';
 import { knnVote, matchTemplates, type Template } from './dtw';
 import {
@@ -157,11 +155,6 @@ export class TemplateSpeechEngine implements SpeechEngine {
     letter: { label: string; frames: Float32Array[] } | null;
     accidental: { label: string; frames: Float32Array[] } | null;
   } | null = null;
-  // A microphone kept open for the length of one question and reused across
-  // every keep-alive listen turn, then released a few seconds after the last
-  // turn ends (see `scheduleMicRelease`).
-  private mic: MicSession | null = null;
-  private micIdleTimer: number | null = null;
 
   constructor(cfg: TemplateEngineConfig) {
     this.cfg = cfg;
@@ -216,7 +209,6 @@ export class TemplateSpeechEngine implements SpeechEngine {
     this.lastVocabId = vocabId;
 
     this.stop();
-    this.clearMicIdle();
     const myTurn = ++this.turn;
     const abort = new AbortController();
     this.abort = abort;
@@ -499,38 +491,16 @@ export class TemplateSpeechEngine implements SpeechEngine {
     }
   }
 
-  private clearMicIdle(): void {
-    if (this.micIdleTimer !== null) {
-      clearTimeout(this.micIdleTimer);
-      this.micIdleTimer = null;
-    }
-  }
-
-  /** Release the shared microphone a few seconds after the last listen turn. */
-  private scheduleMicRelease(): void {
-    this.clearMicIdle();
-    if (!this.mic || typeof window === 'undefined') return;
-    this.micIdleTimer = window.setTimeout(() => {
-      this.micIdleTimer = null;
-      this.mic?.close();
-      this.mic = null;
-    }, 4000);
-  }
-
   stop(): void {
     this.turn++;
     if (this.abort) {
       this.abort.abort();
       this.abort = null;
     }
-    this.scheduleMicRelease();
   }
 
   destroy(): void {
     this.stop();
-    this.clearMicIdle();
-    this.mic?.close();
-    this.mic = null;
     this.cache = null;
   }
 }
