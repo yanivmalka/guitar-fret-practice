@@ -1054,10 +1054,10 @@ export default function App() {
       blurb: '',
       body: (
         <LeaderboardPanel
-          instrument={instrument}
+          activeInstrumentId={instrument.id}
+          allHistory={historyOps.allHistory}
           user={auth.user}
           profile={auth.profile}
-          myStats={computeMyStats(allHistoryEntries)}
           optedOut={leaderboardOptOut}
           onOptOutChange={(next) => {
             setLeaderboardOptOut(next);

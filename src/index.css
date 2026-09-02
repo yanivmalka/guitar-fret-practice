@@ -2812,40 +2812,133 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 .board-confirm-delete { background: #ff5470; border-color: #ff5470; color: #2a0410; }
 .board-confirm-delete:hover, .board-confirm-delete:focus-visible { background: #ff3355; border-color: #ff3355; }
 
-/* ── Leaderboard (reuses the .board shell for intro / empty / error) ───── */
+/* ── Leaderboard ───────────────────────────────────────────────────────────
+   Lives inside a .settings-page drawer sub-page (the wrapper draws the
+   ‹ Back row and the 🏆 / "Leaderboard" hero); .lb-panel is the body. It
+   still borrows .board for the loading / empty / error lines, and the
+   Stats-screen .sp2-scope / .sp2-exp vocabulary for the toggles + explainer. */
+.lb-panel { display: flex; flex-direction: column; gap: 16px; }
+.lb-subtitle { margin: 0; font-size: 0.82rem; line-height: 1.5; color: #9a9ab8; }
 
-/* The signed-in viewer's own summary + participation toggle. */
-.lb-me {
-  display: flex; flex-direction: column; gap: 6px;
-  padding: 12px 14px; border: 1px solid #2a2a4a; border-radius: 12px;
-  background: #16162e;
+.lb-toggles { display: flex; gap: 8px; }
+.lb-scope { flex: 1; }
+.lb-scope-soon { opacity: 0.5; cursor: default; }
+
+/* Your standing — a cyan-outlined summary card, or the guest sign-in card. */
+.lb-standing {
+  display: flex; flex-direction: column; gap: 13px;
+  padding: 16px; border: 1px solid #00e5ff; border-radius: 14px; background: #15152a;
 }
-.lb-me-row { display: flex; align-items: baseline; gap: 10px; }
-.lb-me-rank { font-size: 0.9rem; font-weight: 800; color: #00e5ff; min-width: 2.4em; }
-.lb-me-name { flex: 1; font-size: 0.86rem; font-weight: 700; color: #f0f0f8; }
-.lb-me-xp { font-size: 0.86rem; font-weight: 800; color: #f0f0f8; }
-.lb-me-sub { font-size: 0.72rem; color: #8a8aa6; }
-.lb-me .board-action { align-self: flex-start; margin-top: 4px; }
+.lb-standing-guest { border-color: #2a2a4a; padding: 18px 16px; }
+.lb-standing-k {
+  font-size: 0.66rem; font-weight: 800; letter-spacing: 0.07em;
+  text-transform: uppercase; color: #7fe9f6;
+}
+.lb-standing-guest .lb-standing-k { color: #b6b6cc; }
+.lb-guest-copy { margin: 0; font-size: 0.9rem; line-height: 1.6; color: #b6b6cc; }
+.lb-standing-guest .set-card-btn { align-self: stretch; }
 
+.lb-standing-row { display: flex; align-items: center; gap: 12px; }
+.lb-rankpill {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 46px; height: 46px; flex-shrink: 0;
+  border-radius: 12px; background: #10233a; border: 1px solid #00e5ff;
+}
+.lb-rankpill-n { font-size: 1.05rem; font-weight: 800; color: #00e5ff; line-height: 1; }
+.lb-rankpill-l { font-size: 0.5rem; color: #7fe9f6; letter-spacing: 0.05em; }
+.lb-standing-id { flex: 1; min-width: 0; }
+.lb-standing-name { font-size: 1rem; font-weight: 700; color: #f0f0f8; }
+.lb-standing-sub { font-size: 0.72rem; color: #9a9ab8; margin-top: 2px; }
+.lb-standing-xp { text-align: right; flex-shrink: 0; }
+.lb-standing-xp-n { font-size: 1.15rem; font-weight: 800; color: #f0f0f8; }
+.lb-standing-xp-l { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.08em; color: #6f6f8c; }
+.lb-standing-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-top: 11px; border-top: 1px solid #2a2a4a;
+  font-size: 0.8rem; color: #b6b6cc;
+}
+
+/* Participation switch (visible on / hidden from the board). */
+.lb-switch {
+  width: 42px; height: 24px; flex-shrink: 0; padding: 0;
+  border: none; border-radius: 999px; background: #2a2a4a; cursor: pointer;
+  position: relative; -webkit-tap-highlight-color: transparent;
+}
+.lb-switch-on { background: #00e5ff; }
+.lb-switch:disabled { opacity: 0.6; cursor: default; }
+.lb-switch-knob {
+  position: absolute; top: 2px; left: 2px; width: 20px; height: 20px;
+  border-radius: 50%; background: #9a9ab8; transition: left 0.15s, background 0.15s;
+}
+.lb-switch-on .lb-switch-knob { left: 20px; background: #06222a; }
+
+/* Podium — top three, silver / gold / bronze, drawn in that visual order. */
+.lb-podium { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-items: end; }
+.lb-pod {
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  padding: 14px 8px 12px; border: 1px solid #2a2a4a; border-radius: 12px; background: #15152a;
+}
+.lb-pod-1 { padding-top: 20px; padding-bottom: 14px; border-color: #ffd700; background: #1c1a10; }
+.lb-pod-2 { border-color: #33384a; }
+.lb-pod-3 { border-color: #3a2c1c; }
+.lb-pod-me { outline: 1px solid #00e5ff; outline-offset: 1px; }
+.lb-pod-av {
+  width: 44px; height: 44px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.95rem; font-weight: 700; color: #0c0c18;
+}
+.lb-pod-1 .lb-pod-av { width: 52px; height: 52px; font-size: 1.05rem; }
+.lb-pod-medal { display: flex; align-items: center; gap: 4px; font-size: 0.78rem; font-weight: 800; }
+.lb-pod-1 .lb-pod-medal { font-size: 0.82rem; }
+.lb-pod-name {
+  max-width: 100%; font-size: 0.82rem; font-weight: 700; color: #f0f0f8;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lb-pod-1 .lb-pod-name { font-size: 0.86rem; font-weight: 800; }
+.lb-pod-xp { font-size: 0.82rem; font-weight: 800; color: #f0f0f8; }
+.lb-pod-1 .lb-pod-xp { font-size: 0.92rem; color: #ffe680; }
+.lb-pod-acc { font-size: 0.62rem; color: #6f6f8c; }
+.lb-pod-1 .lb-pod-acc { color: #8a8266; }
+
+/* The ranked list, from #4 down (or the whole board when it's under 3). */
 .lb-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .lb-item {
   display: flex; align-items: center; gap: 12px;
-  padding: 9px 14px; border: 1px solid #2a2a4a; border-radius: 10px;
-  background: #14142a;
+  padding: 10px 12px; min-height: 52px;
+  border: 1px solid #2a2a4a; border-radius: 10px; background: #14142a;
 }
 .lb-item-me { border-color: #00e5ff; background: #10233a; }
-.lb-rank {
-  min-width: 1.8em; text-align: center; flex-shrink: 0;
-  font-size: 0.82rem; font-weight: 800; color: #6f6f8c;
+.lb-rk {
+  min-width: 1.6em; text-align: center; flex-shrink: 0;
+  font-size: 0.86rem; font-weight: 800; color: #6f6f8c;
 }
-.lb-rank-1 { color: #ffd700; }
-.lb-rank-2 { color: #c8d0e0; }
-.lb-rank-3 { color: #cd7f32; }
+.lb-item-me .lb-rk { color: #00e5ff; }
+.lb-av {
+  width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.78rem; font-weight: 700; color: #cfd0e6;
+  background: #23233f; border: 1px solid #34345a;
+}
+.lb-item-me .lb-av { background: #10233a; border-color: #00e5ff; color: #7fe9f6; }
 .lb-name {
-  flex: 1; min-width: 0; font-size: 0.86rem; color: #e6e6f2;
+  flex: 1; min-width: 0; font-size: 0.92rem; color: #e6e6f2;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .lb-item-me .lb-name { font-weight: 700; color: #f0f0f8; }
-.lb-stat { display: flex; align-items: baseline; gap: 10px; flex-shrink: 0; }
-.lb-xp { font-size: 0.84rem; font-weight: 800; color: #f0f0f8; }
-.lb-acc { font-size: 0.7rem; color: #6f6f8c; }
+.lb-you { font-weight: 600; color: #7fe9f6; }
+.lb-stat { text-align: right; flex-shrink: 0; }
+.lb-xp { font-size: 0.92rem; font-weight: 800; color: #f0f0f8; }
+.lb-acc { display: block; font-size: 0.66rem; color: #6f6f8c; margin-top: 1px; }
+.lb-item-me .lb-acc { color: #7f9fb5; }
+
+/* Empty board + "how is XP counted?" explainer. */
+.lb-empty {
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px;
+  padding: 40px 22px; border: 1px solid #2a2a4a; border-radius: 14px; background: #15152a;
+}
+.lb-empty-title { font-size: 1rem; font-weight: 800; color: #f0f0f8; }
+.lb-empty-copy { margin: 0; font-size: 0.85rem; line-height: 1.6; color: #9a9ab8; }
+
+.lb-xpexp { display: flex; flex-direction: column; gap: 8px; }
+.lb-xpexp .sp2-exp { width: 100%; }
+.lb-xpexp-body { margin: 0; padding: 0 4px; font-size: 0.76rem; line-height: 1.6; color: #9a9ab8; }
