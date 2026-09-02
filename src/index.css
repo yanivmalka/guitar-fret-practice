@@ -134,20 +134,12 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
 }
-.settings-back {
-  align-self: flex-start;
-  padding: 8px 12px 8px 8px;
-  border: none;
-  background: none;
-  color: #0ff;
-  font-size: 0.95rem;
-  cursor: pointer;
+/* The drawer's Back button sits inside a .sp2-head row and reuses .sp2-back /
+   .sp2-title so the drawer header matches every settings sub-page. */
+.settings-menu .sp2-back {
+  align-self: center;
+  padding: 4px 6px 4px 0;
   -webkit-tap-highlight-color: transparent;
-}
-.settings-menu-title {
-  margin: 0 0 6px;
-  font-size: 1.15rem;
-  color: #eee;
 }
 
 .burger-btn {
@@ -228,39 +220,124 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   font-size: 0.9rem;
 }
 
+/* ── Setting card + segmented pill ──────────────────────────────
+   The hamburger sub-pages are built from these, sharing the Stats &
+   progress (sp2) vocabulary: #15152a card surface, #2a2a4a hairline,
+   cyan pill. Scoped to .settings-page so the in-game .order-chip
+   (Circle-Order buttons in SelectorPanel) is untouched. */
+.set-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: #15152a;
+  border: 1px solid #2a2a4a;
+  border-radius: 12px;
+  text-align: left;
+}
+.set-card-k {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #9a9ab8;
+}
+.set-card-help {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.55;
+  color: #9a9ab8;
+}
+.set-card-help em {
+  font-style: normal;
+  font-weight: 700;
+  color: #00e5ff;
+}
+
+.set-seg {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  background: #1c1c38;
+  border-radius: 999px;
+}
+.set-seg-btn {
+  flex: 1;
+  padding: 10px 0;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  background: none;
+  color: #9a9ab8;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  transition: background 0.15s, color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.set-seg-btn.set-seg-on {
+  background: #00e5ff;
+  color: #06222a;
+}
+
+.set-card-btn {
+  align-self: stretch;
+  padding: 11px 16px;
+  border: 1px solid #2a2a4a;
+  border-radius: 12px;
+  background: #1c1c38;
+  color: #f0f0f8;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+.set-card-btn-primary {
+  background: #00e5ff;
+  color: #06222a;
+  border-color: transparent;
+}
+.set-card-danger {
+  align-self: center;
+  margin-top: 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #ff5470;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Account identity block sits inside a .set-card now, so it no longer
+   needs the standalone row's top border / column layout. */
+.set-card .account-user { gap: 11px; }
+
 /* Full-page list of section titles. */
 .settings-menu {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 4px;
+  gap: 8px;
 }
-.settings-menu-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  padding: 16px;
-  border: 1px solid #2a2a4a;
-  border-radius: 12px;
-  background: #15152a;
-  color: #f0f0f8;
-  font-size: 0.95rem;
-  text-align: start;
-  cursor: pointer;
+/* Section rows use the exact .sp2-exp treatment from the Stats & progress
+   screen; here they navigate rather than expand, so add a hover/active state
+   and keep a comfortable touch target. */
+.settings-menu .sp2-exp {
+  min-height: 44px;
   transition: border-color 0.15s, background 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
-.settings-menu-item:hover,
-.settings-menu-item:focus-visible {
+.settings-menu .sp2-exp:hover,
+.settings-menu .sp2-exp:focus-visible {
   border-color: #00e5ff;
   background: #1c1c38;
-}
-.settings-menu-item-chevron {
-  color: #00e5ff;
-  font-size: 1.3rem;
-  line-height: 1;
+  color: #f0f0f8;
 }
 
 /* Account (Google sign-in / sign-out) row at the bottom of the settings panel. */

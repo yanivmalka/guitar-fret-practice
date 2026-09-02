@@ -4,6 +4,7 @@ import NoteCircle from './components/NoteCircle';
 import FretGrid from './components/FretGrid';
 import SelectorPanel from './components/SelectorPanel';
 import ProgressPanel from './components/ProgressPanel';
+import { SettingCard, SegmentedControl } from './components/SettingCard';
 import Onboarding from './components/Onboarding';
 import SpeedBar from './components/SpeedBar';
 import AnimatedScore from './components/AnimatedScore';
@@ -768,41 +769,70 @@ export default function App() {
     {
       id: 'instrument',
       title: '🎸 Instrument',
-      blurb: 'Switch between guitar and bass. Changing this updates the tuning, string count and fret range, and reloads the note samples.',
+      blurb: '',
       body: (
-        <div className="notation-row">
-          <button
-            className={`order-chip${instrumentId === 'guitar' ? ' order-chip-active' : ''}`}
-            onClick={click(() => { if (instrumentId !== 'guitar') { if (running || paused) stop(); applyInstrument('guitar'); setPreloaded(false); setSettingsOpen(false); } })}
-          >🎸 Guitar</button>
-          <button
-            className={`order-chip${instrumentId === 'bass' ? ' order-chip-active' : ''}`}
-            onClick={click(() => { if (instrumentId !== 'bass') { if (running || paused) stop(); applyInstrument('bass'); setPreloaded(false); setSettingsOpen(false); } })}
-          >🎵 Bass</button>
-        </div>
+        <SettingCard
+          label="Instrument"
+          help="Switches tuning, string count and fret range, then reloads the note samples."
+        >
+          <SegmentedControl
+            ariaLabel="Instrument"
+            value={instrumentId}
+            options={[
+              { value: 'guitar', label: '🎸 Guitar' },
+              { value: 'bass', label: '🎵 Bass' },
+            ]}
+            onChange={(id) => {
+              if (id === instrumentId) return;
+              if (running || paused) stop();
+              applyInstrument(id);
+              setPreloaded(false);
+              setSettingsOpen(false);
+            }}
+          />
+        </SettingCard>
       ),
     },
     {
       id: 'notes',
       title: '🎵 Note names',
-      blurb: 'Show note names as letters (A B C) or as solfège (Do Re Mi). This only changes how names are displayed, not the drill itself.',
-      body: renderSelectorPanel(false, true),
+      blurb: '',
+      body: (
+        <SettingCard
+          label="Written as"
+          help="Display only — the drill itself doesn't change."
+        >
+          <SegmentedControl
+            ariaLabel="Note names"
+            value={notation}
+            options={[
+              { value: 'alpha', label: 'A B C' },
+              { value: 'solfege', label: 'Do Re Mi' },
+            ]}
+            onChange={(n) => { setNotation(n); saveSetting('pref_notation', n); }}
+          />
+        </SettingCard>
+      ),
     },
     {
       id: 'score',
       title: '🎯 Score',
-      blurb: 'On shows the live score, streak multiplier and all celebrations for a game feel. Off hides them for distraction-free practice — every answer is still scored into your statistics and personal-best progress.',
+      blurb: '',
       body: (
-        <div className="notation-row">
-          <button
-            className={`order-chip${showScore ? ' order-chip-active' : ''}`}
-            onClick={click(() => { setShowScore(true); saveSetting('pref_showScore', true); })}
-          >On</button>
-          <button
-            className={`order-chip${!showScore ? ' order-chip-active' : ''}`}
-            onClick={click(() => { setShowScore(false); saveSetting('pref_showScore', false); })}
-          >Off</button>
-        </div>
+        <SettingCard
+          label="Score & celebrations"
+          help={<>Live score, streak multiplier and celebrations are shown. <em>Every answer is still recorded to your stats and personal bests either way.</em></>}
+        >
+          <SegmentedControl
+            ariaLabel="Score"
+            value={showScore ? 'on' : 'off'}
+            options={[
+              { value: 'on', label: 'On' },
+              { value: 'off', label: 'Off' },
+            ]}
+            onChange={(v) => { const on = v === 'on'; setShowScore(on); saveSetting('pref_showScore', on); }}
+          />
+        </SettingCard>
       ),
     },
     ...(hasAnyHistory ? [{
@@ -815,124 +845,143 @@ export default function App() {
     ...(voice.supported ? [{
       id: 'answer',
       title: '👆 Answer mode',
-      blurb: 'Choose whether you answer by tapping the screen or by saying the answer out loud. Voice mode asks for microphone permission.',
+      blurb: '',
       body: (
-        <div className="notation-row">
-          <button
-            className={`order-chip${answerMode === 'tap' ? ' order-chip-active' : ''}`}
-            onClick={click(() => { setAnswerMode('tap'); saveSetting('pref_answerMode', 'tap'); })}
-          >👆 Tap</button>
-          <button
-            className={`order-chip${answerMode === 'voice' ? ' order-chip-active' : ''}`}
-            onClick={click(() => {
-              setAnswerMode('voice');
-              saveSetting('pref_answerMode', 'voice');
-              askForMic();
-            })}
-          >🎤 Voice</button>
-        </div>
+        <SettingCard
+          label="How you answer"
+          help="Voice mode asks for microphone permission the first time."
+        >
+          <SegmentedControl
+            ariaLabel="Answer mode"
+            value={answerMode}
+            options={[
+              { value: 'tap', label: '👆 Tap' },
+              { value: 'voice', label: '🎤 Voice' },
+            ]}
+            onChange={(m) => {
+              setAnswerMode(m);
+              saveSetting('pref_answerMode', m);
+              if (m === 'voice') askForMic();
+            }}
+          />
+        </SettingCard>
       ),
     }] : []),
     {
       id: 'voiceEngine',
       title: '🗣️ Voice engine',
-      blurb: 'Auto picks the best recognizer automatically. Personal uses your own calibrated voice profile. General uses a built-in model.',
+      blurb: '',
       body: (
-        <div className="notation-row">
-          <button
-            className={`order-chip${voiceEnginePref === 'auto' ? ' order-chip-active' : ''}`}
-            onClick={click(() => pickVoiceEngine('auto'))}
-          >Auto</button>
-          <button
-            className={`order-chip${voiceEnginePref === 'profile' ? ' order-chip-active' : ''}`}
-            onClick={click(() => pickVoiceEngine('profile'))}
-          >Personal</button>
-          <button
-            className={`order-chip${voiceEnginePref === 'general' ? ' order-chip-active' : ''}`}
-            onClick={click(() => pickVoiceEngine('general'))}
-          >General</button>
-        </div>
+        <SettingCard
+          label="Recognizer"
+          help="Auto picks the best available. Personal uses your calibrated profile; General uses the built-in model."
+        >
+          <SegmentedControl
+            ariaLabel="Voice engine"
+            value={voiceEnginePref}
+            options={[
+              { value: 'auto', label: 'Auto' },
+              { value: 'profile', label: 'Personal' },
+              { value: 'general', label: 'General' },
+            ]}
+            onChange={(v) => pickVoiceEngine(v)}
+          />
+        </SettingCard>
       ),
     },
     {
       id: 'voiceProfile',
       title: '🎙️ Voice profile',
-      blurb: 'Calibrate your voice to improve recognition accuracy when answering by voice.',
+      blurb: '',
       body: (
-        <div className="notation-row" style={{ flexWrap: 'wrap', gap: 8 }}>
+        <SettingCard
+          label="Your voice profile"
+          help="Calibrating your own voice improves recognition when answering by voice."
+        >
           {voiceProfileStat && voiceProfileStat.count > 0 && (
-            <span className="vcal-here" style={{ flexBasis: '100%' }}>
-              {voiceProfileStat.enabled
-                ? `✓ Personal profile enabled · ${voiceProfileStat.count} recordings`
-                : `Personal profile started · ${voiceProfileStat.count} recordings (not enabled yet)`}
-            </span>
+            <div className="sp2-hero">
+              <div className="sp2-tile">
+                <span className="sp2-tile-v">{voiceProfileStat.count}</span>
+                <span className="sp2-tile-l">recordings</span>
+              </div>
+              <div className="sp2-tile">
+                <span className="sp2-tile-v" style={{ color: voiceProfileStat.enabled ? '#34e07a' : '#ff9d2e' }}>
+                  {voiceProfileStat.enabled ? 'On' : 'Off'}
+                </span>
+                <span className="sp2-tile-l">enabled</span>
+              </div>
+            </div>
           )}
           <button
-            className="order-chip"
+            className="set-card-btn"
             onClick={click(() => { setSettingsOpen(false); setShowVoiceCalibration(true); })}
           >🎙️ {voiceProfileStat && voiceProfileStat.count > 0
             ? 'Add / review recordings'
             : 'Calibrate my voice'}</button>
-        </div>
+        </SettingCard>
       ),
     },
     ...(auth.configured ? [{
       id: 'account',
       title: '👤 Account',
-      blurb: 'Sign in with Google to keep your preferences and data across devices, or sign out.',
-      body: (
-        <div className={`account-row${auth.user ? ' account-row-in' : ''}`}>
-          {auth.user ? (
-            <>
-              <div className="account-user">
-                {auth.profile?.avatarUrl && (
-                  <img
-                    className="account-avatar"
-                    src={auth.profile.avatarUrl}
-                    alt=""
-                    referrerPolicy="no-referrer"
-                    width={40}
-                    height={40}
-                  />
-                )}
-                <span className="account-identity">
-                  {auth.profile?.name && (
-                    <span className="account-name">{auth.profile.name}</span>
-                  )}
-                  <span className="account-email">
-                    {auth.profile?.email ?? auth.user.email ?? 'Signed in'}
-                  </span>
-                  {auth.user.created_at && (
-                    <span className="account-member-since">
-                      Member since {new Date(auth.user.created_at).toLocaleDateString('en-GB', {
-                        day: 'numeric', month: 'long', year: 'numeric',
-                      })}
-                    </span>
-                  )}
+      blurb: '',
+      body: auth.user ? (
+        <SettingCard
+          label="Signed in"
+          help="Keeps your preferences and data in sync across devices."
+        >
+          <div className="account-user">
+            {auth.profile?.avatarUrl && (
+              <img
+                className="account-avatar"
+                src={auth.profile.avatarUrl}
+                alt=""
+                referrerPolicy="no-referrer"
+                width={40}
+                height={40}
+              />
+            )}
+            <span className="account-identity">
+              {auth.profile?.name && (
+                <span className="account-name">{auth.profile.name}</span>
+              )}
+              <span className="account-email">
+                {auth.profile?.email ?? auth.user.email ?? 'Signed in'}
+              </span>
+              {auth.user.created_at && (
+                <span className="account-member-since">
+                  Member since {new Date(auth.user.created_at).toLocaleDateString('en-GB', {
+                    day: 'numeric', month: 'long', year: 'numeric',
+                  })}
                 </span>
-              </div>
-              <button
-                className="account-btn"
-                onClick={click(() => { void auth.signOut(); })}
-              >
-                Sign out
-              </button>
-            </>
-          ) : (
-            <button
-              className="account-btn account-btn-primary"
-              onClick={click(() => { void auth.signInWithGoogle(); })}
-            >
-              <svg className="google-icon" viewBox="0 0 18 18" width="16" height="16" aria-hidden="true">
-                <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z" />
-                <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z" />
-                <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1z" />
-                <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" />
-              </svg>
-              Sign in with Google
-            </button>
-          )}
-        </div>
+              )}
+            </span>
+          </div>
+          <button
+            className="set-card-danger"
+            onClick={click(() => { void auth.signOut(); })}
+          >
+            Sign out
+          </button>
+        </SettingCard>
+      ) : (
+        <SettingCard
+          label="Account"
+          help="Sign in with Google to keep your preferences and data across devices."
+        >
+          <button
+            className="set-card-btn set-card-btn-primary"
+            onClick={click(() => { void auth.signInWithGoogle(); })}
+          >
+            <svg className="google-icon" viewBox="0 0 18 18" width="16" height="16" aria-hidden="true">
+              <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z" />
+              <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z" />
+              <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1z" />
+              <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" />
+            </svg>
+            Sign in with Google
+          </button>
+        </SettingCard>
       ),
     }] : []),
   ];
@@ -1034,21 +1083,23 @@ export default function App() {
             onClick={(e) => e.stopPropagation()}
           >
             <nav className="settings-menu">
-              <button
-                className="settings-back"
-                onClick={click(() => setSettingsOpen(false))}
-              >
-                <span aria-hidden="true">›</span> Back
-              </button>
-              <h2 className="settings-menu-title">Settings</h2>
+              <div className="sp2-head">
+                <button
+                  className="sp2-back"
+                  onClick={click(() => setSettingsOpen(false))}
+                >
+                  ‹ Back
+                </button>
+                <span className="sp2-title">Settings</span>
+              </div>
               {settingsSections.map(s => (
                 <button
                   key={s.id}
-                  className="settings-menu-item"
+                  className="sp2-exp"
                   onClick={click(() => { if (s.onSelect) s.onSelect(); else setDrawerSection(s.id); })}
                 >
-                  <span className="settings-menu-item-label">{s.title}</span>
-                  <span className="settings-menu-item-chevron" aria-hidden="true">›</span>
+                  <span>{s.title}</span>
+                  <span className="sp2-chev" aria-hidden="true">›</span>
                 </button>
               ))}
             </nav>
