@@ -2767,3 +2767,41 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 .board-confirm-cancel:hover, .board-confirm-cancel:focus-visible { border-color: #00e5ff; color: #f0f0f8; }
 .board-confirm-delete { background: #ff5470; border-color: #ff5470; color: #2a0410; }
 .board-confirm-delete:hover, .board-confirm-delete:focus-visible { background: #ff3355; border-color: #ff3355; }
+
+/* ── Leaderboard (reuses the .board shell for intro / empty / error) ───── */
+
+/* The signed-in viewer's own summary + participation toggle. */
+.lb-me {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 12px 14px; border: 1px solid #2a2a4a; border-radius: 12px;
+  background: #16162e;
+}
+.lb-me-row { display: flex; align-items: baseline; gap: 10px; }
+.lb-me-rank { font-size: 0.9rem; font-weight: 800; color: #00e5ff; min-width: 2.4em; }
+.lb-me-name { flex: 1; font-size: 0.86rem; font-weight: 700; color: #f0f0f8; }
+.lb-me-xp { font-size: 0.86rem; font-weight: 800; color: #f0f0f8; }
+.lb-me-sub { font-size: 0.72rem; color: #8a8aa6; }
+.lb-me .board-action { align-self: flex-start; margin-top: 4px; }
+
+.lb-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.lb-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 14px; border: 1px solid #2a2a4a; border-radius: 10px;
+  background: #14142a;
+}
+.lb-item-me { border-color: #00e5ff; background: #10233a; }
+.lb-rank {
+  min-width: 1.8em; text-align: center; flex-shrink: 0;
+  font-size: 0.82rem; font-weight: 800; color: #6f6f8c;
+}
+.lb-rank-1 { color: #ffd700; }
+.lb-rank-2 { color: #c8d0e0; }
+.lb-rank-3 { color: #cd7f32; }
+.lb-name {
+  flex: 1; min-width: 0; font-size: 0.86rem; color: #e6e6f2;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lb-item-me .lb-name { font-weight: 700; color: #f0f0f8; }
+.lb-stat { display: flex; align-items: baseline; gap: 10px; flex-shrink: 0; }
+.lb-xp { font-size: 0.84rem; font-weight: 800; color: #f0f0f8; }
+.lb-acc { font-size: 0.7rem; color: #6f6f8c; }

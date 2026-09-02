@@ -30,6 +30,8 @@ import VoiceLevelMeter from './components/VoiceLevelMeter';
 import DebugLogPanel from './components/DebugLogPanel';
 import VoiceCalibration from './components/VoiceCalibration';
 import { FeedbackBoard } from './components/FeedbackBoard';
+import { LeaderboardPanel } from './components/LeaderboardPanel';
+import { computeMyStats, leaderboardName, upsertMyEntry } from './utils/leaderboard';
 import { BadgeGrid } from './components/BadgeGrid';
 import {
   badgeList, badgeDef, evaluateSession, evaluateLifetime, awardBadge, isEarned,
@@ -126,6 +128,11 @@ export default function App() {
   // circle/grid while stopped or paused. Off = a clean fretboard at rest; every
   // answer is still recorded and mastery keeps accumulating either way.
   const [showMastery, setShowMastery] = useState(() => loadSetting('pref_showMastery', true));
+  // Whether the signed-in user has hidden themselves from the public
+  // leaderboard. Default false = a signed-in player is listed automatically.
+  const [leaderboardOptOut, setLeaderboardOptOut] = useState(() =>
+    loadSetting('pref_leaderboardOptOut', false),
+  );
 
   const historyOps = useHistory();
   const histKey = selector.historyKey();
@@ -751,6 +758,24 @@ export default function App() {
     wasRunningRef.current = running;
   }, [running, paused, pendingAutoAdvance, scoring.session.questionsAnswered, scoring.session.score, scoring.session.longestStreak, histKey, historyOps.history, historyOps.allHistory, instrument, selector.state.difficulty, selector.state.autoAdvance, showScore]);
 
+  // Push the signed-in player's leaderboard row after each completed run, so
+  // the public board tracks their all-time XP without them opening it. Guests
+  // and opted-out players are skipped; failures are ignored (the board also
+  // refreshes its own row whenever the panel is opened).
+  useEffect(() => {
+    if (!gameEnded || !auth.user || leaderboardOptOut) return;
+    const name = leaderboardName(
+      auth.profile?.name ?? null,
+      auth.profile?.email ?? auth.user.email ?? null,
+    );
+    void upsertMyEntry(
+      auth.user.id,
+      instrument.id,
+      name,
+      computeMyStats(allHistoryEntries),
+    );
+  }, [gameEnded, auth.user, auth.profile, leaderboardOptOut, instrument.id, allHistoryEntries]);
+
   const start = () => {
     unlockAudio();
     // Trigger the mic permission prompt from this user gesture, like unlockAudio.
@@ -1024,6 +1049,25 @@ export default function App() {
         <FeedbackBoard
           user={auth.user}
           profile={auth.profile}
+          onSignIn={() => { void auth.signInWithGoogle(); }}
+        />
+      ),
+    }] : []),
+    ...(auth.configured ? [{
+      id: 'leaderboard',
+      title: '🏆 Leaderboard',
+      blurb: '',
+      body: (
+        <LeaderboardPanel
+          instrument={instrument}
+          user={auth.user}
+          profile={auth.profile}
+          myStats={computeMyStats(allHistoryEntries)}
+          optedOut={leaderboardOptOut}
+          onOptOutChange={(next) => {
+            setLeaderboardOptOut(next);
+            saveSetting('pref_leaderboardOptOut', next);
+          }}
           onSignIn={() => { void auth.signInWithGoogle(); }}
         />
       ),
