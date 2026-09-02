@@ -1215,7 +1215,10 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   width: 26px; height: 4px;
   margin-top: 3px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.08);
+  /* No track fill behind the bar: the by-note FretGrid equaliser is a bare
+     solid bar, and a translucent grey remainder here mixed with the green
+     fill to read as a second, muddier shade of green on high-DPI screens.
+     No overflow clip either, so the fill's glow reads like FretGrid's. */
 }
 .note-mastery-fill { display: block; height: 100%; border-radius: 2px; transition: width 0.3s ease; }
 /* Colour + glow kept in lockstep with .mastery-bar (the by-note FretGrid

@@ -169,11 +169,16 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
           if (isCorrect) { bg = '#0a0'; border = '#0f0'; }
           else if (isWrong) { bg = '#a00'; border = '#f00'; }
 
+          // A single solid bar whose length tracks accuracy — same visual
+          // language (and colour) as the by-note FretGrid equaliser, which is
+          // also a solid bar sized by accuracy with no track behind it. The
+          // 15% floor keeps a low-accuracy note readable as a bar rather than
+          // a sliver, mirroring FretGrid's non-zero minimum height.
           const masteryBar = mastery && mastery.level !== 'unplayed' ? (
             <span className="note-mastery-track">
               <span
                 className={`note-mastery-fill mastery-${mastery.level}`}
-                style={{ width: `${Math.round(mastery.accuracy * 100)}%` }}
+                style={{ width: `${Math.round(15 + mastery.accuracy * 85)}%` }}
               />
             </span>
           ) : null;
