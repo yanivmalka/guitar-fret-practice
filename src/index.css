@@ -1218,8 +1218,10 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   background: rgba(255, 255, 255, 0.08);
 }
 .note-mastery-fill { display: block; height: 100%; border-radius: 2px; transition: width 0.3s ease; }
-.note-mastery-fill.mastery-known { background: #2ecc71; box-shadow: 0 0 6px rgba(46, 204, 113, 0.9); }
-.note-mastery-fill.mastery-needsWork { background: #f5a623; box-shadow: 0 0 6px rgba(245, 166, 35, 0.9); }
+/* Colour + glow kept in lockstep with .mastery-bar (the by-note FretGrid
+   equaliser) so both quiz modes read the exact same green/orange. */
+.note-mastery-fill.mastery-known { background: #2ecc71; box-shadow: 0 0 4px rgba(46, 204, 113, 0.7); }
+.note-mastery-fill.mastery-needsWork { background: #f5a623; box-shadow: 0 0 4px rgba(245, 166, 35, 0.7); }
 .fret-glow {
   box-shadow: 0 0 14px 5px rgba(0, 255, 255, 0.7) !important;
   animation: fret-glow-fade 0.4s ease-out forwards;

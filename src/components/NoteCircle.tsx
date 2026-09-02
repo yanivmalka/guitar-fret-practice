@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import { notesMatch, notes as allNotes, displayNote } from '../utils/music';
 import type { AccidentalMode, NotationMode } from '../utils/music';
 import { playNoteSequence, stopPlayback } from '../utils/audio';
@@ -169,37 +169,69 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
           if (isCorrect) { bg = '#0a0'; border = '#0f0'; }
           else if (isWrong) { bg = '#a00'; border = '#f00'; }
 
+          const masteryBar = mastery && mastery.level !== 'unplayed' ? (
+            <span className="note-mastery-track">
+              <span
+                className={`note-mastery-fill mastery-${mastery.level}`}
+                style={{ width: `${Math.round(mastery.accuracy * 100)}%` }}
+              />
+            </span>
+          ) : null;
+
           return (
-            <button
-              key={note}
-              onClick={() => handleClick(note)}
-              disabled={!inRange}
-              className={`note-btn ${isGlowing ? 'note-glow' : ''}`}
-              style={{
-                position: 'absolute', left: x, top: y,
-                width: btnSize, height: btnSize, borderRadius: '50%',
-                background: bg, border: `2px solid ${border}`,
-                color: '#fff', fontWeight: 'bold', fontSize: 15,
-                cursor: inRange ? 'pointer' : 'default',
-                opacity: inRange ? (active ? 1 : 0.7) : 0.25,
-                flexDirection: 'column', gap: 0,
-              }}
-            >
-              <span style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0,
-                transform: `rotate(${-wheelAngle}deg)`,
-              }}>
-                <span style={{ lineHeight: 1.1 }}>{displayNote(note, accidental, notation)}</span>
-                {showDots && dotInfo && <span className="fret-dot" style={{ color: dotInfo.color }}>{dotInfo.dots}</span>}
-                {mastery && mastery.level !== 'unplayed' && (
-                  <span className="note-mastery-track">
-                    <span
-                      className={`note-mastery-fill mastery-${mastery.level}`}
-                      style={{ width: `${Math.round(mastery.accuracy * 100)}%` }}
-                    />
+            <Fragment key={note}>
+              <button
+                onClick={() => handleClick(note)}
+                disabled={!inRange}
+                className={`note-btn ${isGlowing ? 'note-glow' : ''}`}
+                style={{
+                  position: 'absolute', left: x, top: y,
+                  width: btnSize, height: btnSize, borderRadius: '50%',
+                  background: bg, border: `2px solid ${border}`,
+                  color: '#fff', fontWeight: 'bold', fontSize: 15,
+                  cursor: inRange ? 'pointer' : 'default',
+                  opacity: inRange ? (active ? 1 : 0.7) : 0.25,
+                  flexDirection: 'column', gap: 0,
+                }}
+              >
+                <span style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0,
+                  transform: `rotate(${-wheelAngle}deg)`,
+                }}>
+                  <span style={{ lineHeight: 1.1 }}>{displayNote(note, accidental, notation)}</span>
+                  {showDots && dotInfo && <span className="fret-dot" style={{ color: dotInfo.color }}>{dotInfo.dots}</span>}
+                  {masteryBar}
+                </span>
+              </button>
+              {/* The mastery bar again as a non-interactive overlay at full
+                  opacity. The copy inside the button inherits the note's
+                  resting opacity (0.7), which darkens its colour; this copy
+                  sits exactly on top so the by-fret wheel shows the same
+                  green/orange as the by-note FretGrid equaliser. The hidden
+                  letter/dot spacers keep it aligned with the copy beneath. */}
+              {masteryBar && inRange && (
+                <span
+                  aria-hidden
+                  style={{
+                    position: 'absolute', left: x, top: y,
+                    width: btnSize, height: btnSize,
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center',
+                    gap: 0, pointerEvents: 'none',
+                  }}
+                >
+                  <span style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0,
+                    fontSize: 15, fontWeight: 'bold',
+                    transform: `rotate(${-wheelAngle}deg)`,
+                  }}>
+                    <span style={{ lineHeight: 1.1, visibility: 'hidden' }}>{displayNote(note, accidental, notation)}</span>
+                    {showDots && dotInfo && <span className="fret-dot" style={{ visibility: 'hidden' }}>{dotInfo.dots}</span>}
+                    {masteryBar}
                   </span>
-                )}
-              </span>            </button>
+                </span>
+              )}
+            </Fragment>
           );
         })}
       </div>
