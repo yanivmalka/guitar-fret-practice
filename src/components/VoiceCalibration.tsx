@@ -162,6 +162,10 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
           setErr("That didn't sound like a note — try again");
           autoMissRef.current++;
         } else {
+          // Stop pressed (or the panel closed) while this take was still being
+          // processed — don't persist it. The outer `finally` still restores
+          // `rec` to idle.
+          if (abort.signal.aborted) return;
           const stored = await addTemplate(profile, vocabId, label, framesToJson(frames));
           void cloudInsertTemplate(stored);
           await refreshCounts(profile);
