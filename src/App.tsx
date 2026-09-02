@@ -18,7 +18,7 @@ import { loadBest, saveBest, loadAllBests, writeAllBests } from './utils/persona
 import { flattenHistory, fretMasteryMap, noteMasteryMap } from './utils/mastery';
 import { useAuth } from './hooks/useAuth';
 import { bootstrapUser, reconcileUser, syncedUser, clearSyncedUser } from './utils/sync';
-import { bootstrapSettings, syncedSettingsUser, clearSyncedSettingsUser } from './utils/settingsSync';
+import { bootstrapSettings, syncedSettingsUser, clearSyncedSettingsUser, cloudPushSettings } from './utils/settingsSync';
 import { useSelector, nextDifficulty, totalRunQuestions } from './hooks/useSelector';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useGameEngine } from './hooks/useGameEngine';
@@ -224,6 +224,41 @@ export default function App() {
     })();
     return () => { cancelled = true; };
   }, [auth.user]);
+
+  // A round played offline only reaches the cloud on the next app start:
+  // write-through (cloudInsertEntry / cloudPushSettings) is dropped while
+  // navigator.onLine is false and nothing replays it, and the reconcile
+  // above runs only per sign-in. Re-run the idempotent reconcile — and
+  // re-arm the settings push — as soon as the network comes back.
+  useEffect(() => {
+    const user = auth.user;
+    if (!user) return;
+    let cancelled = false;
+    const onOnline = () => {
+      void (async () => {
+        try {
+          if (syncedUser() === user.id) {
+            const { history, changed } = await reconcileUser(
+              user.id, getAllHistory(), loadAllBests(),
+            );
+            if (!cancelled && changed) replaceAllHistory(history);
+          } else {
+            const { history, bests } = await bootstrapUser(
+              user.id, getAllHistory(), loadAllBests(),
+            );
+            if (cancelled) return;
+            replaceAllHistory(history);
+            writeAllBests(bests);
+          }
+        } catch {
+          /* transient — retried on the next reconnect / app start */
+        }
+        cloudPushSettings();
+      })();
+    };
+    window.addEventListener('online', onOnline);
+    return () => { cancelled = true; window.removeEventListener('online', onOnline); };
+  }, [auth.user, replaceAllHistory, getAllHistory]);
 
   const derived = useDerivedNotes(
     safeGuitarString, derivedSettings.fretFrom, derivedSettings.fretTo,
