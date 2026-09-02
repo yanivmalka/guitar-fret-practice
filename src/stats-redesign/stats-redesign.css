@@ -264,7 +264,7 @@
   background: var(--bg-3);
   overflow: hidden;
 }
-.sr-row-fill { height: 100%; border-radius: 4px; }
+.sr-row-fill { display: block; height: 100%; border-radius: 4px; }
 .sr-fill-mastered { background: var(--success); }
 .sr-fill-solid { background: var(--accent-dim); }
 .sr-fill-growing { background: var(--amber); }
