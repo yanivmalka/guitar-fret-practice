@@ -892,7 +892,6 @@ export default function App() {
               if (running || paused) stop();
               applyInstrument(id);
               setPreloaded(false);
-              setSettingsOpen(false);
             }}
           />
         </SettingCard>
