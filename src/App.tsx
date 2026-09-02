@@ -13,7 +13,7 @@ import type { HistoryEntry, AccidentalMode, OrderMode, NotationMode } from './ut
 import { getInstrument, type InstrumentId } from './utils/instruments';
 import { preloadAllSamples, unlockAudio, setAudioInstrument } from './utils/audio';
 import { App as CapacitorApp } from '@capacitor/app';
-import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3 } from './utils/feedback';
+import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3, celebrateTier2 } from './utils/feedback';
 import { loadSetting, saveSetting } from './utils/settings';
 import { loadBest, saveBest, loadAllBests, writeAllBests } from './utils/personalBest';
 import { historyForInstrument, fretMasteryMap, noteMasteryMap } from './utils/mastery';
@@ -30,6 +30,11 @@ import VoiceLevelMeter from './components/VoiceLevelMeter';
 import DebugLogPanel from './components/DebugLogPanel';
 import VoiceCalibration from './components/VoiceCalibration';
 import { FeedbackBoard } from './components/FeedbackBoard';
+import { BadgeGrid } from './components/BadgeGrid';
+import {
+  badgeList, badgeDef, evaluateSession, evaluateLifetime, awardBadge, isEarned,
+  type BadgeId, type SessionSnapshot, type LifetimeSnapshot,
+} from './utils/badges';
 import { vlog } from './utils/debugLog';
 import type { SpeechNotation } from './utils/speechVocab';
 import { resetSpeechEngine, type VoiceEnginePref } from './utils/speech';
@@ -550,6 +555,10 @@ export default function App() {
   // Guards the Tier 3 (new personal best) celebration so it fires at most once
   // per completed run. Reset on every Play and whenever the selector combo changes.
   const tier3FiredRef = useRef(false);
+  // Guards badge evaluation so it runs at most once per completed run, and holds
+  // the ids newly earned this run for the game-end summary card.
+  const badgesFiredRef = useRef(false);
+  const [newBadges, setNewBadges] = useState<BadgeId[]>([]);
 
   const isPlaying = running && !paused;
   const isStopped = !running && !paused;
@@ -628,7 +637,11 @@ export default function App() {
   // own Back control takes over from there.
   const showBurger = !isPlaying && !pendingAutoAdvance && countdown === null && !settingsOpen;
 
-  useEffect(() => { setShowStats(false); setGameEnded(false); tier3FiredRef.current = false; }, [histKey]);
+  useEffect(() => {
+    setShowStats(false); setGameEnded(false);
+    tier3FiredRef.current = false;
+    badgesFiredRef.current = false; setNewBadges([]);
+  }, [histKey]);
 
   // Mirror the open sub-page in a ref so the Escape handler (bound once per
   // open) reads the current value without re-subscribing on every navigation.
@@ -701,9 +714,42 @@ export default function App() {
         // a score effect, so it is skipped in "serious learning" mode.
         if (showScore) celebrateTier3(score, scoring.session.longestStreak);
       }
+
+      // Achievements: evaluate this run's session badges plus a retroactive
+      // pass over the instrument's all-time history, once per completed run
+      // (badgesFiredRef, like tier3FiredRef, blocks a repeat if the effect
+      // re-runs). Awarding is never gated on `showScore` — badges accrue in
+      // Silent / Score-off mode; only the celebration below is a score effect.
+      if (!badgesFiredRef.current) {
+        badgesFiredRef.current = true;
+        const sessionSnap: SessionSnapshot = {
+          questionsAnswered: scoring.session.questionsAnswered,
+          maxQuestions: selector.runQuestionCount(),
+          longestStreak: scoring.session.longestStreak,
+          entries: historyOps.history,
+          instrument,
+        };
+        const lifetimeSnap: LifetimeSnapshot = {
+          instrumentEntries: historyForInstrument(historyOps.allHistory, instrument.id),
+          instrument,
+        };
+        const earned: BadgeId[] = [];
+        for (const id of evaluateSession(sessionSnap)) {
+          if (awardBadge(id, instrument.id)) earned.push(id);
+        }
+        for (const id of evaluateLifetime(lifetimeSnap)) {
+          if (awardBadge(id, instrument.id)) earned.push(id);
+        }
+        if (earned.length > 0) {
+          setNewBadges(earned);
+          if (showScore) {
+            celebrateTier2(`🏅 ${badgeDef(earned[0], instrument)?.name ?? 'New badge'}`);
+          }
+        }
+      }
     }
     wasRunningRef.current = running;
-  }, [running, paused, pendingAutoAdvance, scoring.session.questionsAnswered, scoring.session.score, scoring.session.longestStreak, histKey, historyOps.history, showScore]);
+  }, [running, paused, pendingAutoAdvance, scoring.session.questionsAnswered, scoring.session.score, scoring.session.longestStreak, histKey, historyOps.history, historyOps.allHistory, instrument, selector.state.difficulty, selector.state.autoAdvance, showScore]);
 
   const start = () => {
     unlockAudio();
@@ -720,6 +766,8 @@ export default function App() {
     );
     setGameEnded(false);
     tier3FiredRef.current = false;
+    badgesFiredRef.current = false;
+    setNewBadges([]);
     // Count-in: the on-screen countdown steps 3 → 2 → 1 once a second and the
     // game comes in on "0" at t = 3s. The four drum-stick clicks run on their
     // own steady, faster cadence — one every 750ms (t = 0, 0.75, 1.5, 2.25s),
@@ -1016,6 +1064,13 @@ export default function App() {
               )}
             </span>
           </div>
+          <p className="badge-summary">
+            {(() => {
+              const visible = badgeList(instrument).filter(d => d.kind !== 'role' || auth.admin);
+              const earned = visible.filter(d => d.id === 'admin' ? auth.admin : isEarned(d.id, instrument.id)).length;
+              return `🏅 ${earned} / ${visible.length} badges earned`;
+            })()}
+          </p>
           <button
             className="set-card-danger"
             onClick={click(() => { void auth.signOut(); })}
@@ -1043,6 +1098,18 @@ export default function App() {
         </SettingCard>
       ),
     }] : []),
+    {
+      id: 'badges',
+      title: '🏅 Badges',
+      blurb: '',
+      body: (
+        <BadgeGrid
+          instrument={instrument}
+          instrumentEntries={allHistoryEntries}
+          isAdmin={auth.admin}
+        />
+      ),
+    },
   ];
 
   // The unified "Stats & progress" screen replaces the game entirely — its own
@@ -1060,6 +1127,9 @@ export default function App() {
           sessionScore={scoring.session.score}
           longestStreak={scoring.session.longestStreak}
           currentHistoryKey={histKey}
+          setupStrings={selector.state.selectedStrings}
+          setupFretFrom={derivedSettings.fretFrom}
+          setupFretTo={derivedSettings.fretTo}
           onClearCurrent={() => { historyOps.clearHistory(histKey); }}
           onClearAll={() => { historyOps.clearAllHistory(); }}
           onClose={() => setShowStats(false)}
@@ -1336,7 +1406,17 @@ export default function App() {
                 {scoring.session.longestStreak >= 2 && <span>🔥 {scoring.session.longestStreak} streak</span>}
                 <span>✓ {sessionHistory.filter(h => h.correct === true).length}/{scoring.session.questionsAnswered}</span>
               </div>
-              <button className="clear-btn" onClick={click(() => setGameEnded(false))}>OK</button>
+              {newBadges.length > 0 && (
+                <div className="game-end-badges">
+                  {newBadges.map(id => (
+                    <div className="game-end-badge" key={id}>
+                      <span aria-hidden="true">{badgeDef(id, instrument)?.icon ?? '🏅'}</span>
+                      New badge · {badgeDef(id, instrument)?.name ?? id}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button className="clear-btn" onClick={click(() => { setGameEnded(false); setNewBadges([]); })}>OK</button>
             </div>
           )}
 

@@ -2339,6 +2339,121 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   font-size: 0.85rem;
   color: #aaa;
 }
+.game-end-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  align-items: center;
+}
+.game-end-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(255, 215, 0, 0.12);
+  border: 1px solid rgba(255, 215, 0, 0.5);
+  color: #ffd700;
+  font-size: 0.82rem;
+  font-weight: 700;
+  animation: end-slide-in 0.5s ease-out;
+}
+
+/* ── Badges collection (settings page) ─────────────────────────────────────── */
+.badge-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.badge-summary {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #c8c8de;
+}
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+.badge-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  padding: 14px 12px;
+  background: #15152a;
+  border: 1px solid #2a2a4a;
+  border-radius: 12px;
+  text-align: left;
+}
+.badge-tile:not(.locked) {
+  border-color: rgba(52, 224, 122, 0.45);
+  background: #14201c;
+}
+.badge-tile.locked {
+  opacity: 0.62;
+}
+.badge-tile.locked .badge-icon {
+  filter: grayscale(1);
+}
+.badge-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+.badge-name {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #f0f0f8;
+  overflow-wrap: anywhere;
+}
+.badge-blurb {
+  font-size: 0.7rem;
+  line-height: 1.45;
+  color: #9a9ab8;
+  overflow-wrap: anywhere;
+}
+.badge-earned {
+  font-size: 0.66rem;
+  font-weight: 800;
+  color: #34e07a;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.badge-progress {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 3px;
+}
+.badge-progress-track {
+  flex: 1;
+  height: 6px;
+  background: #1c1c38;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.badge-progress-bar {
+  display: block;
+  height: 100%;
+  background: #00e5ff;
+  border-radius: 999px;
+}
+.badge-progress-txt {
+  flex: none;
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #c8c8de;
+  font-variant-numeric: tabular-nums;
+}
+.badge-scope {
+  font-size: 0.62rem;
+  color: #7a7a98;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 
 /* Stats icon button (dashboard) */
 .stats-icon-btn {
@@ -2556,7 +2671,24 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 }
 .board-textarea:focus { outline: none; border-color: #00e5ff; }
 .board-compose-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.board-compose-tools { display: flex; align-items: center; gap: 8px; }
 .board-count { font-size: 0.68rem; color: #6f6f8c; }
+.board-mic {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; padding: 0; border-radius: 999px;
+  border: 1px solid #2a2a4a; background: #1c1c38; color: #f0f0f8;
+  font-size: 0.95rem; cursor: pointer; flex: none;
+}
+.board-mic:hover { border-color: #00e5ff; }
+.board-mic-on {
+  border-color: #ff5470; background: #ff547022; color: #ff9db2;
+  animation: board-mic-pulse 1.3s ease-in-out infinite;
+}
+@keyframes board-mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 #ff547055; }
+  50% { box-shadow: 0 0 0 6px #ff547000; }
+}
+.board-mic-hint { margin: 0; font-size: 0.72rem; font-weight: 600; color: #00e5ff; }
 .board-send { align-self: auto; width: auto; padding: 9px 22px; }
 .board-send:disabled { opacity: 0.45; cursor: default; }
 .board-thanks { margin: 0; font-size: 0.76rem; font-weight: 700; color: #34e07a; }

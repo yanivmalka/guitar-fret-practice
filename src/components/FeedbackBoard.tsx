@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import type { AuthProfile } from '../hooks/useAuth';
+import { useDictation } from '../hooks/useDictation';
 import { playClickSound, haptic } from '../utils/feedback';
 import {
   fetchIsAdmin,
@@ -56,6 +57,20 @@ export function FeedbackBoard({
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
 
+  // Voice dictation for the compose box. The on-screen keyboard's own
+  // microphone key does nothing inside the app's Android WebView, so we drive
+  // speech-to-text ourselves. `dictBaseRef` holds whatever was already typed
+  // when the mic was switched on; each result replaces the text after it.
+  const dictBaseRef = useRef('');
+  const dictation = useDictation({
+    onSession: (text) => {
+      const base = dictBaseRef.current;
+      const sep = base && text ? ' ' : '';
+      setDraft((base + sep + text).slice(0, MAX_LEN));
+      setSent(false);
+    },
+  });
+
   // Admin-only: which of the two tabs is showing. Ignored for regular users,
   // who see the compose box and their own posts on one scroll.
   const [adminTab, setAdminTab] = useState<AdminTab>('write');
@@ -108,9 +123,17 @@ export function FeedbackBoard({
     return () => { alive = false; };
   }, [userId]);
 
+  // An admin leaving the "Write" tab (compose box unmounts) must not leave
+  // the mic listening in the background.
+  const stopDictation = dictation.stop;
+  useEffect(() => {
+    if (adminTab !== 'write') stopDictation();
+  }, [adminTab, stopDictation]);
+
   const send = async () => {
     const body = draft.trim();
     if (!userId || !body || sending) return;
+    dictation.stop();
     playClickSound();
     haptic.tap();
     setSending(true);
@@ -178,6 +201,15 @@ export function FeedbackBoard({
     );
   }
 
+  const micError =
+    dictation.error === 'no-permission'
+      ? 'Microphone access is off — turn it on to dictate.'
+      : dictation.error === 'not-supported'
+        ? 'Voice typing isn’t available on this device.'
+        : dictation.error
+          ? 'Couldn’t hear that — try again.'
+          : null;
+
   const compose = (
     <div className="board-compose">
       <textarea
@@ -187,14 +219,38 @@ export function FeedbackBoard({
         maxLength={MAX_LEN}
         rows={4}
         onChange={(e) => {
+          // A manual edit takes over from any in-progress dictation.
+          if (dictation.listening) dictation.stop();
           setDraft(e.target.value);
           setSent(false);
         }}
       />
       <div className="board-compose-foot">
-        <span className="board-count">
-          {draft.length}/{MAX_LEN}
-        </span>
+        <div className="board-compose-tools">
+          {dictation.supported && (
+            <button
+              type="button"
+              className={`board-mic${dictation.listening ? ' board-mic-on' : ''}`}
+              aria-pressed={dictation.listening}
+              aria-label={
+                dictation.listening ? 'Stop voice typing' : 'Start voice typing'
+              }
+              onClick={() => {
+                playClickSound();
+                haptic.tap();
+                if (!dictation.listening) {
+                  dictBaseRef.current = draft.replace(/\s+$/, '');
+                }
+                dictation.toggle();
+              }}
+            >
+              <span aria-hidden="true">{dictation.listening ? '⏹' : '🎤'}</span>
+            </button>
+          )}
+          <span className="board-count">
+            {draft.length}/{MAX_LEN}
+          </span>
+        </div>
         <button
           className="set-card-btn set-card-btn-primary board-send"
           disabled={!draft.trim() || sending}
@@ -203,6 +259,10 @@ export function FeedbackBoard({
           {sending ? 'Sending…' : 'Send'}
         </button>
       </div>
+      {dictation.listening && (
+        <p className="board-mic-hint">Listening… speak now, tap ⏹ to stop.</p>
+      )}
+      {micError && <p className="board-error">{micError}</p>}
       {sent && !error && (
         <p className="board-thanks">Thanks — your message was sent.</p>
       )}

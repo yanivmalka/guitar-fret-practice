@@ -7,3 +7,11 @@ android
 # Generated TTS WAVs for the General voice engine (regenerate with
 # scripts/synth-extra-voice.ps1); only the derived .ts file is committed.
 scripts/extra-wav
+
+# Voice tooling scratch: synthetic TTS render inputs, recorded real-voice
+# test sets, and the throwaway browser recorder page. Local-only — the
+# eval/build scripts read these but nothing here is committed.
+scripts/wav
+scripts/wav-v2
+scripts/testset
+record-test-set.html

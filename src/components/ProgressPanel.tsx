@@ -21,6 +21,11 @@ interface Props {
   sessionScore?: number;
   longestStreak?: number;
   currentHistoryKey?: string;
+  // The strings / fret range the current setup actually drills — used to scope
+  // the "This setup" not-practiced-yet lists to what that setup can cover.
+  setupStrings: number[];
+  setupFretFrom: number;
+  setupFretTo: number;
   onClearCurrent?: () => void; // clears just the current settings combination
   onClearAll?: () => void;     // clears every combination
 }
@@ -94,6 +99,22 @@ function BarRows({ rows }: { rows: Array<{ label: string; value: number; cat: 'm
           {r.detail && <span className="string-bar-counts">{r.detail}</span>}
         </div>
       ))}
+    </div>
+  );
+}
+
+// The "haven't practiced this yet" tail shown under a By-* breakdown: the
+// notes / strings / frets in range that have no recorded answers at all.
+function UnplayedChips({ items }: { items: string[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="sp2-unplayed">
+      <p className="sp2-unplayed-title">Not practiced yet</p>
+      <div className="note-stats">
+        {items.map(x => (
+          <span key={x} className="note-stat note-stat-muted">{x}</span>
+        ))}
+      </div>
     </div>
   );
 }
@@ -186,6 +207,7 @@ function Timeline({ history }: { history: HistoryEntry[] }) {
 function ScopeView({
   scope, history, noteNames, accidental, notation, instrument,
   sessionScore, longestStreak, currentHistoryKey,
+  setupStrings, setupFretFrom, setupFretTo,
 }: {
   scope: Scope;
   history: HistoryEntry[];
@@ -196,6 +218,9 @@ function ScopeView({
   sessionScore?: number;
   longestStreak?: number;
   currentHistoryKey?: string;
+  setupStrings: number[];
+  setupFretFrom: number;
+  setupFretTo: number;
 }) {
   const [open, setOpen] = useState<string | null>(null);
   const toggle = (id: string) => () => { playClickSound(); haptic.tap(); setOpen(o => (o === id ? null : id)); };
@@ -234,6 +259,49 @@ function ScopeView({
         detail: `✓${b.correct} ✗${b.wrong} ⏱${b.timeout}`,
       }));
   }, [history, instrument]);
+
+  // The strings / frets the active scope is allowed to cover. "All time" spans
+  // the whole neck; "This setup" is limited to what the current setup drills,
+  // so it never lists frets or strings that setup can't reach.
+  const scopeStrings = useMemo(() => (
+    scope === 'setup'
+      ? [...setupStrings].sort((a, b) => a - b)
+      : Array.from({ length: instrument.stringCount }, (_, i) => i + 1)
+  ), [scope, setupStrings, instrument.stringCount]);
+
+  const scopeFrets = useMemo(() => {
+    const [lo, hi] = scope === 'setup'
+      ? [setupFretFrom, setupFretTo]
+      : [0, instrument.maxFret];
+    return Array.from({ length: Math.max(0, hi - lo + 1) }, (_, i) => lo + i);
+  }, [scope, setupFretFrom, setupFretTo, instrument.maxFret]);
+
+  // Strings in scope with no recorded answers yet.
+  const unplayedStrings = useMemo(() => {
+    const played = new Set(history.map(h => h.string));
+    return scopeStrings
+      .filter(num => !played.has(num))
+      .map(num => instrument.stringLabels[num] ?? `S${num}`);
+  }, [history, scopeStrings, instrument]);
+
+  const fretRows = useMemo(() => {
+    const m = tallyBuckets(history, h => h.fret);
+    return [...m.entries()]
+      .map(([fret, b]) => ({
+        label: `Fret ${fret}`,
+        value: Math.round(bucketRate(b) * 100),
+        cat: bucketCat(b),
+        detail: `✓${b.correct} ✗${b.wrong} ⏱${b.timeout}`,
+        fret,
+      }))
+      .sort((a, b) => a.value - b.value || a.fret - b.fret);
+  }, [history]);
+
+  // Frets in scope with no recorded answers yet.
+  const unplayedFrets = useMemo(() => {
+    const played = new Set(history.map(h => h.fret));
+    return scopeFrets.filter(f => !played.has(f)).map(f => `Fret ${f}`);
+  }, [history, scopeFrets]);
 
   if (history.length === 0) {
     return (
@@ -292,20 +360,16 @@ function ScopeView({
       </div>
 
       <Expander label="By note" open={open === 'note'} onToggle={toggle('note')}>
-        <BarRows rows={noteRows} />
-        {unplayedNotes.length > 0 && (
-          <div className="sp2-unplayed">
-            <p className="sp2-unplayed-title">Not practiced yet</p>
-            <div className="note-stats">
-              {unplayedNotes.map(n => (
-                <span key={n} className="note-stat note-stat-muted">{n}</span>
-              ))}
-            </div>
-          </div>
-        )}
+        {noteRows.length > 0 && <BarRows rows={noteRows} />}
+        <UnplayedChips items={unplayedNotes} />
       </Expander>
       <Expander label="By string" open={open === 'string'} onToggle={toggle('string')}>
-        <BarRows rows={stringRows} />
+        {stringRows.length > 0 && <BarRows rows={stringRows} />}
+        <UnplayedChips items={unplayedStrings} />
+      </Expander>
+      <Expander label="By fret" open={open === 'byfret'} onToggle={toggle('byfret')}>
+        {fretRows.length > 0 && <BarRows rows={fretRows} />}
+        <UnplayedChips items={unplayedFrets} />
       </Expander>
       <Expander label="Fretboard heatmap" open={open === 'fret'} onToggle={toggle('fret')}>
         <FretHeatmap history={history} instrument={instrument} />
@@ -335,7 +399,8 @@ function ScopeView({
 
 export default function ProgressPanel({
   allHistory, noteNames, accidental, notation, instrument, onClose,
-  currentHistory, sessionScore, longestStreak, currentHistoryKey, onClearCurrent, onClearAll,
+  currentHistory, sessionScore, longestStreak, currentHistoryKey,
+  setupStrings, setupFretFrom, setupFretTo, onClearCurrent, onClearAll,
 }: Props) {
   const [scope, setScope] = useState<Scope>('setup');
   const [confirm, setConfirm] = useState<null | Scope>(null);
@@ -396,6 +461,9 @@ export default function ProgressPanel({
         sessionScore={sessionScore}
         longestStreak={longestStreak}
         currentHistoryKey={currentHistoryKey}
+        setupStrings={setupStrings}
+        setupFretFrom={setupFretFrom}
+        setupFretTo={setupFretTo}
       />
 
       {history.length > 0 && (

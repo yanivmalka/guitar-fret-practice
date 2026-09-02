@@ -140,7 +140,6 @@ export default function SelectorPanel({
     if (!onNotationChange) return null;
     return (
       <div className="notation-row">
-        <span className="notation-label">Notes</span>
         <button
           className={`order-chip${notation === 'alpha' ? ' order-chip-active' : ''}`}
           onClick={() => onNotationChange('alpha')}

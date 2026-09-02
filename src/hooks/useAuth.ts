@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured, authRedirectTo } from '../utils/supabase';
 import { setSyncUser } from '../utils/sync';
+import { fetchIsAdmin } from '../utils/board';
 
 export interface AuthProfile {
   name: string | null;
@@ -12,6 +13,8 @@ export interface AuthProfile {
 export interface AuthState {
   user: User | null;
   profile: AuthProfile | null;
+  /** True when the signed-in user has a row in `public.admins`. */
+  admin: boolean;
   loading: boolean;
   configured: boolean;
   signInWithGoogle: () => Promise<void>;
@@ -40,6 +43,7 @@ function toProfile(user: User | null): AuthProfile | null {
 
 export function useAuth(): AuthState {
   const [user, setUser] = useState<User | null>(null);
+  const [admin, setAdmin] = useState(false);
   const [loading, setLoading] = useState(isSupabaseConfigured);
 
   useEffect(() => {
@@ -60,6 +64,16 @@ export function useAuth(): AuthState {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  // Admin flag: a row in `public.admins` (see utils/board.ts). Re-checked
+  // whenever the signed-in user changes. A stale `true` after sign-out is
+  // masked below by gating the exposed value on `user`.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    fetchIsAdmin(user.id).then(is => { if (!cancelled) setAdmin(is); });
+    return () => { cancelled = true; };
+  }, [user]);
+
   const signInWithGoogle = async () => {
     if (!supabase) return;
     await supabase.auth.signInWithOAuth({
@@ -76,6 +90,7 @@ export function useAuth(): AuthState {
   return {
     user,
     profile: toProfile(user),
+    admin: admin && !!user,
     loading,
     configured: isSupabaseConfigured,
     signInWithGoogle,

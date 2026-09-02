@@ -492,3 +492,44 @@ Only items clearly and specifically superseded by the Selector model — not "de
 - **Stage progression system** (dots → natural → chromatic per string, moved through in sequence) — replaced by direct difficulty selection (Whole Only / Dot Frets / +♯♭) in the Selector Panel; there is no discrete sequence to progress through anymore.
 - **Stage Navigation chrome** — chevron arrows, progress bar with per-string colored dashes, tap-title stage picker overlay, title glow on stage change, swipe-to-change-stage, "stage change always stops game." All of this assumed a stage index to navigate; the Selector Panel has no equivalent concept and none of this UI should be rebuilt in its original form.
 - **"Custom Stage" as a stage-snapshot concept specifically** — the *mechanism* (snapshotting a Stage) is obsolete along with Stages themselves. (The underlying *want* — save a configuration for later — is carried forward as an Unconfirmed idea above, not as this obsolete mechanism.)
+
+---
+
+## 6. Monetization Tiering (Draft)
+
+First-pass split of the feature set into paid vs free, to frame the monetization decision that §4 still lists as unmade. Model: **Free + Pro (subscription) + Premium (higher subscription or add-ons)**. The Android app itself is **free** on both web and Play Store — paid tiers unlock features inside it, they are not a paywall to install. Nothing here is committed; it is a starting map for discussion.
+
+### Free — "learn the neck"
+A complete, genuinely useful app with no payment, or there is no adoption funnel.
+- By-fret and by-note modes
+- **Guitar and bass** (bass is a free instrument, not a Pro hook)
+- Single-string selection, fret-range halves, difficulty stages, Auto Advance
+- Scoring, streak, fire multiplier, celebrations, "serious learning" (score-off) mode
+- Notation A-B-C / Do-Re-Mi, circle-of-fifths / alphabetical order
+- Basic voice answering (Web Speech / native), no personal profile
+- Stats for the **current settings combination and session only** — no accumulating long-term history
+- Onboarding + placement, full offline support
+
+### Pro (subscription) — "train seriously and track progress"
+Core value = persistence of data over time + sync + a wider drill surface. Everything here already exists in the codebase; the work is gating, not building.
+- **Full history across every settings combination** + mastery maps (fret / note mastery equalizer overlays)
+- Full personal bests per settings combination
+- Multi-string mode
+- Google account + **cloud sync** across devices (history, personal bests, settings, voice profile)
+- Personal voice profile + calibration (more accurate recognition, reliable hands-free)
+- No ads (if the free tier ever carries them)
+
+### Premium (higher tier / add-ons) — "a teacher, not just a timer"
+Does not exist yet; needs to be built to justify a price above Pro. Justified only once 2–3 of these ship.
+- **New game modes**: chords, scales, intervals, staff notation reading, triads on a string set
+- **Structured training plan / course**: daily goals, a guided path stage to stage
+- **Automatic weakness-targeted drills**: engine reads the mastery map and builds a session from what the user gets wrong, plus spaced repetition (SRS) for notes
+- **Real pitch detection from the microphone** — play the note on the guitar instead of tapping / speaking
+- Instruments from other families (ukulele, mandolin, violin)
+- Daily challenge / leaderboard / friends
+
+### Open decisions
+- **Premium shape** — a single higher-priced subscription tier, or one-time in-app purchases per game mode (a natural fit for chords / scales / intervals as separate unlocks).
+- **Cloud sync in Free** — offer basic single-device backup for free (so data is never lost) and gate only multi-device restore behind Pro, to lower signup friction.
+- **Free history limit** — "current combination only" vs "last 7 days". The latter is less punishing and shows the user what they are missing.
+- **Ads in Free** — whether the free tier carries ads at all, or relies purely on the Pro upsell.

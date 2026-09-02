@@ -599,6 +599,26 @@ export function isSpeechAvailable(): boolean {
   return getSpeechEngine().kind !== 'none';
 }
 
+/**
+ * A fresh engine for *free-text dictation* — the feedback board's compose
+ * box — rather than the game's fixed twelve-word note/fret vocabulary.
+ *
+ * Unlike `getSpeechEngine()` this never routes to the on-device template
+ * engines (they only recognise note names). It uses the platform's general
+ * dictation instead:
+ *   • the Capacitor native plugin inside the Android app, where the Gboard
+ *     voice-typing key's text never reaches the WebView's text field;
+ *   • the browser's SpeechRecognition on the web.
+ *
+ * Returns a new instance every call — the caller owns its lifecycle and must
+ * call `destroy()` when finished.
+ */
+export function createDictationEngine(): SpeechEngine {
+  if (isCapacitorNative()) return new NativeSpeechEngine();
+  if (getSRConstructor()) return new WebSpeechEngine();
+  return new NullSpeechEngine();
+}
+
 /** Convenience re-export so callers pass one thing to `start()`. */
 export function vocabularyFor(notation: SpeechNotation): string[] {
   return speechVocabulary(notation);
