@@ -25,6 +25,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         designPreview: resolve(__dirname, 'design-preview.html'),
+        statsRedesign: resolve(__dirname, 'stats-redesign.html'),
       },
     },
   },

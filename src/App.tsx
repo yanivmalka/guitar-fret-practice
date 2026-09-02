@@ -866,12 +866,11 @@ export default function App() {
           notation={notation}
           instrument={instrument}
           currentHistory={historyOps.getEntriesForKey(histKey)}
-          maxTime={derivedSettings.time}
-          maxQuestions={derivedSettings.maxQuestions}
           sessionScore={scoring.session.score}
           longestStreak={scoring.session.longestStreak}
           currentHistoryKey={histKey}
-          onClearCurrent={() => { historyOps.clearAllHistory(); }}
+          onClearCurrent={() => { historyOps.clearHistory(histKey); }}
+          onClearAll={() => { historyOps.clearAllHistory(); }}
           onClose={() => setShowStats(false)}
         />
       </div>

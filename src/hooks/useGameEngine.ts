@@ -123,7 +123,6 @@ export function useGameEngine(
   const sessionRef = useRef(0); // incremented on start/switchStage to cancel stale callbacks
   // Coverage pool: ensures every valid fret is asked before repeats
   const coveragePoolRef = useRef<number[]>([]);
-  const failedFretsRef = useRef<Set<number>>(new Set());
   const milestonePauseRef = useRef(false);
   // baseTimeRef: the difficulty's own base time (unaffected by streak).
   // questionTimeRef: that base scaled down by the current streak tier —
@@ -364,7 +363,6 @@ export function useGameEngine(
       answeredRef.current = true;
       setAnswered(true);
       setWrongFret(selectedFret);
-      failedFretsRef.current.add(selectedFret); // re-queue for coverage
       const elapsed = (Date.now() - questionStartRef.current) / 1000;
       addEntry({ note, fret: selectedFret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: false, correct: false });
       setFeedback(`✗ Correct: ${rem.join(', ')}`);
@@ -478,7 +476,6 @@ export function useGameEngine(
     countRef.current = 0;
     setQuestionNumber(0);
     coveragePoolRef.current = [];
-    failedFretsRef.current = new Set();
     resetSession();
     setFeedback('');
     setCurrentFret(null);
