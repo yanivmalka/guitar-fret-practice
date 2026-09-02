@@ -1155,7 +1155,8 @@ export default function App() {
       </div>
 
       {isStopped && showStats && (
-        <div className="stats-wrapper">
+        <div className="stats-overlay" onClick={click(() => setShowStats(false))}>
+          <div className="stats-overlay-card" onClick={(e) => e.stopPropagation()}>
           <ProgressPanel
             allHistory={historyOps.allHistory}
             noteNames={cofList}
@@ -1171,6 +1172,7 @@ export default function App() {
             onClearCurrent={() => { historyOps.clearAllHistory(); }}
             onClose={() => setShowStats(false)}
           />
+          </div>
         </div>
       )}
 
