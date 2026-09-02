@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { HistoryEntry } from '../utils/music';
-import { withIds, cloudInsertEntry, cloudDeleteKey } from '../utils/sync';
+import { withIds, cloudInsertEntry, cloudDeleteKey, cloudDeleteAll } from '../utils/sync';
 
 export function useHistory() {
   // All history keyed by selector-derived string key (e.g. "6|0-12|byFret|dots")
@@ -54,6 +54,15 @@ export function useHistory() {
     void cloudDeleteKey(key);
   }, []);
 
+  // Wipe history for every settings combination — this is what the Stats
+  // panel's "Clear History" runs, so the all-time mastery bars on the note
+  // wheel / fret grid (which aggregate every combination) also reset.
+  const clearAllHistory = useCallback(() => {
+    setHistory([]);
+    setAllHistory({});
+    void cloudDeleteAll();
+  }, []);
+
   const resetSession = useCallback(() => {
     setHistory([]);
   }, []);
@@ -69,7 +78,7 @@ export function useHistory() {
 
   return {
     history, allHistory, everPlayed,
-    addEntry, markPlayed, clearHistory, resetSession, getEntriesForKey,
+    addEntry, markPlayed, clearHistory, clearAllHistory, resetSession, getEntriesForKey,
     replaceAllHistory, getAllHistory,
   };
 }

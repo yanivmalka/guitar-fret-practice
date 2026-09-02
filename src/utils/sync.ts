@@ -15,8 +15,10 @@ import type { PersonalBest } from './personalBest';
 
 type HistoryMap = Record<string, HistoryEntry[]>;
 type BestMap = Record<string, PersonalBest>;
-// historyKey -> ISO timestamp of the clear. History rows at/before it are gone.
+// historyKey -> ISO timestamp of the clear. History rows at/before it are
+// gone. The sentinel key '*' is a global clear that applies to every key.
 type Tombstones = Record<string, string>;
+const ALL_KEYS = '*';
 
 let currentUserId: string | null = null;
 
@@ -88,7 +90,7 @@ function mergeTombstones(a: Tombstones, b: Tombstones): Tombstones {
 function applyTombstones(history: HistoryMap, tombstones: Tombstones): HistoryMap {
   const out: HistoryMap = {};
   for (const [key, entries] of Object.entries(history)) {
-    const cut = tombstones[key];
+    const cut = laterIso(tombstones[key], tombstones[ALL_KEYS]);
     if (!cut) { out[key] = entries; continue; }
     const kept = entries.filter(e => (e.createdAt ?? '') > cut);
     if (kept.length) out[key] = kept;
@@ -171,6 +173,27 @@ export async function cloudDeleteKey(historyKey: string) {
       .eq('history_key', historyKey);
     await supabase!.from('deleted_keys').upsert(
       { user_id: currentUserId, history_key: historyKey, deleted_at: now },
+      { onConflict: 'user_id,history_key' },
+    );
+  } catch { /* best-effort — local tombstone covers the next sync */ }
+}
+
+// Clear the history for every selector-combination at once: delete all of
+// the user's cloud rows and write a single global ('*') tombstone so no
+// re-push or other device's still-local rows bring anything back. A later
+// replay (newer createdAt) still survives. Best-effort; the local tombstone
+// is recorded even when offline.
+export async function cloudDeleteAll() {
+  const now = new Date().toISOString();
+  const local = loadTombstones();
+  local[ALL_KEYS] = laterIso(local[ALL_KEYS], now);
+  saveTombstones(local);
+
+  if (!cloudReady()) return;
+  try {
+    await supabase!.from('history_entries').delete().eq('user_id', currentUserId);
+    await supabase!.from('deleted_keys').upsert(
+      { user_id: currentUserId, history_key: ALL_KEYS, deleted_at: now },
       { onConflict: 'user_id,history_key' },
     );
   } catch { /* best-effort — local tombstone covers the next sync */ }

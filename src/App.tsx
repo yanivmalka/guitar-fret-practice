@@ -1189,7 +1189,7 @@ export default function App() {
             sessionScore={scoring.session.score}
             longestStreak={scoring.session.longestStreak}
             historyKey={histKey}
-            onClear={() => { historyOps.clearHistory(histKey); setShowStats(false); }}
+            onClear={() => { historyOps.clearAllHistory(); setShowStats(false); }}
           />
         </div>
       )}
