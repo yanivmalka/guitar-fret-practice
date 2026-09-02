@@ -1,10 +1,17 @@
 import { useState } from 'react';
 import { saveSetting } from '../utils/settings';
+import type { Difficulty } from '../hooks/useSelector';
 
 interface Props {
   onDone: () => void;
   /** Persist the player's instrument pick made on the first screen. */
   onInstrument?: (id: 'guitar' | 'bass') => void;
+  /**
+   * Apply the difficulty the placement flow lands on (self-reported level or
+   * 3-question test score) to the live Selector settings. Skipping the flow
+   * leaves the current difficulty untouched.
+   */
+  onPlacement?: (difficulty: Difficulty) => void;
 }
 
 // Quick placement questions: string 6, by fret, dots only
@@ -18,7 +25,15 @@ type Step = 'instrument' | 'level' | 'test' | 'result';
 
 const NOTE_OPTIONS = ['E','F','F#','G','G#','A','A#','B','C','C#','D','D#'];
 
-export default function Onboarding({ onDone, onInstrument }: Props) {
+// Map a placement outcome (0-3 correct, or a self-reported level) to a
+// starting difficulty on the Selector's dots -> naturals -> full axis.
+function scoreToDifficulty(score: number): Difficulty {
+  if (score >= 3) return 'full';
+  if (score >= 2) return 'naturals';
+  return 'dots';
+}
+
+export default function Onboarding({ onDone, onInstrument, onPlacement }: Props) {
   const [step, setStep] = useState<Step>('instrument');
   const [instrument, setInstrument] = useState<'guitar' | 'bass'>('guitar');
   const [testIdx, setTestIdx]     = useState(0);
@@ -36,6 +51,12 @@ export default function Onboarding({ onDone, onInstrument }: Props) {
   const finish = () => {
     saveSetting('onboardingDone', true);
     onDone();
+  };
+
+  // Apply a placement result, then close onboarding.
+  const finishWithDifficulty = (difficulty: Difficulty) => {
+    onPlacement?.(difficulty);
+    finish();
   };
 
   const handleTestAnswer = (answer: string) => {
@@ -79,7 +100,7 @@ export default function Onboarding({ onDone, onInstrument }: Props) {
         <div className="onboarding-logo">🎸</div>
         <p className="onboarding-question">How well do you know the fretboard?</p>
         <div className="onboarding-options">
-          <button className="onboarding-btn" onClick={finish}>
+          <button className="onboarding-btn" onClick={() => finishWithDifficulty('dots')}>
             🌱 I'm just starting
             <span className="onboarding-hint">Start with dot frets on String 6</span>
           </button>
@@ -87,7 +108,7 @@ export default function Onboarding({ onDone, onInstrument }: Props) {
             🎯 I play but want to improve
             <span className="onboarding-hint">Quick 3-question test</span>
           </button>
-          <button className="onboarding-btn" onClick={finish}>
+          <button className="onboarding-btn" onClick={() => finishWithDifficulty('full')}>
             🏆 I know the full neck
             <span className="onboarding-hint">Jump right in</span>
           </button>
@@ -127,15 +148,21 @@ export default function Onboarding({ onDone, onInstrument }: Props) {
   // result step
   const score = correct;
   const msgs = ['Keep going!', 'Good start!', 'Nice work!', 'Impressive!'];
+  const suggested = scoreToDifficulty(score);
+  const DIFF_LABEL: Record<Difficulty, string> = {
+    dots: 'Dot Frets',
+    naturals: 'Natural notes',
+    full: 'the full chromatic neck',
+  };
   return (
     <div className="onboarding">
       <div className="onboarding-card">
         <div className="onboarding-logo">{score >= 3 ? '🏆' : score >= 2 ? '🎯' : '🌱'}</div>
         <p className="onboarding-question">{msgs[score]}</p>
         <p className="onboarding-sub">
-          {score}/3 correct — use the selector panel to pick your string and difficulty.
+          {score}/3 correct — we've set you up on {DIFF_LABEL[suggested]}. Change it anytime in the selector panel.
         </p>
-        <button className="onboarding-btn" onClick={finish}>
+        <button className="onboarding-btn" onClick={() => finishWithDifficulty(suggested)}>
           Let's go →
         </button>
       </div>
