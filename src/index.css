@@ -267,9 +267,21 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   gap: 10px;
   flex-wrap: wrap;
 }
+/* Signed-in: identity card stacked above a full-width action button. */
+.account-row-in {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+}
+.account-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
 .account-avatar {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   flex-shrink: 0;
   object-fit: cover;
@@ -278,32 +290,33 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 .account-identity {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   flex: 1;
   min-width: 0;
 }
 .account-name {
-  font-size: 0.85rem;
-  color: #ddd;
+  font-size: 0.9rem;
+  color: #eee;
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .account-email {
-  font-size: 0.75rem;
-  color: #999;
+  font-size: 0.78rem;
+  color: #9a9ab0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
 }
 .account-member-since {
-  font-size: 0.7rem;
-  color: #777;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
+  font-size: 0.72rem;
+  color: #6f6f88;
+  margin-top: 1px;
+}
+.account-row-in .account-btn {
+  width: 100%;
 }
 .account-btn {
   display: inline-flex;

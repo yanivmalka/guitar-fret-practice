@@ -846,34 +846,36 @@ export default function App() {
       title: '👤 Account',
       blurb: 'Sign in with Google to keep your preferences and data across devices, or sign out.',
       body: (
-        <div className="account-row">
+        <div className={`account-row${auth.user ? ' account-row-in' : ''}`}>
           {auth.user ? (
             <>
-              {auth.profile?.avatarUrl && (
-                <img
-                  className="account-avatar"
-                  src={auth.profile.avatarUrl}
-                  alt=""
-                  referrerPolicy="no-referrer"
-                  width={32}
-                  height={32}
-                />
-              )}
-              <span className="account-identity">
-                {auth.profile?.name && (
-                  <span className="account-name">{auth.profile.name}</span>
+              <div className="account-user">
+                {auth.profile?.avatarUrl && (
+                  <img
+                    className="account-avatar"
+                    src={auth.profile.avatarUrl}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                    width={40}
+                    height={40}
+                  />
                 )}
-                <span className="account-email">
-                  {auth.profile?.email ?? auth.user.email ?? 'Signed in'}
-                </span>
-                {auth.user.created_at && (
-                  <span className="account-member-since">
-                    חבר מ־{new Date(auth.user.created_at).toLocaleDateString('he-IL', {
-                      day: 'numeric', month: 'long', year: 'numeric',
-                    })}
+                <span className="account-identity">
+                  {auth.profile?.name && (
+                    <span className="account-name">{auth.profile.name}</span>
+                  )}
+                  <span className="account-email">
+                    {auth.profile?.email ?? auth.user.email ?? 'Signed in'}
                   </span>
-                )}
-              </span>
+                  {auth.user.created_at && (
+                    <span className="account-member-since">
+                      חבר מ־{new Date(auth.user.created_at).toLocaleDateString('en-GB', {
+                        day: 'numeric', month: 'long', year: 'numeric',
+                      })}
+                    </span>
+                  )}
+                </span>
+              </div>
               <button
                 className="account-btn"
                 onClick={click(() => { void auth.signOut(); })}
