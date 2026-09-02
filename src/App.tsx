@@ -13,14 +13,14 @@ import type { HistoryEntry, AccidentalMode, OrderMode, NotationMode } from './ut
 import { getInstrument, type InstrumentId } from './utils/instruments';
 import { preloadAllSamples, unlockAudio, setAudioInstrument } from './utils/audio';
 import { App as CapacitorApp } from '@capacitor/app';
-import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3, celebrateTier2 } from './utils/feedback';
+import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3 } from './utils/feedback';
 import { loadSetting, saveSetting } from './utils/settings';
 import { loadBest, saveBest, loadAllBests, writeAllBests } from './utils/personalBest';
 import { historyForInstrument, fretMasteryMap, noteMasteryMap } from './utils/mastery';
 import { useAuth } from './hooks/useAuth';
 import { bootstrapUser, reconcileUser, syncedUser, clearSyncedUser } from './utils/sync';
 import { bootstrapSettings, syncedSettingsUser, clearSyncedSettingsUser, cloudPushSettings } from './utils/settingsSync';
-import { useSelector } from './hooks/useSelector';
+import { useSelector, nextDifficulty, totalRunQuestions } from './hooks/useSelector';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useGameEngine } from './hooks/useGameEngine';
 import { useHistory } from './hooks/useHistory';
@@ -30,11 +30,6 @@ import VoiceLevelMeter from './components/VoiceLevelMeter';
 import DebugLogPanel from './components/DebugLogPanel';
 import VoiceCalibration from './components/VoiceCalibration';
 import { FeedbackBoard } from './components/FeedbackBoard';
-import { BadgeGrid } from './components/BadgeGrid';
-import {
-  badgeList, badgeDef, evaluateSession, evaluateLifetime, awardBadge, isEarned,
-  type BadgeId, type SessionSnapshot, type LifetimeSnapshot,
-} from './utils/badges';
 import { vlog } from './utils/debugLog';
 import type { SpeechNotation } from './utils/speechVocab';
 import { resetSpeechEngine, type VoiceEnginePref } from './utils/speech';
@@ -45,6 +40,9 @@ import { PROFILE_LABELS, SAMPLES_PER_LABEL, profileVocabId } from './utils/voice
 import { bootstrapVoiceProfile, voiceSyncedUser, clearVoiceSyncedUser } from './utils/voiceSync';
 
 type AnswerMode = 'tap' | 'voice';
+
+// Uppercase display name for the Auto Advance stage-transition banner.
+const STAGE_NAME: Record<string, string> = { dots: 'DOTS', naturals: 'NATURALS', full: 'FULL' };
 
 export default function App() {
   // Which instrument is being drilled. Chosen on first launch (Onboarding) and
@@ -294,34 +292,31 @@ export default function App() {
   );
 
   // Auto Advance: when the current stage/selection is actually completed
-  // (every question answered, not a manual Stop), move into the next stage of
-  // the ordered curriculum (see utils/stageSequence.ts) and continue straight
-  // into it, keeping the same score/streak/session. selector.applyStage and
-  // setPendingAutoAdvance are called together in the same tick as the engine's
-  // setRunning(false), so React batches them into one render — the
-  // game-end-summary effect (below) sees pendingAutoAdvance already true at
-  // that same render and skips showing the "round complete" screen.
+  // (every question answered, not a manual Stop), bump to the next
+  // difficulty and continue straight into it, keeping the same score/
+  // streak/session. selector.onDifficultySelect and setPendingAutoAdvance
+  // are called together in the same tick as the engine's setRunning(false),
+  // so React batches them into one render — the game-end-summary effect
+  // (below) sees pendingAutoAdvance already true at that same render and
+  // skips showing the "round complete" screen for this transition.
   const [pendingAutoAdvance, setPendingAutoAdvance] = useState(false);
   // Data for the brief Auto Advance stage-transition banner (null = not shown).
   const [stageTransition, setStageTransition] = useState<{ name: string; from: number; to: number } | null>(null);
   // Mirror of the *current* stage's question count, read at the moment a stage
-  // completes (before the next stage re-renders) to show "15 → 20".
+  // completes (before the difficulty bump re-renders) to show "15 → 20".
   const stageMaxQRef = useRef(derivedSettings.maxQuestions);
   stageMaxQRef.current = derivedSettings.maxQuestions;
   const autoAdvanceFromRef = useRef(0);
-  // Label of the stage being advanced into, captured for the transition banner.
-  const autoAdvanceLabelRef = useRef('');
   const handleAutoComplete = useCallback(() => {
     if (!selector.state.autoAdvance) return;
-    const next = selector.nextStage();
-    if (!next) return; // end of the curriculum — let the run finish normally
+    const next = nextDifficulty(selector.state.difficulty);
+    if (!next) return;
     autoAdvanceFromRef.current = stageMaxQRef.current;
-    autoAdvanceLabelRef.current = next.label;
     // Continuous run: carry score / streak / timing progression straight into
     // the next stage. runStreak keeps counting across this boundary — the
     // engine's next start() must NOT call scoring.beginRun (only manual Play
     // does), so the single run-length ramp is preserved.
-    selector.applyStage(next);
+    selector.onDifficultySelect(next);
     setPendingAutoAdvance(true);
   }, [selector]);
 
@@ -399,8 +394,8 @@ export default function App() {
   // `pendingAutoAdvance`. `engineStart` (and the objects it closes over) get a
   // fresh identity on every render, so listing it as a dep would re-run the
   // effect mid-hold and restart the timer forever.
-  const autoAdvanceLatestRef = useRef({ engineStart, derivedSettings });
-  autoAdvanceLatestRef.current = { engineStart, derivedSettings };
+  const autoAdvanceLatestRef = useRef({ engineStart, derivedSettings, difficulty: selector.state.difficulty });
+  autoAdvanceLatestRef.current = { engineStart, derivedSettings, difficulty: selector.state.difficulty };
 
   // On an Auto Advance boundary: show the "STAGE COMPLETE / <NAME>" banner,
   // hold briefly, then start the next stage exactly the way it started before —
@@ -412,9 +407,9 @@ export default function App() {
   useLayoutEffect(() => {
     if (!pendingAutoAdvance) return;
     const reduced = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    const { derivedSettings: ds } = autoAdvanceLatestRef.current;
+    const { difficulty, derivedSettings: ds } = autoAdvanceLatestRef.current;
     setStageTransition({
-      name: autoAdvanceLabelRef.current,
+      name: STAGE_NAME[difficulty] ?? '',
       from: autoAdvanceFromRef.current,
       to: ds.maxQuestions,
     });
@@ -523,16 +518,6 @@ export default function App() {
 
   const [preloaded, setPreloaded] = useState(false);
   const [onboardingDone, setOnboardingDone] = useState(() => loadSetting<boolean>('onboardingDone', false));
-  // One-time nudge for guests to sign in, shown right after onboarding. "Maybe
-  // later" sets this device-local flag so it never nags again; the account is
-  // still reachable any time from Settings → Account.
-  const [signInPromptSeen, setSignInPromptSeen] = useState(
-    () => loadSetting<boolean>('pref_signInPromptSeen', false),
-  );
-  const dismissSignInPrompt = () => {
-    setSignInPromptSeen(true);
-    saveSetting('pref_signInPromptSeen', true);
-  };
   // The unified "Stats & progress" screen (current-setup stats + all-time progress tabs).
   const [showStats, setShowStats] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -555,10 +540,6 @@ export default function App() {
   // Guards the Tier 3 (new personal best) celebration so it fires at most once
   // per completed run. Reset on every Play and whenever the selector combo changes.
   const tier3FiredRef = useRef(false);
-  // Guards badge evaluation so it runs at most once per completed run, and holds
-  // the ids newly earned this run for the game-end summary card.
-  const badgesFiredRef = useRef(false);
-  const [newBadges, setNewBadges] = useState<BadgeId[]>([]);
 
   const isPlaying = running && !paused;
   const isStopped = !running && !paused;
@@ -637,11 +618,7 @@ export default function App() {
   // own Back control takes over from there.
   const showBurger = !isPlaying && !pendingAutoAdvance && countdown === null && !settingsOpen;
 
-  useEffect(() => {
-    setShowStats(false); setGameEnded(false);
-    tier3FiredRef.current = false;
-    badgesFiredRef.current = false; setNewBadges([]);
-  }, [histKey]);
+  useEffect(() => { setShowStats(false); setGameEnded(false); tier3FiredRef.current = false; }, [histKey]);
 
   // Mirror the open sub-page in a ref so the Escape handler (bound once per
   // open) reads the current value without re-subscribing on every navigation.
@@ -667,14 +644,6 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [micPrompt]);
-
-  // Guests can dismiss the sign-in nudge with Escape ("Maybe later").
-  useEffect(() => {
-    if (signInPromptSeen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') dismissSignInPrompt(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [signInPromptSeen]);
 
   // Multi-string mode: a short haptic pulse when the drilled string changes
   // between questions, reinforcing the visual string-change emphasis. Single-
@@ -714,42 +683,9 @@ export default function App() {
         // a score effect, so it is skipped in "serious learning" mode.
         if (showScore) celebrateTier3(score, scoring.session.longestStreak);
       }
-
-      // Achievements: evaluate this run's session badges plus a retroactive
-      // pass over the instrument's all-time history, once per completed run
-      // (badgesFiredRef, like tier3FiredRef, blocks a repeat if the effect
-      // re-runs). Awarding is never gated on `showScore` — badges accrue in
-      // Silent / Score-off mode; only the celebration below is a score effect.
-      if (!badgesFiredRef.current) {
-        badgesFiredRef.current = true;
-        const sessionSnap: SessionSnapshot = {
-          questionsAnswered: scoring.session.questionsAnswered,
-          maxQuestions: selector.runQuestionCount(),
-          longestStreak: scoring.session.longestStreak,
-          entries: historyOps.history,
-          instrument,
-        };
-        const lifetimeSnap: LifetimeSnapshot = {
-          instrumentEntries: historyForInstrument(historyOps.allHistory, instrument.id),
-          instrument,
-        };
-        const earned: BadgeId[] = [];
-        for (const id of evaluateSession(sessionSnap)) {
-          if (awardBadge(id, instrument.id)) earned.push(id);
-        }
-        for (const id of evaluateLifetime(lifetimeSnap)) {
-          if (awardBadge(id, instrument.id)) earned.push(id);
-        }
-        if (earned.length > 0) {
-          setNewBadges(earned);
-          if (showScore) {
-            celebrateTier2(`🏅 ${badgeDef(earned[0], instrument)?.name ?? 'New badge'}`);
-          }
-        }
-      }
     }
     wasRunningRef.current = running;
-  }, [running, paused, pendingAutoAdvance, scoring.session.questionsAnswered, scoring.session.score, scoring.session.longestStreak, histKey, historyOps.history, historyOps.allHistory, instrument, selector.state.difficulty, selector.state.autoAdvance, showScore]);
+  }, [running, paused, pendingAutoAdvance, scoring.session.questionsAnswered, scoring.session.score, scoring.session.longestStreak, histKey, historyOps.history, showScore]);
 
   const start = () => {
     unlockAudio();
@@ -762,12 +698,10 @@ export default function App() {
     // (all Auto Advance stages, or just this one).
     scoring.beginRun(
       derivedSettings.time,
-      selector.runQuestionCount(),
+      totalRunQuestions(selector.state.difficulty, selector.state.autoAdvance),
     );
     setGameEnded(false);
     tier3FiredRef.current = false;
-    badgesFiredRef.current = false;
-    setNewBadges([]);
     // Count-in: the on-screen countdown steps 3 → 2 → 1 once a second and the
     // game comes in on "0" at t = 3s. The four drum-stick clicks run on their
     // own steady, faster cadence — one every 750ms (t = 0, 0.75, 1.5, 2.25s),
@@ -1064,13 +998,6 @@ export default function App() {
               )}
             </span>
           </div>
-          <p className="badge-summary">
-            {(() => {
-              const visible = badgeList(instrument).filter(d => d.kind !== 'role' || auth.admin);
-              const earned = visible.filter(d => d.id === 'admin' ? auth.admin : isEarned(d.id, instrument.id)).length;
-              return `🏅 ${earned} / ${visible.length} badges earned`;
-            })()}
-          </p>
           <button
             className="set-card-danger"
             onClick={click(() => { void auth.signOut(); })}
@@ -1098,18 +1025,6 @@ export default function App() {
         </SettingCard>
       ),
     }] : []),
-    {
-      id: 'badges',
-      title: '🏅 Badges',
-      blurb: '',
-      body: (
-        <BadgeGrid
-          instrument={instrument}
-          instrumentEntries={allHistoryEntries}
-          isAdmin={auth.admin}
-        />
-      ),
-    },
   ];
 
   // The unified "Stats & progress" screen replaces the game entirely — its own
@@ -1292,41 +1207,6 @@ export default function App() {
         </div>
       )}
 
-      {/* One-time sign-in nudge for guests, right after onboarding. Reuses the
-          mic card's styling. "Maybe later" (or backdrop / Escape) dismisses it
-          for good on this device; the account stays reachable from Settings. */}
-      {auth.configured && !auth.loading && !auth.user && onboardingDone
-        && !signInPromptSeen && !gameActive && (
-        <div className="mic-overlay" onClick={click(dismissSignInPrompt)}>
-          <div
-            className="mic-card"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Sign in"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mic-card-icon" aria-hidden="true">☁️</div>
-            <div className="mic-card-title">Save your progress</div>
-            <p className="mic-card-body">
-              Sign in with Google to keep your history, badges and personal
-              bests across devices. You can keep playing as a guest — everything
-              still works, it just stays on this device.
-            </p>
-            <div className="mic-card-actions">
-              <button
-                className="mic-btn mic-btn-primary"
-                onClick={click(() => { void auth.signInWithGoogle(); })}
-              >
-                Sign in with Google
-              </button>
-              <button className="mic-btn mic-btn-ghost" onClick={click(dismissSignInPrompt)}>
-                Maybe later
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Countdown overlay */}
       {countdown !== null && (
         <div className="countdown-overlay">
@@ -1403,17 +1283,7 @@ export default function App() {
                 {scoring.session.longestStreak >= 2 && <span>🔥 {scoring.session.longestStreak} streak</span>}
                 <span>✓ {sessionHistory.filter(h => h.correct === true).length}/{scoring.session.questionsAnswered}</span>
               </div>
-              {newBadges.length > 0 && (
-                <div className="game-end-badges">
-                  {newBadges.map(id => (
-                    <div className="game-end-badge" key={id}>
-                      <span aria-hidden="true">{badgeDef(id, instrument)?.icon ?? '🏅'}</span>
-                      New badge · {badgeDef(id, instrument)?.name ?? id}
-                    </div>
-                  ))}
-                </div>
-              )}
-              <button className="clear-btn" onClick={click(() => { setGameEnded(false); setNewBadges([]); })}>OK</button>
+              <button className="clear-btn" onClick={click(() => setGameEnded(false))}>OK</button>
             </div>
           )}
 
