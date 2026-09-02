@@ -18,9 +18,12 @@ const DB_NAME = 'voiceProfiles';
 //     ("C sharp", …) to nine segmented ones (seven letters + "#"/"b").
 // v3: a short-lived MFCC layout change (39-dim Δ/ΔΔ frames) that was later
 //     reverted. The version can't go back down — IndexedDB rejects a lower
-//     open() — and any profile calibrated during v3 holds 39-dim frames the
-//     reverted 13-dim matcher can't compare. So skip straight to v4 to drop
-//     those and force one clean re-calibration at the current layout.
+//     open() — and any profile calibrated during v3 holds 39-dim frames that
+//     don't match the reverted 13-dim layout. The current dtw.ts does not
+//     reject a frame-dimension mismatch, so those stale frames would compare
+//     silently and produce meaningless distances rather than being ignored.
+//     So skip straight to v4 to drop those and force one clean
+//     re-calibration at the current layout.
 const DB_VERSION = 4;
 const STORE = 'templates';
 const ACTIVE_KEY = 'voice.profile.active';

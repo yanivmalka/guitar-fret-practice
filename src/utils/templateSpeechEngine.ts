@@ -200,7 +200,13 @@ export class TemplateSpeechEngine implements SpeechEngine {
     if (this.cache?.vocabId === vocabId) return this.cache.templates;
     const rows = await this.cfg.loadTemplates(vocabId);
     const templates = rows.map((r) => ({ label: r.label, frames: framesFromJson(r.frames) }));
-    this.cache = { vocabId, templates };
+    // Only memoise a non-empty load. An empty result can be a transient
+    // IndexedDB / lazy-chunk failure (`loadTemplates` swallows errors and
+    // returns []); caching that would disable this cached engine for the rest
+    // of the session. A set that is genuinely empty just gets re-fetched on
+    // the next turn — same observable behaviour, no permanent stick.
+    if (templates.length) this.cache = { vocabId, templates };
+    else this.cache = null;
     return templates;
   }
 
@@ -215,6 +221,7 @@ export class TemplateSpeechEngine implements SpeechEngine {
     const abort = new AbortController();
     this.abort = abort;
 
+    try {
     const templates = await this.getTemplates(vocabId);
     if (myTurn !== this.turn) return;
     if (!templates.length) { opts.onError('not-supported'); return; }
@@ -300,6 +307,20 @@ export class TemplateSpeechEngine implements SpeechEngine {
       opts.onResult({ transcript: firstLabel, alternatives: alts, isFinal: true });
     }
     opts.onEnd?.();
+    } catch (e) {
+      // An unexpected throw somewhere in the async start flow — AudioContext
+      // construction, the getUserMedia audio graph, an IndexedDB read, MFCC
+      // extraction. `useVoiceAnswer` calls `start()` as `void`, so a reject
+      // here would be an unhandled rejection that leaves voice stuck on
+      // 'listening'. Surface it and still fire `onEnd` so the caller's
+      // keep-alive / recovery path runs. A stale turn (a concurrent
+      // stop()/start(), including a deliberate abort) is not an error.
+      if (myTurn === this.turn) {
+        verror('[voice] start failed', String(e));
+        opts.onError('unknown');
+        opts.onEnd?.();
+      }
+    }
   }
 
   /**
