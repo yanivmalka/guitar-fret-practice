@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { HistoryEntry } from '../utils/music';
-import { withIds, cloudInsertEntry } from '../utils/sync';
+import { withIds, cloudInsertEntry, cloudDeleteKey } from '../utils/sync';
 
 export function useHistory() {
   // All history keyed by selector-derived string key (e.g. "6|0-12|byFret|dots")
@@ -49,6 +49,9 @@ export function useHistory() {
   const clearHistory = useCallback((key: string) => {
     setHistory([]);
     setAllHistory(prev => { const u = { ...prev }; delete u[key]; return u; });
+    // Propagate the clear to the cloud + other devices for signed-in users
+    // (writes a local tombstone even when offline; no-op for guests).
+    void cloudDeleteKey(key);
   }, []);
 
   const resetSession = useCallback(() => {

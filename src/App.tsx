@@ -18,7 +18,7 @@ import { loadSetting, saveSetting } from './utils/settings';
 import { loadBest, saveBest, loadAllBests, writeAllBests } from './utils/personalBest';
 import { flattenHistory, fretMasteryMap, noteMasteryMap } from './utils/mastery';
 import { useAuth } from './hooks/useAuth';
-import { bootstrapUser, pushAll, syncedUser, clearSyncedUser } from './utils/sync';
+import { bootstrapUser, reconcileUser, syncedUser, clearSyncedUser } from './utils/sync';
 import { useSelector, nextDifficulty, totalRunQuestions } from './hooks/useSelector';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useGameEngine } from './hooks/useGameEngine';
@@ -153,8 +153,14 @@ export default function App() {
           replaceAllHistory(history);
           writeAllBests(bests);
         } else {
-          // Already merged before — just re-push anything written offline.
-          await pushAll(user.id, getAllHistory(), loadAllBests());
+          // Already merged before — pull the tombstone set, retire any
+          // cleared rows that still survive here, then re-push what's left
+          // (this also carries up anything written offline).
+          const { history, changed } = await reconcileUser(
+            user.id, getAllHistory(), loadAllBests(),
+          );
+          if (cancelled) return;
+          if (changed) replaceAllHistory(history);
         }
       } catch {
         /* offline or transient error — retried on next sign-in / app start */

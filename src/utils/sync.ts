@@ -15,6 +15,8 @@ import type { PersonalBest } from './personalBest';
 
 type HistoryMap = Record<string, HistoryEntry[]>;
 type BestMap = Record<string, PersonalBest>;
+// historyKey -> ISO timestamp of the clear. History rows at/before it are gone.
+type Tombstones = Record<string, string>;
 
 let currentUserId: string | null = null;
 
@@ -42,6 +44,56 @@ function setSyncedUser(id: string) {
 }
 export function clearSyncedUser() {
   try { localStorage.removeItem(SYNCED_FLAG); } catch { /* ignore */ }
+}
+
+// ── Local tombstone store ───────────────────────────────────────────────
+// Persisted so a re-push on a later app start (which never pulls) still
+// knows not to resurrect cleared rows. Merged with the cloud set on every
+// bootstrap / reconcile.
+const TOMBSTONES_KEY = 'cloudDeletedKeys';
+
+export function loadTombstones(): Tombstones {
+  try {
+    const raw = localStorage.getItem(TOMBSTONES_KEY);
+    return raw ? (JSON.parse(raw) as Tombstones) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveTombstones(t: Tombstones): void {
+  try { localStorage.setItem(TOMBSTONES_KEY, JSON.stringify(t)); } catch { /* ignore */ }
+}
+
+export function clearTombstones(): void {
+  try { localStorage.removeItem(TOMBSTONES_KEY); } catch { /* ignore */ }
+}
+
+// Newest of two ISO timestamps (either may be undefined).
+function laterIso(a: string | undefined, b: string | undefined): string {
+  if (!a) return b ?? '';
+  if (!b) return a;
+  return a >= b ? a : b;
+}
+
+function mergeTombstones(a: Tombstones, b: Tombstones): Tombstones {
+  const out: Tombstones = { ...a };
+  for (const [k, v] of Object.entries(b)) out[k] = laterIso(out[k], v);
+  return out;
+}
+
+// Drop every history row for a tombstoned key that was created at or before
+// the clear. A replay after the clear (newer createdAt) survives; a key with
+// nothing left is removed from the map.
+function applyTombstones(history: HistoryMap, tombstones: Tombstones): HistoryMap {
+  const out: HistoryMap = {};
+  for (const [key, entries] of Object.entries(history)) {
+    const cut = tombstones[key];
+    if (!cut) { out[key] = entries; continue; }
+    const kept = entries.filter(e => (e.createdAt ?? '') > cut);
+    if (kept.length) out[key] = kept;
+  }
+  return out;
 }
 
 function newId(): string {
@@ -101,12 +153,38 @@ export async function cloudUpsertBest(historyKey: string, best: PersonalBest) {
   } catch { /* best-effort */ }
 }
 
+// Clear the history rows for one selector-combination everywhere: delete the
+// cloud rows, write a tombstone (local + cloud) so no later re-push or other
+// device's bootstrap brings them back. Best-effort; the local tombstone is
+// still recorded when offline so the next online sync propagates it.
+export async function cloudDeleteKey(historyKey: string) {
+  const now = new Date().toISOString();
+  const local = loadTombstones();
+  local[historyKey] = laterIso(local[historyKey], now);
+  saveTombstones(local);
+
+  if (!cloudReady()) return;
+  try {
+    await supabase!.from('history_entries')
+      .delete()
+      .eq('user_id', currentUserId)
+      .eq('history_key', historyKey);
+    await supabase!.from('deleted_keys').upsert(
+      { user_id: currentUserId, history_key: historyKey, deleted_at: now },
+      { onConflict: 'user_id,history_key' },
+    );
+  } catch { /* best-effort — local tombstone covers the next sync */ }
+}
+
 // ── Pull / merge / push (bootstrap on sign-in) ───────────────────────────
 
-export async function pullAll(userId: string): Promise<{ history: HistoryMap; bests: BestMap }> {
+export async function pullAll(
+  userId: string,
+): Promise<{ history: HistoryMap; bests: BestMap; tombstones: Tombstones }> {
   const history: HistoryMap = {};
   const bests: BestMap = {};
-  if (!supabase) return { history, bests };
+  const tombstones: Tombstones = {};
+  if (!supabase) return { history, bests, tombstones };
 
   const { data: rows, error: hErr } = await supabase
     .from('history_entries')
@@ -135,12 +213,23 @@ export async function pullAll(userId: string): Promise<{ history: HistoryMap; be
     bests[r.history_key] = { score: r.score, streak: r.streak, accuracy: r.accuracy };
   }
 
-  return { history, bests };
+  const { data: tombRows, error: tErr } = await supabase
+    .from('deleted_keys')
+    .select('history_key, deleted_at')
+    .eq('user_id', userId);
+  if (tErr) throw tErr;
+  for (const r of tombRows ?? []) tombstones[r.history_key] = r.deleted_at;
+
+  return { history, bests, tombstones };
 }
 
 // History merge: union by id across every historyKey. Local rows without an
 // id get one assigned here so the result is stable for the push that follows.
-export function mergeHistory(local: HistoryMap, cloud: HistoryMap): HistoryMap {
+export function mergeHistory(
+  local: HistoryMap,
+  cloud: HistoryMap,
+  tombstones: Tombstones = {},
+): HistoryMap {
   const out: HistoryMap = {};
   const keys = new Set([...Object.keys(local), ...Object.keys(cloud)]);
   for (const key of keys) {
@@ -154,7 +243,7 @@ export function mergeHistory(local: HistoryMap, cloud: HistoryMap): HistoryMap {
       (a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? ''),
     );
   }
-  return out;
+  return applyTombstones(out, tombstones);
 }
 
 // Personal-best merge: highest score per historyKey wins.
@@ -169,8 +258,16 @@ export function mergeBests(local: BestMap, cloud: BestMap): BestMap {
   return out;
 }
 
-export async function pushAll(userId: string, history: HistoryMap, bests: BestMap): Promise<void> {
+export async function pushAll(
+  userId: string,
+  history: HistoryMap,
+  bests: BestMap,
+  tombstones: Tombstones = {},
+): Promise<void> {
   if (!supabase) return;
+
+  // Never re-push rows a tombstone already retired.
+  history = applyTombstones(history, tombstones);
 
   const rows: Record<string, unknown>[] = [];
   for (const [historyKey, entries] of Object.entries(history)) {
@@ -213,6 +310,18 @@ export async function pushAll(userId: string, history: HistoryMap, bests: BestMa
       .upsert(bestRows, { onConflict: 'user_id,history_key' });
     if (error) throw error;
   }
+
+  const tombRows = Object.entries(tombstones).map(([historyKey, deletedAt]) => ({
+    user_id: userId,
+    history_key: historyKey,
+    deleted_at: deletedAt,
+  }));
+  if (tombRows.length) {
+    const { error } = await supabase
+      .from('deleted_keys')
+      .upsert(tombRows, { onConflict: 'user_id,history_key' });
+    if (error) throw error;
+  }
 }
 
 // Full bootstrap: pull -> merge -> push. Returns the merged sets for the
@@ -223,10 +332,35 @@ export async function bootstrapUser(
   localHistory: HistoryMap,
   localBests: BestMap,
 ): Promise<{ history: HistoryMap; bests: BestMap }> {
-  const { history: cloudHistory, bests: cloudBests } = await pullAll(userId);
-  const history = mergeHistory(localHistory, cloudHistory);
+  const { history: cloudHistory, bests: cloudBests, tombstones: cloudTombs } =
+    await pullAll(userId);
+  const tombstones = mergeTombstones(loadTombstones(), cloudTombs);
+  const history = mergeHistory(localHistory, cloudHistory, tombstones);
   const bests = mergeBests(localBests, cloudBests);
-  await pushAll(userId, history, bests);
+  await pushAll(userId, history, bests, tombstones);
+  saveTombstones(tombstones);
   setSyncedUser(userId);
   return { history, bests };
+}
+
+// Fast path for a device that has already bootstrapped this account: pull
+// only the tombstone set, retire any locally-surviving cleared rows, then
+// re-push. Returns the reconciled sets plus whether anything actually
+// changed, so the caller can skip a needless re-render / localStorage write.
+export async function reconcileUser(
+  userId: string,
+  localHistory: HistoryMap,
+  localBests: BestMap,
+): Promise<{ history: HistoryMap; bests: BestMap; changed: boolean }> {
+  const { tombstones: cloudTombs } = await pullAll(userId);
+  const tombstones = mergeTombstones(loadTombstones(), cloudTombs);
+  const history = applyTombstones(localHistory, tombstones);
+  const before = JSON.stringify(Object.keys(localHistory).sort());
+  const after = JSON.stringify(Object.keys(history).sort());
+  const changed =
+    before !== after ||
+    Object.keys(history).some(k => history[k].length !== (localHistory[k]?.length ?? 0));
+  await pushAll(userId, history, localBests, tombstones);
+  saveTombstones(tombstones);
+  return { history, bests: localBests, changed };
 }
