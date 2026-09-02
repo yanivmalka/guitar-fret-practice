@@ -1075,6 +1075,15 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 .note-stat-good { padding: 4px 7px; background: #0a3a0a; color: #0f0; border-left: 1px solid #333; }
 .note-stat-bad  { padding: 4px 7px; background: #3a0a0a; color: #f55; border-left: 1px solid #333; }
 
+.sp2-unplayed { margin-top: 10px; }
+.sp2-unplayed-title {
+  font-size: 0.72rem; font-weight: 700; color: #9a9ab8;
+  margin: 0 0 5px;
+}
+.note-stat-muted {
+  background: #15152a; border-color: #2a2a4a; color: #8a8aa2;
+}
+
 .solid { color: #7bf; }
 .improving { color: #f90; }
 

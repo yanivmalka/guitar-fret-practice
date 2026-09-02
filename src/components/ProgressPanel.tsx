@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { HistoryEntry, AccidentalMode, NotationMode } from '../utils/music';
 import { displayNote } from '../utils/music';
-import { historyForInstrument, fretMasteryMap } from '../utils/mastery';
+import { historyForInstrument, fretMasteryMap, noteMasteryMap } from '../utils/mastery';
 import {
   dailyStats, practiceStreak, lifetimeTotals, weakNotes, allBestsSummary,
 } from '../utils/progress';
@@ -214,6 +214,15 @@ function ScopeView({
       .sort((a, b) => a.value - b.value);
   }, [history, accidental, notation]);
 
+  // Notes in the current note set that have no recorded answers at all — the
+  // gaps the "By note" bars can't show because they only plot played notes.
+  const unplayedNotes = useMemo(() => {
+    const map = noteMasteryMap(history, noteNames);
+    return noteNames
+      .filter(n => map[n].level === 'unplayed')
+      .map(n => displayNote(n, accidental, notation));
+  }, [history, noteNames, accidental, notation]);
+
   const stringRows = useMemo(() => {
     const m = tallyBuckets(history, h => h.string);
     return [...m.entries()]
@@ -284,6 +293,16 @@ function ScopeView({
 
       <Expander label="By note" open={open === 'note'} onToggle={toggle('note')}>
         <BarRows rows={noteRows} />
+        {unplayedNotes.length > 0 && (
+          <div className="sp2-unplayed">
+            <p className="sp2-unplayed-title">Not practiced yet</p>
+            <div className="note-stats">
+              {unplayedNotes.map(n => (
+                <span key={n} className="note-stat note-stat-muted">{n}</span>
+              ))}
+            </div>
+          </div>
+        )}
       </Expander>
       <Expander label="By string" open={open === 'string'} onToggle={toggle('string')}>
         <BarRows rows={stringRows} />
