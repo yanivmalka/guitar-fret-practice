@@ -96,6 +96,23 @@ const EMBLEMS = {
     'fill="none" stroke="currentColor" stroke-width="3.3" stroke-linejoin="round"/>' +
     '<circle cx="50" cy="46" r="4.2" fill="currentColor"/>' +
     '<path d="M47.9 48.5 h4.2 l-1.3 9 h-1.6 Z" fill="currentColor"/>',
+  // Both Ends — square brackets hugging the two ends of the neck.
+  span:
+    '<g fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M40 31 h-8 v38 h8"/><path d="M60 31 h8 v38 h-8"/></g>' +
+    '<line x1="46" y1="50" x2="54" y2="50" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/>',
+  // Quick Read — an eye.
+  eye:
+    '<path d="M27 50 Q50 33 73 50 Q50 67 27 50 Z" fill="none" stroke="currentColor" stroke-width="3.2"/>' +
+    '<circle cx="50" cy="50" r="5.2" fill="currentColor"/>',
+  // Doubling Up — two interlocked rings.
+  pair:
+    '<circle cx="42" cy="50" r="12.5" fill="none" stroke="currentColor" stroke-width="3.6"/>' +
+    '<circle cx="58" cy="50" r="12.5" fill="none" stroke="currentColor" stroke-width="3.6"/>',
+  // Low End — one thick, slack low string.
+  lowstring:
+    '<path d="M28 50 q11 -9 22 0 t22 0" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>' +
+    '<circle cx="28" cy="50" r="4" fill="currentColor"/><circle cx="72" cy="50" r="4" fill="currentColor"/>',
 } as const;
 
 const INLAY: Record<Metal, string> = {
@@ -121,18 +138,27 @@ function medalSpec(def: BadgeDef, instrumentId?: string): { emblem: Emblem; meta
   if (def.id === 'full_neck') {
     return { emblem: bass ? 'fretboardLong' : 'fretboard', metal: bass ? 'bassGold' : 'gold' };
   }
+  if (def.id === 'both_ends') {
+    return { emblem: 'span', metal: bass ? 'bassGold' : 'gold' };
+  }
+  if (def.id === 'low_end') {
+    return { emblem: 'lowstring', metal: 'bassSteel' };
+  }
   const map: Record<string, [Emblem, Metal]> = {
     perfect_session: ['target', 'bronze'],
     speed_demon: ['bolt', 'bronze'],
     flawless_sprint: ['flag', 'bronze'],
     on_fire: ['flame', 'bronze'],
     comeback: ['comeback', 'bronze'],
+    every_string: ['strings6', 'bronze'],
     week_warrior: ['calendar', 'gold'],
     dedicated: ['calcheck', 'gold'],
     century: ['hundred', 'gold'],
     marathoner: ['trophy', 'gold'],
     sharpshooter: ['crosshair', 'gold'],
     most_improved: ['trend', 'gold'],
+    quick_read: ['eye', 'gold'],
+    doubling_up: ['pair', 'gold'],
     admin: ['shield', 'onyx'],
   };
   const [emblem, metal] = map[def.id] ?? ['target', 'gold'];

@@ -22,15 +22,17 @@
 //    bass practice counts toward them the moment it happens.
 
 import type { HistoryEntry } from './music';
-import type { InstrumentConfig } from './instruments';
+import type { InstrumentConfig, InstrumentId } from './instruments';
 import { dailyStats, practiceStreak, lifetimeTotals } from './progress';
 
 // Fixed-identity badges. String Master is per-string and generated at runtime
 // from the instrument (`string_master_s1`…), so those ids are not listed here.
 export type FixedBadgeId =
   | 'perfect_session' | 'speed_demon' | 'flawless_sprint' | 'on_fire' | 'comeback'
+  | 'every_string'
   | 'string_master_all' | 'week_warrior' | 'dedicated' | 'century' | 'marathoner'
-  | 'sharpshooter' | 'most_improved' | 'full_neck'
+  | 'sharpshooter' | 'most_improved' | 'both_ends' | 'quick_read' | 'doubling_up'
+  | 'full_neck' | 'low_end'
   | 'admin';
 export type BadgeId = FixedBadgeId | `string_master_s${number}`;
 
@@ -46,6 +48,7 @@ export interface BadgeDef {
   kind: BadgeKind;
   instrumentScoped: boolean; // true → stored/earned per instrument
   target?: number;          // for the locked-state progress bar
+  onlyInstrument?: InstrumentId; // badge exists only for this instrument
 }
 
 // ── Definitions ───────────────────────────────────────────────────────────────
@@ -76,6 +79,11 @@ export const FIXED_BADGES: readonly BadgeDef[] = [
   {
     id: 'comeback', name: 'Comeback', icon: '💪',
     blurb: 'Miss 3+ in the first half of a round, then close it on an 8+ streak.',
+    kind: 'session', instrumentScoped: false,
+  },
+  {
+    id: 'every_string', name: 'Every String', icon: '🎸',
+    blurb: 'Finish a clean round that visited every string of the instrument.',
     kind: 'session', instrumentScoped: false,
   },
   // Lifetime
@@ -115,9 +123,29 @@ export const FIXED_BADGES: readonly BadgeDef[] = [
     kind: 'lifetime', instrumentScoped: false,
   },
   {
+    id: 'both_ends', name: 'Both Ends', icon: '🎚️',
+    blurb: 'Answer 40+ questions above the 12th fret at 85% accuracy or better.',
+    kind: 'lifetime', instrumentScoped: true, target: 40,
+  },
+  {
+    id: 'quick_read', name: 'Quick Read', icon: '👁️',
+    blurb: 'Hold an average answer time under 2.0s over 200+ questions, across every instrument.',
+    kind: 'lifetime', instrumentScoped: false, target: 200,
+  },
+  {
+    id: 'doubling_up', name: 'Doubling Up', icon: '🎸🎵',
+    blurb: 'Earn Full String Master on both guitar and bass.',
+    kind: 'lifetime', instrumentScoped: false, target: 2,
+  },
+  {
     id: 'full_neck', name: 'Full Neck', icon: '🛤️',
     blurb: 'Answer at least one question on every fret of the neck.',
     kind: 'lifetime', instrumentScoped: true,
+  },
+  {
+    id: 'low_end', name: 'Low End', icon: '🎵',
+    blurb: 'Answer 40+ questions on the bass low-E string at 90% accuracy or better.',
+    kind: 'lifetime', instrumentScoped: true, target: 40, onlyInstrument: 'bass',
   },
   // Role
   {
@@ -149,6 +177,7 @@ export function stringMasterBadges(instrument: InstrumentConfig): BadgeDef[] {
 export function badgeList(instrument: InstrumentConfig): BadgeDef[] {
   const out: BadgeDef[] = [];
   for (const def of FIXED_BADGES) {
+    if (def.onlyInstrument && def.onlyInstrument !== instrument.id) continue;
     if (def.id === 'string_master_all') {
       out.push(...stringMasterBadges(instrument));
       out.push({ ...def, target: instrument.stringCount });
@@ -174,7 +203,9 @@ const STORE_KEY = 'badges';
 function isInstrumentScoped(id: BadgeId): boolean {
   return id.startsWith('string_master_s')
     || id === 'string_master_all'
-    || id === 'full_neck';
+    || id === 'full_neck'
+    || id === 'both_ends'
+    || id === 'low_end';
 }
 
 function storeKey(id: BadgeId, instrumentId?: string): string {
@@ -254,7 +285,7 @@ function closingStreak(entries: HistoryEntry[]): number {
 }
 
 export function evaluateSession(s: SessionSnapshot): BadgeId[] {
-  const { entries, questionsAnswered, maxQuestions, longestStreak } = s;
+  const { entries, questionsAnswered, maxQuestions, longestStreak, instrument } = s;
   const out: BadgeId[] = [];
   const correct = entries.filter(e => e.correct === true);
 
@@ -273,6 +304,16 @@ export function evaluateSession(s: SessionSnapshot): BadgeId[] {
   const firstHalf = entries.slice(0, Math.floor(entries.length / 2));
   if (firstHalf.filter(isMiss).length >= 3 && closingStreak(entries) >= 8) {
     out.push('comeback');
+  }
+  // A clean multi-string round that touched every string of the instrument.
+  const stringsSeen = new Set(entries.filter(e => e.correct !== null).map(e => e.string));
+  if (
+    instrument.stringCount > 1
+    && stringsSeen.size === instrument.stringCount
+    && questionsAnswered >= instrument.stringCount * 2
+    && accuracyOf(entries) >= 0.9
+  ) {
+    out.push('every_string');
   }
   return out;
 }
@@ -336,6 +377,14 @@ export function evaluateLifetime(l: LifetimeSnapshot): BadgeId[] {
   }
   if (fullNeck && instrumentEntries.length > 0) out.push('full_neck');
 
+  const upper = instrumentEntries.filter(e => e.fret >= 12);
+  if (upper.length >= 40 && accuracyOf(upper) >= 0.85) out.push('both_ends');
+
+  if (instrument.id === 'bass') {
+    const lowE = stringStats(instrumentEntries, 4); // bass string 4 = low E
+    if (lowE.count >= 40 && lowE.accuracy >= 0.9) out.push('low_end');
+  }
+
   // ── Player-progress badges — every instrument's history combined ──────────
   const days = dailyStats(allEntries);
   const streak = practiceStreak(days);
@@ -346,10 +395,18 @@ export function evaluateLifetime(l: LifetimeSnapshot): BadgeId[] {
   if (totals.totalQuestions >= 100) out.push('century');
   if (totals.totalQuestions >= 1000) out.push('marathoner');
   if (totals.totalQuestions >= 200 && totals.accuracy >= 0.85) out.push('sharpshooter');
+  if (totals.totalQuestions >= 200 && totals.avgSeconds > 0 && totals.avgSeconds < 2) {
+    out.push('quick_read');
+  }
 
   if (days.length >= 10) {
     const gain = meanAccuracy(days.slice(-5)) - meanAccuracy(days.slice(0, 5));
     if (gain >= 0.2) out.push('most_improved');
+  }
+
+  // Cross-instrument capstone — Full String Master on guitar and on bass.
+  if (isEarned('string_master_all', 'guitar') && isEarned('string_master_all', 'bass')) {
+    out.push('doubling_up');
   }
 
   return out;
@@ -379,6 +436,18 @@ export function badgeProgress(
     for (let f = 0; f <= instrument.maxFret; f++) if (frets.has(f)) seen++;
     return { current: seen, target: instrument.maxFret + 1 };
   }
+  if (id === 'both_ends') {
+    return { current: Math.min(instrumentEntries.filter(e => e.fret >= 12).length, 40), target: 40 };
+  }
+  if (id === 'low_end') {
+    return { current: Math.min(stringStats(instrumentEntries, 4).count, 40), target: 40 };
+  }
+  if (id === 'doubling_up') {
+    let n = 0;
+    if (isEarned('string_master_all', 'guitar')) n++;
+    if (isEarned('string_master_all', 'bass')) n++;
+    return { current: n, target: 2 };
+  }
 
   const days = dailyStats(allEntries);
   const totals = lifetimeTotals(allEntries, days);
@@ -392,6 +461,7 @@ export function badgeProgress(
     case 'marathoner':
       return { current: Math.min(totals.totalQuestions, 1000), target: 1000 };
     case 'sharpshooter':
+    case 'quick_read':
       return { current: Math.min(totals.totalQuestions, 200), target: 200 };
     default:
       return null;
