@@ -113,6 +113,11 @@ export default function App() {
   const [answerMode, setAnswerMode] = useState<AnswerMode>(() => loadSetting('pref_answerMode', 'tap'));
   const [order, setOrder] = useState<OrderMode>(() => loadSetting('pref_order', 'fifths'));
   const [accidental] = useState<AccidentalMode>(() => loadSetting('pref_accidental', 'sharps'));
+  // Whether the on-screen score, streak multiplier and all score celebrations
+  // are shown. Off = "serious learning" mode: no score HUD or effects during
+  // play, but every answer is still scored into history and personal-best
+  // progress exactly as before.
+  const [showScore, setShowScore] = useState(() => loadSetting('pref_showScore', true));
 
   const historyOps = useHistory();
   const histKey = selector.historyKey();
@@ -275,6 +280,7 @@ export default function App() {
       onWrong: scoring.onWrong,
       onTimeout: scoring.onTimeout,
       getQuestionTime: scoring.getQuestionTime,
+      showScore,
     },
     {
       onComplete: handleAutoComplete,
@@ -572,11 +578,13 @@ export default function App() {
         const correctCount = hist.filter(h => h.correct === true).length;
         const accuracy = total === 0 ? 0 : Math.round((correctCount / total) * 100);
         saveBest(histKey, { score, streak: scoring.session.longestStreak, accuracy });
-        celebrateTier3(score, scoring.session.longestStreak);
+        // Personal-best progress is always recorded; the celebration itself is
+        // a score effect, so it is skipped in "serious learning" mode.
+        if (showScore) celebrateTier3(score, scoring.session.longestStreak);
       }
     }
     wasRunningRef.current = running;
-  }, [running, paused, pendingAutoAdvance, scoring.session.questionsAnswered, scoring.session.score, scoring.session.longestStreak, histKey, historyOps.history]);
+  }, [running, paused, pendingAutoAdvance, scoring.session.questionsAnswered, scoring.session.score, scoring.session.longestStreak, histKey, historyOps.history, showScore]);
 
   const start = () => {
     unlockAudio();
@@ -690,6 +698,23 @@ export default function App() {
       title: '🎵 Note names',
       blurb: 'Show note names as letters (A B C) or as solfège (Do Re Mi). This only changes how names are displayed, not the drill itself.',
       body: renderSelectorPanel(false, true),
+    },
+    {
+      id: 'score',
+      title: '🎯 Score',
+      blurb: 'On shows the live score, streak multiplier and all celebrations for a game feel. Off hides them for distraction-free practice — every answer is still scored into your statistics and personal-best progress.',
+      body: (
+        <div className="notation-row">
+          <button
+            className={`order-chip${showScore ? ' order-chip-active' : ''}`}
+            onClick={click(() => { setShowScore(true); saveSetting('pref_showScore', true); })}
+          >On</button>
+          <button
+            className={`order-chip${!showScore ? ' order-chip-active' : ''}`}
+            onClick={click(() => { setShowScore(false); saveSetting('pref_showScore', false); })}
+          >Off</button>
+        </div>
+      ),
     },
     ...(hasHistory ? [{
       id: 'stats',
@@ -999,13 +1024,15 @@ export default function App() {
               <div className="game-info-row">
                 <span className="game-timer">{remaining}s</span>
                 <span className="game-progress-text">{questionNumber}/{derivedSettings.maxQuestions}</span>
-                {multiplierIcon && <span className="multiplier-icon">{multiplierIcon}</span>}
+                {showScore && multiplierIcon && <span className="multiplier-icon">{multiplierIcon}</span>}
               </div>
-              <div id="live-score" className="score-live">
-                <AnimatedScore value={scoring.session.score} />
-              </div>
+              {showScore && (
+                <div id="live-score" className="score-live">
+                  <AnimatedScore value={scoring.session.score} />
+                </div>
+              )}
               <div className={`feedback ${feedback.startsWith('✓') ? 'good' : feedback.startsWith('✗') ? 'bad' : 'warn'}`}>
-                {feedback}{scoring.session.lastPoints > 0 && feedback.startsWith('✓') ? ` +${scoring.session.lastPoints}` : ''}
+                {feedback}{showScore && scoring.session.lastPoints > 0 && feedback.startsWith('✓') ? ` +${scoring.session.lastPoints}` : ''}
               </div>
               {voiceActive && (
                 <div className={`voice-status voice-${voice.status}`} role="status" aria-live="polite">
@@ -1037,7 +1064,7 @@ export default function App() {
           {gameEnded && isStopped && (
             <div className="game-end-summary">
               <div className="game-end-title">🎉 Round Complete!</div>
-              <div className="game-end-score"><AnimatedScore value={scoring.session.score} /> pts</div>
+              {showScore && <div className="game-end-score"><AnimatedScore value={scoring.session.score} /> pts</div>}
               <div className="game-end-details">
                 {scoring.session.longestStreak >= 2 && <span>🔥 {scoring.session.longestStreak} streak</span>}
                 <span>✓ {sessionHistory.filter(h => h.correct === true).length}/{scoring.session.questionsAnswered}</span>

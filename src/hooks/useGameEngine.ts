@@ -49,6 +49,11 @@ interface ScoreOps {
   // Time limit (seconds) for the question about to be asked, given the current
   // continuous-run progression. `baseTime` is the current difficulty's base.
   getQuestionTime: (baseTime: number) => number;
+  // When false ("serious learning" mode) the score itself is still tracked
+  // (history + personal best are unaffected) but every score-flavoured effect
+  // is suppressed: the floating "+N", the streak-milestone rings/banner/haptic
+  // and the milestone pause between questions. Defaults to true.
+  showScore?: boolean;
 }
 
 interface EngineCallbacks {
@@ -71,7 +76,7 @@ export function useGameEngine(
           isMulti, activeStrings, time, accidental, order } = settings;
   const { onComplete } = callbacks;
   const { addEntry, markPlayed, resetSession } = historyOps;
-  const { onCorrect, onWrong, onTimeout, getQuestionTime } = scoreOps;
+  const { onCorrect, onWrong, onTimeout, getQuestionTime, showScore = true } = scoreOps;
 
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -150,10 +155,12 @@ export function useGameEngine(
     const result = onCorrect(elapsedSeconds, questionTimeRef.current);
     playCorrectChime();
 
-    const scoreEl = document.getElementById('live-score');
-    if (scoreEl) celebrateTier1(scoreEl, `+${result.points}`);
+    if (showScore) {
+      const scoreEl = document.getElementById('live-score');
+      if (scoreEl) celebrateTier1(scoreEl, `+${result.points}`);
+    }
 
-    if (result.milestone) {
+    if (showScore && result.milestone) {
       haptic.milestone();
       celebrateTier2(`${result.streak} STREAK!`);
     } else {
@@ -161,7 +168,7 @@ export function useGameEngine(
     }
 
     return result;
-  }, [onCorrect]);
+  }, [onCorrect, showScore]);
 
   // Defer the next question (and its note) until every feedback sound has
   // finished — the success chime after a correct answer, or a reveal note after
@@ -341,7 +348,7 @@ export function useGameEngine(
           });
         };
 
-        if (scoreResult.milestone) {
+        if (showScore && scoreResult.milestone) {
           milestonePauseRef.current = true;
           answeredRef.current = true;
           setAnswered(true);
@@ -363,7 +370,7 @@ export function useGameEngine(
       setFeedback(`✗ Correct: ${rem.join(', ')}`);
       advanceAfterSound(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
     }
-  }, [paused, addEntry, nextByNote, onTimeout, onWrong, scoreCorrect, scheduleAdvance, advanceAfterSound]);
+  }, [paused, addEntry, nextByNote, onTimeout, onWrong, scoreCorrect, scheduleAdvance, advanceAfterSound, showScore]);
 
   // ── BY FRET MODE ──────────────────────────────────────────────
   const next = useCallback(() => {
