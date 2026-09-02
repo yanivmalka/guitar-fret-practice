@@ -119,6 +119,10 @@ export default function App() {
   // play, but every answer is still scored into history and personal-best
   // progress exactly as before.
   const [showScore, setShowScore] = useState(() => loadSetting('pref_showScore', true));
+  // Whether the all-time per-note / per-fret mastery bars are drawn over the
+  // circle/grid while stopped or paused. Off = a clean fretboard at rest; every
+  // answer is still recorded and mastery keeps accumulating either way.
+  const [showMastery, setShowMastery] = useState(() => loadSetting('pref_showMastery', true));
 
   const historyOps = useHistory();
   const histKey = selector.historyKey();
@@ -822,6 +826,7 @@ export default function App() {
       title: '🎯 Score',
       blurb: '',
       body: (
+        <>
         <SettingCard
           label="Score & celebrations"
           help={<>Live score, streak multiplier and celebrations are shown. <em>Every answer is still recorded to your stats and personal bests either way.</em></>}
@@ -836,6 +841,21 @@ export default function App() {
             onChange={(v) => { const on = v === 'on'; setShowScore(on); saveSetting('pref_showScore', on); }}
           />
         </SettingCard>
+        <SettingCard
+          label="Mastery on the fretboard"
+          help={<>The per-note / per-fret accuracy bars drawn over the circle and grid while stopped or paused. <em>Mastery keeps being tracked and shows on the Stats screen either way.</em></>}
+        >
+          <SegmentedControl
+            ariaLabel="Mastery overlay"
+            value={showMastery ? 'on' : 'off'}
+            options={[
+              { value: 'on', label: 'On' },
+              { value: 'off', label: 'Off' },
+            ]}
+            onChange={(v) => { const on = v === 'on'; setShowMastery(on); saveSetting('pref_showMastery', on); }}
+          />
+        </SettingCard>
+        </>
       ),
     },
     ...(hasAnyHistory ? [{
@@ -1299,7 +1319,7 @@ export default function App() {
               foundFrets={gameActive ? foundFrets : []}
               onSelect={selectFret}
               masteryByFret={fretMastery}
-              showMastery={!gameActive}
+              showMastery={!gameActive && showMastery}
             />
           ) : (
             <NoteCircle
@@ -1318,7 +1338,7 @@ export default function App() {
               accidental={accidental}
               notation={notation}
               masteryByNote={noteMastery}
-              showMastery={!gameActive}
+              showMastery={!gameActive && showMastery}
             />
           )
         )}
