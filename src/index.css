@@ -102,7 +102,8 @@ body {
 h1 { font-size: 1.3rem; margin-bottom: 10px; }
 
 /* Settings drawer overlay (burger menu) — a half-page sheet that slides in
-   from the inline-end edge, not a floating tile. */
+   from the inline-end edge. It only ever holds the list of section titles;
+   tapping a title opens that section as its own full page. */
 .settings-overlay {
   position: fixed;
   inset: 0;
@@ -133,6 +134,22 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
 }
+.settings-back {
+  align-self: flex-start;
+  padding: 8px 12px 8px 8px;
+  border: none;
+  background: none;
+  color: #0ff;
+  font-size: 0.95rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.settings-menu-title {
+  margin: 0 0 6px;
+  font-size: 1.15rem;
+  color: #eee;
+}
+
 .burger-btn {
   position: fixed;
   top: 10px;
@@ -161,49 +178,62 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   border-color: #0ff;
 }
 
-/* The full Selector panel is reused verbatim inside the hamburger overlay;
-   drop its own centring width caps so it fills the narrower sheet. */
-.settings-panel .selector-panel,
-.settings-panel .mode-cards,
-.settings-panel .difficulty-road {
-  max-width: 100%;
+/* Hamburger settings: each section opens as its own full page, styled to
+   match the Stats & progress screen (sp2) rather than a cramped side sheet. */
+.settings-page {
+  padding-top: 18px;
+}
+.settings-page-inner {
+  text-align: left;
+}
+.settings-page-blurb {
+  margin: 2px 0 4px;
+  color: #9a9ab8;
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+.settings-page-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-/* Bigger, easier-to-hit controls inside the drawer. */
-.settings-panel .notation-row {
-  gap: 10px;
-  margin-bottom: 14px;
+/* Roomier, easier-to-hit controls on the settings pages. */
+.settings-page .selector-panel,
+.settings-page .mode-cards,
+.settings-page .difficulty-road {
+  max-width: 100%;
 }
-.settings-panel .order-chip {
+.settings-page .notation-row {
+  gap: 10px;
+  margin-bottom: 4px;
+  justify-content: flex-start;
+}
+.settings-page .order-chip {
   padding: 12px 18px;
   font-size: 14px;
   border-radius: 14px;
 }
-.settings-panel .chip {
+.settings-page .chip {
   padding: 12px 18px;
   font-size: 15px;
 }
-.settings-panel .adj-btn {
+.settings-page .adj-btn {
   width: 42px;
   height: 42px;
   font-size: 22px;
 }
-.settings-panel .account-btn {
+.settings-page .account-btn {
   padding: 12px 18px;
   font-size: 0.9rem;
 }
 
-/* Drawer: list of section titles. */
+/* Full-page list of section titles. */
 .settings-menu {
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-.settings-menu-title,
-.settings-detail-title {
-  margin: 0 0 6px;
-  font-size: 1.15rem;
-  color: #eee;
+  margin-top: 4px;
 }
 .settings-menu-item {
   display: flex;
@@ -211,12 +241,12 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   justify-content: space-between;
   gap: 12px;
   width: 100%;
-  padding: 18px 16px;
+  padding: 16px;
   border: 1px solid #2a2a4a;
-  border-radius: 14px;
-  background: #1a1a2e;
-  color: #eee;
-  font-size: 1rem;
+  border-radius: 12px;
+  background: #15152a;
+  color: #f0f0f8;
+  font-size: 0.95rem;
   text-align: start;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
@@ -224,36 +254,13 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 }
 .settings-menu-item:hover,
 .settings-menu-item:focus-visible {
-  border-color: #0ff;
-  background: #20203a;
+  border-color: #00e5ff;
+  background: #1c1c38;
 }
 .settings-menu-item-chevron {
-  color: #0ff;
-  font-size: 1.4rem;
+  color: #00e5ff;
+  font-size: 1.3rem;
   line-height: 1;
-}
-
-/* Drawer: one section's sub-page. */
-.settings-detail {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.settings-back {
-  align-self: flex-start;
-  padding: 8px 12px 8px 8px;
-  border: none;
-  background: none;
-  color: #0ff;
-  font-size: 0.95rem;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-.settings-detail-blurb {
-  margin: 0 0 4px;
-  color: #aaa;
-  font-size: 0.85rem;
-  line-height: 1.5;
 }
 
 /* Account (Google sign-in / sign-out) row at the bottom of the settings panel. */

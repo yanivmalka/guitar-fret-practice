@@ -869,7 +869,7 @@ export default function App() {
                   </span>
                   {auth.user.created_at && (
                     <span className="account-member-since">
-                      חבר מ־{new Date(auth.user.created_at).toLocaleDateString('en-GB', {
+                      Member since {new Date(auth.user.created_at).toLocaleDateString('en-GB', {
                         day: 'numeric', month: 'long', year: 'numeric',
                       })}
                     </span>
@@ -925,6 +925,29 @@ export default function App() {
     );
   }
 
+  // The hamburger stays a side drawer that only lists the section titles.
+  // Tapping a title opens that one section as its own full page (same
+  // page-replacing treatment as "Stats & progress"), styled to match it.
+  if (settingsOpen && drawerSection !== null) {
+    const activeSection = settingsSections.find(s => s.id === drawerSection);
+    if (activeSection && activeSection.body != null) {
+      return (
+        <div className="app settings-page">
+          <div className="sp2 settings-page-inner">
+            <div className="sp2-head">
+              <button className="sp2-back" onClick={click(() => setDrawerSection(null))}>‹ Back</button>
+              <span className="sp2-title">{activeSection.title}</span>
+            </div>
+            {activeSection.blurb && (
+              <p className="settings-page-blurb">{activeSection.blurb}</p>
+            )}
+            <div className="settings-page-body">{activeSection.body}</div>
+          </div>
+        </div>
+      );
+    }
+  }
+
   return (
     <div className="app">
       {!onboardingDone && (
@@ -963,58 +986,40 @@ export default function App() {
           replaces the panel during play. */}
       {renderSelectorPanel(gameActive)}
 
-      {/* Hamburger drawer: a list of setting titles; tapping one opens that
-          section's sub-page. Backdrop click or Escape dismisses / steps back. */}
-      {settingsOpen && (() => {
-        const activeSection = drawerSection === null
-          ? null
-          : settingsSections.find(s => s.id === drawerSection) ?? null;
-        return (
-          <div className="settings-overlay" onClick={click(() => setSettingsOpen(false))}>
-            <div
-              className="settings-panel"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Game settings"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {activeSection === null ? (
-                <nav className="settings-menu">
-                  <button
-                    className="settings-back"
-                    onClick={click(() => setSettingsOpen(false))}
-                  >
-                    <span aria-hidden="true">›</span> Back
-                  </button>
-                  <h2 className="settings-menu-title">Settings</h2>
-                  {settingsSections.map(s => (
-                    <button
-                      key={s.id}
-                      className="settings-menu-item"
-                      onClick={click(() => { if (s.onSelect) s.onSelect(); else setDrawerSection(s.id); })}
-                    >
-                      <span className="settings-menu-item-label">{s.title}</span>
-                      <span className="settings-menu-item-chevron" aria-hidden="true">‹</span>
-                    </button>
-                  ))}
-                </nav>
-              ) : (
-                <div className="settings-detail">
-                  <button
-                    className="settings-back"
-                    onClick={click(() => setDrawerSection(null))}
-                  >
-                    <span aria-hidden="true">›</span> Back
-                  </button>
-                  <h2 className="settings-detail-title">{activeSection.title}</h2>
-                  <p className="settings-detail-blurb">{activeSection.blurb}</p>
-                  {activeSection.body}
-                </div>
-              )}
-            </div>
+      {/* Hamburger drawer: a side sheet listing the section titles only.
+          Tapping one opens that section as its own full page (handled by the
+          early return above). Backdrop click or Escape dismisses. */}
+      {settingsOpen && drawerSection === null && (
+        <div className="settings-overlay" onClick={click(() => setSettingsOpen(false))}>
+          <div
+            className="settings-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Game settings"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <nav className="settings-menu">
+              <button
+                className="settings-back"
+                onClick={click(() => setSettingsOpen(false))}
+              >
+                <span aria-hidden="true">›</span> Back
+              </button>
+              <h2 className="settings-menu-title">Settings</h2>
+              {settingsSections.map(s => (
+                <button
+                  key={s.id}
+                  className="settings-menu-item"
+                  onClick={click(() => { if (s.onSelect) s.onSelect(); else setDrawerSection(s.id); })}
+                >
+                  <span className="settings-menu-item-label">{s.title}</span>
+                  <span className="settings-menu-item-chevron" aria-hidden="true">›</span>
+                </button>
+              ))}
+            </nav>
           </div>
-        );
-      })()}
+        </div>
+      )}
 
       {/* Microphone permission card — our own copy + styling, shown ahead of
           (primer) or in place of (denied) the browser's native prompt. */}
