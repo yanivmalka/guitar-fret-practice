@@ -15,16 +15,19 @@ import { BadgeMedal, BadgeMedalDefs } from './BadgeMedal';
  * is idempotent, so this is safe to run every time.
  */
 export function BadgeGrid({
-  instrument, instrumentEntries, isAdmin = false,
+  instrument, instrumentEntries, allEntries, isAdmin = false,
 }: {
   instrument: InstrumentConfig;
+  /** History for the current instrument — fretboard-shape badges. */
   instrumentEntries: HistoryEntry[];
+  /** History across every instrument — player-progress badges. */
+  allEntries: HistoryEntry[];
   /** Current account is an app administrator — reveals the Admin role medal. */
   isAdmin?: boolean;
 }) {
   const lifetime = useMemo<LifetimeSnapshot>(
-    () => ({ instrumentEntries, instrument }),
-    [instrumentEntries, instrument],
+    () => ({ instrumentEntries, allEntries, instrument }),
+    [instrumentEntries, allEntries, instrument],
   );
 
   const qualifying = useMemo(
@@ -76,7 +79,7 @@ function BadgeTile({
 
   return (
     <div className={`badge-tile${earned ? '' : ' locked'}`}>
-      <BadgeMedal def={def} />
+      <BadgeMedal def={def} instrumentId={instrument.id} />
       <span className="badge-name">{def.name}</span>
       <span className="badge-blurb">{def.blurb}</span>
       {earned && (

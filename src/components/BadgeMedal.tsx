@@ -9,7 +9,10 @@ import type { BadgeDef } from '../utils/badges';
  * once on any page that renders a <BadgeMedal/>.
  */
 
-type Metal = 'gold' | 'bronze' | 'steel' | 'onyx';
+// `steel` / `gold` are the guitar instrument-scoped finishes; `bassSteel`
+// (darker graphite) and `bassGold` (rosé / copper) are their bass counterparts,
+// so a guitar badge and its bass twin never look alike.
+type Metal = 'gold' | 'bronze' | 'steel' | 'onyx' | 'bassSteel' | 'bassGold';
 type Emblem = keyof typeof EMBLEMS;
 
 // Emblems authored in the 100×100 medal space, centred on 50,50, using
@@ -43,6 +46,11 @@ const EMBLEMS = {
     '<line x1="36" y1="35" x2="36" y2="62"/><line x1="41.6" y1="35" x2="41.6" y2="62"/>' +
     '<line x1="47.2" y1="35" x2="47.2" y2="62"/><line x1="52.8" y1="35" x2="52.8" y2="62"/>' +
     '<line x1="58.4" y1="35" x2="58.4" y2="62"/><line x1="64" y1="35" x2="64" y2="62"/></g>',
+  strings4:
+    '<line x1="33" y1="33" x2="67" y2="33" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>' +
+    '<g stroke="currentColor" stroke-width="3.4" stroke-linecap="round">' +
+    '<line x1="38" y1="35" x2="38" y2="62"/><line x1="46" y1="35" x2="46" y2="62"/>' +
+    '<line x1="54" y1="35" x2="54" y2="62"/><line x1="62" y1="35" x2="62" y2="62"/></g>',
   calendar:
     '<rect x="33" y="35" width="34" height="31" rx="4.5" fill="none" stroke="currentColor" stroke-width="3"/>' +
     '<path d="M33 44 h34" stroke="currentColor" stroke-width="3"/>' +
@@ -76,6 +84,13 @@ const EMBLEMS = {
     '<g stroke="currentColor" stroke-width="2.3">' +
     '<line x1="39" y1="40" x2="39" y2="60"/><line x1="50" y1="40" x2="50" y2="60"/><line x1="61" y1="40" x2="61" y2="60"/></g>' +
     '<g fill="currentColor"><circle cx="44.5" cy="50" r="1.9"/><circle cx="55.5" cy="50" r="1.9"/></g>',
+  // Longer board + an extra fret division and inlay — the bass neck (24 frets).
+  fretboardLong:
+    '<rect x="24" y="41" width="52" height="18" rx="3.2" fill="none" stroke="currentColor" stroke-width="2.8"/>' +
+    '<g stroke="currentColor" stroke-width="2.1">' +
+    '<line x1="34" y1="41" x2="34" y2="59"/><line x1="43" y1="41" x2="43" y2="59"/>' +
+    '<line x1="52" y1="41" x2="52" y2="59"/><line x1="61" y1="41" x2="61" y2="59"/></g>' +
+    '<g fill="currentColor"><circle cx="38.5" cy="50" r="1.8"/><circle cx="56.5" cy="50" r="1.8"/><circle cx="70" cy="50" r="1.8"/></g>',
   shield:
     '<path d="M50 27 L67 33 V49 C67 61 59 69 50 73 C41 69 33 61 33 49 V33 Z" ' +
     'fill="none" stroke="currentColor" stroke-width="3.3" stroke-linejoin="round"/>' +
@@ -84,29 +99,40 @@ const EMBLEMS = {
 } as const;
 
 const INLAY: Record<Metal, string> = {
-  gold:   'rgba(62,42,4,0.86)',
-  bronze: 'rgba(46,23,7,0.86)',
-  steel:  'rgba(30,36,46,0.86)',
-  onyx:   'rgba(224,230,244,0.9)',
+  gold:      'rgba(62,42,4,0.86)',
+  bronze:    'rgba(46,23,7,0.86)',
+  steel:     'rgba(30,36,46,0.86)',
+  onyx:      'rgba(224,230,244,0.9)',
+  bassSteel: 'rgba(22,28,38,0.88)',
+  bassGold:  'rgba(58,28,10,0.86)',
 };
 
-// Which struck emblem + metal each badge wears.
-function medalSpec(def: BadgeDef): { emblem: Emblem; metal: Metal } {
-  if (def.id.startsWith('string_master_s')) return { emblem: 'string', metal: 'steel' };
+// Which struck emblem + metal each badge wears. Instrument-scoped badges take
+// a bass-specific finish (and, where the emblem counts something, a
+// bass-specific emblem) so a guitar badge never looks like its bass twin.
+function medalSpec(def: BadgeDef, instrumentId?: string): { emblem: Emblem; metal: Metal } {
+  const bass = instrumentId === 'bass';
+  if (def.id.startsWith('string_master_s')) {
+    return { emblem: 'string', metal: bass ? 'bassSteel' : 'steel' };
+  }
+  if (def.id === 'string_master_all') {
+    return { emblem: bass ? 'strings4' : 'strings6', metal: bass ? 'bassGold' : 'gold' };
+  }
+  if (def.id === 'full_neck') {
+    return { emblem: bass ? 'fretboardLong' : 'fretboard', metal: bass ? 'bassGold' : 'gold' };
+  }
   const map: Record<string, [Emblem, Metal]> = {
     perfect_session: ['target', 'bronze'],
     speed_demon: ['bolt', 'bronze'],
     flawless_sprint: ['flag', 'bronze'],
     on_fire: ['flame', 'bronze'],
     comeback: ['comeback', 'bronze'],
-    string_master_all: ['strings6', 'gold'],
     week_warrior: ['calendar', 'gold'],
     dedicated: ['calcheck', 'gold'],
     century: ['hundred', 'gold'],
     marathoner: ['trophy', 'gold'],
     sharpshooter: ['crosshair', 'gold'],
     most_improved: ['trend', 'gold'],
-    full_neck: ['fretboard', 'gold'],
     admin: ['shield', 'onyx'],
   };
   const [emblem, metal] = map[def.id] ?? ['target', 'gold'];
@@ -128,8 +154,15 @@ function medalSVG(metal: Metal, emblem: Emblem): string {
   );
 }
 
-export function BadgeMedal({ def, size = 52 }: { def: BadgeDef; size?: number }) {
-  const { emblem, metal } = medalSpec(def);
+export function BadgeMedal({
+  def, instrumentId, size = 52,
+}: {
+  def: BadgeDef;
+  /** The instrument this badge is being shown for — picks the bass finish. */
+  instrumentId?: string;
+  size?: number;
+}) {
+  const { emblem, metal } = medalSpec(def, instrumentId);
   return (
     <span
       className="badge-medal"
@@ -161,6 +194,14 @@ export function BadgeMedalDefs() {
           <stop offset="0" stopColor="#7c7c93" /><stop offset="0.34" stopColor="#45454f" />
           <stop offset="0.7" stopColor="#26262f" /><stop offset="1" stopColor="#111117" />
         </radialGradient>
+        <radialGradient id="bm-dome-bassSteel" cx="35%" cy="30%" r="78%">
+          <stop offset="0" stopColor="#eef2f6" /><stop offset="0.34" stopColor="#aab6c2" />
+          <stop offset="0.7" stopColor="#6a7581" /><stop offset="1" stopColor="#39414c" />
+        </radialGradient>
+        <radialGradient id="bm-dome-bassGold" cx="35%" cy="30%" r="78%">
+          <stop offset="0" stopColor="#ffe8d8" /><stop offset="0.34" stopColor="#e8a878" />
+          <stop offset="0.7" stopColor="#b9713e" /><stop offset="1" stopColor="#77391b" />
+        </radialGradient>
         <linearGradient id="bm-rim-gold" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#ffeab0" /><stop offset="0.5" stopColor="#c9942a" /><stop offset="1" stopColor="#79540e" />
         </linearGradient>
@@ -172,6 +213,12 @@ export function BadgeMedalDefs() {
         </linearGradient>
         <linearGradient id="bm-rim-onyx" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#9797ab" /><stop offset="0.5" stopColor="#3d3d49" /><stop offset="1" stopColor="#191920" />
+        </linearGradient>
+        <linearGradient id="bm-rim-bassSteel" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#dfe6ec" /><stop offset="0.5" stopColor="#7c8794" /><stop offset="1" stopColor="#3a404a" />
+        </linearGradient>
+        <linearGradient id="bm-rim-bassGold" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#f6cbb0" /><stop offset="0.5" stopColor="#b56f45" /><stop offset="1" stopColor="#6a3a1e" />
         </linearGradient>
         <linearGradient id="bm-edge" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#ffffff" stopOpacity="0.55" />

@@ -4,18 +4,22 @@
 //    its `HistoryEntry` rows. They are NOT back-computed from flat history
 //    (sessions aren't delimited in storage), so they only ever accrue going
 //    forward.
-//  • Lifetime badges — pure functions over one instrument's all-time history
-//    (`historyForInstrument(...)`). Re-checked at game-end AND whenever the
-//    Badges screen opens, so existing history retroactively unlocks them.
+//  • Lifetime badges — pure functions over play history, re-checked at game-end
+//    AND whenever the Badges screen opens, so existing history retroactively
+//    unlocks them.
 //
 // Storage is local-only for v1 (localStorage key `badges`), mirroring
 // `stat_longestStreakEver`. Cloud write-through is a later phase.
 //
-// Instrument scoping: string/fret-shaped badges are per-instrument — earning
-// `full_neck` on guitar is separate from bass. Those records are keyed
-// `"{badgeId}@{instrumentId}"`; everything else uses the bare `badgeId`. The
-// module decides which from the id, so callers always pass the instrument id
-// and let `awardBadge` / `isEarned` route it.
+// Instrument scoping has two layers:
+//  • The *store key* — string/fret-shaped badges are earned per instrument
+//    (`"{badgeId}@{instrumentId}"`); everything else uses the bare `badgeId`.
+//    `awardBadge` / `isEarned` route this from the id.
+//  • The *evaluation input* — badges that measure the fretboard
+//    (String Master, Full String Master, Full Neck) look only at the current
+//    instrument's history; badges that measure the player (Century, streaks,
+//    accuracy, improvement…) look at every instrument's history combined, so
+//    bass practice counts toward them the moment it happens.
 
 import type { HistoryEntry } from './music';
 import type { InstrumentConfig } from './instruments';
@@ -92,17 +96,17 @@ export const FIXED_BADGES: readonly BadgeDef[] = [
   },
   {
     id: 'century', name: 'Century', icon: '💯',
-    blurb: 'Answer 100 questions all-time on this instrument.',
+    blurb: 'Answer 100 questions all-time, across every instrument.',
     kind: 'lifetime', instrumentScoped: false, target: 100,
   },
   {
     id: 'marathoner', name: 'Marathoner', icon: '🏆',
-    blurb: 'Answer 1,000 questions all-time on this instrument.',
+    blurb: 'Answer 1,000 questions all-time, across every instrument.',
     kind: 'lifetime', instrumentScoped: false, target: 1000,
   },
   {
     id: 'sharpshooter', name: 'Sharpshooter', icon: '🎯',
-    blurb: 'Hold 85% lifetime accuracy over at least 200 questions.',
+    blurb: 'Hold 85% accuracy over at least 200 questions, across every instrument.',
     kind: 'lifetime', instrumentScoped: false, target: 200,
   },
   {
@@ -223,7 +227,10 @@ export interface SessionSnapshot {
 }
 
 export interface LifetimeSnapshot {
-  instrumentEntries: HistoryEntry[]; // already filtered via historyForInstrument
+  /** History for the current instrument only — feeds the fretboard-shape badges. */
+  instrumentEntries: HistoryEntry[];
+  /** History across every instrument — feeds the player-progress badges. */
+  allEntries: HistoryEntry[];
   instrument: InstrumentConfig;
 }
 
@@ -303,16 +310,13 @@ function meanAccuracy(days: { accuracy: number }[]): number {
 }
 
 export function evaluateLifetime(l: LifetimeSnapshot): BadgeId[] {
-  const { instrumentEntries: entries, instrument } = l;
-  const days = dailyStats(entries);
-  const streak = practiceStreak(days);
-  const totals = lifetimeTotals(entries, days);
+  const { instrumentEntries, allEntries, instrument } = l;
   const out: BadgeId[] = [];
 
-  // Per-string String Master, then the "every string" roll-up.
+  // ── Fretboard-shape badges — current instrument only ──────────────────────
   const stringMastered: string[] = [];
   for (let n = 1; n <= instrument.stringCount; n++) {
-    const { count, accuracy } = stringStats(entries, n);
+    const { count, accuracy } = stringStats(instrumentEntries, n);
     if (count >= 40 && accuracy >= 0.9) {
       const id = `string_master_s${n}` as BadgeId;
       out.push(id);
@@ -325,7 +329,19 @@ export function evaluateLifetime(l: LifetimeSnapshot): BadgeId[] {
     out.push('string_master_all');
   }
 
-  if (maxDatesInWindow(practiceDates(entries)) >= 5) out.push('week_warrior');
+  const frets = new Set(instrumentEntries.map(e => e.fret));
+  let fullNeck = true;
+  for (let f = 0; f <= instrument.maxFret; f++) {
+    if (!frets.has(f)) { fullNeck = false; break; }
+  }
+  if (fullNeck && instrumentEntries.length > 0) out.push('full_neck');
+
+  // ── Player-progress badges — every instrument's history combined ──────────
+  const days = dailyStats(allEntries);
+  const streak = practiceStreak(days);
+  const totals = lifetimeTotals(allEntries, days);
+
+  if (maxDatesInWindow(practiceDates(allEntries)) >= 5) out.push('week_warrior');
   if (streak.longest >= 7) out.push('dedicated');
   if (totals.totalQuestions >= 100) out.push('century');
   if (totals.totalQuestions >= 1000) out.push('marathoner');
@@ -336,13 +352,6 @@ export function evaluateLifetime(l: LifetimeSnapshot): BadgeId[] {
     if (gain >= 0.2) out.push('most_improved');
   }
 
-  const frets = new Set(entries.map(e => e.fret));
-  let fullNeck = true;
-  for (let f = 0; f <= instrument.maxFret; f++) {
-    if (!frets.has(f)) { fullNeck = false; break; }
-  }
-  if (fullNeck && entries.length > 0) out.push('full_neck');
-
   return out;
 }
 
@@ -351,11 +360,11 @@ export function badgeProgress(
   id: BadgeId,
   l: LifetimeSnapshot,
 ): { current: number; target: number } | null {
-  const { instrumentEntries: entries, instrument } = l;
+  const { instrumentEntries, allEntries, instrument } = l;
 
   if (id.startsWith('string_master_s')) {
     const n = Number(id.slice('string_master_s'.length));
-    return { current: Math.min(stringStats(entries, n).count, 40), target: 40 };
+    return { current: Math.min(stringStats(instrumentEntries, n).count, 40), target: 40 };
   }
   if (id === 'string_master_all') {
     let earned = 0;
@@ -364,9 +373,15 @@ export function badgeProgress(
     }
     return { current: earned, target: instrument.stringCount };
   }
+  if (id === 'full_neck') {
+    const frets = new Set(instrumentEntries.map(e => e.fret));
+    let seen = 0;
+    for (let f = 0; f <= instrument.maxFret; f++) if (frets.has(f)) seen++;
+    return { current: seen, target: instrument.maxFret + 1 };
+  }
 
-  const days = dailyStats(entries);
-  const totals = lifetimeTotals(entries, days);
+  const days = dailyStats(allEntries);
+  const totals = lifetimeTotals(allEntries, days);
   switch (id) {
     case 'week_warrior':
       return { current: Math.min(maxDatesInWindow(days.map(d => d.date)), 5), target: 5 };
@@ -378,12 +393,6 @@ export function badgeProgress(
       return { current: Math.min(totals.totalQuestions, 1000), target: 1000 };
     case 'sharpshooter':
       return { current: Math.min(totals.totalQuestions, 200), target: 200 };
-    case 'full_neck': {
-      const frets = new Set(entries.map(e => e.fret));
-      let seen = 0;
-      for (let f = 0; f <= instrument.maxFret; f++) if (frets.has(f)) seen++;
-      return { current: seen, target: instrument.maxFret + 1 };
-    }
     default:
       return null;
   }

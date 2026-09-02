@@ -16,7 +16,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3, celebrateTier2 } from './utils/feedback';
 import { loadSetting, saveSetting } from './utils/settings';
 import { loadBest, saveBest, loadAllBests, writeAllBests } from './utils/personalBest';
-import { historyForInstrument, fretMasteryMap, noteMasteryMap } from './utils/mastery';
+import { historyForInstrument, flattenHistory, fretMasteryMap, noteMasteryMap } from './utils/mastery';
 import { useAuth } from './hooks/useAuth';
 import { bootstrapUser, reconcileUser, syncedUser, clearSyncedUser } from './utils/sync';
 import { bootstrapSettings, syncedSettingsUser, clearSyncedSettingsUser, cloudPushSettings } from './utils/settingsSync';
@@ -291,6 +291,12 @@ export default function App() {
   const allHistoryEntries = useMemo(
     () => historyForInstrument(historyOps.allHistory, instrument.id),
     [historyOps.allHistory, instrument.id],
+  );
+  // Every instrument's history flattened — feeds the player-progress badges
+  // (Century, streaks, accuracy…), which are not scoped to the current one.
+  const everyInstrumentHistory = useMemo(
+    () => flattenHistory(historyOps.allHistory),
+    [historyOps.allHistory],
   );
   const fretMastery = useMemo(
     () => fretMasteryMap(allHistoryEntries, safeGuitarString),
@@ -739,6 +745,7 @@ export default function App() {
         };
         const lifetimeSnap: LifetimeSnapshot = {
           instrumentEntries: historyForInstrument(historyOps.allHistory, instrument.id),
+          allEntries: flattenHistory(historyOps.allHistory),
           instrument,
         };
         const earned: BadgeId[] = [];
@@ -960,7 +967,7 @@ export default function App() {
       title: '📊 Stats & progress',
       blurb: '',
       body: null,
-      onSelect: () => { setShowStats(true); setSettingsOpen(false); },
+      onSelect: () => { setShowStats(true); },
     }] : []),
     ...(voice.supported ? [{
       id: 'answer',
@@ -1159,6 +1166,7 @@ export default function App() {
         <BadgeGrid
           instrument={instrument}
           instrumentEntries={allHistoryEntries}
+          allEntries={everyInstrumentHistory}
           isAdmin={auth.admin}
         />
       ),
@@ -1466,7 +1474,7 @@ export default function App() {
                     const def = badgeDef(id, instrument);
                     return (
                       <div className="game-end-badge" key={id}>
-                        {def && <BadgeMedal def={def} size={30} />}
+                        {def && <BadgeMedal def={def} instrumentId={instrument.id} size={30} />}
                         New badge · {def?.name ?? id}
                       </div>
                     );
