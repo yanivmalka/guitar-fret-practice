@@ -116,50 +116,45 @@ const HEAT: Record<string, string> = {
   known: '#34e07a',
 };
 
+// Short open-note label ("String 1 · high E" -> "E") for the heatmap rows.
+function shortStringLabel(label: string | undefined, n: number): string {
+  const parts = (label ?? '').split(/[·\s]+/).filter(Boolean);
+  return parts[parts.length - 1] ?? `S${n}`;
+}
+
 function FretHeatmap({ history, instrument }: { history: HistoryEntry[]; instrument: InstrumentConfig }) {
+  const frets = Array.from({ length: instrument.maxFret + 1 }, (_, f) => f);
   return (
-    <div style={{ overflowX: 'auto', paddingBottom: 6 }}>
-      <table style={{ borderCollapse: 'collapse', fontSize: 10 }}>
-        <tbody>
-          {Array.from({ length: instrument.stringCount }, (_, row) => {
-            const stringNumber = row + 1;
-            const map = fretMasteryMap(history, stringNumber);
-            return (
-              <tr key={stringNumber}>
-                <td style={{ padding: '0 6px 0 0', whiteSpace: 'nowrap', opacity: 0.7 }}>
-                  {instrument.stringLabels[stringNumber] ?? `S${stringNumber}`}
-                </td>
-                {Array.from({ length: instrument.maxFret + 1 }, (_, fret) => {
-                  const stat = map[fret];
-                  const level = stat?.level ?? 'unplayed';
-                  const title = stat && stat.level !== 'unplayed'
-                    ? `String ${stringNumber} fret ${fret} — ${pct(stat.accuracy)}`
-                    : `String ${stringNumber} fret ${fret} — not played`;
-                  return (
-                    <td
-                      key={fret}
-                      title={title}
-                      style={{ width: 14, height: 14, background: HEAT[level], border: '1px solid #1c1c1c' }}
-                    />
-                  );
-                })}
-              </tr>
-            );
-          })}
-          <tr>
-            <td />
-            {Array.from({ length: instrument.maxFret + 1 }, (_, fret) => (
-              <td key={fret} style={{ textAlign: 'center', opacity: 0.5 }}>
-                {instrument.dotFrets.includes(fret) ? fret : ''}
-              </td>
-            ))}
-          </tr>
-        </tbody>
-      </table>
-      <div style={{ display: 'flex', gap: 12, marginTop: 6, opacity: 0.8, fontSize: 10 }}>
-        <span><span style={{ display: 'inline-block', width: 10, height: 10, background: HEAT.known, verticalAlign: '-1px' }} /> known</span>
-        <span><span style={{ display: 'inline-block', width: 10, height: 10, background: HEAT.needsWork, verticalAlign: '-1px' }} /> needs work</span>
-        <span><span style={{ display: 'inline-block', width: 10, height: 10, background: HEAT.unplayed, verticalAlign: '-1px' }} /> unplayed</span>
+    <div className="sp2-heat-scroll">
+      <div className="sp2-heat">
+        {Array.from({ length: instrument.stringCount }, (_, row) => {
+          const stringNumber = row + 1;
+          const map = fretMasteryMap(history, stringNumber);
+          return (
+            <div className="sp2-heat-row" key={stringNumber}>
+              <span className="sp2-heat-str">{shortStringLabel(instrument.stringLabels[stringNumber], stringNumber)}</span>
+              {frets.map(fret => {
+                const stat = map[fret];
+                const level = stat?.level ?? 'unplayed';
+                const title = stat && stat.level !== 'unplayed'
+                  ? `String ${stringNumber} fret ${fret} — ${pct(stat.accuracy)}`
+                  : `String ${stringNumber} fret ${fret} — not played`;
+                return <span key={fret} className="sp2-heat-cell" title={title} style={{ background: HEAT[level] }} />;
+              })}
+            </div>
+          );
+        })}
+        <div className="sp2-heat-row sp2-heat-nums">
+          <span className="sp2-heat-str" />
+          {frets.map(fret => (
+            <span key={fret} className="sp2-heat-num">{instrument.dotFrets.includes(fret) ? fret : ''}</span>
+          ))}
+        </div>
+      </div>
+      <div className="sp2-heat-legend">
+        <span><i style={{ background: HEAT.known }} /> known</span>
+        <span><i style={{ background: HEAT.needsWork }} /> needs work</span>
+        <span><i style={{ background: HEAT.unplayed }} /> unplayed</span>
       </div>
     </div>
   );

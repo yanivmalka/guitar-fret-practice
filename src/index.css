@@ -789,6 +789,33 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 .sp2 .string-bar-fill.bar-solid    { background: #0aa; }
 .sp2 .string-bar-fill.bar-growing  { background: #ff9d2e; }
 
+/* Fretboard heatmap: soft rounded cells with gaps, not hard-bordered
+   squares — matches the stats-redesign lab. */
+.sp2-heat-scroll { overflow-x: auto; padding-bottom: 4px; }
+.sp2-heat { display: flex; flex-direction: column; gap: 3px; width: max-content; }
+.sp2-heat-row { display: flex; gap: 3px; align-items: center; }
+.sp2-heat-str {
+  width: 24px; flex-shrink: 0; text-align: right;
+  font-size: 0.6rem; color: #9a9ab8;
+}
+.sp2-heat-cell {
+  width: 14px; height: 14px; flex-shrink: 0;
+  border-radius: 3px;
+}
+.sp2-heat-nums { margin-top: 1px; }
+.sp2-heat-num {
+  width: 14px; flex-shrink: 0; text-align: center;
+  font-size: 0.5rem; color: #9a9ab8;
+}
+.sp2-heat-legend {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  margin-top: 8px; font-size: 0.6rem; color: #9a9ab8;
+}
+.sp2-heat-legend i {
+  display: inline-block; width: 10px; height: 10px;
+  border-radius: 3px; vertical-align: -1px; margin-right: 3px;
+}
+
 .filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .filter-chip {
   padding: 6px 12px; border-radius: 14px; border: 1px solid #444;
