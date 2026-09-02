@@ -518,6 +518,16 @@ export default function App() {
 
   const [preloaded, setPreloaded] = useState(false);
   const [onboardingDone, setOnboardingDone] = useState(() => loadSetting<boolean>('onboardingDone', false));
+  // One-time nudge for guests to sign in, shown right after onboarding. "Maybe
+  // later" sets this device-local flag so it never nags again; the account is
+  // still reachable any time from Settings → Account.
+  const [signInPromptSeen, setSignInPromptSeen] = useState(
+    () => loadSetting<boolean>('pref_signInPromptSeen', false),
+  );
+  const dismissSignInPrompt = () => {
+    setSignInPromptSeen(true);
+    saveSetting('pref_signInPromptSeen', true);
+  };
   // The unified "Stats & progress" screen (current-setup stats + all-time progress tabs).
   const [showStats, setShowStats] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -644,6 +654,14 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [micPrompt]);
+
+  // Guests can dismiss the sign-in nudge with Escape ("Maybe later").
+  useEffect(() => {
+    if (signInPromptSeen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') dismissSignInPrompt(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [signInPromptSeen]);
 
   // Multi-string mode: a short haptic pulse when the drilled string changes
   // between questions, reinforcing the visual string-change emphasis. Single-
@@ -1203,6 +1221,41 @@ export default function App() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* One-time sign-in nudge for guests, right after onboarding. Reuses the
+          mic card's styling. "Maybe later" (or backdrop / Escape) dismisses it
+          for good on this device; the account stays reachable from Settings. */}
+      {auth.configured && !auth.loading && !auth.user && onboardingDone
+        && !signInPromptSeen && !gameActive && (
+        <div className="mic-overlay" onClick={click(dismissSignInPrompt)}>
+          <div
+            className="mic-card"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Sign in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mic-card-icon" aria-hidden="true">☁️</div>
+            <div className="mic-card-title">Save your progress</div>
+            <p className="mic-card-body">
+              Sign in with Google to keep your history, badges and personal
+              bests across devices. You can keep playing as a guest — everything
+              still works, it just stays on this device.
+            </p>
+            <div className="mic-card-actions">
+              <button
+                className="mic-btn mic-btn-primary"
+                onClick={click(() => { void auth.signInWithGoogle(); })}
+              >
+                Sign in with Google
+              </button>
+              <button className="mic-btn mic-btn-ghost" onClick={click(dismissSignInPrompt)}>
+                Maybe later
+              </button>
+            </div>
           </div>
         </div>
       )}
