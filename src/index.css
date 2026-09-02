@@ -2366,6 +2366,34 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   flex-direction: column;
   gap: 12px;
 }
+
+/* Compact badge pointer shown inside the Account section — links through to
+   the full "🏅 Badges" page rather than embedding the whole grid. */
+.account-badges-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  background: #15152a;
+  border: 1px solid #2a2a4a;
+  border-radius: 12px;
+  color: #f0f0f8;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.account-badges-link:hover { border-color: #00e5ff; }
+.account-badges-medal { font-size: 1.4rem; line-height: 1; }
+.account-badges-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.account-badges-count { font-size: 0.82rem; font-weight: 800; }
+.account-badges-hint { font-size: 0.68rem; color: #9a9ab8; }
 .badge-summary {
   margin: 0;
   font-size: 0.8rem;
@@ -2394,14 +2422,30 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   background: #14201c;
 }
 .badge-tile.locked {
-  opacity: 0.62;
+  opacity: 0.72;
 }
-.badge-tile.locked .badge-icon {
-  filter: grayscale(1);
+/* Keep the struck medal readable when locked — the tile opacity already
+   signals "not yet"; only take a little life out of the metal. */
+.badge-tile.locked .badge-medal {
+  filter: saturate(0.62) brightness(0.94);
 }
-.badge-icon {
-  font-size: 1.5rem;
-  line-height: 1;
+.badge-medal {
+  display: block;
+  flex: none;
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+.badge-medal svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.34)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.24));
+}
+.badge-tile:not(.locked) .badge-medal:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.05);
+}
+@media (prefers-reduced-motion: reduce) {
+  .badge-medal, .badge-tile:not(.locked) .badge-medal:hover { transition: none; transform: none; }
 }
 .badge-name {
   font-size: 0.82rem;

@@ -33,6 +33,7 @@ import { FeedbackBoard } from './components/FeedbackBoard';
 import { LeaderboardPanel } from './components/LeaderboardPanel';
 import { computeMyStats, leaderboardName, upsertMyEntry } from './utils/leaderboard';
 import { BadgeGrid } from './components/BadgeGrid';
+import { BadgeMedal, BadgeMedalDefs } from './components/BadgeMedal';
 import {
   badgeList, badgeDef, evaluateSession, evaluateLifetime, awardBadge, isEarned,
   type BadgeId, type SessionSnapshot, type LifetimeSnapshot,
@@ -1076,7 +1077,9 @@ export default function App() {
       id: 'account',
       title: '👤 Account',
       blurb: '',
-      body: auth.user ? (
+      body: (
+        <>
+        {auth.user ? (
         <SettingCard
           label="Signed in"
           help="Keeps your preferences and data in sync across devices."
@@ -1108,13 +1111,6 @@ export default function App() {
               )}
             </span>
           </div>
-          <p className="badge-summary">
-            {(() => {
-              const visible = badgeList(instrument).filter(d => d.kind !== 'role' || auth.admin);
-              const earned = visible.filter(d => d.id === 'admin' ? auth.admin : isEarned(d.id, instrument.id)).length;
-              return `🏅 ${earned} / ${visible.length} badges earned`;
-            })()}
-          </p>
           <button
             className="set-card-danger"
             onClick={click(() => { void auth.signOut(); })}
@@ -1140,6 +1136,26 @@ export default function App() {
             Sign in with Google
           </button>
         </SettingCard>
+      )}
+        {(() => {
+          const visible = badgeList(instrument).filter(d => d.kind !== 'role' || auth.admin);
+          const earned = visible.filter(d => (d.id === 'admin' ? auth.admin : isEarned(d.id, instrument.id))).length;
+          return (
+            <button
+              type="button"
+              className="account-badges-link"
+              onClick={click(() => setDrawerSection('badges'))}
+            >
+              <span className="account-badges-medal" aria-hidden="true">🏅</span>
+              <span className="account-badges-text">
+                <span className="account-badges-count">{earned} / {visible.length} badges earned</span>
+                <span className="account-badges-hint">See the full list and what earns each one</span>
+              </span>
+              <span className="sp2-chev" aria-hidden="true">›</span>
+            </button>
+          );
+        })()}
+        </>
       ),
     }] : []),
     {
@@ -1452,12 +1468,16 @@ export default function App() {
               </div>
               {newBadges.length > 0 && (
                 <div className="game-end-badges">
-                  {newBadges.map(id => (
-                    <div className="game-end-badge" key={id}>
-                      <span aria-hidden="true">{badgeDef(id, instrument)?.icon ?? '🏅'}</span>
-                      New badge · {badgeDef(id, instrument)?.name ?? id}
-                    </div>
-                  ))}
+                  <BadgeMedalDefs />
+                  {newBadges.map(id => {
+                    const def = badgeDef(id, instrument);
+                    return (
+                      <div className="game-end-badge" key={id}>
+                        {def && <BadgeMedal def={def} size={30} />}
+                        New badge · {def?.name ?? id}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
               <button className="clear-btn" onClick={click(() => { setGameEnded(false); setNewBadges([]); })}>OK</button>

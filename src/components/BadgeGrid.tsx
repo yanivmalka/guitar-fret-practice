@@ -5,6 +5,7 @@ import {
   badgeList, evaluateLifetime, awardBadge, isEarned, earnedAt, badgeProgress,
   type BadgeDef, type BadgeId, type LifetimeSnapshot,
 } from '../utils/badges';
+import { BadgeMedal, BadgeMedalDefs } from './BadgeMedal';
 
 /**
  * The badge collection, rendered by the standalone "🏅 Badges" settings page.
@@ -45,6 +46,7 @@ export function BadgeGrid({
 
   return (
     <div className="badge-wrap">
+      <BadgeMedalDefs />
       <p className="badge-summary">🏅 {earnedCount} / {defs.length} earned</p>
       <div className="badge-grid">
         {defs.map(def => (
@@ -74,7 +76,7 @@ function BadgeTile({
 
   return (
     <div className={`badge-tile${earned ? '' : ' locked'}`}>
-      <span className="badge-icon" aria-hidden="true">{def.icon}</span>
+      <BadgeMedal def={def} />
       <span className="badge-name">{def.name}</span>
       <span className="badge-blurb">{def.blurb}</span>
       {earned && (
