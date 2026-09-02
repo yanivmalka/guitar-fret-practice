@@ -4,6 +4,7 @@ import NoteCircle from './components/NoteCircle';
 import FretGrid from './components/FretGrid';
 import SelectorPanel from './components/SelectorPanel';
 import StatsPanel from './components/StatsPanel';
+import ProgressPanel from './components/ProgressPanel';
 import Onboarding from './components/Onboarding';
 import SpeedBar from './components/SpeedBar';
 import AnimatedScore from './components/AnimatedScore';
@@ -441,6 +442,7 @@ export default function App() {
   const [preloaded, setPreloaded] = useState(false);
   const [onboardingDone, setOnboardingDone] = useState(() => loadSetting<boolean>('onboardingDone', false));
   const [showStats, setShowStats] = useState(false);
+  const [showProgress, setShowProgress] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Which settings sub-page is open inside the drawer; null = the list of titles.
   const [drawerSection, setDrawerSection] = useState<string | null>(null);
@@ -501,6 +503,7 @@ export default function App() {
   }, [showInfo]);
 
   const hasHistory = historyOps.getEntriesForKey(histKey).length > 0;
+  const hasAnyHistory = hasHistory || Object.values(historyOps.allHistory).some(list => list.length > 0);
 
   // While actively playing the game stays clean and focused — the hamburger
   // (and the stats shortcut) are only offered when stopped or paused.
@@ -508,7 +511,7 @@ export default function App() {
   // own Back control takes over from there.
   const showBurger = !isPlaying && !pendingAutoAdvance && countdown === null && !settingsOpen;
 
-  useEffect(() => { setShowStats(false); setGameEnded(false); tier3FiredRef.current = false; }, [histKey]);
+  useEffect(() => { setShowStats(false); setShowProgress(false); setGameEnded(false); tier3FiredRef.current = false; }, [histKey]);
 
   // Mirror the open sub-page in a ref so the Escape handler (bound once per
   // open) reads the current value without re-subscribing on every navigation.
@@ -695,7 +698,7 @@ export default function App() {
       body: (
         <button
           className={`order-chip${showStats ? ' order-chip-active' : ''}`}
-          onClick={click(() => { setShowStats(true); setSettingsOpen(false); })}
+          onClick={click(() => { setShowProgress(false); setShowStats(true); setSettingsOpen(false); })}
         >
           <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true" style={{ marginRight: 6, verticalAlign: '-2px' }}>
             <rect x="2" y="10" width="4" height="8" rx="1" fill="currentColor" />
@@ -703,6 +706,19 @@ export default function App() {
             <rect x="14" y="2" width="4" height="16" rx="1" fill="currentColor" />
           </svg>
           Overall statistics
+        </button>
+      ),
+    }] : []),
+    ...(hasAnyHistory ? [{
+      id: 'progress',
+      title: '📈 Progress',
+      blurb: 'Your all-time progress across every settings combination: lifetime accuracy and speed, a practice-day streak, a per-day timeline, a fretboard mastery heatmap and your weakest notes.',
+      body: (
+        <button
+          className={`order-chip${showProgress ? ' order-chip-active' : ''}`}
+          onClick={click(() => { setShowStats(false); setShowProgress(true); setSettingsOpen(false); })}
+        >
+          📈 Open progress
         </button>
       ),
     }] : []),
@@ -1067,7 +1083,7 @@ export default function App() {
         </div>
 
         {/* Keep the grid/circle visible (frozen) while paused; hide only when fully stopped and showing stats/end summary */}
-        {(gameActive || (isStopped && !showStats && !gameEnded)) && (
+        {(gameActive || (isStopped && !showStats && !showProgress && !gameEnded)) && (
           derivedSettings.byNote ? (
             <FretGrid
               fretFrom={derivedSettings.fretFrom}
@@ -1118,6 +1134,19 @@ export default function App() {
             longestStreak={scoring.session.longestStreak}
             historyKey={histKey}
             onClear={() => { historyOps.clearHistory(histKey); setShowStats(false); }}
+          />
+        </div>
+      )}
+
+      {isStopped && showProgress && (
+        <div className="stats-wrapper">
+          <ProgressPanel
+            allHistory={historyOps.allHistory}
+            noteNames={cofList}
+            accidental={accidental}
+            notation={notation}
+            instrument={instrument}
+            onClose={() => setShowProgress(false)}
           />
         </div>
       )}
