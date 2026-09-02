@@ -719,24 +719,9 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   overflow: hidden;
 }
 
-/* Unified "Stats & progress" screen: a full-screen overlay over the game,
-   not an inline block appended below it. */
-.stats-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  background: rgba(6, 6, 16, 0.82);
-  backdrop-filter: blur(2px);
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  overflow-y: auto;
-  padding: 24px 16px 40px;
-}
-.stats-overlay-card {
-  width: 100%;
-  max-width: 400px;
-  margin: auto;
+/* Unified "Stats & progress" screen: its own page, replacing the game. */
+.stats-page {
+  padding-top: 18px;
 }
 
 .filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
@@ -1223,12 +1208,13 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 /* ── Stats tabs ───────────────────────────────────────────── */
 .stats-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 8px;
   justify-content: center;
 }
 .stats-tab {
-  padding: 6px 18px;
+  padding: 6px 14px;
   border-radius: 16px;
   border: 1px solid #444;
   background: #1a1a2e;

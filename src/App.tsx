@@ -854,6 +854,30 @@ export default function App() {
     }] : []),
   ];
 
+  // The unified "Stats & progress" screen replaces the game entirely — its own
+  // page, not an overlay pinned on top of the (blurred) game screen.
+  if (showStats) {
+    return (
+      <div className="app stats-page">
+        <ProgressPanel
+          allHistory={historyOps.allHistory}
+          noteNames={cofList}
+          accidental={accidental}
+          notation={notation}
+          instrument={instrument}
+          currentHistory={historyOps.getEntriesForKey(histKey)}
+          maxTime={derivedSettings.time}
+          maxQuestions={derivedSettings.maxQuestions}
+          sessionScore={scoring.session.score}
+          longestStreak={scoring.session.longestStreak}
+          currentHistoryKey={histKey}
+          onClearCurrent={() => { historyOps.clearAllHistory(); }}
+          onClose={() => setShowStats(false)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       {!onboardingDone && (
@@ -1116,7 +1140,7 @@ export default function App() {
         </div>
 
         {/* Keep the grid/circle visible (frozen) while paused; hide only when fully stopped and showing stats/end summary */}
-        {(gameActive || (isStopped && !showStats && !gameEnded)) && (
+        {(gameActive || (isStopped && !gameEnded)) && (
           derivedSettings.byNote ? (
             <FretGrid
               fretFrom={derivedSettings.fretFrom}
@@ -1153,28 +1177,6 @@ export default function App() {
           )
         )}
       </div>
-
-      {isStopped && showStats && (
-        <div className="stats-overlay" onClick={click(() => setShowStats(false))}>
-          <div className="stats-overlay-card" onClick={(e) => e.stopPropagation()}>
-          <ProgressPanel
-            allHistory={historyOps.allHistory}
-            noteNames={cofList}
-            accidental={accidental}
-            notation={notation}
-            instrument={instrument}
-            currentHistory={historyOps.getEntriesForKey(histKey)}
-            maxTime={derivedSettings.time}
-            maxQuestions={derivedSettings.maxQuestions}
-            sessionScore={scoring.session.score}
-            longestStreak={scoring.session.longestStreak}
-            currentHistoryKey={histKey}
-            onClearCurrent={() => { historyOps.clearAllHistory(); }}
-            onClose={() => setShowStats(false)}
-          />
-          </div>
-        </div>
-      )}
 
       <div className="build-info">
         {__COMMIT_HASH__} · {__COMMIT_DATE__.slice(0, 16)}
