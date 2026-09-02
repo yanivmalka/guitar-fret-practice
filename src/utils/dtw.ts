@@ -46,6 +46,12 @@ export function dtwDistance(seqA: Float32Array[], seqB: Float32Array[]): number 
   const n = seqA.length;
   const m = seqB.length;
   if (!n || !m) return Infinity;
+  // Frames of different feature widths (e.g. a stale 39-dim template pulled in
+  // against a current 13-dim capture) must not be compared: frameDistance only
+  // iterates the query frame, so a wider template would yield a finite but
+  // meaningless distance. Fail safe as Infinity, which the callers' existing
+  // Number.isFinite gates reject.
+  if (seqA[0].length !== seqB[0].length) return Infinity;
 
   const band = Math.max(10, Math.abs(n - m) + 5);
   const INF = Infinity;
