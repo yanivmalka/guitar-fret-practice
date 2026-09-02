@@ -1,5 +1,13 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* i18n: each text run picks its own reading direction (LTR for English,
+   RTL for Hebrew) from its own content, independent of any other element.
+   This only affects bidi reordering of inline text — it does not touch the
+   `direction` property, so flex/grid layout, positioning and sizing are
+   completely unaffected. This is deliberate: only words/sentences should
+   flip for Hebrew, the app's layout itself must not. */
+*, *::before, *::after { unicode-bidi: plaintext; }
+
 /* Single dark palette — opt out of mobile browsers' automatic dark-mode
    re-tinting (see the matching <meta name="color-scheme"> in index.html). */
 :root { color-scheme: dark; }
