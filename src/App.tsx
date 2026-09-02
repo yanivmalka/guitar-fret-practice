@@ -691,7 +691,7 @@ export default function App() {
       activeFret={gameActive ? askedFret : undefined}
       byString={byString}
       order={order}
-      onByStringToggle={() => { byString ? playToggleOffSound() : playToggleOnSound(); haptic.tap(); const next = !byString; setByString(next); saveSetting('pref_byString', next); }}
+      onByStringToggle={() => { if (byString) playToggleOffSound(); else playToggleOnSound(); haptic.tap(); const next = !byString; setByString(next); saveSetting('pref_byString', next); }}
       onOrderChange={(o) => { playClickSound(); haptic.tap(); setOrder(o); saveSetting('pref_order', o); }}
       accidental={accidental}
       notation={notation}
@@ -883,6 +883,7 @@ export default function App() {
       {!onboardingDone && (
         <Onboarding
           onInstrument={applyInstrument}
+          onPlacement={selector.onDifficultySelect}
           onDone={() => { setOnboardingDone(true); saveSetting('onboardingDone', true); }}
         />
       )}

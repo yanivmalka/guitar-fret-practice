@@ -77,7 +77,7 @@ function GroupSection({ title, cls, items, filter, accidental, notation }: {
   );
 }
 
-export default function StatsPanel({ history, maxTime: _maxTime, accidental, notation, sessionScore, longestStreak, historyKey: hKey, onClear, embedded }: Props) {
+export default function StatsPanel({ history, accidental, notation, sessionScore, longestStreak, historyKey: hKey, onClear, embedded }: Props) {
   const [topTab, setTopTab] = useState<TopTab>('score');
   const [tab, setTab] = useState<MainTab>('notes');
   const [filter, setFilter] = useState<Filter>('all');
@@ -125,7 +125,7 @@ export default function StatsPanel({ history, maxTime: _maxTime, accidental, not
   const prevBest = hKey ? loadBest(hKey) : null;
   const isNewBest = prevBest ? currentScore > prevBest.score : currentScore > 0;
 
-  let encouragement = '';
+  let encouragement: string;
   if (accuracy >= 80) encouragement = '🔥 Amazing!';
   else if (accuracy >= 60) encouragement = '💪 Great progress!';
   else if (accuracy >= 40) encouragement = '👍 Getting there!';

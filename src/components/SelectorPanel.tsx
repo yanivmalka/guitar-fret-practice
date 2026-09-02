@@ -205,9 +205,9 @@ export default function SelectorPanel({
       {/* ── StringRow ─────────────────────────────────────── */}
       <div className="selector-strings">
         {strings.map(({ label, num }) => (
-          <button key={num} className={`string-pill ${selector.selectedStrings.includes(num) ? 'active' : ''}`} onClick={() => { selector.selectedStrings.includes(num) ? playToggleOffSound() : playToggleOnSound(); onStringSelect(num); }}>{label}</button>
+          <button key={num} className={`string-pill ${selector.selectedStrings.includes(num) ? 'active' : ''}`} onClick={() => { if (selector.selectedStrings.includes(num)) playToggleOffSound(); else playToggleOnSound(); onStringSelect(num); }}>{label}</button>
         ))}
-        <button className={`string-pill string-pill-toggle ${selector.multiMode ? 'active' : ''}`} onClick={() => { selector.multiMode ? playToggleOffSound() : playToggleOnSound(); onMultiToggle(); }}>Multi</button>
+        <button className={`string-pill string-pill-toggle ${selector.multiMode ? 'active' : ''}`} onClick={() => { if (selector.multiMode) playToggleOffSound(); else playToggleOnSound(); onMultiToggle(); }}>Multi</button>
       </div>
 
       {/* ── ModeToggle with order options between cards ── */}

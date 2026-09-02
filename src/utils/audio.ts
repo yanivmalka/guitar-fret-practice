@@ -64,7 +64,7 @@ export function resumeAudioContext() {
 }
 
 export function stopPlayback() {
-  activeSources.forEach(s => { try { s.stop(); } catch {} });
+  activeSources.forEach(s => { try { s.stop(); } catch { /* source already stopped */ } });
   activeSources = [];
   soundEndTime = 0;
 }
