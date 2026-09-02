@@ -26,6 +26,7 @@ export function useDerivedNotes(
   const gs = clamp(guitarString);
   const isMulti = multiStrings.length > 0;
   const activeStrings = (isMulti ? multiStrings : [guitarString]).map(clamp);
+  const activeStringsKey = activeStrings.join(',');
 
   // Always show full note list on circle — wholeToneOnly only disables non-whole notes, not hides them
   const cofList = getCofNotes(accidental, order, false);
@@ -37,7 +38,7 @@ export function useDerivedNotes(
       getValidFrets(s - 1, fretFrom, fretTo, wholeToneOnly, dotsOnly).forEach(f => noteSet.add(notes[s - 1][f]));
     });
     return noteSet;
-  }, [JSON.stringify(activeStrings), fretFrom, fretTo, wholeToneOnly, dotsOnly, instrumentId]);
+  }, [activeStringsKey, fretFrom, fretTo, wholeToneOnly, dotsOnly, instrumentId]);
 
   const questionActiveNotes = useMemo(() => {
     const noteSet = new Set<string>();

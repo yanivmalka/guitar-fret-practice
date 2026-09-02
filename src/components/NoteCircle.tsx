@@ -43,27 +43,6 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
   const prevStartIndexRef = useRef(startIndex);
   const animFrameRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    if (!byString) {
-      // Animate back to 0 if byString turned off
-      if (wheelAngleRef.current !== 0) {
-        animateTo(0);
-      }
-      prevStartIndexRef.current = 0;
-      return;
-    }
-
-    const prevIdx = prevStartIndexRef.current;
-    const nextIdx = startIndex;
-    prevStartIndexRef.current = nextIdx;
-
-    if (prevIdx === nextIdx) return;
-
-    // Target angle: -startIndex * degPerStep (rotate so startIndex note is at top)
-    const target = -nextIdx * degPerStep;
-    animateTo(target);
-  }, [startIndex, byString]);
-
   function animateTo(target: number) {
     // Normalize to shortest path from current angle
     const current = wheelAngleRef.current;
@@ -94,6 +73,27 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
     };
     animFrameRef.current = requestAnimationFrame(animate);
   }
+
+  useEffect(() => {
+    if (!byString) {
+      // Animate back to 0 if byString turned off
+      if (wheelAngleRef.current !== 0) {
+        animateTo(0);
+      }
+      prevStartIndexRef.current = 0;
+      return;
+    }
+
+    const prevIdx = prevStartIndexRef.current;
+    const nextIdx = startIndex;
+    prevStartIndexRef.current = nextIdx;
+
+    if (prevIdx === nextIdx) return;
+
+    // Target angle: -startIndex * degPerStep (rotate so startIndex note is at top)
+    const target = -nextIdx * degPerStep;
+    animateTo(target);
+  }, [startIndex, byString]);
 
   const isNoteInRange = (note: string) => {
     for (const an of activeNotes) { if (notesMatch(an, note)) return true; }
