@@ -111,9 +111,9 @@ function Expander({ label, open, onToggle, children }: { label: string; open: bo
 }
 
 const HEAT: Record<string, string> = {
-  unplayed: '#2a2a4a',
-  needsWork: '#f90',
-  known: '#0f0',
+  unplayed: '#24244a',
+  needsWork: '#ff9d2e',
+  known: '#34e07a',
 };
 
 function FretHeatmap({ history, instrument }: { history: HistoryEntry[]; instrument: InstrumentConfig }) {

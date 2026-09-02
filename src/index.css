@@ -733,7 +733,7 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
 }
 .sp2-back {
   background: none; border: none; cursor: pointer;
-  color: #0ff; font-size: 0.8rem; font-weight: 700;
+  color: #00e5ff; font-size: 0.8rem; font-weight: 700;
 }
 .sp2-title { font-size: 0.95rem; font-weight: 800; color: #f0f0f8; }
 
@@ -746,7 +746,7 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   background: none; color: #9a9ab8;
   font-size: 0.72rem; font-weight: 700; border-radius: 999px;
 }
-.sp2-scope-active { background: #0aa; color: #06222a; }
+.sp2-scope-active { background: #00e5ff; color: #06222a; }
 .sp2-scope-cap {
   text-align: center; font-size: 0.65rem; color: #9a9ab8; margin: -2px 0 2px;
 }
@@ -769,7 +769,7 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   background: #15152a; border: 1px solid #2a2a4a; border-radius: 6px;
   color: #c8c8de; font-size: 0.72rem; font-weight: 700;
 }
-.sp2-exp-open { border-color: #0ff; color: #f0f0f8; }
+.sp2-exp-open { border-color: #00e5ff; color: #f0f0f8; }
 .sp2-chev { color: #9a9ab8; }
 .sp2-exp-body {
   padding: 8px 4px 2px;
@@ -782,6 +782,12 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   color: #ff5470; font-size: 0.62rem; font-weight: 700;
   text-decoration: underline; text-underline-offset: 2px;
 }
+
+/* Bar-row / timeline fills on the Stats & progress screen use the softer
+   preview-lab palette, scoped so the in-game mastery bars keep #0f0/#7bf/#f90. */
+.sp2 .string-bar-fill.bar-mastered { background: #34e07a; }
+.sp2 .string-bar-fill.bar-solid    { background: #0aa; }
+.sp2 .string-bar-fill.bar-growing  { background: #ff9d2e; }
 
 .filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .filter-chip {
