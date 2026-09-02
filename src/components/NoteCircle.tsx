@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Fragment } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { notesMatch, notes as allNotes, displayNote } from '../utils/music';
 import type { AccidentalMode, NotationMode } from '../utils/music';
 import { playNoteSequence, stopPlayback } from '../utils/audio';
@@ -164,8 +164,17 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
           const isGlowing = !isCorrect && !isWrong && glowNote === note;
           const mastery = showMastery ? masteryByNote?.[note] : undefined;
 
-          let bg = '#2a2a4a';
-          let border = '#555';
+          // The note button dims at rest, but the mastery bar must stay
+          // full-strength so its green/orange matches the by-note FretGrid
+          // equaliser exactly. So instead of fading the whole element, bake
+          // the rest-dim into the circle's own bg/border colour and fade only
+          // the letter + dot; the bar then renders at full opacity with no
+          // fragile double-draw. (An earlier whole-element opacity + overlay
+          // approach drew inconsistently across browsers, e.g. Samsung
+          // Internet.)
+          const restDim = inRange && !active;
+          let bg = restDim ? 'rgba(42, 42, 74, 0.7)' : '#2a2a4a';
+          let border = restDim ? 'rgba(85, 85, 85, 0.7)' : '#555';
           if (isCorrect) { bg = '#0a0'; border = '#0f0'; }
           else if (isWrong) { bg = '#a00'; border = '#f00'; }
 
@@ -184,59 +193,35 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
           ) : null;
 
           return (
-            <Fragment key={note}>
-              <button
-                onClick={() => handleClick(note)}
-                disabled={!inRange}
-                className={`note-btn ${isGlowing ? 'note-glow' : ''}`}
-                style={{
-                  position: 'absolute', left: x, top: y,
-                  width: btnSize, height: btnSize, borderRadius: '50%',
-                  background: bg, border: `2px solid ${border}`,
-                  color: '#fff', fontWeight: 'bold', fontSize: 15,
-                  cursor: inRange ? 'pointer' : 'default',
-                  opacity: inRange ? (active ? 1 : 0.7) : 0.25,
-                  flexDirection: 'column', gap: 0,
-                }}
-              >
+            <button
+              key={note}
+              onClick={() => handleClick(note)}
+              disabled={!inRange}
+              className={`note-btn ${isGlowing ? 'note-glow' : ''}`}
+              style={{
+                position: 'absolute', left: x, top: y,
+                width: btnSize, height: btnSize, borderRadius: '50%',
+                background: bg, border: `2px solid ${border}`,
+                color: '#fff', fontWeight: 'bold', fontSize: 15,
+                cursor: inRange ? 'pointer' : 'default',
+                opacity: inRange ? 1 : 0.25,
+                flexDirection: 'column', gap: 0,
+              }}
+            >
+              <span style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0,
+                transform: `rotate(${-wheelAngle}deg)`,
+              }}>
                 <span style={{
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0,
-                  transform: `rotate(${-wheelAngle}deg)`,
+                  opacity: restDim ? 0.7 : 1,
                 }}>
                   <span style={{ lineHeight: 1.1 }}>{displayNote(note, accidental, notation)}</span>
                   {showDots && dotInfo && <span className="fret-dot" style={{ color: dotInfo.color }}>{dotInfo.dots}</span>}
-                  {masteryBar}
                 </span>
-              </button>
-              {/* The mastery bar again as a non-interactive overlay at full
-                  opacity. The copy inside the button inherits the note's
-                  resting opacity (0.7), which darkens its colour; this copy
-                  sits exactly on top so the by-fret wheel shows the same
-                  green/orange as the by-note FretGrid equaliser. The hidden
-                  letter/dot spacers keep it aligned with the copy beneath. */}
-              {masteryBar && inRange && (
-                <span
-                  aria-hidden
-                  style={{
-                    position: 'absolute', left: x, top: y,
-                    width: btnSize, height: btnSize,
-                    display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center',
-                    gap: 0, pointerEvents: 'none',
-                  }}
-                >
-                  <span style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0,
-                    fontSize: 15, fontWeight: 'bold',
-                    transform: `rotate(${-wheelAngle}deg)`,
-                  }}>
-                    <span style={{ lineHeight: 1.1, visibility: 'hidden' }}>{displayNote(note, accidental, notation)}</span>
-                    {showDots && dotInfo && <span className="fret-dot" style={{ visibility: 'hidden' }}>{dotInfo.dots}</span>}
-                    {masteryBar}
-                  </span>
-                </span>
-              )}
-            </Fragment>
+                {masteryBar}
+              </span>
+            </button>
           );
         })}
       </div>
