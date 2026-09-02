@@ -29,6 +29,7 @@ import { useVoiceAnswer } from './hooks/useVoiceAnswer';
 import VoiceLevelMeter from './components/VoiceLevelMeter';
 import DebugLogPanel from './components/DebugLogPanel';
 import VoiceCalibration from './components/VoiceCalibration';
+import { FeedbackBoard } from './components/FeedbackBoard';
 import { vlog } from './utils/debugLog';
 import type { SpeechNotation } from './utils/speechVocab';
 import { resetSpeechEngine, type VoiceEnginePref } from './utils/speech';
@@ -548,6 +549,11 @@ export default function App() {
   // false between stages, but the game screen must stay mounted (frozen on the
   // last question) so the transition never collapses the layout.
   const gameActive = running || paused || pendingAutoAdvance;
+  // During the 3-2-1 count-in the engine hasn't started yet (`running` is still
+  // false), but the fretboard/circle should already wear the stage's play
+  // appearance — no all-time mastery overlay, dots shown — instead of flashing
+  // the at-rest page look for the three seconds before the first question.
+  const boardLive = gameActive || countdown !== null;
 
   const click = <T,>(fn: () => T) => () => { playClickSound(); haptic.tap(); return fn(); };
 
@@ -945,6 +951,18 @@ export default function App() {
       ),
     },
     ...(auth.configured ? [{
+      id: 'board',
+      title: '💬 Feedback board',
+      blurb: '',
+      body: (
+        <FeedbackBoard
+          user={auth.user}
+          profile={auth.profile}
+          onSignIn={() => { void auth.signInWithGoogle(); }}
+        />
+      ),
+    }] : []),
+    ...(auth.configured ? [{
       id: 'account',
       title: '👤 Account',
       blurb: '',
@@ -1319,7 +1337,7 @@ export default function App() {
               foundFrets={gameActive ? foundFrets : []}
               onSelect={selectFret}
               masteryByFret={fretMastery}
-              showMastery={!gameActive && showMastery}
+              showMastery={!boardLive && showMastery}
             />
           ) : (
             <NoteCircle
@@ -1334,11 +1352,11 @@ export default function App() {
               noteFrets={noteFrets}
               byString={byString}
               startIndex={startIndex}
-              showDots={!(isMulti && derivedSettings.multiStrings.length > 1) || gameActive}
+              showDots={!(isMulti && derivedSettings.multiStrings.length > 1) || boardLive}
               accidental={accidental}
               notation={notation}
               masteryByNote={noteMastery}
-              showMastery={!gameActive && showMastery}
+              showMastery={!boardLive && showMastery}
             />
           )
         )}
