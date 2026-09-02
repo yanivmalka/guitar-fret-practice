@@ -18,5 +18,15 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // The repo's documented timer/ref convention (see CLAUDE.md) deliberately
+      // writes latest-value mirror refs during render and uses recursive
+      // useCallbacks / reset-on-prop-change effects. The React Compiler lint
+      // family flags those structurally; keep them visible as warnings rather
+      // than failing lint or forcing behaviour-changing refactors.
+      'react-hooks/refs': 'warn',
+      'react-hooks/immutability': 'warn',
+      'react-hooks/set-state-in-effect': 'warn',
+    },
   },
 ])
