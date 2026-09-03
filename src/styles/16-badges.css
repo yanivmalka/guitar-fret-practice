@@ -508,3 +508,148 @@
 .badge-admin-btn:hover:not(:disabled) { border-color: #00e5ff; color: #fff; }
 .badge-admin-btn--reset:hover:not(:disabled) { border-color: #ff6b6b; color: #ffd7d7; }
 .badge-admin-btn:disabled { opacity: 0.38; cursor: default; }
+
+/* ── Pinned badge shelf (Account section) ──────────────────────────────────
+   Up to five medals the player parks beside their name, plus a floating
+   picker to choose them. Replaces the old "🏅 Badges" nav-row. */
+.pinned-badges-strip,
+.pinned-badges-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  font: inherit;
+  color: #e8e8ff;
+  background: linear-gradient(180deg, #1a1a34, #131328);
+  border: 1px solid #2a2a4a;
+  border-radius: 14px;
+  cursor: pointer;
+  text-align: start;
+}
+.pinned-badges-strip:hover,
+.pinned-badges-empty:hover { border-color: #3a3a63; }
+
+.pinned-badges-medals {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.pinned-badges-slot { display: inline-flex; }
+
+.pinned-badges-chev { color: #7a7a9c; font-size: 1rem; flex-shrink: 0; }
+
+.pinned-badges-empty-icon { font-size: 1.1rem; }
+.pinned-badges-empty-label { flex: 1; font-size: 0.82rem; font-weight: 700; }
+
+/* ── Floating picker ──────────────────────────────────────────────────── */
+.pinned-picker-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: pinned-picker-fade 0.16s ease-out;
+}
+@keyframes pinned-picker-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.pinned-picker {
+  width: min(420px, 100%);
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  background: linear-gradient(180deg, #1b1b36, #14142a);
+  border: 1px solid #33335a;
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  animation: pinned-picker-pop 0.22s cubic-bezier(0.2, 0.8, 0.24, 1.1) both;
+}
+@keyframes pinned-picker-pop {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+.pinned-picker-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.pinned-picker-title { font-size: 0.92rem; font-weight: 800; color: #f0f0ff; }
+.pinned-picker-counter { font-size: 0.8rem; font-weight: 800; color: #9a9ab8; }
+
+.pinned-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 10px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.pinned-picker-medal {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  background: #17172e;
+  border: 1px solid #2c2c4d;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.14s ease, transform 0.14s ease, opacity 0.14s ease;
+}
+.pinned-picker-medal:hover { border-color: #45456e; }
+.pinned-picker-medal.is-pinned {
+  border-color: #f5d270;
+  background: #23204a;
+  box-shadow: 0 0 0 1px rgba(245, 210, 112, 0.4) inset;
+}
+.pinned-picker-medal.is-blocked { opacity: 0.4; cursor: not-allowed; }
+.pinned-picker-medal.is-blocked:hover { border-color: #2c2c4d; }
+
+.pinned-picker-check {
+  position: absolute;
+  top: -6px;
+  inset-inline-end: -6px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 900;
+  color: #1b1b16;
+  background: #f5d270;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+
+.pinned-picker-hint {
+  margin: 0;
+  font-size: 0.76rem;
+  color: #e0a878;
+  text-align: center;
+}
+
+.pinned-picker-foot {
+  margin: 0;
+  border: 1px solid #2a2a4a;
+  border-radius: 12px;
+  background: #17172e;
+}
+.pinned-picker-foot:hover { border-color: #3a3a63; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pinned-picker-overlay,
+  .pinned-picker { animation: none; }
+}

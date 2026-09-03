@@ -134,6 +134,14 @@ const he: Record<string, string> = {
   'Member since': 'חבר מאז',
   'badges earned': 'תגים שנצברו',
 
+  // Pinned badge shelf (Account section)
+  'Choose badges to feature': 'בחר תגים להצגה',
+  'Edit featured badges': 'עריכת התגים המוצגים',
+  'Your badges': 'התגים שלך',
+  'Feature up to 5 badges': 'הצג עד 5 תגים',
+  'Remove a badge to feature another.': 'הסר תג כדי להוסיף אחר.',
+  'See all badges': 'לרשימת התגים המלאה',
+
   // LeaderboardPanel — standings sub-page
   'player': 'שחקן',
   'players': 'שחקנים',

@@ -35,6 +35,7 @@ import { FeedbackBoard } from './components/FeedbackBoard';
 import { LeaderboardPanel } from './components/LeaderboardPanel';
 import { computeMyStats, leaderboardName, upsertMyEntry } from './utils/leaderboard';
 import { BadgeGrid } from './components/BadgeGrid';
+import { PinnedBadges } from './components/PinnedBadges';
 import { UpgradeCard } from './components/UpgradeCard';
 import { ProGate } from './components/ProGate';
 import { setOwnEntitlement } from './utils/entitlement';
@@ -43,7 +44,7 @@ import { registerUpgradeHandler } from './utils/upgradeDrawer';
 import { BadgeMedal, BadgeMedalDefs } from './components/BadgeMedal';
 import { BadgeToast, BadgeRevealOverlay, type CelebratedBadge } from './components/BadgeCelebration';
 import {
-  badgeList, badgeDef, evaluateSession, evaluateLifetime, awardFamilyUpTo, earnedTier, isEarned, TIER_LABEL,
+  badgeDef, evaluateSession, evaluateLifetime, awardFamilyUpTo, earnedTier, TIER_LABEL,
   type BadgeId, type SessionSnapshot, type LifetimeSnapshot, type Tier,
 } from './utils/badges';
 import { vlog, verror } from './utils/debugLog';
@@ -1359,6 +1360,13 @@ export default function App() {
           </button>
         </SettingCard>
       )}
+        {/* The badge shelf: up to five medals the player pins beside their
+            name, plus the floating picker that leads into the full Badges
+            page (which used to be its own nav-row here). */}
+        <PinnedBadges
+          isAdmin={auth.admin}
+          onOpenBadges={() => setDrawerSection('badges')}
+        />
         {/* Subscription tier: a tappable tile that opens the `upgrade`
             sub-page (which used to be its own top-level drawer row). */}
         <button
@@ -1373,24 +1381,6 @@ export default function App() {
           </span>
           <Chevron dir="forward" className="nav-row__chev" />
         </button>
-        {(() => {
-          const visible = badgeList(instrument).filter(d => d.kind !== 'role' || auth.admin);
-          const earned = visible.filter(d => (d.id === 'admin' ? auth.admin : isEarned(d.id, instrument.id))).length;
-          return (
-            <button
-              type="button"
-              className="nav-row"
-              onClick={click(() => setDrawerSection('badges'))}
-            >
-              <span className="nav-row__lead" aria-hidden="true">🏅</span>
-              <span className="nav-row__label">
-                <span className="account-badges-count">{earned} / {visible.length} {t('badges earned')}</span>
-                <span className="account-badges-hint">{t('See the full list and what earns each one')}</span>
-              </span>
-              <Chevron dir="forward" className="nav-row__chev" />
-            </button>
-          );
-        })()}
         {import.meta.env.DEV && (
           <p
             className="dev-tier-readout"
