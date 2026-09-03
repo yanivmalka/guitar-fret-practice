@@ -499,7 +499,19 @@ Only items clearly and specifically superseded by the Selector model — not "de
 
 ## 6. Monetization Tiering (Draft)
 
-First-pass split of the feature set into paid vs free, to frame the monetization decision that §4 still lists as unmade. Model: **Free + Pro (subscription) + Premium (higher subscription or add-ons)**. The Android app itself is **free** on both web and Play Store — paid tiers unlock features inside it, they are not a paywall to install. Nothing here is committed; it is a starting map for discussion.
+First-pass split of the feature set into paid vs free, to frame the monetization decision that §4 still lists as unmade. Model: **Free + Pro (subscription) + Premium (higher subscription or add-ons)**. The Android app itself is **free** on both web and Play Store — paid tiers unlock features inside it, they are not a paywall to install.
+
+> **STATUS UPDATE — the Free/Pro split is now built and shipped (phases 1–6).** What was "a starting map for discussion" has been turned into a decision-made spec (`.kiro/specs/free-pro-tiering/design.md` + `tasks.md`) and implemented client-side:
+> - **Entitlement data model** — `public.entitlements` (Supabase migration `0007`, RLS read-own, no client write) plus `public.orphan_practice`; grants tightened in `0009`; an admin self-toggle path added in `0010`.
+> - **One source of truth** — `src/utils/entitlement.ts` (`fetchEntitlement`/`cachedEntitlement`, fail-open on read error, fail-closed on absence) surfaced through `useAuth.ts` as `tier` / `isPro`, read everywhere via the thin `useEntitlement()` hook.
+> - **Gating layer** — `src/utils/features.ts` (`Feature` map, all `'pro'` for now, `FREE_HISTORY_DAYS = 7`), the presentational `<ProGate>` component (overlay / replace / inline-badge variants), `<UpgradeCard>` + a standalone **⭐ Pro** drawer section with an `openUpgrade` handler. CTA is still a disabled "Coming soon" placeholder — **no payment SDK, no real purchase**.
+> - **What is actually gated for Free:** multi-string mode, the fret/note mastery-map overlays, the personal voice profile + calibration, all-combinations personal bests, and history in the Stats & Progress screen older than 7 days (a **view filter only** — recording, sync and restore stay complete and free for everyone).
+> - **Guest → account merge** is now an explicit prompt (`GuestMergePrompt.tsx`), with orphaned guest practice captured to `orphan_practice` when the user declines the merge.
+> - **Testing seams** — `scripts/grant-pro.mts` (admin grant by email), `src/utils/devSimulatePro.ts` (DEV-only simulate-Pro toggle in the debug panel), and an admin-only in-app Pro toggle for one's own account.
+> - **Deliberately NOT gated / still free:** cloud sync + multi-device restore, the leaderboard, XP, badges, guitar + bass, scoring/celebrations, notation options, onboarding, offline.
+> - **Still open:** Pro's price and trial length, and the payment rail itself (RevenueCat expected) — carried as a separate phase-7 spec. The "Premium" third tier below stays parked and unmodelled.
+>
+> The rest of this section is the original draft, kept for context; where it says "the work is gating, not building," that gating work is now done.
 
 ### Free — "learn the neck"
 A complete, genuinely useful app with no payment, or there is no adoption funnel.
@@ -509,18 +521,18 @@ A complete, genuinely useful app with no payment, or there is no adoption funnel
 - Scoring, streak, fire multiplier, celebrations, "serious learning" (score-off) mode
 - Notation A-B-C / Do-Re-Mi, circle-of-fifths / alphabetical order
 - Basic voice answering (Web Speech / native), no personal profile
-- Stats for the **current settings combination and session only** — no accumulating long-term history
+- Stats in the Stats & Progress screen for the **last 7 days** (as shipped — a view filter; the full history is still recorded, synced and restored for every user)
 - Onboarding + placement, full offline support
 - **Public leaderboard** ranked by all-time XP (= correct-answer count) — already shipped and explicitly built as a free, open feature: anyone (including guests) can view the full standings via `fetchLeaderboard`; only appearing on it requires Google sign-in. See `src/utils/leaderboard.ts`.
 
 ### Pro (subscription) — "train seriously and track progress"
-Core value = persistence of data over time + sync + a wider drill surface. Everything here already exists in the codebase; the work is gating, not building.
-- **Full history across every settings combination** + mastery maps (fret / note mastery equalizer overlays)
-- Full personal bests per settings combination
-- Multi-string mode
-- Google account + **cloud sync** across devices (history, personal bests, settings, voice profile)
-- Personal voice profile + calibration (more accurate recognition, reliable hands-free)
+Core value = persistence of data over time + a wider drill surface. The gating for all of this is now **built** (phases 1–6, see the status update above); what remains is the price and the payment rail.
+- **History older than 7 days** in the Stats & Progress screen + mastery maps (fret / note equalizer overlays) — *gated via `<ProGate feature="historyBeyond7Days" | "masteryMaps">`*
+- All-combinations personal bests — *gated (`allPersonalBests`)*
+- Multi-string mode — *gated (`multiString`) in `SelectorPanel` / `useSelector`*
+- Personal voice profile + calibration — *gated (`voiceProfile`); free users fall back to basic Web Speech / native*
 - No ads (if the free tier ever carries them)
+- **NOT Pro:** Google account, cloud sync and multi-device restore all stay free (see the status update).
 
 ### Premium (higher tier / add-ons) — "a teacher, not just a timer"
 Does not exist yet; needs to be built to justify a price above Pro. Justified only once 2–3 of these ship.
@@ -532,10 +544,12 @@ Does not exist yet; needs to be built to justify a price above Pro. Justified on
 - Daily challenge / friends — (the leaderboard itself has shipped, as a free feature — see Free tier above; only per-friend / daily-challenge framing around it remains undone)
 
 ### Open decisions
-- **Premium shape** — a single higher-priced subscription tier, or one-time in-app purchases per game mode (a natural fit for chords / scales / intervals as separate unlocks).
-- **Cloud sync in Free** — offer basic single-device backup for free (so data is never lost) and gate only multi-device restore behind Pro, to lower signup friction.
-- **Free history limit** — "current combination only" vs "last 7 days". The latter is less punishing and shows the user what they are missing.
-- **Ads in Free** — whether the free tier carries ads at all, or relies purely on the Pro upsell.
+- **Premium shape** — a single higher-priced subscription tier, or one-time in-app purchases per game mode (a natural fit for chords / scales / intervals as separate unlocks). *Still open — the third tier is parked; only Free/Pro is modelled and built.*
+- **Cloud sync in Free** — ~~offer basic single-device backup for free and gate only multi-device restore behind Pro~~. **DECIDED: sync and multi-device restore both stay free** — the full history has to be present locally for scoring to stay correct, so restore cannot be gated.
+- **Free history limit** — ~~"current combination only" vs "last 7 days"~~. **DECIDED: last 7 days**, as a view filter over the Stats & Progress screen and mastery overlays only, never a data/sync cut.
+- **Ads in Free** — still open; the current build carries no ads and relies purely on the Pro upsell.
+- **Grandfathering** — **DECIDED: none.** No user base yet, so everyone starts Free; `admin` does not imply Pro.
+- **Pro price / trial length** — still open, needed before the payment rail (phase 7) can be built.
 
 ---
 
@@ -548,3 +562,12 @@ Found while re-checking the codebase against this document — real, shipped fea
 - **Admin account role.** A row in `public.admins`, surfaced as `auth.admin` from `useAuth.ts`. Gates the debug-log panel (previously visible to everyone), the Feedback Board's admin Inbox tab, and a dedicated `admin` role-badge (a new, non-levelled third badge kind alongside session/lifetime badges).
 - **Voice dictation for text input.** `useDictation` (used by the Feedback Board's compose box) — a distinct, smaller voice feature from the answer-mode `useVoiceAnswer`: speech-to-text for filling in a text field rather than answering a drill question.
 - **Coming-soon instrument placeholders (admin-only).** `COMING_SOON_INSTRUMENTS` in `src/utils/instruments.ts` lists Ukulele (G C E A) and Mandolin (G D A E) as disabled tiles in the instrument picker, visible to admins only for now, "so the plan is visible in-app without implying they work." Deliberately not part of `InstrumentId` — nothing can actually select or drill them yet. Confirms intent but not delivery for the Premium "instruments from other families" idea in §6.
+
+### Shipped after the §6 tiering pass
+
+- **Free/Pro tiering, phases 1–6.** See the status update at the top of §6 for the full breakdown — entitlement table + model, `useEntitlement()`, `<ProGate>` / feature map, the four gated features, the 7-day free history window, the guest-merge prompt, and the dev/admin test toggles. Payment rail (phase 7) is still unbuilt.
+- **Badge sync across devices.** `src/utils/badgeSync.ts` — earned badges now push/merge through Supabase like history and personal bests, so the Achievements wall follows the account. An admin "Reset" propagates across the admin's own devices.
+- **Badge earn celebration.** `src/components/BadgeCelebration.tsx` — a mid-game toast plus an end-of-round reveal for newly earned badges (also fired when an admin Grants a badge by hand from a wall tile).
+- **In-game feedback softened.** Streak celebrations were dropped and the "correct" chime softened (`In-game feedback: drop streak celebrations, soften the correct chime`) — a deliberate move *away* from the "Celebration tiers" escalation still drafted in §3; that plan should be re-read against this before being picked up.
+- **`index.css` split into per-domain partials.** `src/styles/01-base.css` … `21-pro-gate.css`, `@import`-ed from `src/index.css`. Internal only, no behavior change, but the "Files touched" lists in the §3 implementation plans that name `src/index.css` now mean the relevant `src/styles/*.css` partial.
+- **`pref_language` synced across devices.** Language choice now round-trips through the account like other settings.
