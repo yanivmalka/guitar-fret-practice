@@ -1091,21 +1091,27 @@ export default function App() {
                 setPreloaded(false);
               }}
             />
-          </SettingCard>
-          {auth.admin && (
-            <div className="instr-soon" role="group" aria-label={t('Coming soon')}>
-              <span className="instr-soon-k">{t('Coming soon')}</span>
-              <div className="instr-soon-grid">
+            {/* Roadmap instruments the engine can't drill yet — shown to admins
+                as disabled pills in the same segmented control as Guitar/Bass
+                rather than a separate grid, so the plan reads as part of the
+                picker. */}
+            {auth.admin && (
+              <div className="set-seg" role="group" aria-label={t('Coming soon')}>
                 {COMING_SOON_INSTRUMENTS.map((ci) => (
-                  <div key={ci.label} className="instr-soon-tile" aria-disabled="true">
-                    <span className="instr-soon-emoji">{ci.emoji}</span>
-                    <span className="instr-soon-name">{t(ci.label)}</span>
-                    <span className="instr-soon-tuning">{ci.tuning}</span>
-                  </div>
+                  <button
+                    key={ci.label}
+                    type="button"
+                    className="set-seg-btn"
+                    disabled
+                    aria-disabled="true"
+                    title={`${t('Coming soon')} — ${ci.tuning}`}
+                  >
+                    {ci.emoji} {t(ci.label)}
+                  </button>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </SettingCard>
           {/* Note-name notation used to be its own drawer row; it's really a
               display preference for the instrument, so it lives here now. */}
           <SettingCard
