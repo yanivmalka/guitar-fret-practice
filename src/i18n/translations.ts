@@ -16,6 +16,12 @@ const he: Record<string, string> = {
   'Bass': 'בס',
   'Fret Practice': 'תרגול סריגים',
 
+  // Instrument picker — roadmap instruments (admin-only "coming soon" tiles)
+  'Coming soon': 'בקרוב',
+  'Ukulele': 'יוקללי',
+  'Mandolin': 'מנדולינה',
+  'Banjo': 'בנג׳ו',
+
   // Settings — section titles / labels / help
   'Instrument': 'כלי נגינה',
   'Switches tuning, string count and fret range, then reloads the note samples.':

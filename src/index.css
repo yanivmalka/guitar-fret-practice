@@ -366,6 +366,47 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   color: #06222a;
 }
 
+/* Roadmap instruments not yet playable — disabled tiles under the picker.
+   Admin-only for now (gated in App.tsx's instrument section). */
+.instr-soon {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+.instr-soon-k {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #9a9ab8;
+}
+.instr-soon-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.instr-soon-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 4px;
+  border: 1px dashed #2a2a4a;
+  border-radius: 12px;
+  background: none;
+  opacity: 0.55;
+  cursor: not-allowed;
+  text-align: center;
+}
+.instr-soon-emoji { font-size: 1.2rem; line-height: 1; }
+.instr-soon-name { font-size: 0.72rem; font-weight: 700; color: #f0f0f8; }
+.instr-soon-tuning {
+  font-size: 0.58rem;
+  letter-spacing: 0.04em;
+  color: #9a9ab8;
+}
+
 .set-card-btn {
   align-self: stretch;
   padding: 11px 16px;
