@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer } from 'react';
+import { useEffect, useMemo, useReducer, useRef } from 'react';
 import type { HistoryEntry } from '../utils/music';
 import type { InstrumentConfig } from '../utils/instruments';
 import {
@@ -7,6 +7,7 @@ import {
   TIERS, TIER_LABEL, type BadgeDef, type LifetimeSnapshot, type Tier,
 } from '../utils/badges';
 import { BadgeMedal, BadgeMedalDefs, type Metal } from './BadgeMedal';
+import type { CelebratedBadge } from './BadgeCelebration';
 import { playClickSound, haptic } from '../utils/feedback';
 import { useTranslation } from '../i18n/useTranslation';
 
@@ -54,7 +55,7 @@ function localise(
  * re-render — `awardBadge` is idempotent, so this is safe to run every time.
  */
 export function BadgeGrid({
-  instrument, instrumentEntries, allEntries, isAdmin = false,
+  instrument, instrumentEntries, allEntries, isAdmin = false, onCelebrate,
 }: {
   instrument: InstrumentConfig;
   /** History for the current instrument — fretboard-shape badges. */
@@ -63,6 +64,9 @@ export function BadgeGrid({
   allEntries: HistoryEntry[];
   /** Current account is an app administrator — reveals the Admin role medal. */
   isAdmin?: boolean;
+  /** Fire the normal earn celebration for a badge the admin just Granted by
+   *  hand — the effects should play on the manual path too, not only in-game. */
+  onCelebrate?: (badges: CelebratedBadge[]) => void;
 }) {
   const { t } = useTranslation();
 
@@ -70,6 +74,8 @@ export function BadgeGrid({
   // earnedAt). The admin Grant / Reset controls mutate that store in place, so
   // bump a counter to re-render the wall after one fires.
   const [, refreshWall] = useReducer((n: number) => n + 1, 0);
+  // Per-mount running id for the CelebratedBadge records the Grant button emits.
+  const celebrateUidRef = useRef(0);
 
   const lifetime = useMemo<LifetimeSnapshot>(
     () => ({ instrumentEntries, allEntries, instrument }),
@@ -124,6 +130,12 @@ export function BadgeGrid({
             tier={def.kind === 'role' ? 'gold' : effectiveTier(def)}
             isAdmin={isAdmin}
             onAdminChange={refreshWall}
+            onGrantCelebrate={
+              onCelebrate
+                ? (id, grantedTier, upgrade) =>
+                    onCelebrate([{ uid: ++celebrateUidRef.current, id, tier: grantedTier, upgrade }])
+                : undefined
+            }
           />
         ))}
       </div>
@@ -132,7 +144,7 @@ export function BadgeGrid({
 }
 
 function BadgeTile({
-  def, instrument, lifetime, tier, isAdmin = false, onAdminChange,
+  def, instrument, lifetime, tier, isAdmin = false, onAdminChange, onGrantCelebrate,
 }: {
   def: BadgeDef;
   instrument: InstrumentConfig;
@@ -143,6 +155,8 @@ function BadgeTile({
   isAdmin?: boolean;
   /** Called after an admin Grant / Reset mutates the badge store. */
   onAdminChange?: () => void;
+  /** Play the normal earn celebration for a tier the admin Granted by hand. */
+  onGrantCelebrate?: (id: BadgeDef['id'], tier: Tier, upgrade: boolean) => void;
 }) {
   const { t, lang } = useTranslation();
 
@@ -290,8 +304,10 @@ function BadgeTile({
             disabled={isRole ? earned : maxedOut}
             onClick={() => {
               playClickSound(); haptic.tap();
-              grantNextTier(def.id, instrument.id, def.levels);
+              const prevTier = earnedTier(def.id, instrument.id);
+              const granted = grantNextTier(def.id, instrument.id, def.levels);
               onAdminChange?.();
+              if (granted) onGrantCelebrate?.(def.id, granted, prevTier !== null);
             }}
           >
             {t('Grant')}

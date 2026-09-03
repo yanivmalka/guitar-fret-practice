@@ -1284,6 +1284,7 @@ export default function App() {
           instrumentEntries={allHistoryEntries}
           allEntries={everyInstrumentHistory}
           isAdmin={auth.admin}
+          onCelebrate={setRevealBadges}
         />
       ),
     },
@@ -1710,7 +1711,9 @@ export default function App() {
         instrument={instrument}
         onDone={() => setToastQueue(q => q.slice(1))}
       />
-      {gameEnded && revealBadges.length > 0 && (
+      {/* Normally set only at game end, but an admin Granting a badge by hand on
+          the Badges wall fires the same reveal — so gate on the list alone. */}
+      {revealBadges.length > 0 && (
         <BadgeRevealOverlay
           badges={revealBadges}
           instrument={instrument}
