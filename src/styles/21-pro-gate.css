@@ -18,8 +18,11 @@
   white-space: nowrap;
 }
 
-/* overlay — dim/blur the real control, float a lock chip over it. */
-.progate-overlay { position: relative; }
+/* overlay — dim/blur the real control, float a lock chip over it. The
+   min-height keeps the (absolutely-positioned) lock from spilling past a short
+   child such as a collapsed Stats-screen expander; it is a no-op for tall
+   children like a SettingCard. */
+.progate-overlay { position: relative; min-height: 3.5rem; }
 .progate-dim {
   filter: blur(2px) saturate(0.6);
   opacity: 0.45;

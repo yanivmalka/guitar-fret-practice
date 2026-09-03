@@ -266,41 +266,54 @@ reading the full history.
 
 ### 4.1 — `src/utils/progress.ts`
 
-- [ ] Add `export function withinFreeWindow(entries: HistoryEntry[]): HistoryEntry[]` —
-      `filter(e => e.createdAt && Date.parse(e.createdAt) >= Date.now() - FREE_HISTORY_DAYS*864e5)`.
-      Import `FREE_HISTORY_DAYS` from `utils/features.ts`.
+- [x] `export function withinFreeWindow(entries: HistoryEntry[]): HistoryEntry[]` added —
+      `filter(e => e.createdAt && Date.parse(e.createdAt) >= Date.now() - FREE_HISTORY_DAYS*864e5)`,
+      `FREE_HISTORY_DAYS` imported from `utils/features.ts`. Rows without `createdAt` fall outside
+      the window, same as `dailyStats`.
 
 ### 4.2 — `src/components/ProgressPanel.tsx`
 
-- [ ] Receive `isPro` (from `App.tsx`).
-- [ ] When `!isPro`, apply `withinFreeWindow` to the `history` array it derives every stat from,
-      in **both** the "This setup" and "All time" scopes.
-- [ ] Relabel: for a free user the "All time" scope reads "Last 7 days" — or hide the "All time"
-      scope button and show it behind `<ProGate feature="historyBeyond7Days" variant="overlay">`.
-- [ ] The "All bests" expander (`allBestsSummary`) is Pro — wrap in
+- [x] New `isPro?: boolean` prop, passed `auth.isPro` from `App.tsx`.
+- [x] `history` is now `isPro ? baseHistory : withinFreeWindow(baseHistory)` — applied to **both**
+      scopes (`baseHistory` = `currentHistory` for "This setup", `all` for the all-combos scope).
+- [x] Relabel chosen over the ProGate option: for a free user the second scope button reads
+      **"Last 7 days"** (`t('Last 7 days')`, he `7 הימים האחרונים`) and the scope caption gets a
+      `· Last 7 days` suffix. The empty-state copy for a windowed view reads *"No practice in the
+      last 7 days."* instead of "nothing recorded yet". The "Clear history" button and its
+      confirm now key off the **unwindowed** `baseHistory` length, so a free user whose only
+      history is older than 7 days can still clear it.
+- [x] The "Personal bests" (`allBestsSummary`) expander in the all-combos scope is wrapped in
       `<ProGate feature="allPersonalBests" variant="overlay">`. The "This setup" current-combo
-      best stays visible to everyone.
+      best (hero tiles + "Last round" summary, all from `loadBest`, not history) is untouched and
+      stays visible to everyone. One CSS line added to `styles/21-pro-gate.css`
+      (`.progate-overlay { min-height: 3.5rem }`) so the lock chip doesn't spill past a collapsed
+      expander.
 
 ### 4.3 — `src/App.tsx` mastery aggregation
 
-- [ ] The `fretMasteryMap` / `noteMasteryMap` `useMemo`s already only matter when the overlay is
-      shown, and Phase 3 turned the overlay off for free users — so **no history-window filter is
-      needed here**. Just double-check a free user never triggers the aggregation. Leave the
-      full-history read for Pro.
+- [x] Nothing to change — Phase 3 already made the `fretMastery` / `noteMastery` `useMemo`s
+      return `{}` when `!auth.isPro`, so a free user never calls `fretMasteryMap` /
+      `noteMasteryMap` here. Pro keeps the full-history read.
 
 ### 4.4 — Leave alone (verify, don't change)
 
-- [ ] `useHistory.addEntry`, `utils/sync.ts` (`bootstrapUser`/`reconcileUser`/write-throughs),
-      `utils/leaderboard.ts`, `utils/badges.ts` — all keep reading/writing the **full** history.
-      Grep for `withinFreeWindow` and confirm it appears only in `ProgressPanel`.
+- [x] `useHistory`, `utils/sync.ts`, `utils/leaderboard.ts`, `utils/badges.ts` — not touched.
+      `grep -rn withinFreeWindow src/` → only `utils/progress.ts` (definition) and
+      `components/ProgressPanel.tsx` (import + the one call).
 
 ### Done when
 
-- [ ] Build + lint clean.
-- [ ] Free account with history older than 7 days: Stats screen shows only recent rows; XP on the
-      leaderboard and lifetime badges still reflect the full history; "Clear history" still clears
-      everything. Flip to `pro` → all-time stats appear with no backfill step.
-- [ ] Commit: `Tiering: 7-day history window for free (phase 4)`.
+- [x] Build + lint clean (`npm run build` green; ESLint 0 errors / 21 warnings — unchanged from
+      the baseline, none in the touched files).
+- [x] Verified headless on the free (unconfigured local) build: seeded history split across
+      recent + 25–45-day-old rows — the Stats screen's hero tiles / "answered" count / weak-note
+      lists reflect only the last 7 days in both scopes, the scope button reads "Last 7 days", the
+      "Personal bests" expander is locked, and with *only* old rows the empty view says "No
+      practice in the last 7 days" while "Clear all history" is still offered. **[DEFERRED to the
+      preview deploy]** flip to `pro` → all-time stats reappear with no backfill; XP / badges
+      reflecting the full history is inherent (they never read `withinFreeWindow`) but worth an
+      eyeball with a real signed-in account.
+- [x] Commit: `Tiering: 7-day history window for free (phase 4)` (`8125cd1`).
 
 ---
 
@@ -407,7 +420,11 @@ seam; nothing in Phases 1–6 changes.
       `useSelector(instrument, isPro)` clamp, `App.tsx` mastery `useMemo`/overlay gate + Stats
       toggle `<ProGate overlay>`, `answer` section `<ProGate replace>`. Free/locked side verified
       headless; the `pro` re-enable path is deferred to the preview deploy (needs sign-in).
-- [ ] Phase 4 — 7-day history window
+- [~] Phase 4 — 7-day history window — code done in the `gfp-tiering` worktree.
+      `utils/progress.ts` `withinFreeWindow`, `ProgressPanel` `isPro` prop + both-scope window +
+      "Last 7 days" relabel + locked "Personal bests", `App.tsx` passes `auth.isPro`, one
+      `21-pro-gate.css` line, two i18n strings. Free side verified headless; `pro` re-check
+      deferred to the preview deploy.
 - [ ] Phase 5 — Guest-merge prompt + orphan capture
 - [ ] Phase 6 — grant-pro script + dev toggle
 - [ ] Phase 7 — Payment rail (separate spec)

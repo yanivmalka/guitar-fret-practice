@@ -3,12 +3,13 @@ import type { HistoryEntry, AccidentalMode, NotationMode } from '../utils/music'
 import { displayNote } from '../utils/music';
 import { historyForInstrument, fretMasteryMap, noteMasteryMap } from '../utils/mastery';
 import {
-  dailyStats, practiceStreak, lifetimeTotals, weakNotes, allBestsSummary,
+  dailyStats, practiceStreak, lifetimeTotals, weakNotes, allBestsSummary, withinFreeWindow,
 } from '../utils/progress';
 import { loadBest, saveBest } from '../utils/personalBest';
 import type { InstrumentConfig } from '../utils/instruments';
 import { playClickSound, haptic } from '../utils/feedback';
 import { useTranslation } from '../i18n/useTranslation';
+import { ProGate } from './ProGate';
 
 interface Props {
   allHistory: Record<string, HistoryEntry[]>;
@@ -33,6 +34,11 @@ interface Props {
   // screen. Owned by App (it's a persisted preference); passed in as-is so this
   // panel stays presentational.
   masteryToggle?: ReactNode;
+  // Pro removes the 7-day view window (spec free-pro-tiering §5.1). A free user
+  // sees only the trailing FREE_HISTORY_DAYS of history in every stat here, and
+  // the all-combinations personal-bests list is locked. Data is never touched —
+  // this is presentation only.
+  isPro?: boolean;
 }
 
 type Scope = 'setup' | 'all';
@@ -216,7 +222,7 @@ function Timeline({ history }: { history: HistoryEntry[] }) {
 function ScopeView({
   scope, history, noteNames, accidental, notation, instrument,
   sessionScore, longestStreak, currentHistoryKey,
-  setupStrings, setupFretFrom, setupFretTo,
+  setupStrings, setupFretFrom, setupFretTo, windowed,
 }: {
   scope: Scope;
   history: HistoryEntry[];
@@ -230,6 +236,9 @@ function ScopeView({
   setupStrings: number[];
   setupFretFrom: number;
   setupFretTo: number;
+  // The free 7-day window is in effect, so an empty view can just mean "nothing
+  // in the last 7 days" rather than "nothing ever".
+  windowed?: boolean;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState<string | null>(null);
@@ -316,9 +325,11 @@ function ScopeView({
   if (history.length === 0) {
     return (
       <p className="encouragement">
-        {scope === 'setup'
-          ? t('No rounds recorded for this setup yet. Play a round and its stats show up here.')
-          : t('Play a few rounds and your all-time progress shows up here.')}
+        {windowed
+          ? t('No practice in the last 7 days.')
+          : scope === 'setup'
+            ? t('No rounds recorded for this setup yet. Play a round and its stats show up here.')
+            : t('Play a few rounds and your all-time progress shows up here.')}
       </p>
     );
   }
@@ -388,20 +399,26 @@ function ScopeView({
         <Timeline history={history} />
       </Expander>
       {scope === 'all' && (
-        <Expander label={t('Personal bests')} open={open === 'bests'} onToggle={toggle('bests')}>
-          <div className="string-bars">
-            {bests.length === 0 && <p className="encouragement">{t('No personal bests recorded yet.')}</p>}
-            {bests.slice(0, 8).map(b => (
-              <div key={b.key} className="string-bar-row">
-                <span className="string-bar-label" style={{ minWidth: 0, flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'left' }}>
-                  {describeKey(b.key, t)}
-                </span>
-                <span className="string-bar-pct score-gold">{b.best.score}</span>
-                <span className="string-bar-counts">🔥{b.best.streak} · {b.best.accuracy}%</span>
-              </div>
-            ))}
-          </div>
-        </Expander>
+        <ProGate
+          feature="allPersonalBests"
+          variant="overlay"
+          pitch={t('Browse your personal bests across every settings combination')}
+        >
+          <Expander label={t('Personal bests')} open={open === 'bests'} onToggle={toggle('bests')}>
+            <div className="string-bars">
+              {bests.length === 0 && <p className="encouragement">{t('No personal bests recorded yet.')}</p>}
+              {bests.slice(0, 8).map(b => (
+                <div key={b.key} className="string-bar-row">
+                  <span className="string-bar-label" style={{ minWidth: 0, flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'left' }}>
+                    {describeKey(b.key, t)}
+                  </span>
+                  <span className="string-bar-pct score-gold">{b.best.score}</span>
+                  <span className="string-bar-counts">🔥{b.best.streak} · {b.best.accuracy}%</span>
+                </div>
+              ))}
+            </div>
+          </Expander>
+        </ProGate>
       )}
     </>
   );
@@ -411,7 +428,7 @@ export default function ProgressPanel({
   allHistory, noteNames, accidental, notation, instrument, onClose,
   currentHistory, sessionScore, longestStreak, currentHistoryKey,
   setupStrings, setupFretFrom, setupFretTo, onClearCurrent, onClearAll,
-  masteryToggle,
+  masteryToggle, isPro,
 }: Props) {
   const { t, lang } = useTranslation();
   const [scope, setScope] = useState<Scope>('setup');
@@ -437,7 +454,16 @@ export default function ProgressPanel({
     }
   }, [currentHistoryKey, currentScore, currentStreak, currentAccuracy, currentHistory.length]);
 
-  const history = scope === 'setup' ? currentHistory : all;
+  // Free users see only the trailing 7 days in every stat on this screen, in
+  // both scopes (spec free-pro-tiering §5.1). The window is a view filter here
+  // and nowhere else — `baseHistory` is still the full set, synced and feeding
+  // XP / badges / the leaderboard, and the "Clear history" control below acts
+  // on all of it regardless of what the window shows.
+  const baseHistory = scope === 'setup' ? currentHistory : all;
+  const history = useMemo(
+    () => (isPro ? baseHistory : withinFreeWindow(baseHistory)),
+    [baseHistory, isPro],
+  );
 
   return (
     <div className="stats-panel sp2" dir={lang === 'he' ? 'rtl' : undefined}>
@@ -456,12 +482,13 @@ export default function ProgressPanel({
         <button
           className={`sp2-scope-btn${scope === 'all' ? ' sp2-scope-active' : ''}`}
           onClick={click(() => setScope('all'))}
-        >{t('All time')}</button>
+        >{isPro ? t('All time') : t('Last 7 days')}</button>
       </div>
       <p className="sp2-scope-cap">
         {scope === 'setup'
           ? (currentHistoryKey ? describeKey(currentHistoryKey, t) : t('the current settings'))
           : `${t('across every')} ${lang === 'he' ? t(instrument.label) : instrument.label.toLowerCase()} ${t('settings combination')}`}
+        {!isPro && ` · ${t('Last 7 days')}`}
       </p>
 
       <ScopeView
@@ -478,9 +505,10 @@ export default function ProgressPanel({
         setupStrings={setupStrings}
         setupFretFrom={setupFretFrom}
         setupFretTo={setupFretTo}
+        windowed={!isPro}
       />
 
-      {history.length > 0 && (
+      {baseHistory.length > 0 && (
         <button className="sp2-danger" onClick={click(() => setConfirm(scope))}>
           {scope === 'setup' ? t('Clear history for this setup') : t('Clear all history')}
         </button>

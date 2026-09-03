@@ -1367,6 +1367,7 @@ export default function App() {
           onClearCurrent={() => { historyOps.clearHistory(histKey); }}
           onClearAll={() => { historyOps.clearAllHistory(); }}
           onClose={() => setShowStats(false)}
+          isPro={auth.isPro}
         />
       </div>
     );
