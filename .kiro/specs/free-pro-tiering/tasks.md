@@ -357,42 +357,55 @@ current silent auto-merge. Not tier-specific. See `design.md` §5.4.
 
 ### 5.1 — `src/utils/sync.ts`
 
-- [ ] Add `cloudCaptureOrphans(entries: HistoryEntry[]): Promise<void>` — one bulk `insert` into
-      `orphan_practice` with a fresh `batch_id = crypto.randomUUID()`, mapping each entry's
-      fields + its `createdAt`. Best-effort (try/catch), no-op if `!supabase`.
-- [ ] Add a merge-skipping restore: either a `bootstrapUser(userId, {}, {})` call (pass empty
-      local maps so the union is a no-op) or an explicit `restoreOnly(userId)` that does
-      pull → commit without the local union. Prefer reusing `bootstrapUser` with empty inputs to
-      keep one code path.
+- [x] Added `cloudCaptureOrphans(entries: HistoryEntry[]): Promise<void>` — bulk `insert` into
+      `orphan_practice` (chunked by 500) with a fresh `batch_id` from the existing `newId()`
+      helper, mapping each entry's fields + `createdAt`. Best-effort (try/catch), no-op if
+      `!supabase` or the list is empty.
+- [x] Added `restoreOnly(userId)` — a one-line wrapper over `bootstrapUser(userId, {}, {})` so the
+      "use account only" path reuses the single pull → merge → push code path with an empty local
+      side (the union is a no-op).
 
 ### 5.2 — `src/components/GuestMergePrompt.tsx` (new)
 
-- [ ] Modal with the copy from `design.md` §5.4 and two buttons: **Merge my progress** /
-      **Use account only**. i18n both languages.
-- [ ] If the local set is large (> 50 rows) and the user picks "Use account only", show a second
-      confirm ("these won't be added to your account").
+- [x] Modal (named export) using the existing `.mic-overlay` / `.mic-card` / `.mic-btn-*` classes
+      — no new CSS partial. Copy from `design.md` §5.4, two buttons: **Merge my progress**
+      (`mic-btn-primary`) / **Use account only** (`mic-btn-ghost`). i18n `he` added; `en` falls
+      through to source.
+- [x] `LARGE_SET = 50`: when `localRowCount > 50` the first "Use account only" tap swaps the card
+      to a second confirm ("…stay on this device but are not added to your account", with the row
+      count) whose buttons are **Use account only** (`mic-btn-danger`) / **Back**.
 
 ### 5.3 — `src/App.tsx` sign-in effect
 
-- [ ] In the first-sign-in branch (`syncedUser() !== user.id`) — currently calls `bootstrapUser`
-      directly (see [src/App.tsx](src/App.tsx#L167-L197)):
-  - if local `allHistory` is empty → restore only, no prompt (current behavior is fine).
-  - else, if `guestMergeChoice:<user.id>` is already stored → honor it silently.
-  - else → show `<GuestMergePrompt>`. On **Merge** → existing `bootstrapUser(user.id,
-    getAllHistory(), loadAllBests())`. On **Use account only** → `await
-    cloudCaptureOrphans(flatten(getAllHistory()))`, then the merge-skipping restore, then wipe
-    local `selectorHistory` + local bests to the restored set.
-  - persist the choice in `guestMergeChoice:<user.id>`.
-- [ ] The `online`-reconnect handler and the `reconcileUser` (already-synced) path are unchanged.
+- [x] The first-sign-in branch (`syncedUser() !== user.id`) now:
+  - no local history (`flattenHistory(getAllHistory()).length === 0`) → `bootstrapUser` as
+    before, no prompt.
+  - a stored `guestMergeChoice:<user.id>` of `merge` / `account-only` → run it silently via the
+    shared `finishGuestMerge` handler.
+  - otherwise → `setPendingGuestMerge(true)` (set inside the async body, never synchronously in
+    the effect, to stay off the `react-hooks` "setState in an effect" warning).
+- [x] `finishGuestMerge(choice)` (a `useCallback`, also the modal's button handlers): **merge** →
+      `bootstrapUser(user.id, getAllHistory(), loadAllBests())`; **account-only** → `await
+      cloudCaptureOrphans(flattenHistory(getAllHistory()))` then `restoreOnly(user.id)`, both
+      committing the result with `replaceAllHistory` + `writeAllBests` so the guest rows are
+      replaced on the device. Choice persisted to `guestMergeChoice:<user.id>`.
+- [x] The `online`-reconnect handler and the `reconcileUser` (already-synced) path are unchanged.
+      The render is guarded `pendingGuestMerge && auth.user` so a sign-out mid-prompt drops it.
 
 ### Done when
 
-- [ ] Build + lint clean.
-- [ ] Manual: practice as a guest, sign in → prompt appears. "Merge" behaves as today. "Use
-      account only" → local guest rows gone from the device, account shows only its cloud data,
-      and a `select count(*) from orphan_practice` (as service role) increased by the guest row
-      count. Signing in again does not re-prompt.
-- [ ] Commit: `Tiering: guest-merge prompt + orphan capture (phase 5)`.
+- [x] Build + lint clean (`npm run build` green; ESLint 0 errors / **21** warnings — unchanged
+      from the baseline, none in the touched files).
+- [x] Modal verified headless (CDP driver, temp standalone `_mergePreview` entry, since local
+      sign-in needs no `.env`): both languages render, RTL Hebrew reads correctly, the three
+      button variants style correctly, and the `> 50` second confirm shows the row count and the
+      **Use account only** / **Back** pair. Temp files removed.
+- [ ] **[DEFERRED to the preview deploy]** the real flow — practice as a guest, sign in → prompt;
+      "Merge" behaves as today; "Use account only" → local guest rows gone from the device,
+      account shows only its cloud data, `select count(*) from orphan_practice` (service role) up
+      by the guest row count; signing in again does not re-prompt. Needs sign-in, joining the
+      Phase 1/3/4 checks already queued there.
+- [x] Commit: `Tiering: guest-merge prompt + orphan capture (phase 5)`.
 
 ---
 
@@ -458,6 +471,10 @@ seam; nothing in Phases 1–6 changes.
       "Last 7 days" relabel + locked "Personal bests", `App.tsx` passes `auth.isPro`, one
       `21-pro-gate.css` line, two i18n strings. Free side verified headless; `pro` re-check
       deferred to the preview deploy.
-- [ ] Phase 5 — Guest-merge prompt + orphan capture
+- [~] Phase 5 — Guest-merge prompt + orphan capture — code done in the `gfp-tiering` worktree.
+      `utils/sync.ts` `cloudCaptureOrphans` + `restoreOnly`, new `components/GuestMergePrompt.tsx`
+      (reuses `.mic-*`), `App.tsx` sign-in effect restructured around `pendingGuestMerge` +
+      `finishGuestMerge`, 6 i18n strings. Modal verified headless in both languages; the real
+      merge / orphan-capture path is deferred to the preview deploy (needs sign-in).
 - [ ] Phase 6 — grant-pro script + dev toggle
 - [ ] Phase 7 — Payment rail (separate spec)

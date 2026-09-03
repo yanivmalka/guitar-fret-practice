@@ -18,7 +18,7 @@ import { loadSetting, saveSetting } from './utils/settings';
 import { loadBest, saveBest, loadAllBests, writeAllBests } from './utils/personalBest';
 import { historyForInstrument, flattenHistory, fretMasteryMap, noteMasteryMap, type MasteryStat } from './utils/mastery';
 import { useAuth } from './hooks/useAuth';
-import { bootstrapUser, reconcileUser, syncedUser, clearSyncedUser } from './utils/sync';
+import { bootstrapUser, reconcileUser, syncedUser, clearSyncedUser, cloudCaptureOrphans, restoreOnly } from './utils/sync';
 import { bootstrapSettings, syncedSettingsUser, clearSyncedSettingsUser, cloudPushSettings } from './utils/settingsSync';
 import { useSelector } from './hooks/useSelector';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
@@ -35,6 +35,7 @@ import { computeMyStats, leaderboardName, upsertMyEntry } from './utils/leaderbo
 import { BadgeGrid } from './components/BadgeGrid';
 import { UpgradeCard } from './components/UpgradeCard';
 import { ProGate } from './components/ProGate';
+import { GuestMergePrompt } from './components/GuestMergePrompt';
 import { registerUpgradeHandler } from './utils/upgradeDrawer';
 import { BadgeMedal, BadgeMedalDefs } from './components/BadgeMedal';
 import { BadgeToast, BadgeRevealOverlay, type CelebratedBadge } from './components/BadgeCelebration';
@@ -174,22 +175,73 @@ export default function App() {
   // devices. localStorage stays the source of truth the UI reads from.
   // (`auth` is created above, next to useSelector.)
   const { replaceAllHistory, getAllHistory } = historyOps;
+
+  // First sign-in on a device that has local guest history: ask before
+  // merging it into the account (design §5.4). The sign-in effect only sets
+  // this flag; the actual bootstrap / capture+restore runs in the prompt's
+  // button handlers, so the async sign-in flow isn't blocked on a user choice.
+  const [pendingGuestMerge, setPendingGuestMerge] = useState(false);
+  const guestMergeKey = (userId: string) => `guestMergeChoice:${userId}`;
+  const finishGuestMerge = useCallback(async (choice: 'merge' | 'account-only') => {
+    setPendingGuestMerge(false);
+    const user = auth.user;
+    if (!user) return;
+    try {
+      if (choice === 'merge') {
+        // The original behavior: union this device's guest rows into the
+        // account, push, and commit the merged set locally.
+        const { history, bests } = await bootstrapUser(
+          user.id, getAllHistory(), loadAllBests(),
+        );
+        replaceAllHistory(history);
+        writeAllBests(bests);
+      } else {
+        // Keep the guest rows off the account: drop them into orphan_practice
+        // for analytics, then restore the account's own cloud data locally,
+        // replacing the guest history and bests on this device.
+        await cloudCaptureOrphans(flattenHistory(getAllHistory()));
+        const { history, bests } = await restoreOnly(user.id);
+        replaceAllHistory(history);
+        writeAllBests(bests);
+      }
+      try { localStorage.setItem(guestMergeKey(user.id), choice); } catch { /* ignore */ }
+    } catch {
+      /* offline or transient error — the sign-in effect retries next start */
+    }
+  }, [auth.user, getAllHistory, replaceAllHistory]);
+
   useEffect(() => {
     const user = auth.user;
     if (!user) { clearSyncedUser(); return; }
     let cancelled = false;
     (async () => {
+      // Cleared here (inside the async body, not synchronously in the effect)
+      // so a stale prompt from a previous account can't linger; re-armed below
+      // only on a genuine first sign-in with un-merged guest history.
+      setPendingGuestMerge(false);
       try {
         if (syncedUser() !== user.id) {
-          // First sign-in on this device: pull cloud, merge with local, push
-          // the merged set back, then commit it locally. Local data is left
-          // untouched unless every step succeeds.
-          const { history, bests } = await bootstrapUser(
-            user.id, getAllHistory(), loadAllBests(),
-          );
+          // First sign-in on this device. With no local guest history there is
+          // nothing to merge — restore straight from the cloud, no prompt.
+          if (flattenHistory(getAllHistory()).length === 0) {
+            const { history, bests } = await bootstrapUser(
+              user.id, getAllHistory(), loadAllBests(),
+            );
+            if (cancelled) return;
+            replaceAllHistory(history);
+            writeAllBests(bests);
+            return;
+          }
+          // Local guest history exists: honor a remembered choice silently,
+          // otherwise ask (design §5.4).
+          let stored: string | null = null;
+          try { stored = localStorage.getItem(guestMergeKey(user.id)); } catch { /* ignore */ }
           if (cancelled) return;
-          replaceAllHistory(history);
-          writeAllBests(bests);
+          if (stored === 'merge' || stored === 'account-only') {
+            await finishGuestMerge(stored);
+          } else {
+            setPendingGuestMerge(true);
+          }
         } else {
           // Already merged before — pull the tombstone set, retire any
           // cleared rows that still survive here, then re-push what's left
@@ -205,7 +257,7 @@ export default function App() {
       }
     })();
     return () => { cancelled = true; };
-  }, [auth.user, replaceAllHistory, getAllHistory]);
+  }, [auth.user, replaceAllHistory, getAllHistory, finishGuestMerge]);
 
   // Selector picks + UI preferences: once per sign-in on this device, adopt
   // the account's settings blob if it's newer than what this device last
@@ -1753,6 +1805,14 @@ export default function App() {
           accidental={accidental}
           onClose={() => setShowVoiceCalibration(false)}
           onProfileChanged={() => setVoiceEngineEpoch((n) => n + 1)}
+        />
+      )}
+
+      {pendingGuestMerge && auth.user && (
+        <GuestMergePrompt
+          localRowCount={flattenHistory(getAllHistory()).length}
+          onMerge={() => void finishGuestMerge('merge')}
+          onAccountOnly={() => void finishGuestMerge('account-only')}
         />
       )}
 
