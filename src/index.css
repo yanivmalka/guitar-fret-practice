@@ -1,5 +1,13 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* i18n: each text run picks its own reading direction (LTR for English,
+   RTL for Hebrew) from its own content, independent of any other element.
+   This only affects bidi reordering of inline text — it does not touch the
+   `direction` property, so flex/grid layout, positioning and sizing are
+   completely unaffected. This is deliberate: only words/sentences should
+   flip for Hebrew, the app's layout itself must not. */
+*, *::before, *::after { unicode-bidi: plaintext; }
+
 /* Single dark palette — opt out of mobile browsers' automatic dark-mode
    re-tinting (see the matching <meta name="color-scheme"> in index.html). */
 :root { color-scheme: dark; }
@@ -358,6 +366,47 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   color: #06222a;
 }
 
+/* Roadmap instruments not yet playable — disabled tiles under the picker.
+   Admin-only for now (gated in App.tsx's instrument section). */
+.instr-soon {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+.instr-soon-k {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #9a9ab8;
+}
+.instr-soon-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.instr-soon-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 4px;
+  border: 1px dashed #2a2a4a;
+  border-radius: 12px;
+  background: none;
+  opacity: 0.55;
+  cursor: not-allowed;
+  text-align: center;
+}
+.instr-soon-emoji { font-size: 1.2rem; line-height: 1; }
+.instr-soon-name { font-size: 0.72rem; font-weight: 700; color: #f0f0f8; }
+.instr-soon-tuning {
+  font-size: 0.58rem;
+  letter-spacing: 0.04em;
+  color: #9a9ab8;
+}
+
 .set-card-btn {
   align-self: stretch;
   padding: 11px 16px;
@@ -423,6 +472,15 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   background: #1c1c38;
   color: #f0f0f8;
 }
+
+/* Hebrew: the settings drawer, its sub-pages and the stats screen read
+   right-to-left. `dir="rtl"` is set on each root from `lang` (App.tsx /
+   ProgressPanel.tsx), which reverses the flex rows on its own; these rules
+   only undo the physical `text-align: left` those panels set. Scoped so the
+   game board keeps its fixed LTR layout per the note at the top of this file. */
+.settings-menu[dir="rtl"],
+.settings-page-inner[dir="rtl"],
+.stats-panel[dir="rtl"] { text-align: right; }
 
 /* Account (Google sign-in / sign-out) row at the bottom of the settings panel. */
 .account-row {
@@ -2448,11 +2506,45 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   .badge-medal, .badge-tile:not(.locked) .badge-medal:hover { transition: none; transform: none; }
 }
 .badge-name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
   font-size: 0.82rem;
   font-weight: 800;
   color: #f0f0f8;
   overflow-wrap: anywhere;
 }
+.badge-tier-pill {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border: 1px solid transparent;
+}
+.badge-tier-pill.tier-bronze   { color: #e2a672; background: rgba(226, 166, 114, 0.16); border-color: rgba(226, 166, 114, 0.4); }
+.badge-tier-pill.tier-silver   { color: #dee2e9; background: rgba(222, 226, 233, 0.14); border-color: rgba(222, 226, 233, 0.38); }
+.badge-tier-pill.tier-gold     { color: #f5d270; background: rgba(245, 210, 112, 0.16); border-color: rgba(245, 210, 112, 0.42); }
+.badge-tier-pill.tier-platinum { color: #bcd6ee; background: rgba(188, 214, 238, 0.16); border-color: rgba(188, 214, 238, 0.42); }
+.badge-pips {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.badge-pip {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #2a2a4a;
+  border: 1px solid #3a3a5c;
+}
+.badge-pip.filled.tier-bronze   { background: #e2a672; border-color: #e2a672; }
+.badge-pip.filled.tier-silver   { background: #dee2e9; border-color: #dee2e9; }
+.badge-pip.filled.tier-gold     { background: #f5d270; border-color: #f5d270; }
+.badge-pip.filled.tier-platinum { background: #bcd6ee; border-color: #bcd6ee; }
 .badge-blurb {
   font-size: 0.7rem;
   line-height: 1.45;

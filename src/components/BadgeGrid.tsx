@@ -2,17 +2,23 @@ import { useEffect, useMemo } from 'react';
 import type { HistoryEntry } from '../utils/music';
 import type { InstrumentConfig } from '../utils/instruments';
 import {
-  badgeList, evaluateLifetime, awardBadge, isEarned, earnedAt, badgeProgress,
-  type BadgeDef, type BadgeId, type LifetimeSnapshot,
+  badgeList, evaluateLifetime, awardBadge, awardFamilyUpTo, earnedTier, earnedAt, badgeProgress,
+  TIERS, TIER_LABEL, type BadgeDef, type LifetimeSnapshot, type Tier,
 } from '../utils/badges';
-import { BadgeMedal, BadgeMedalDefs } from './BadgeMedal';
+import { BadgeMedal, BadgeMedalDefs, type Metal } from './BadgeMedal';
+
+function higherTier(a: Tier | null, b: Tier | null): Tier | null {
+  if (!a) return b;
+  if (!b) return a;
+  return TIERS.indexOf(a) >= TIERS.indexOf(b) ? a : b;
+}
 
 /**
  * The badge collection, rendered by the standalone "🏅 Badges" settings page.
  * It evaluates the lifetime badges against the instrument's all-time history on
- * every open: badges that already qualify show as earned immediately, and an
- * effect persists them (retroactive catch-up) without a re-render — `awardBadge`
- * is idempotent, so this is safe to run every time.
+ * every open: families that already qualify show their reached tier immediately,
+ * and an effect persists every tier up to it (retroactive catch-up) without a
+ * re-render — `awardBadge` is idempotent, so this is safe to run every time.
  */
 export function BadgeGrid({
   instrument, instrumentEntries, allEntries, isAdmin = false,
@@ -30,22 +36,23 @@ export function BadgeGrid({
     [instrumentEntries, allEntries, instrument],
   );
 
-  const qualifying = useMemo(
-    () => new Set<BadgeId>(evaluateLifetime(lifetime)),
-    [lifetime],
-  );
+  const qualifying = useMemo(() => evaluateLifetime(lifetime), [lifetime]);
 
   useEffect(() => {
-    for (const id of qualifying) awardBadge(id, instrument.id);
+    for (const def of badgeList(instrument)) {
+      if (def.kind === 'role') continue;
+      const tier = qualifying[def.id];
+      if (tier) awardFamilyUpTo(def.id, instrument.id, tier, def.levels);
+    }
     if (isAdmin) awardBadge('admin');
-  }, [qualifying, instrument.id, isAdmin]);
+  }, [qualifying, instrument, isAdmin]);
 
   // Role medals only appear for the accounts that hold them — a non-admin
   // never sees a locked "become an admin" tile.
   const defs = badgeList(instrument).filter(d => d.kind !== 'role' || isAdmin);
-  const isDone = (id: BadgeId) =>
-    id === 'admin' ? isAdmin : isEarned(id, instrument.id) || qualifying.has(id);
-  const earnedCount = defs.filter(d => isDone(d.id)).length;
+  const effectiveTier = (def: BadgeDef): Tier | null =>
+    def.kind === 'role' ? null : higherTier(earnedTier(def.id, instrument.id), qualifying[def.id] ?? null);
+  const earnedCount = defs.filter(d => d.kind === 'role' ? isAdmin : effectiveTier(d) !== null).length;
 
   return (
     <div className="badge-wrap">
@@ -58,7 +65,7 @@ export function BadgeGrid({
             def={def}
             instrument={instrument}
             lifetime={lifetime}
-            earned={isDone(def.id)}
+            tier={def.kind === 'role' ? 'gold' : effectiveTier(def)}
           />
         ))}
       </div>
@@ -67,21 +74,46 @@ export function BadgeGrid({
 }
 
 function BadgeTile({
-  def, instrument, lifetime, earned,
+  def, instrument, lifetime, tier,
 }: {
   def: BadgeDef;
   instrument: InstrumentConfig;
   lifetime: LifetimeSnapshot;
-  earned: boolean;
+  /** The family's highest reached tier, or null if not yet earned. */
+  tier: Tier | null;
 }) {
-  const when = earned ? earnedAt(def.id, instrument.id) : null;
-  const progress = !earned && def.kind === 'lifetime' ? badgeProgress(def.id, lifetime) : null;
+  const isRole = def.kind === 'role';
+  const earned = tier !== null;
+  const nextLevel = isRole
+    ? null
+    : def.levels.find(l => tier === null || TIERS.indexOf(l.tier) > TIERS.indexOf(tier));
+  const when = isRole ? earnedAt(def.id) : (earned ? earnedAt(def.id, instrument.id, tier as Tier) : null);
+  const progress = !isRole && nextLevel && def.kind === 'lifetime'
+    ? badgeProgress(def.id, lifetime, nextLevel.tier)
+    : null;
+  const medalTier: Metal = isRole ? 'onyx' : (tier ?? def.levels[0]?.tier ?? 'bronze');
+  const maxedOut = !isRole && !nextLevel && earned;
 
   return (
     <div className={`badge-tile${earned ? '' : ' locked'}`}>
-      <BadgeMedal def={def} instrumentId={instrument.id} />
-      <span className="badge-name">{def.name}</span>
-      <span className="badge-blurb">{def.blurb}</span>
+      <BadgeMedal id={def.id} instrumentId={instrument.id} tier={medalTier} />
+      <span className="badge-name">
+        {def.name}
+        {!isRole && earned && <span className={`badge-tier-pill tier-${tier}`}>{TIER_LABEL[tier as Tier]}</span>}
+      </span>
+      {!isRole && def.levels.length > 1 && (
+        <span className="badge-pips" aria-hidden="true">
+          {def.levels.map(l => (
+            <span
+              key={l.tier}
+              className={`badge-pip tier-${l.tier}${tier !== null && TIERS.indexOf(l.tier) <= TIERS.indexOf(tier) ? ' filled' : ''}`}
+            />
+          ))}
+        </span>
+      )}
+      <span className="badge-blurb">
+        {isRole ? def.blurb : (maxedOut ? def.levels[def.levels.length - 1].blurb : nextLevel?.blurb)}
+      </span>
       {earned && (
         <span className="badge-earned">
           {when

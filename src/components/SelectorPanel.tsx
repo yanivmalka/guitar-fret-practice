@@ -3,6 +3,7 @@ import type { AccidentalMode, OrderMode, NotationMode } from '../utils/music';
 import { displayNote } from '../utils/music';
 import type { InstrumentConfig } from '../utils/instruments';
 import { playClickSound, playToggleOnSound, playToggleOffSound } from '../utils/feedback';
+import { useTranslation } from '../i18n/useTranslation';
 
 interface SelectorPanelProps {
   selector: SelectorState;
@@ -63,6 +64,7 @@ export default function SelectorPanel({
   byString, order, onByStringToggle, onOrderChange, accidental, notation, onNotationChange,
   notationOnly, onInfo, showInfo,
 }: SelectorPanelProps) {
+  const { t, lang } = useTranslation();
   const maxFret = instrument.maxFret;
   const stringCount = instrument.stringCount;
   const dotFrets = instrument.dotFrets;
@@ -95,25 +97,25 @@ export default function SelectorPanel({
     .sort((a, b) => b - a) // low-pitch (higher string number) first
     .map((n) => displayNote(instrument.notes[n - 1][0], accidental ?? 'sharps', notation));
   const stringsPhrase = selectedStringLabels.length === stringCount
-    ? `all ${stringCount} strings`
+    ? `${t('all')} ${stringCount} ${t('strings')}`
     : selectedStringLabels.length === 1
-      ? `the ${selectedStringLabels[0]} string`
-      : `strings ${selectedStringLabels.join(', ')}`;
+      ? (lang === 'he' ? `מיתר ${selectedStringLabels[0]}` : `the ${selectedStringLabels[0]} string`)
+      : `${t('strings')} ${selectedStringLabels.join(', ')}`;
   const fretsPhrase = selector.lowerActive && selector.upperActive
-    ? `frets 0–${maxFret}`
-    : selector.lowerActive ? 'frets 0–12' : `frets 12–${maxFret}`;
+    ? `${t('frets')} 0–${maxFret}`
+    : selector.lowerActive ? `${t('frets')} 0–12` : `${t('frets')} 12–${maxFret}`;
   const difficultyPhrase = selector.difficulty === 'dots'
-    ? 'only the dot-marker frets'
+    ? t('only the dot-marker frets')
     : selector.difficulty === 'naturals'
-      ? 'natural notes only (no sharps or flats)'
-      : 'every note, sharps and flats included';
-  const orderPhrase = order === 'alphabet' ? 'alphabetical order' : 'circle-of-fifths order';
+      ? t('natural notes only (no sharps or flats)')
+      : t('every note, sharps and flats included');
+  const orderPhrase = order === 'alphabet' ? t('alphabetical order') : t('circle-of-fifths order');
   const modeSentence = selector.mode === 'byFret'
-    ? `A fret lights up and you pick its note from the wheel (${orderPhrase}${byString ? ', rotated to the string' : ''}).`
-    : 'A note name is shown and you tap every fret on the neck where it lands.';
+    ? `${t('A fret lights up and you pick its note from the wheel')} (${orderPhrase}${byString ? t(', rotated to the string') : ''}).`
+    : t('A note name is shown and you tap every fret on the neck where it lands.');
   const selectionSummary =
-    `${selector.mode === 'byFret' ? 'Note-by-Fret' : 'Fret-by-Note'} · ${stringsPhrase}, ${fretsPhrase}, ${difficultyPhrase}. ${modeSentence}`
-    + (selector.autoAdvance ? ' Auto-advances through the difficulty stages.' : '');
+    `${t(selector.mode === 'byFret' ? 'Note-by-Fret' : 'Fret-by-Note')} · ${stringsPhrase}, ${fretsPhrase}, ${difficultyPhrase}. ${modeSentence}`
+    + (selector.autoAdvance ? ` ${t('Auto-advances through the difficulty stages.')}` : '');
 
   // The "?" marker, pinned to a mode card's corner. Rendered on whichever mode
   // card is currently selected (originally only Note-by-Fret) so the summary is
@@ -123,8 +125,8 @@ export default function SelectorPanel({
       className="mode-card-info"
       role="button"
       tabIndex={0}
-      aria-label="How this works"
-      title="How this works"
+      aria-label={t('How this works')}
+      title={t('How this works')}
       onClick={(e) => { e.stopPropagation(); playClickSound(); onInfo?.(); }}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); playClickSound(); onInfo?.(); }
@@ -170,7 +172,7 @@ export default function SelectorPanel({
           <span className="selector-mini-item">{diffLabel}</span>
         </div>
         <div className="fret-neck">
-          <svg viewBox={`${fbLeft - 5} ${FB_TOP - 3} ${NECK_RIGHT - fbLeft + 12} ${FB_HEIGHT + 16}`} aria-label={`${instrument.label} neck`}>
+          <svg viewBox={`${fbLeft - 5} ${FB_TOP - 3} ${NECK_RIGHT - fbLeft + 12} ${FB_HEIGHT + 16}`} aria-label={`${t(instrument.label)} ${t('neck')}`}>
             <rect x={fbLeft} y={FB_TOP} width={NECK_RIGHT - fbLeft} height={FB_HEIGHT} rx="2" fill="#3d2b1f" />
             {Array.from({ length: stringCount }, (_, i) => {
               const y = stringY(stringCount - i);
@@ -206,7 +208,7 @@ export default function SelectorPanel({
         {strings.map(({ label, num }) => (
           <button key={num} className={`string-pill ${selector.selectedStrings.includes(num) ? 'active' : ''}`} onClick={() => { if (selector.selectedStrings.includes(num)) playToggleOffSound(); else playToggleOnSound(); onStringSelect(num); }}>{label}</button>
         ))}
-        <button className={`string-pill string-pill-toggle ${selector.multiMode ? 'active' : ''}`} onClick={() => { if (selector.multiMode) playToggleOffSound(); else playToggleOnSound(); onMultiToggle(); }}>Multi</button>
+        <button className={`string-pill string-pill-toggle ${selector.multiMode ? 'active' : ''}`} onClick={() => { if (selector.multiMode) playToggleOffSound(); else playToggleOnSound(); onMultiToggle(); }}>{t('Multi')}</button>
       </div>
 
       {/* ── ModeToggle with order options between cards ── */}
@@ -223,14 +225,14 @@ export default function SelectorPanel({
               return <circle key={i} cx={bx} cy={by} r="3" fill="currentColor" opacity={enabled ? 1 : 0.2} />;
             })}
           </svg>
-          <span>Note by Fret</span>
+          <span>{t('Note by Fret')}</span>
         </button>
 
         {/* Order options — stacked vertically between the two mode cards, visible only for byFret */}
         <div className={`mode-order-col ${selector.mode === 'byFret' ? 'mode-order-show' : 'mode-order-hide'}`}>
-          {onOrderChange && <button className={`order-chip${order === 'alphabet' ? ' order-chip-active' : ''}`} onClick={() => onOrderChange('alphabet')}>Alpha</button>}
-          {onOrderChange && <button className={`order-chip${order === 'fifths' ? ' order-chip-active' : ''}`} onClick={() => onOrderChange('fifths')}>Fifths</button>}
-          {onByStringToggle && <button className={`order-chip chip-toggle${byString ? ' chip-toggle-active' : ''}`} onClick={onByStringToggle}>By String</button>}
+          {onOrderChange && <button className={`order-chip${order === 'alphabet' ? ' order-chip-active' : ''}`} onClick={() => onOrderChange('alphabet')}>{t('Alpha')}</button>}
+          {onOrderChange && <button className={`order-chip${order === 'fifths' ? ' order-chip-active' : ''}`} onClick={() => onOrderChange('fifths')}>{t('Fifths')}</button>}
+          {onByStringToggle && <button className={`order-chip chip-toggle${byString ? ' chip-toggle-active' : ''}`} onClick={onByStringToggle}>{t('By String')}</button>}
         </div>
 
         <button className={`mode-card ${selector.mode === 'byNote' ? 'active' : ''}`} onClick={() => { playClickSound(); onModeSelect('byNote'); }}>
@@ -244,22 +246,22 @@ export default function SelectorPanel({
               <rect key={i} x={x} y={y} width="8" height="10" rx="2" fill="currentColor" opacity={op} />
             ))}
           </svg>
-          <span>Fret by Note</span>
+          <span>{t('Fret by Note')}</span>
         </button>
 
         {onInfo && showInfo && (
           <div className="mode-card-info-bubble" role="status" aria-live="polite">
             <span className="mode-card-info-summary">{selectionSummary}</span>
             {selector.mode === 'byFret'
-              ? "Read the note wheel like a clock: your open string sits at 12 o'clock, and the dots under each note show its fret. Answer before the timing bar empties."
-              : 'Answer before the timing bar empties.'}
+              ? t("Read the note wheel like a clock: your open string sits at 12 o'clock, and the dots under each note show its fret. Answer before the timing bar empties.")
+              : t('Answer before the timing bar empties.')}
           </div>
         )}
       </div>
 
       {/* ── FretRangeNeck SVG ─────────────────────────────── */}
       <div className="fret-neck">
-        <svg viewBox={`${fbLeft - 5} ${FB_TOP - 3} ${NECK_RIGHT - fbLeft + 12} ${FB_HEIGHT + 16}`} aria-label={`${instrument.label} neck fret range selector`}>
+        <svg viewBox={`${fbLeft - 5} ${FB_TOP - 3} ${NECK_RIGHT - fbLeft + 12} ${FB_HEIGHT + 16}`} aria-label={`${t(instrument.label)} ${t('neck fret range selector')}`}>
           {/* Fretboard — only covers where frets actually are */}
           <rect x={fbLeft} y={FB_TOP} width={NECK_RIGHT - fbLeft} height={FB_HEIGHT} rx="2" fill="#3d2b1f" />
 
@@ -344,18 +346,18 @@ export default function SelectorPanel({
 
       {/* ── DifficultyRoad ────────────────────────────────── */}
       <div className="difficulty-road">
-        <button className={`diff-btn ${selector.difficulty === 'dots' ? 'active' : ''}`} onClick={() => { playClickSound(); onDifficultySelect('dots'); }}><span className="diff-icon">●</span><span className="diff-label">Dots</span></button>
+        <button className={`diff-btn ${selector.difficulty === 'dots' ? 'active' : ''}`} onClick={() => { playClickSound(); onDifficultySelect('dots'); }}><span className="diff-icon">●</span><span className="diff-label">{t('Dots')}</span></button>
         <span className="diff-arrow">→</span>
-        <button className={`diff-btn ${selector.difficulty === 'naturals' ? 'active' : ''}`} onClick={() => { playClickSound(); onDifficultySelect('naturals'); }}><span className="diff-icon">♮</span><span className="diff-label">Naturals</span></button>
+        <button className={`diff-btn ${selector.difficulty === 'naturals' ? 'active' : ''}`} onClick={() => { playClickSound(); onDifficultySelect('naturals'); }}><span className="diff-icon">♮</span><span className="diff-label">{t('Naturals')}</span></button>
         <span className="diff-arrow">→</span>
-        <button className={`diff-btn ${selector.difficulty === 'full' ? 'active' : ''}`} onClick={() => { playClickSound(); onDifficultySelect('full'); }}><span className="diff-icon">♯♭</span><span className="diff-label">Full</span></button>
+        <button className={`diff-btn ${selector.difficulty === 'full' ? 'active' : ''}`} onClick={() => { playClickSound(); onDifficultySelect('full'); }}><span className="diff-icon">♯♭</span><span className="diff-label">{t('Full')}</span></button>
         {/* Auto Advance: continue straight into the next difficulty when the current one is completed */}
         {onAutoAdvanceToggle && (
           <button
             className={`stats-icon-btn auto-advance-toggle ${selector.autoAdvance ? 'stats-icon-on' : ''}`}
             onClick={(e) => { e.currentTarget.blur(); onAutoAdvanceToggle(); }}
-            title="Auto Advance to next difficulty"
-            aria-label="Auto Advance to next difficulty"
+            title={t('Auto Advance to next difficulty')}
+            aria-label={t('Auto Advance to next difficulty')}
             aria-pressed={selector.autoAdvance}
           >
             <svg viewBox="0 0 20 20" width="16" height="16"><polygon points="3,3 10,10 3,17" fill="currentColor"/><polygon points="10,3 17,10 10,17" fill="currentColor"/></svg>

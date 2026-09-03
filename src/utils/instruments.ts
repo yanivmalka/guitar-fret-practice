@@ -81,3 +81,21 @@ export const INSTRUMENTS: Record<InstrumentId, InstrumentConfig> = {
 export function getInstrument(id: InstrumentId): InstrumentConfig {
   return INSTRUMENTS[id] ?? GUITAR;
 }
+
+// Fretted instruments on the roadmap but not yet playable — the engine has no
+// tuning / sample support for them. Surfaced as disabled "coming soon" tiles in
+// the instrument picker (admins only for now) so the plan is visible in-app
+// without implying they work. Deliberately not part of `InstrumentId`: nothing
+// can select or drill these.
+export interface ComingSoonInstrument {
+  label: string;
+  emoji: string;
+  /** Open-string tuning, highest string first — shown as the tile caption. */
+  tuning: string;
+}
+
+export const COMING_SOON_INSTRUMENTS: readonly ComingSoonInstrument[] = [
+  { label: 'Ukulele', emoji: '🎸', tuning: 'G C E A' },
+  { label: 'Mandolin', emoji: '🎻', tuning: 'G D A E' },
+  { label: 'Banjo', emoji: '🪕', tuning: 'G D G B D' },
+];

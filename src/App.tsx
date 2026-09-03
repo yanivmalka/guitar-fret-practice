@@ -10,7 +10,7 @@ import SpeedBar from './components/SpeedBar';
 import AnimatedScore from './components/AnimatedScore';
 import { displayNote, setActiveInstrument } from './utils/music';
 import type { HistoryEntry, AccidentalMode, OrderMode, NotationMode } from './utils/music';
-import { getInstrument, type InstrumentId } from './utils/instruments';
+import { getInstrument, COMING_SOON_INSTRUMENTS, type InstrumentId } from './utils/instruments';
 import { preloadAllSamples, unlockAudio, setAudioInstrument } from './utils/audio';
 import { App as CapacitorApp } from '@capacitor/app';
 import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3, celebrateTier2 } from './utils/feedback';
@@ -35,8 +35,8 @@ import { computeMyStats, leaderboardName, upsertMyEntry } from './utils/leaderbo
 import { BadgeGrid } from './components/BadgeGrid';
 import { BadgeMedal, BadgeMedalDefs } from './components/BadgeMedal';
 import {
-  badgeList, badgeDef, evaluateSession, evaluateLifetime, awardBadge, isEarned,
-  type BadgeId, type SessionSnapshot, type LifetimeSnapshot,
+  badgeList, badgeDef, evaluateSession, evaluateLifetime, awardFamilyUpTo, isEarned, TIER_LABEL,
+  type BadgeId, type SessionSnapshot, type LifetimeSnapshot, type Tier,
 } from './utils/badges';
 import { vlog } from './utils/debugLog';
 import type { SpeechNotation } from './utils/speechVocab';
@@ -46,10 +46,13 @@ import {
 } from './utils/voiceProfile';
 import { PROFILE_LABELS, SAMPLES_PER_LABEL, profileVocabId } from './utils/voiceProfileVocab';
 import { bootstrapVoiceProfile, voiceSyncedUser, clearVoiceSyncedUser } from './utils/voiceSync';
+import { useTranslation } from './i18n/useTranslation';
+import { LANGUAGES } from './i18n/translations';
 
 type AnswerMode = 'tap' | 'voice';
 
 export default function App() {
+  const { t, lang, setLang } = useTranslation();
   // Which instrument is being drilled. Chosen on first launch (Onboarding) and
   // switchable from the hamburger menu; everything tuning/string/fret/sample
   // related flows from this config (see utils/instruments.ts).
@@ -572,7 +575,7 @@ export default function App() {
   // Guards badge evaluation so it runs at most once per completed run, and holds
   // the ids newly earned this run for the game-end summary card.
   const badgesFiredRef = useRef(false);
-  const [newBadges, setNewBadges] = useState<BadgeId[]>([]);
+  const [newBadges, setNewBadges] = useState<{ id: BadgeId; tier: Tier }[]>([]);
 
   const isPlaying = running && !paused;
   const isStopped = !running && !paused;
@@ -748,17 +751,20 @@ export default function App() {
           allEntries: flattenHistory(historyOps.allHistory),
           instrument,
         };
-        const earned: BadgeId[] = [];
-        for (const id of evaluateSession(sessionSnap)) {
-          if (awardBadge(id, instrument.id)) earned.push(id);
-        }
-        for (const id of evaluateLifetime(lifetimeSnap)) {
-          if (awardBadge(id, instrument.id)) earned.push(id);
+        const earned: { id: BadgeId; tier: Tier }[] = [];
+        const reached = { ...evaluateSession(sessionSnap), ...evaluateLifetime(lifetimeSnap) };
+        for (const [idStr, tier] of Object.entries(reached) as [BadgeId, Tier | undefined][]) {
+          if (!tier) continue;
+          const def = badgeDef(idStr, instrument);
+          if (!def) continue;
+          const newly = awardFamilyUpTo(idStr, instrument.id, tier, def.levels);
+          if (newly.length > 0) earned.push({ id: idStr, tier: newly[newly.length - 1] });
         }
         if (earned.length > 0) {
           setNewBadges(earned);
           if (showScore) {
-            celebrateTier2(`🏅 ${badgeDef(earned[0], instrument)?.name ?? 'New badge'}`);
+            const name = badgeDef(earned[0].id, instrument)?.name ?? t('New badge');
+            celebrateTier2(`🏅 ${name} — ${TIER_LABEL[earned[0].tier]}`);
           }
         }
       }
@@ -880,41 +886,57 @@ export default function App() {
   const settingsSections: Array<{ id: string; title: string; blurb: string; body: ReactNode; onSelect?: () => void }> = [
     {
       id: 'instrument',
-      title: '🎸 Instrument',
+      title: `🎸 ${t('Instrument')}`,
       blurb: '',
       body: (
-        <SettingCard
-          label="Instrument"
-          help="Switches tuning, string count and fret range, then reloads the note samples."
-        >
-          <SegmentedControl
-            ariaLabel="Instrument"
-            value={instrumentId}
-            options={[
-              { value: 'guitar', label: '🎸 Guitar' },
-              { value: 'bass', label: '🎵 Bass' },
-            ]}
-            onChange={(id) => {
-              if (id === instrumentId) return;
-              if (running || paused) stop();
-              applyInstrument(id);
-              setPreloaded(false);
-            }}
-          />
-        </SettingCard>
+        <>
+          <SettingCard
+            label={t('Instrument')}
+            help={t('Switches tuning, string count and fret range, then reloads the note samples.')}
+          >
+            <SegmentedControl
+              ariaLabel={t('Instrument')}
+              value={instrumentId}
+              options={[
+                { value: 'guitar', label: <>🎸 {t('Guitar')}</> },
+                { value: 'bass', label: <>🎵 {t('Bass')}</> },
+              ]}
+              onChange={(id) => {
+                if (id === instrumentId) return;
+                if (running || paused) stop();
+                applyInstrument(id);
+                setPreloaded(false);
+              }}
+            />
+          </SettingCard>
+          {auth.admin && (
+            <div className="instr-soon" role="group" aria-label={t('Coming soon')}>
+              <span className="instr-soon-k">{t('Coming soon')}</span>
+              <div className="instr-soon-grid">
+                {COMING_SOON_INSTRUMENTS.map((ci) => (
+                  <div key={ci.label} className="instr-soon-tile" aria-disabled="true">
+                    <span className="instr-soon-emoji">{ci.emoji}</span>
+                    <span className="instr-soon-name">{t(ci.label)}</span>
+                    <span className="instr-soon-tuning">{ci.tuning}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       ),
     },
     {
       id: 'notes',
-      title: '🎵 Note names',
+      title: `🎵 ${t('Note names')}`,
       blurb: '',
       body: (
         <SettingCard
-          label="Written as"
-          help="Display only — the drill itself doesn't change."
+          label={t('Written as')}
+          help={t("Display only — the drill itself doesn't change.")}
         >
           <SegmentedControl
-            ariaLabel="Note names"
+            ariaLabel={t('Note names')}
             value={notation}
             options={[
               { value: 'alpha', label: 'A B C' },
@@ -926,20 +948,35 @@ export default function App() {
       ),
     },
     {
+      id: 'language',
+      title: `🌐 ${t('Language')}`,
+      blurb: '',
+      body: (
+        <SettingCard label={t('Language')}>
+          <SegmentedControl
+            ariaLabel={t('Language')}
+            value={lang}
+            options={LANGUAGES}
+            onChange={(l) => { playClickSound(); haptic.tap(); setLang(l); }}
+          />
+        </SettingCard>
+      ),
+    },
+    {
       id: 'score',
-      title: '🎯 Score',
+      title: `🎯 ${t('Score')}`,
       blurb: '',
       body: (
         <SettingCard
-          label="Score & celebrations"
-          help={<>Live score, streak multiplier and celebrations are shown. <em>Every answer is still recorded to your stats and personal bests either way.</em></>}
+          label={t('Score & celebrations')}
+          help={<>{t('Live score, streak multiplier and celebrations are shown.')} <em>{t('Every answer is still recorded to your stats and personal bests either way.')}</em></>}
         >
           <SegmentedControl
-            ariaLabel="Score"
+            ariaLabel={t('Score')}
             value={showScore ? 'on' : 'off'}
             options={[
-              { value: 'on', label: 'On' },
-              { value: 'off', label: 'Off' },
+              { value: 'on', label: t('On') },
+              { value: 'off', label: t('Off') },
             ]}
             onChange={(v) => { const on = v === 'on'; setShowScore(on); saveSetting('pref_showScore', on); }}
           />
@@ -950,48 +987,48 @@ export default function App() {
       // Lives next to "Stats & progress", not under "Score" — it only governs
       // whether the tracked accuracy is *drawn on the fretboard*, nothing scoring.
       id: 'fretboard-mastery',
-      title: '📈 Mastery on the fretboard',
+      title: `📈 ${t('Mastery on the fretboard')}`,
       blurb: '',
       body: (
         <SettingCard
-          label="Mastery on the fretboard"
-          help={<>The per-note / per-fret accuracy bars drawn over the circle and grid while stopped or paused. <em>Mastery keeps being tracked and shows on the Stats screen either way.</em></>}
+          label={t('Mastery on the fretboard')}
+          help={<>{t('The per-note / per-fret accuracy bars drawn over the circle and grid while stopped or paused.')} <em>{t('Mastery keeps being tracked and shows on the Stats screen either way.')}</em></>}
         >
           <SegmentedControl
-            ariaLabel="Mastery overlay"
+            ariaLabel={t('Mastery on the fretboard')}
             value={showMastery ? 'on' : 'off'}
             options={[
-              { value: 'on', label: 'On' },
-              { value: 'off', label: 'Off' },
+              { value: 'on', label: t('On') },
+              { value: 'off', label: t('Off') },
             ]}
             onChange={(v) => { const on = v === 'on'; setShowMastery(on); saveSetting('pref_showMastery', on); }}
           />
         </SettingCard>
       ),
     },
-    ...(hasAnyHistory ? [{
+    {
       id: 'stats',
-      title: '📊 Stats & progress',
+      title: `📊 ${t('Stats & progress')}`,
       blurb: '',
       body: null,
       onSelect: () => { setShowStats(true); },
-    }] : []),
+    },
     ...(voice.supported ? [{
       id: 'answer',
-      title: '👆 Answer mode',
+      title: `👆 ${t('Answer mode')}`,
       blurb: '',
       body: (
         <>
         <SettingCard
-          label="How you answer"
-          help="Voice mode asks for microphone permission the first time."
+          label={t('How you answer')}
+          help={t('Voice mode asks for microphone permission the first time.')}
         >
           <SegmentedControl
-            ariaLabel="Answer mode"
+            ariaLabel={t('Answer mode')}
             value={answerMode}
             options={[
-              { value: 'tap', label: '👆 Tap' },
-              { value: 'voice', label: '🎤 Voice' },
+              { value: 'tap', label: <>👆 {t('Tap')}</> },
+              { value: 'voice', label: <>🎤 {t('Voice')}</> },
             ]}
             onChange={(m) => {
               setAnswerMode(m);
@@ -1005,35 +1042,35 @@ export default function App() {
         {answerMode === 'voice' && (
           <>
           <SettingCard
-            label="Voice engine"
-            help="Auto picks the best available. Personal uses your calibrated profile; General uses the built-in model."
+            label={t('Voice engine')}
+            help={t('Auto picks the best available. Personal uses your calibrated profile; General uses the built-in model.')}
           >
             <SegmentedControl
-              ariaLabel="Voice engine"
+              ariaLabel={t('Voice engine')}
               value={voiceEnginePref}
               options={[
-                { value: 'auto', label: 'Auto' },
-                { value: 'profile', label: 'Personal' },
-                { value: 'general', label: 'General' },
+                { value: 'auto', label: t('Auto') },
+                { value: 'profile', label: t('Personal') },
+                { value: 'general', label: t('General') },
               ]}
               onChange={(v) => pickVoiceEngine(v)}
             />
           </SettingCard>
           <SettingCard
-            label="Your voice profile"
-            help="Calibrating your own voice improves recognition when answering by voice."
+            label={t('Your voice profile')}
+            help={t('Calibrating your own voice improves recognition when answering by voice.')}
           >
             {voiceProfileStat && voiceProfileStat.count > 0 && (
               <div className="sp2-hero">
                 <div className="sp2-tile">
                   <span className="sp2-tile-v">{voiceProfileStat.count}</span>
-                  <span className="sp2-tile-l">recordings</span>
+                  <span className="sp2-tile-l">{t('recordings')}</span>
                 </div>
                 <div className="sp2-tile">
                   <span className="sp2-tile-v" style={{ color: voiceProfileStat.enabled ? '#34e07a' : '#ff9d2e' }}>
-                    {voiceProfileStat.enabled ? 'On' : 'Off'}
+                    {voiceProfileStat.enabled ? t('On') : t('Off')}
                   </span>
-                  <span className="sp2-tile-l">enabled</span>
+                  <span className="sp2-tile-l">{t('enabled')}</span>
                 </div>
               </div>
             )}
@@ -1041,8 +1078,8 @@ export default function App() {
               className="set-card-btn"
               onClick={click(() => { setSettingsOpen(false); setShowVoiceCalibration(true); })}
             >🎙️ {voiceProfileStat && voiceProfileStat.count > 0
-              ? 'Add / review recordings'
-              : 'Calibrate my voice'}</button>
+              ? t('Add / review recordings')
+              : t('Calibrate my voice')}</button>
           </SettingCard>
           </>
         )}
@@ -1051,7 +1088,7 @@ export default function App() {
     }] : []),
     ...(auth.configured ? [{
       id: 'board',
-      title: '💬 Feedback board',
+      title: `💬 ${t('Feedback board')}`,
       blurb: '',
       body: (
         <FeedbackBoard
@@ -1063,7 +1100,7 @@ export default function App() {
     }] : []),
     ...(auth.configured ? [{
       id: 'leaderboard',
-      title: '🏆 Leaderboard',
+      title: `🏆 ${t('Leaderboard')}`,
       blurb: '',
       body: (
         <LeaderboardPanel
@@ -1082,14 +1119,14 @@ export default function App() {
     }] : []),
     ...(auth.configured ? [{
       id: 'account',
-      title: '👤 Account',
+      title: `👤 ${t('Account')}`,
       blurb: '',
       body: (
         <>
         {auth.user ? (
         <SettingCard
-          label="Signed in"
-          help="Keeps your preferences and data in sync across devices."
+          label={t('Signed in')}
+          help={t('Keeps your preferences and data in sync across devices.')}
         >
           <div className="account-user">
             {auth.profile?.avatarUrl && (
@@ -1107,11 +1144,11 @@ export default function App() {
                 <span className="account-name">{auth.profile.name}</span>
               )}
               <span className="account-email">
-                {auth.profile?.email ?? auth.user.email ?? 'Signed in'}
+                {auth.profile?.email ?? auth.user.email ?? t('Signed in')}
               </span>
               {auth.user.created_at && (
                 <span className="account-member-since">
-                  Member since {new Date(auth.user.created_at).toLocaleDateString('en-GB', {
+                  {t('Member since')} {new Date(auth.user.created_at).toLocaleDateString('en-GB', {
                     day: 'numeric', month: 'long', year: 'numeric',
                   })}
                 </span>
@@ -1122,13 +1159,13 @@ export default function App() {
             className="set-card-danger"
             onClick={click(() => { void auth.signOut(); })}
           >
-            Sign out
+            {t('Sign out')}
           </button>
         </SettingCard>
       ) : (
         <SettingCard
-          label="Account"
-          help="Sign in with Google to keep your preferences and data across devices."
+          label={t('Account')}
+          help={t('Sign in with Google to keep your preferences and data across devices.')}
         >
           <button
             className="set-card-btn set-card-btn-primary"
@@ -1140,7 +1177,7 @@ export default function App() {
               <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1z" />
               <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" />
             </svg>
-            Sign in with Google
+            {t('Sign in with Google')}
           </button>
         </SettingCard>
       )}
@@ -1155,8 +1192,8 @@ export default function App() {
             >
               <span className="account-badges-medal" aria-hidden="true">🏅</span>
               <span className="account-badges-text">
-                <span className="account-badges-count">{earned} / {visible.length} badges earned</span>
-                <span className="account-badges-hint">See the full list and what earns each one</span>
+                <span className="account-badges-count">{earned} / {visible.length} {t('badges earned')}</span>
+                <span className="account-badges-hint">{t('See the full list and what earns each one')}</span>
               </span>
               <span className="sp2-chev" aria-hidden="true">›</span>
             </button>
@@ -1167,7 +1204,7 @@ export default function App() {
     }] : []),
     {
       id: 'badges',
-      title: '🏅 Badges',
+      title: `🏅 ${t('Badges')}`,
       blurb: '',
       body: (
         <BadgeGrid
@@ -1214,9 +1251,9 @@ export default function App() {
     if (activeSection && activeSection.body != null) {
       return (
         <div className="app settings-page">
-          <div className="sp2 settings-page-inner">
+          <div className="sp2 settings-page-inner" dir={lang === 'he' ? 'rtl' : undefined}>
             <div className="sp2-head settings-page-head">
-              <button className="sp2-back" onClick={click(() => setDrawerSection(null))}>‹ Back</button>
+              <button className="sp2-back" onClick={click(() => setDrawerSection(null))}>{lang === 'he' ? '›' : '‹'} {t('Back')}</button>
             </div>
             <header className="settings-page-hero">
               <span className="settings-page-emoji" aria-hidden="true">
@@ -1253,9 +1290,9 @@ export default function App() {
         <button
           className="burger-btn"
           onClick={click(() => { setDrawerSection(null); setSettingsOpen(o => !o); })}
-          aria-label={settingsOpen ? 'Close settings' : 'Open settings'}
+          aria-label={settingsOpen ? t('Close settings') : t('Open settings')}
           aria-expanded={settingsOpen}
-          title="Settings"
+          title={t('Settings')}
         >
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
             <rect x="3" y="5" width="18" height="2" rx="1" fill="currentColor" />
@@ -1265,7 +1302,7 @@ export default function App() {
         </button>
       )}
 
-      <h1>{instrument.emoji} {instrument.label} Fret Practice</h1>
+      <h1>{instrument.emoji} {t(instrument.label)} {t('Fret Practice')}</h1>
 
       {/* All playing settings live inline on the page; a compact read-only HUD
           replaces the panel during play. */}
@@ -1280,18 +1317,18 @@ export default function App() {
             className="settings-panel"
             role="dialog"
             aria-modal="true"
-            aria-label="Game settings"
+            aria-label={t('Game settings')}
             onClick={(e) => e.stopPropagation()}
           >
-            <nav className="settings-menu">
+            <nav className="settings-menu" dir={lang === 'he' ? 'rtl' : undefined}>
               <div className="sp2-head">
                 <button
                   className="sp2-back"
                   onClick={click(() => setSettingsOpen(false))}
                 >
-                  ‹ Back
+                  {lang === 'he' ? '›' : '‹'} {t('Back')}
                 </button>
-                <span className="sp2-title">Settings</span>
+                <span className="sp2-title">{t('Settings')}</span>
               </div>
               {settingsSections.map(s => (
                 <button
@@ -1300,7 +1337,7 @@ export default function App() {
                   onClick={click(() => { if (s.onSelect) s.onSelect(); else setDrawerSection(s.id); })}
                 >
                   <span>{s.title}</span>
-                  <span className="sp2-chev" aria-hidden="true">›</span>
+                  <span className="sp2-chev" aria-hidden="true">{lang === 'he' ? '‹' : '›'}</span>
                 </button>
               ))}
             </nav>
@@ -1316,45 +1353,43 @@ export default function App() {
             className="mic-card"
             role="dialog"
             aria-modal="true"
-            aria-label="Microphone access"
+            aria-label={t('Microphone access')}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mic-card-icon" aria-hidden="true">🎤</div>
             {micPrompt === 'primer' ? (
               <>
-                <div className="mic-card-title">Answer out loud</div>
+                <div className="mic-card-title">{t('Answer out loud')}</div>
                 <p className="mic-card-body">
-                  Voice mode listens for the note or fret you say instead of a tap.
-                  Your browser will ask to use the microphone next — audio stays on
-                  your device and is never recorded or uploaded.
+                  {t('Voice mode listens for the note or fret you say instead of a tap.')}
+                  {' '}
+                  {t('Your browser will ask to use the microphone next — audio stays on your device and is never recorded or uploaded.')}
                 </p>
                 <div className="mic-card-actions">
                   <button className="mic-btn mic-btn-primary" onClick={click(() => { void grantMic(); })}>
-                    Allow microphone
+                    {t('Allow microphone')}
                   </button>
                   <button className="mic-btn mic-btn-ghost" onClick={click(() => setMicPrompt(null))}>
-                    Not now
+                    {t('Not now')}
                   </button>
                 </div>
               </>
             ) : (
               <>
-                <div className="mic-card-title">Microphone is blocked</div>
+                <div className="mic-card-title">{t('Microphone is blocked')}</div>
                 <p className="mic-card-body">
-                  Your browser is refusing microphone access for this site, so
-                  voice answers can’t work yet. Tap the 🔒 / 🎤 icon beside the
-                  address bar, set the microphone to <strong>Allow</strong>, then
-                  reload the page.
+                  {t("Your browser is refusing microphone access for this site, so voice answers can't work yet. Tap the 🔒 / 🎤 icon beside the address bar, set the microphone to")}
+                  {' '}<strong>{t('Allow')}</strong>{t(', then reload the page.')}
                 </p>
                 <div className="mic-card-actions">
                   <button className="mic-btn mic-btn-primary" onClick={click(() => setMicPrompt(null))}>
-                    Got it
+                    {t('Got it')}
                   </button>
                   <button
                     className="mic-btn mic-btn-ghost"
                     onClick={click(() => { setAnswerMode('tap'); saveSetting('pref_answerMode', 'tap'); setMicPrompt(null); })}
                   >
-                    Use tap instead
+                    {t('Use tap instead')}
                   </button>
                 </div>
               </>
@@ -1373,25 +1408,23 @@ export default function App() {
             className="mic-card"
             role="dialog"
             aria-modal="true"
-            aria-label="Sign in"
+            aria-label={t('Sign in')}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mic-card-icon" aria-hidden="true">☁️</div>
-            <div className="mic-card-title">Save your progress</div>
+            <div className="mic-card-title">{t('Save your progress')}</div>
             <p className="mic-card-body">
-              Sign in with Google to keep your history, badges and personal
-              bests across devices. You can keep playing as a guest — everything
-              still works, it just stays on this device.
+              {t('Sign in to keep your history, badges and personal bests across devices. You can keep playing as a guest — everything still works, it just stays on this device.')}
             </p>
             <div className="mic-card-actions">
               <button
                 className="mic-btn mic-btn-primary"
                 onClick={click(() => { void auth.signInWithGoogle(); })}
               >
-                Sign in with Google
+                {t('Sign in')}
               </button>
               <button className="mic-btn mic-btn-ghost" onClick={click(dismissSignInPrompt)}>
-                Maybe later
+                {t('Maybe later')}
               </button>
             </div>
           </div>
@@ -1408,11 +1441,11 @@ export default function App() {
       <div className="game-row" ref={gameRowRef}>
         {stageTransition && (
           <div className="stage-transition" role="status" aria-live="polite">
-            <div className="stage-transition-label">STAGE COMPLETE</div>
+            <div className="stage-transition-label">{t('STAGE COMPLETE')}</div>
             <div className="stage-transition-name">{stageTransition.name}</div>
             {stageTransition.from !== stageTransition.to && (
               <div className="stage-transition-progress" dir="ltr">
-                {stageTransition.from} → {stageTransition.to} QUESTIONS
+                {stageTransition.from} → {stageTransition.to} {t('QUESTIONS')}
               </div>
             )}
           </div>
@@ -1420,7 +1453,7 @@ export default function App() {
         <div className="question-col">
           {gameActive && (
             <>
-              <div className="string-label" key={`str-${safeGuitarString}`}>{instrument.stringLabels[safeGuitarString]}</div>
+              <div className="string-label" key={`str-${safeGuitarString}`}>{t(instrument.stringLabels[safeGuitarString])}</div>
               {derivedSettings.byNote
                 ? <div className={`note-display${stageTransition ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>{currentNote ? displayNote(currentNote, accidental, notation) : '—'}</div>
                 : <div className={`fret-display${stageTransition ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>{currentFret !== null ? currentFret : '—'}</div>
@@ -1442,20 +1475,20 @@ export default function App() {
               {voiceActive && (
                 <div className={`voice-status voice-${voice.status}`} role="status" aria-live="polite">
                   {voice.permission === 'denied'
-                    ? '🎤 Microphone blocked — enable it or switch to tap'
+                    ? t('🎤 Microphone blocked — enable it or switch to tap')
                     : voice.error === 'network'
-                      ? '🎤 Voice needs a connection'
+                      ? t('🎤 Voice needs a connection')
                       : voice.error === 'not-supported'
-                        ? '🎤 Voice isn’t working in this browser — try Chrome, or use tap'
+                        ? t('🎤 Voice isn’t working in this browser — try Chrome, or use tap')
                       : voice.error
-                        ? '🎤 Didn’t catch that'
+                        ? t('🎤 Didn’t catch that')
                         : voice.status === 'listening'
-                          ? `🎤 Listening…${voice.partial ? ` “${voice.partial}”` : ''}`
+                          ? `🎤 ${t('Listening…')}${voice.partial ? ` “${voice.partial}”` : ''}`
                           : voice.status === 'heard'
                             ? `🎤 “${voice.partial}”`
-                            : '🎤 …'}
+                            : t('🎤 …')}
                   {(voice.status === 'error') && (
-                    <button className="clear-btn voice-retry" onClick={click(voice.retry)}>Retry</button>
+                    <button className="clear-btn voice-retry" onClick={click(voice.retry)}>{t('Retry')}</button>
                   )}
                 </div>
               )}
@@ -1468,34 +1501,34 @@ export default function App() {
           {/* Game ended summary */}
           {gameEnded && isStopped && (
             <div className="game-end-summary">
-              <div className="game-end-title">🎉 Round Complete!</div>
-              {showScore && <div className="game-end-score"><AnimatedScore value={scoring.session.score} /> pts</div>}
+              <div className="game-end-title">🎉 {t('Round Complete!')}</div>
+              {showScore && <div className="game-end-score"><AnimatedScore value={scoring.session.score} /> {t('pts')}</div>}
               <div className="game-end-details">
-                {scoring.session.longestStreak >= 2 && <span>🔥 {scoring.session.longestStreak} streak</span>}
+                {scoring.session.longestStreak >= 2 && <span>🔥 {scoring.session.longestStreak} {t('streak')}</span>}
                 <span>✓ {sessionHistory.filter(h => h.correct === true).length}/{scoring.session.questionsAnswered}</span>
               </div>
               {newBadges.length > 0 && (
                 <div className="game-end-badges">
                   <BadgeMedalDefs />
-                  {newBadges.map(id => {
+                  {newBadges.map(({ id, tier }) => {
                     const def = badgeDef(id, instrument);
                     return (
                       <div className="game-end-badge" key={id}>
-                        {def && <BadgeMedal def={def} instrumentId={instrument.id} size={30} />}
-                        New badge · {def?.name ?? id}
+                        <BadgeMedal id={id} instrumentId={instrument.id} tier={tier} size={30} />
+                        {t('New badge')} · {def?.name ?? id} — {TIER_LABEL[tier]}
                       </div>
                     );
                   })}
                 </div>
               )}
-              <button className="clear-btn" onClick={click(() => { setGameEnded(false); setNewBadges([]); })}>OK</button>
+              <button className="clear-btn" onClick={click(() => { setGameEnded(false); setNewBadges([]); })}>{t('OK')}</button>
             </div>
           )}
 
           {/* Controls: Play (centered) → becomes a Pause/Resume toggle plus a separate Stop when playing/paused */}
           <div className="controls">
             {!running && !paused && !countdown ? (
-              <button ref={playBtnRef} className="icon-btn play-btn" onClick={click(start)} title="Start">
+              <button ref={playBtnRef} className="icon-btn play-btn" onClick={click(start)} title={t('Start')}>
                 <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
               </button>
             ) : running || paused ? (
@@ -1507,8 +1540,8 @@ export default function App() {
                     else pause();
                     playClickSound(); haptic.tap();
                   }}
-                  title={paused ? 'Resume' : 'Pause'}
-                  aria-label={paused ? 'Resume' : 'Pause'}
+                  title={paused ? t('Resume') : t('Pause')}
+                  aria-label={paused ? t('Resume') : t('Pause')}
                 >
                   <span className={`morph-icon ${paused ? 'is-resume' : 'is-pause'}`}>
                     <svg className="icon-pause" viewBox="0 0 24 24" width="24" height="24"><rect x="5" y="4" width="4" height="16" fill="currentColor"/><rect x="15" y="4" width="4" height="16" fill="currentColor"/></svg>
@@ -1518,8 +1551,8 @@ export default function App() {
                 <button
                   className="icon-btn stop-btn-icon"
                   onClick={() => { stop(); playClickSound(); haptic.tap(); }}
-                  title="Stop"
-                  aria-label="Stop"
+                  title={t('Stop')}
+                  aria-label={t('Stop')}
                 >
                   <svg viewBox="0 0 24 24" width="24" height="24"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/></svg>
                 </button>
@@ -1569,7 +1602,7 @@ export default function App() {
 
       <div className="build-info">
         {__COMMIT_HASH__} · {__COMMIT_DATE__.slice(0, 16)}
-        <button className="refresh-btn" onClick={() => window.location.reload()} title="Refresh">↻</button>
+        <button className="refresh-btn" onClick={() => window.location.reload()} title={t('Refresh')}>↻</button>
       </div>
 
       {auth.admin && <DebugLogPanel />}
