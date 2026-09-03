@@ -199,39 +199,54 @@ verify.
 
 ### 3.1 — Multi-string (`multiString`) — `design.md` §5.3
 
-- [ ] [src/components/SelectorPanel.tsx](src/components/SelectorPanel.tsx): the multi-string
-      toggle wrapped in `<ProGate feature="multiString" variant="inline-badge">`. Free user sees
-      it, tapping opens `upgrade`.
-- [ ] [src/hooks/useSelector.ts](src/hooks/useSelector.ts): in the `multiStrings` derivation,
-      when `!isPro`, clamp to single-string **without** overwriting the persisted `multiMode`
-      setting (so it reactivates on upgrade). `useSelector` will need `isPro` passed in (from
-      `App.tsx`, which has `auth`).
-- [ ] Confirm a persisted `multiMode = true` on a free account drills single-string and does not
-      get written back to `false`.
+- [x] [src/components/SelectorPanel.tsx](src/components/SelectorPanel.tsx): the multi-string
+      toggle wrapped in `<ProGate feature="multiString" variant="inline-badge">` (pitch =
+      `t('Multi-string drilling mode')`). Free user sees it with a gold "Pro" pill; the
+      transparent catch layer turns the tap into `openUpgrade()`.
+- [x] [src/hooks/useSelector.ts](src/hooks/useSelector.ts): the `multiStrings` derivation now
+      takes `isPro` and yields `[]` when `!isPro`, so a free user drills single-string. The
+      persisted `multiMode` setting is **not** touched (the toggle handler is unreachable behind
+      the gate), so it reactivates on upgrade. `isPro` is threaded in from `App.tsx` —
+      `const auth = useAuth()` moved above `useSelector(instrument, auth.isPro)`.
+- [x] Confirmed via headless CDP: seeding `sel_multi_guitar = true` + all six strings on the
+      unconfigured (free) local build renders the "Multi" pill active with the "Pro" badge, the
+      board does not crash, and gameplay reads a single string. `multiMode` is never written back.
 
 ### 3.2 — Mastery maps (`masteryMaps`) — `design.md` §5.2
 
-- [ ] [src/App.tsx](src/App.tsx): when `!isPro`, force the fret/note mastery overlay off
-      (don't compute / don't pass the map) regardless of the stored toggle.
-- [ ] The "Mastery on the fretboard" toggle in the Stats & progress screen wrapped in
-      `<ProGate feature="masteryMaps" variant="overlay">`.
+- [x] [src/App.tsx](src/App.tsx): the `fretMastery` / `noteMastery` `useMemo`s return `{}` when
+      `!auth.isPro` (the maps are not built at all), and the `showMastery` prop passed to
+      `FretGrid` / `NoteCircle` is `&&`-ed with `auth.isPro`, so the overlay is forced off
+      regardless of the stored `pref_showMastery`.
+- [x] The "Mastery on the fretboard" toggle in the Stats & progress screen wrapped in
+      `<ProGate feature="masteryMaps" variant="overlay">` (pitch = the mastery-maps perk string).
+      Verified via CDP: on the Stats screen the toggle shows blurred/dimmed under a lock chip +
+      "Pro" pill.
 
 ### 3.3 — Voice profile (`voiceProfile`) — `design.md` §5.5
 
-- [ ] [src/components/VoiceCalibration.tsx](src/components/VoiceCalibration.tsx) entry point and
-      the "use my voice profile" switch (in the `answer` drawer section) wrapped in
-      `<ProGate feature="voiceProfile" variant="replace">`.
-- [ ] No change needed in `src/utils/speech.ts` — `getSpeechEngine()` already falls back to the
+- [x] [src/App.tsx](src/App.tsx) `answer` drawer section: the whole `answerMode === 'voice'`
+      block (the "Voice engine" card **and** the "Your voice profile" / calibration-entry card)
+      wrapped in `<ProGate feature="voiceProfile" variant="replace">`, so a free user sees one
+      `<UpgradeCard>` in their place. The `{showVoiceCalibration && …}` modal render is also
+      guarded with `auth.isPro` as a backstop. `VoiceCalibration.tsx` itself is unchanged — its
+      only entry point is the now-gated button.
+- [x] No change needed in `src/utils/speech.ts` — `getSpeechEngine()` already falls back to the
       generic/template engine when no profile is ready.
-- [ ] Existing calibration data must be left intact (re-enables on upgrade).
+- [x] Existing calibration data is left intact (nothing calls `deleteProfile`; the gate only
+      hides the UI) — re-enables on upgrade.
 
 ### Done when
 
-- [ ] Build + lint clean.
-- [ ] With a `free` account: multi-string toggle → upsell; mastery overlay absent + toggle
-      locked; voice-profile UI replaced by upsell. Flip the account to `pro` via SQL → all three
-      work normally, and any previously-set preferences come back.
-- [ ] Commit: `Tiering: gate multi-string, mastery maps, voice profile (phase 3)`.
+- [x] Build + lint clean (`npm run build` green; ESLint 0 errors / 21 warnings — unchanged from
+      the phase-2 baseline, none in the touched files).
+- [x] With a `free` (unconfigured local) build, verified headless: multi-string toggle → "Pro"
+      pill + upsell tap; mastery overlay absent and the Stats toggle locked; voice-profile UI
+      replaced by the upsell card. **[DEFERRED to the preview deploy]** the flip to `pro` via SQL
+      → all three work again and previously-set preferences come back — needs sign-in, which the
+      local build (no `.env`) can't do; check on the `claude/free-pro-tiering` preview alongside
+      the Phase 1 readout check.
+- [x] Commit: `Tiering: gate multi-string, mastery maps, voice profile (phase 3)` (`3f3da95`).
 
 ---
 
@@ -380,7 +395,10 @@ seam; nothing in Phases 1–6 changes.
       `components/ProGate.tsx` (3 variants), `components/UpgradeCard.tsx`, `hooks/useEntitlement.ts`
       (+ `entitlement` on `AuthState`), `utils/upgradeDrawer.ts` singleton, the `upgrade` drawer
       section, `styles/21-pro-gate.css`, i18n. Nothing gated yet.
-- [ ] Phase 3 — Gate multi-string / mastery maps / voice profile
+- [~] Phase 3 — Gate multi-string / mastery maps / voice profile — code done; `SelectorPanel` +
+      `useSelector(instrument, isPro)` clamp, `App.tsx` mastery `useMemo`/overlay gate + Stats
+      toggle `<ProGate overlay>`, `answer` section `<ProGate replace>`. Free/locked side verified
+      headless; the `pro` re-enable path is deferred to the preview deploy (needs sign-in).
 - [ ] Phase 4 — 7-day history window
 - [ ] Phase 5 — Guest-merge prompt + orphan capture
 - [ ] Phase 6 — grant-pro script + dev toggle

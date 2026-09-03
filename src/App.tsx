@@ -16,7 +16,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3 } from './utils/feedback';
 import { loadSetting, saveSetting } from './utils/settings';
 import { loadBest, saveBest, loadAllBests, writeAllBests } from './utils/personalBest';
-import { historyForInstrument, flattenHistory, fretMasteryMap, noteMasteryMap } from './utils/mastery';
+import { historyForInstrument, flattenHistory, fretMasteryMap, noteMasteryMap, type MasteryStat } from './utils/mastery';
 import { useAuth } from './hooks/useAuth';
 import { bootstrapUser, reconcileUser, syncedUser, clearSyncedUser } from './utils/sync';
 import { bootstrapSettings, syncedSettingsUser, clearSyncedSettingsUser, cloudPushSettings } from './utils/settingsSync';
@@ -34,6 +34,7 @@ import { LeaderboardPanel } from './components/LeaderboardPanel';
 import { computeMyStats, leaderboardName, upsertMyEntry } from './utils/leaderboard';
 import { BadgeGrid } from './components/BadgeGrid';
 import { UpgradeCard } from './components/UpgradeCard';
+import { ProGate } from './components/ProGate';
 import { registerUpgradeHandler } from './utils/upgradeDrawer';
 import { BadgeMedal, BadgeMedalDefs } from './components/BadgeMedal';
 import { BadgeToast, BadgeRevealOverlay, type CelebratedBadge } from './components/BadgeCelebration';
@@ -82,7 +83,13 @@ export default function App() {
     saveSetting('pref_instrument', id);
   };
 
-  const selector = useSelector(instrument);
+  // Auth carries the entitlement/tier. Read here — above useSelector — because
+  // multi-string gating (spec free-pro-tiering §5.3) needs `isPro` in the
+  // selector's derivation. The account-sync effect further down uses the same
+  // `auth` object.
+  const auth = useAuth();
+
+  const selector = useSelector(instrument, auth.isPro);
   const { derivedSettings } = selector;
 
   const [guitarString, setGuitarString] = useState(derivedSettings.guitarString);
@@ -165,7 +172,7 @@ export default function App() {
   // ── Accounts (optional): guests are unaffected; signing in with Google
   // syncs History + Personal Best to the account and restores them on other
   // devices. localStorage stays the source of truth the UI reads from.
-  const auth = useAuth();
+  // (`auth` is created above, next to useSelector.)
   const { replaceAllHistory, getAllHistory } = historyOps;
   useEffect(() => {
     const user = auth.user;
@@ -313,13 +320,16 @@ export default function App() {
     () => flattenHistory(historyOps.allHistory),
     [historyOps.allHistory],
   );
-  const fretMastery = useMemo(
-    () => fretMasteryMap(allHistoryEntries, safeGuitarString),
-    [allHistoryEntries, safeGuitarString],
+  // Mastery maps are Pro-only (spec free-pro-tiering §5.2). For a free user
+  // they are never built — the overlay is forced off below regardless of the
+  // stored toggle, and the Stats-screen toggle is shown in a locked state.
+  const fretMastery = useMemo<Record<number, MasteryStat>>(
+    () => (auth.isPro ? fretMasteryMap(allHistoryEntries, safeGuitarString) : {}),
+    [auth.isPro, allHistoryEntries, safeGuitarString],
   );
-  const noteMastery = useMemo(
-    () => noteMasteryMap(allHistoryEntries, cofList),
-    [allHistoryEntries, cofList],
+  const noteMastery = useMemo<Record<string, MasteryStat>>(
+    () => (auth.isPro ? noteMasteryMap(allHistoryEntries, cofList) : {}),
+    [auth.isPro, allHistoryEntries, cofList],
   );
 
   // Auto Advance: when the current stage/selection is actually completed
@@ -1117,7 +1127,11 @@ export default function App() {
         {/* Voice engine + personal profile only matter once Voice is the
             chosen answer mode, so they live nested under it. */}
         {answerMode === 'voice' && (
-          <>
+          <ProGate
+            feature="voiceProfile"
+            variant="replace"
+            pitch={t('A personal voice profile built from your own calibration recordings')}
+          >
           <SettingCard
             label={t('Voice engine')}
             help={t('Auto picks the best available. Personal uses your calibrated profile; General uses the built-in model.')}
@@ -1158,7 +1172,7 @@ export default function App() {
               ? t('Add / review recordings')
               : t('Calibrate my voice')}</button>
           </SettingCard>
-          </>
+          </ProGate>
         )}
         </>
       ),
@@ -1317,20 +1331,26 @@ export default function App() {
       <div className="app stats-page">
         <ProgressPanel
           masteryToggle={
-            <SettingCard
-              label={t('Mastery on the fretboard')}
-              help={<>{t('The per-note / per-fret accuracy bars drawn over the circle and grid while stopped or paused.')} <em>{t('Mastery keeps being tracked and shows on the Stats screen either way.')}</em></>}
+            <ProGate
+              feature="masteryMaps"
+              variant="overlay"
+              pitch={t('Mastery maps — per-note and per-fret accuracy overlays on the circle and grid')}
             >
-              <SegmentedControl
-                ariaLabel={t('Mastery on the fretboard')}
-                value={showMastery ? 'on' : 'off'}
-                options={[
-                  { value: 'on', label: t('On') },
-                  { value: 'off', label: t('Off') },
-                ]}
-                onChange={(v) => { const on = v === 'on'; setShowMastery(on); saveSetting('pref_showMastery', on); }}
-              />
-            </SettingCard>
+              <SettingCard
+                label={t('Mastery on the fretboard')}
+                help={<>{t('The per-note / per-fret accuracy bars drawn over the circle and grid while stopped or paused.')} <em>{t('Mastery keeps being tracked and shows on the Stats screen either way.')}</em></>}
+              >
+                <SegmentedControl
+                  ariaLabel={t('Mastery on the fretboard')}
+                  value={showMastery ? 'on' : 'off'}
+                  options={[
+                    { value: 'on', label: t('On') },
+                    { value: 'off', label: t('Off') },
+                  ]}
+                  onChange={(v) => { const on = v === 'on'; setShowMastery(on); saveSetting('pref_showMastery', on); }}
+                />
+              </SettingCard>
+            </ProGate>
           }
           allHistory={historyOps.allHistory}
           noteNames={cofList}
@@ -1694,7 +1714,7 @@ export default function App() {
               foundFrets={gameActive ? foundFrets : []}
               onSelect={selectFret}
               masteryByFret={fretMastery}
-              showMastery={!boardLive && showMastery}
+              showMastery={!boardLive && showMastery && auth.isPro}
             />
           ) : (
             <NoteCircle
@@ -1713,7 +1733,7 @@ export default function App() {
               accidental={accidental}
               notation={notation}
               masteryByNote={noteMastery}
-              showMastery={!boardLive && showMastery}
+              showMastery={!boardLive && showMastery && auth.isPro}
             />
           )
         )}
@@ -1726,7 +1746,7 @@ export default function App() {
 
       {auth.admin && <DebugLogPanel />}
 
-      {showVoiceCalibration && (
+      {showVoiceCalibration && auth.isPro && (
         <VoiceCalibration
           notation={notation}
           accidental={accidental}
