@@ -31,10 +31,6 @@ interface Props {
   setupFretTo: number;
   onClearCurrent?: () => void; // clears just the current settings combination
   onClearAll?: () => void;     // clears every combination
-  // The "Mastery on the fretboard" display toggle, rendered at the top of the
-  // screen. Owned by App (it's a persisted preference); passed in as-is so this
-  // panel stays presentational.
-  masteryToggle?: ReactNode;
   // Pro removes the 7-day view window (spec free-pro-tiering §5.1). A free user
   // sees only the trailing FREE_HISTORY_DAYS of history in every stat here, and
   // the all-combinations personal-bests list is locked. Data is never touched —
@@ -429,7 +425,7 @@ export default function ProgressPanel({
   allHistory, noteNames, accidental, notation, instrument, onClose,
   currentHistory, sessionScore, longestStreak, currentHistoryKey,
   setupStrings, setupFretFrom, setupFretTo, onClearCurrent, onClearAll,
-  masteryToggle, isPro,
+  isPro,
 }: Props) {
   const { t, lang } = useTranslation();
   const [scope, setScope] = useState<Scope>('setup');
@@ -472,8 +468,6 @@ export default function ProgressPanel({
         <button className="sp2-back" onClick={click(onClose)}><Chevron dir="back" /> {t('Back')}</button>
         <span className="sp2-title">{t('Stats & progress')}</span>
       </div>
-
-      {masteryToggle}
 
       <div className="sp2-scope">
         <button

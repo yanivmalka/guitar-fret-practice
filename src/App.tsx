@@ -1126,45 +1126,61 @@ export default function App() {
       ),
     },
     {
-      id: 'language',
-      title: `🌐 ${t('Language')}`,
+      // The general "Settings" drawer section: score display, app language and
+      // the fretboard-mastery overlay toggle (which used to sit at the top of
+      // the Stats & progress screen) all live together here now.
+      id: 'settings',
+      title: `⚙️ ${t('Settings')}`,
       blurb: '',
       body: (
-        <SettingCard label={t('Language')}>
-          <SegmentedControl
-            ariaLabel={t('Language')}
-            value={lang}
-            options={LANGUAGES}
-            onChange={(l) => { playClickSound(); haptic.tap(); setLang(l); }}
-          />
-        </SettingCard>
+        <>
+          <SettingCard
+            label={t('Score & celebrations')}
+            help={<>{t('Live score, streak multiplier and celebrations are shown.')} <em>{t('Every answer is still recorded to your stats and personal bests either way.')}</em></>}
+          >
+            <SegmentedControl
+              ariaLabel={t('Score')}
+              value={showScore ? 'on' : 'off'}
+              options={[
+                { value: 'on', label: t('On') },
+                { value: 'off', label: t('Off') },
+              ]}
+              onChange={(v) => { const on = v === 'on'; setShowScore(on); saveSetting('pref_showScore', on); }}
+            />
+          </SettingCard>
+          <SettingCard label={t('Language')}>
+            <SegmentedControl
+              ariaLabel={t('Language')}
+              value={lang}
+              options={LANGUAGES}
+              onChange={(l) => { playClickSound(); haptic.tap(); setLang(l); }}
+            />
+          </SettingCard>
+          <ProGate
+            feature="masteryMaps"
+            variant="replace"
+            pitch={t('Mastery maps — per-note and per-fret accuracy overlays on the circle and grid')}
+          >
+            <SettingCard
+              label={t('Mastery on the fretboard')}
+              help={<>{t('The per-note / per-fret accuracy bars drawn over the circle and grid while stopped or paused.')} <em>{t('Mastery keeps being tracked and shows on the Stats screen either way.')}</em></>}
+            >
+              <SegmentedControl
+                ariaLabel={t('Mastery on the fretboard')}
+                value={showMastery ? 'on' : 'off'}
+                options={[
+                  { value: 'on', label: t('On') },
+                  { value: 'off', label: t('Off') },
+                ]}
+                onChange={(v) => { const on = v === 'on'; setShowMastery(on); saveSetting('pref_showMastery', on); }}
+              />
+            </SettingCard>
+          </ProGate>
+        </>
       ),
     },
     {
-      id: 'score',
-      title: `🎯 ${t('Score')}`,
-      blurb: '',
-      body: (
-        <SettingCard
-          label={t('Score & celebrations')}
-          help={<>{t('Live score, streak multiplier and celebrations are shown.')} <em>{t('Every answer is still recorded to your stats and personal bests either way.')}</em></>}
-        >
-          <SegmentedControl
-            ariaLabel={t('Score')}
-            value={showScore ? 'on' : 'off'}
-            options={[
-              { value: 'on', label: t('On') },
-              { value: 'off', label: t('Off') },
-            ]}
-            onChange={(v) => { const on = v === 'on'; setShowScore(on); saveSetting('pref_showScore', on); }}
-          />
-        </SettingCard>
-      ),
-    },
-    {
-      // Jumps straight to its full screen. The "Mastery on the fretboard"
-      // display toggle used to be its own drawer row; it now lives at the top
-      // of that screen, beside the mastery stats it controls the overlay for.
+      // Jumps straight to its full screen.
       id: 'stats',
       title: `📊 ${t('Stats & progress')}`,
       blurb: '',
@@ -1343,6 +1359,20 @@ export default function App() {
           </button>
         </SettingCard>
       )}
+        {/* Subscription tier: a tappable tile that opens the `upgrade`
+            sub-page (which used to be its own top-level drawer row). */}
+        <button
+          type="button"
+          className="nav-row"
+          onClick={click(() => setDrawerSection('upgrade'))}
+        >
+          <span className="nav-row__lead" aria-hidden="true">⭐</span>
+          <span className="nav-row__label">
+            <span className="account-badges-count">{auth.isPro ? t('Pro') : t('Free')}</span>
+            <span className="account-badges-hint">{t('See plans and what Pro unlocks')}</span>
+          </span>
+          <Chevron dir="forward" className="nav-row__chev" />
+        </button>
         {(() => {
           const visible = badgeList(instrument).filter(d => d.kind !== 'role' || auth.admin);
           const earned = visible.filter(d => (d.id === 'admin' ? auth.admin : isEarned(d.id, instrument.id))).length;
@@ -1433,28 +1463,6 @@ export default function App() {
     return (
       <div className="app stats-page">
         <ProgressPanel
-          masteryToggle={
-            <ProGate
-              feature="masteryMaps"
-              variant="overlay"
-              pitch={t('Mastery maps — per-note and per-fret accuracy overlays on the circle and grid')}
-            >
-              <SettingCard
-                label={t('Mastery on the fretboard')}
-                help={<>{t('The per-note / per-fret accuracy bars drawn over the circle and grid while stopped or paused.')} <em>{t('Mastery keeps being tracked and shows on the Stats screen either way.')}</em></>}
-              >
-                <SegmentedControl
-                  ariaLabel={t('Mastery on the fretboard')}
-                  value={showMastery ? 'on' : 'off'}
-                  options={[
-                    { value: 'on', label: t('On') },
-                    { value: 'off', label: t('Off') },
-                  ]}
-                  onChange={(v) => { const on = v === 'on'; setShowMastery(on); saveSetting('pref_showMastery', on); }}
-                />
-              </SettingCard>
-            </ProGate>
-          }
           allHistory={historyOps.allHistory}
           noteNames={cofList}
           accidental={accidental}
@@ -1571,9 +1579,13 @@ export default function App() {
                 >
                   <Chevron dir="back" /> {t('Back')}
                 </button>
-                <span className="sp2-title">{t('Settings')}</span>
+                {/* No title here on purpose: the burger menu is just the list
+                    of sections. "Settings" is one of those sections now. */}
               </div>
-              {settingsSections.map(s => {
+              {settingsSections.filter(s => s.id !== 'upgrade').map(s => {
+                // The subscription tier ("Pro") is no longer its own top-level
+                // row — it's a tappable tile inside the Account section that
+                // opens this same `upgrade` sub-page.
                 // `title` is "<emoji> <label>" — keep the emoji as its own
                 // leading-icon node so it never disturbs the bidi resolution
                 // of the (possibly RTL) label text next to it.
