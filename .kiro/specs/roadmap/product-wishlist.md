@@ -12,9 +12,9 @@ Consolidated from `wishlist-requirements.md` (original Stage-based roadmap) and 
 ## 1. Fix Now
 Bugs or behavior the product already promises but doesn't deliver.
 
-- **Failed-note re-queue doesn't work.** `failedFretsRef` in `useGameEngine.ts` is written on a wrong answer but never read — the "missed notes come back once" behavior implied by the balanced-questioning design silently doesn't happen.
-- **Click sound missing on some buttons.** The `click()` wrapper pattern (sound + haptic) isn't applied consistently — e.g. the game-end "OK" button uses a bare `onClick`, breaking the established interaction convention.
-- **Placement test result isn't applied.** Onboarding's 3-question placement test scores the user correctly but then just tells them to go set the Selector Panel manually instead of writing the suggested string/difficulty into `useSelector`'s persisted settings — the feature doesn't complete its own purpose.
+- **Failed-note re-queue doesn't work.** — **RESOLVED, by removal.** `failedFretsRef` was dead code and has been deleted (`useGameEngine: drop dead failedFretsRef`); no code path claims a missed note comes back within the round anymore. This closes the bug but does **not** deliver the "missed notes come back once" behavior — if that's still wanted, it needs to be re-scoped as a new feature (it would pair naturally with the weakness-targeted-drills idea under Premium in §6), not assumed already fixed.
+- **Click sound missing on some buttons.** — **DONE.** The game-end "OK" button (and every other interactive control checked) now goes through the `click()` wrapper.
+- **Placement test result isn't applied.** — **DONE** (`Onboarding: apply placement result to Selector difficulty`). `Onboarding`'s `onPlacement` callback is wired to `selector.onDifficultySelect`, which persists the chosen difficulty via `saveSetting('sel_difficulty', …)` — the placement test now actually sets up the Selector, not just tells the user to.
 - **Dead/orphaned code: `src/components/Settings.tsx` and `src/design-preview/`.** A substantial alternate settings UI exists but is never imported or rendered by `App.tsx`. This isn't a user-facing bug, but it's misleading to anyone reading the codebase and should be resolved (finish it or remove it) rather than left in limbo. — `Settings.tsx` removed (nothing salvageable; its notation toggle and circle-order controls already live in `SelectorPanel`, and its manual time picker was deliberately replaced by `getTime()`). `design-preview/` is kept intentionally as a design lab.
 
 - **All-time stats mix instruments.** — **DONE.** `historyKey()` already prefixes non-guitar combinations (`bass|…`; guitar stays unprefixed for back-compat), so every *per-combination* stat was already instrument-clean, but the all-time roll-ups flattened the map and lost that. `src/utils/mastery.ts` now has `instrumentOfKey(key)` (numeric leading segment ⇒ guitar; any other token ⇒ that instrument id — generalises to future string instruments with no code change) and `historyForInstrument(allHistory, instrumentId)`. `App.tsx` (note-wheel / fret-grid mastery overlays) and `ProgressPanel.tsx` ("All time" scope + Personal bests, via `allBestsSummary(instrumentId)`) now scope to the played instrument. No `HistoryEntry` field, no schema/migration. This is also the prerequisite for the instrument-scoped Badges.
@@ -67,24 +67,26 @@ Bugs or behavior the product already promises but doesn't deliver.
 
   **Files touched:** `src/utils/mastery.ts` (2 new helpers), `src/App.tsx` (1 call + deps), `src/components/ProgressPanel.tsx` (1 call + caption), `src/utils/progress.ts` (`allBestsSummary` optional filter). No `HistoryEntry` field, no schema/migration.
 
+**Section status: cleared.** All four items above are now resolved (three delivered, one closed by removing the dead code rather than building the behavior — see its note).
+
 ---
 
 ## 2. Finish Current Product
 Work needed to make the Selector-based experience feel complete and polished on its own terms — no new product concepts, just closing out what the current model implies.
 
-- **Settings panel polish/completion.** Whatever is salvaged from `Settings.tsx` (time options, notation toggle A-B-C/solfege, circle order) should land inside the live `SelectorPanel.tsx` flow, since these were part of the original settings scope and aren't superseded by anything.
-- **`?` info affordance** explaining the clock method / fretboard basics to a new user, auto-dismissing after a few seconds.
-- **Toggle button visual state before interaction** (e.g. dashed border to distinguish un-toggled controls) — small discoverability gap in the current UI.
-- **Order-switcher layout stability** — confirm the placeholder reserves space so switching between By Fret / By Note doesn't visibly jump the layout.
+- **Settings panel polish/completion.** — **DONE.** The hamburger settings now open each section as its own full page (`Hamburger settings: each section opens as its own full page`), rebuilt in the Stats & Progress visual language, including RTL layout for Hebrew (`Settings + stats panels: lay out right-to-left in Hebrew`). Notation (A-B-C/solfege), circle order, and time all live inside the live `SelectorPanel.tsx` / settings flow as intended.
+- **`?` info affordance** — **DONE.** The bubble auto-pops once for a brand-new player with no history (`Selector "?" hint: auto-pop once for brand-new players`) and otherwise opens/closes manually via the "?" affordance, matching the originally described behavior.
+- **Toggle button visual state before interaction** — **DONE.** Un-toggled controls carry a `1px dashed` border (`src/styles/02-settings.css`) to distinguish them before interaction.
+- **Order-switcher layout stability** — not specifically verified; no dedicated commit found addressing this. Still open unless someone confirms it's no longer an issue.
 
 ---
 
 ## 3. Confirmed Future Features
 Features from the old roadmap that are clearly still desired and map cleanly onto the Selector model with no dependency on Stages, backend, or monetization.
 
-- **Scoring system** — points, speed bonus, streak multiplier, live score counter.
-- **Session summary card on stop** — score, streak, accuracy, avg speed, personal best.
-- **Celebration tiers** (small win / milestone / major award pulses+haptics) — purely presentational, independent of navigation model.
+- **Scoring system** — **DONE.** Points, speed bonus, streak multiplier, live score counter all shipped (`useScoring.ts`).
+- **Session summary card on stop** — **DONE.** The `game-end-summary` card shows score, streak, accuracy vs. answered count, and feeds into the personal-best flow.
+- **Celebration tiers** (small win / milestone / major award pulses+haptics) — **NOT built beyond the original three.** `celebrateTier1`/`celebrateTier2`/`celebrateTier3` in `src/utils/feedback.ts` are unchanged; none of `CelebrationTier`, `celebrateMajor`, `playStreakTone`, or the tick/small/milestone/major split described in the implementation plan below exist yet. Still open as written.
 
   ### Implementation plan — Celebration tiers
 
@@ -184,9 +186,9 @@ Features from the old roadmap that are clearly still desired and map cleanly ont
   - Streak 12 → 15 fires `major`; 16–19 fire `small`; 20 fires `major` again.
 
   **Files touched:** `src/hooks/useScoring.ts`, `src/hooks/useGameEngine.ts`, `src/utils/feedback.ts`, `src/index.css` (`celebrate-shake`, `.milestone-banner.major`, `.score-flare`, major rings, reduced-motion variants).
-- **Adaptive timer** — tightens/relaxes based on streak, within a session.
-- **Audio refinements** — single-note question sound, satisfying correct chime, escalating streak tone, optional background beats toggle.
-- **Silent Mode** — visual-only questions, no audio.
+- **Adaptive timer** — tightens/relaxes based on streak, within a session. Not built — no evidence in `useGameEngine.ts`/`useScoring.ts`.
+- **Audio refinements** — single-note question sound, satisfying correct chime, escalating streak tone, optional background beats toggle. Still only the first two exist; `playStreakTone` and the background-beats toggle described below are not built.
+- **Silent Mode** — visual-only questions, no audio. **Not built** — no `setSilent`/silent-mode flag anywhere in `src/utils/audio.ts` or `src/utils/feedback.ts`.
 
   ### Implementation plan — Audio refinements + Silent Mode
 
@@ -326,9 +328,9 @@ Features from the old roadmap that are clearly still desired and map cleanly ont
   2. Celebration tiers (`useScoring` + `useGameEngine` + `celebrateMajor` + CSS).
   3. `playStreakTone` — depends on the streak number from step 2.
   4. Background beats — largest (asset + pause/resume/stop lifecycle).
-- **Mastery heatmap** on the note circle, colored by per-note/per-string success rate — fits the Selector model well since accuracy is already tracked per settings combination (`historyKey()`).
-- **Progress chart** — accuracy % and avg response time trend across recent sessions.
-- **Badges** — Speed Demon, Perfect Session, String Master, streak-based (e.g. 5-of-7 days), Most Improved — all computable from existing history data.
+- **Mastery heatmap** on the note circle, colored by per-note/per-string success rate — **DONE.** `fretMasteryMap`/`noteMasteryMap` (`src/utils/mastery.ts`) drive the equalizer-style overlay on both the note wheel and fret grid, with a dedicated on/off toggle now living in the Stats & progress screen (`Move "Mastery on the fretboard" toggle into the Stats & progress screen`).
+- **Progress chart** — accuracy % and avg response time trend across recent sessions. **Not built** — `ProgressPanel.tsx` has no chart/trend/sparkline; the closest existing piece is a list of not-yet-practiced notes (`weakNotes`, see `Stats: list notes not yet practiced under "By note"`), which is groundwork, not the trend chart itself.
+- **Badges** — Speed Demon, Perfect Session, String Master, streak-based (e.g. 5-of-7 days), Most Improved — all computable from existing history data. **DONE, and shipped well beyond this plan's original scope.** `src/utils/badges.ts` + `BadgeGrid.tsx`/`BadgeMedal.tsx` implement a full "Achievements wall": every session/lifetime badge is now a **family with up to four ordered levels** (Bronze/Silver/Gold, Platinum where a milestone earns a fourth rung), several badges beyond the original list (`every_string`, `both_ends`, `quick_read`, `doubling_up`, `low_end`), and a third badge kind — **role badges** (e.g. an `admin` badge tied to the new `public.admins` account role) — that the original plan didn't anticipate. The collection screen itself went through two redesign passes (`Badges: redesign the collection screen as a game-like Achievements wall`, `Badges: sharpen the Achievements wall — locked, tier ladder, density`). The API below (`evaluateSession`/`evaluateLifetime`/`awardBadge`) is superseded by the shipped tiered version; treat this plan as historical context, not the current shape.
 
   ### Implementation plan — Badges
 
@@ -468,21 +470,21 @@ Features from the old roadmap that are clearly still desired and map cleanly ont
   2. `evaluateLifetime` + `badgeProgress`, and `<BadgeGrid>` in the Account + standalone `badges` drawer sections (visible immediately from existing history via mount-time catch-up).
   3. `evaluateSession` + the game-end wiring in `App.tsx` (snapshots, `awardBadge`, `newBadges`).
   4. Game-end summary rows + `celebrateTier2` badge celebration + CSS polish.
-- **Practice schedule / reminders** — local notification at a chosen time, gentle streak counter.
-- **Adaptive suggestion, retargeted** — auto-suggest a harder/easier Selector configuration (fret range or difficulty) based on recent accuracy for the current settings combination. This keeps the *intent* of the old "adaptive suggestion between stages" idea while dropping the Stage mechanism itself.
+- **Practice schedule / reminders** — local notification at a chosen time, gentle streak counter. **Not built** — no notification/reminder code anywhere in `src/`.
+- **Adaptive suggestion, retargeted** — auto-suggest a harder/easier Selector configuration (fret range or difficulty) based on recent accuracy for the current settings combination. This keeps the *intent* of the old "adaptive suggestion between stages" idea while dropping the Stage mechanism itself. **Not built** — the app now *displays* weak notes (`weakNotes` in `ProgressPanel`), but nothing auto-suggests a Selector change from that data.
 
 ---
 
 ## 4. Unconfirmed Ideas
 Old-roadmap ideas that may still have value but were never re-affirmed under the Selector model. None of these should be scheduled without a product-owner decision.
 
-- **Saved/named Selector presets.** The old "Custom Stage" (save/rename/clear, free-tier limit of 1) doesn't apply directly since there's no Stage to snapshot — but a lighter equivalent (bookmark a specific string+range+difficulty+mode combo for quick recall) might still be wanted. Unconfirmed whether this is desired at all, and if so, whether a free-tier limit is even relevant pre-monetization.
+- **Saved/named Selector presets.** The old "Custom Stage" (save/rename/clear, free-tier limit of 1) doesn't apply directly since there's no Stage to snapshot — but a lighter equivalent (bookmark a specific string+range+difficulty+mode combo for quick recall) might still be wanted. Unconfirmed whether this is desired at all, and if so, whether a free-tier limit is even relevant pre-monetization. **Still not built** — no preset/bookmark code found.
 - **Multi-string emphasis animations** (string label flash/scale on switch, haptic pulse on string switch) — plausible polish for multi-string mode, but not confirmed as a priority; usage of multi-string mode isn't yet established as common enough to warrant it.
 - **Quick-switch affordance for recent/favorite Selector combinations** — distinct from reviving Stage navigation, but unconfirmed whether users need anything beyond directly editing the Selector Panel each time.
-- **Auth & cross-device sync** (Google sign-in, Supabase) — plausible long-term, but the app is intentionally backend-free today; no decision has been made to introduce a backend.
-- **Leaderboard, expertise tests (String Speed Test, Full Neck Sprint, Blind Ear Test), user profiles, admin dashboard** — all depend on the unconfirmed backend decision above.
-- **Monetization** (premium tier, ad-unlock, donations, community donation pool) — depends on both the backend decision and a separate, unmade business decision to monetize at all.
-- **Walk Mode / hands-free voice drilling, ear training, additional instruments (bass, ukulele, mandolin, banjo), iOS port** — all plausible long-term directions from the later original roadmap, none rejected, none confirmed; each represents a significant scope commitment that hasn't been revisited under the current product direction.
+- **Auth & cross-device sync** (Google sign-in, Supabase) — plausible long-term, but the app is intentionally backend-free today; no decision has been made to introduce a backend. — **OVERTAKEN BY EVENTS: this is now built and live.** `useAuth.ts` + Supabase back Google sign-in; `sync.ts`/`settingsSync.ts`/`voiceSync.ts` push and merge history, personal bests, settings and the voice profile across devices. The backend-free framing in the Ground Rules above no longer describes the shipped app — a backend (Supabase) is now a real, live dependency, not a hypothetical.
+- **Leaderboard, expertise tests (String Speed Test, Full Neck Sprint, Blind Ear Test), user profiles, admin dashboard** — all depend on the unconfirmed backend decision above. — **Partially overtaken:** the backend decision is made (see above). The **leaderboard itself has shipped** as a public, free, all-time-XP-ranked feature (`src/utils/leaderboard.ts`, `LeaderboardPanel.tsx` — see the Free tier in §6). A basic **admin role** also shipped (`public.admins`, `auth.admin`), gating the debug-log panel, an admin-only "Inbox" tab on the new Feedback Board (see the new §7 below), and an `admin` role-badge. Still not built: the named expertise tests (String Speed Test / Full Neck Sprint / Blind Ear Test), public user profiles beyond the leaderboard row, and any dedicated admin dashboard beyond the feedback inbox.
+- **Monetization** (premium tier, ad-unlock, donations, community donation pool) — depends on both the backend decision and a separate, unmade business decision to monetize at all. The backend decision is now made (see above); the monetize-at-all decision is still open and is being actively drafted in §6.
+- **Walk Mode / hands-free voice drilling, ear training, additional instruments (bass, ukulele, mandolin, banjo), iOS port** — all plausible long-term directions from the later original roadmap, none rejected, none confirmed; each represents a significant scope commitment that hasn't been revisited under the current product direction. Bass has since shipped as a full second instrument (not "hands-free voice drilling," which remains unbuilt); the rest of this bullet is unchanged.
 
 ---
 
@@ -509,6 +511,7 @@ A complete, genuinely useful app with no payment, or there is no adoption funnel
 - Basic voice answering (Web Speech / native), no personal profile
 - Stats for the **current settings combination and session only** — no accumulating long-term history
 - Onboarding + placement, full offline support
+- **Public leaderboard** ranked by all-time XP (= correct-answer count) — already shipped and explicitly built as a free, open feature: anyone (including guests) can view the full standings via `fetchLeaderboard`; only appearing on it requires Google sign-in. See `src/utils/leaderboard.ts`.
 
 ### Pro (subscription) — "train seriously and track progress"
 Core value = persistence of data over time + sync + a wider drill surface. Everything here already exists in the codebase; the work is gating, not building.
@@ -526,10 +529,22 @@ Does not exist yet; needs to be built to justify a price above Pro. Justified on
 - **Automatic weakness-targeted drills**: engine reads the mastery map and builds a session from what the user gets wrong, plus spaced repetition (SRS) for notes
 - **Real pitch detection from the microphone** — play the note on the guitar instead of tapping / speaking
 - Instruments from other families (ukulele, mandolin, violin)
-- Daily challenge / leaderboard / friends
+- Daily challenge / friends — (the leaderboard itself has shipped, as a free feature — see Free tier above; only per-friend / daily-challenge framing around it remains undone)
 
 ### Open decisions
 - **Premium shape** — a single higher-priced subscription tier, or one-time in-app purchases per game mode (a natural fit for chords / scales / intervals as separate unlocks).
 - **Cloud sync in Free** — offer basic single-device backup for free (so data is never lost) and gate only multi-device restore behind Pro, to lower signup friction.
 - **Free history limit** — "current combination only" vs "last 7 days". The latter is less punishing and shows the user what they are missing.
 - **Ads in Free** — whether the free tier carries ads at all, or relies purely on the Pro upsell.
+
+---
+
+## 7. Shipped Since Last Audit (Not Previously Tracked)
+
+Found while re-checking the codebase against this document — real, shipped features that this wishlist never listed as planned, confirmed, or otherwise. Recorded here so the document stays a true map of the product, not just of what was once proposed.
+
+- **Full Hebrew localization + RTL layout.** `src/i18n/` (`LanguageContext.tsx`, `translations.ts`, `useTranslation.ts`) — the whole app shell, Onboarding, SelectorPanel, ProgressPanel, and the settings/stats sub-pages are translated and, in Hebrew, laid out right-to-left (including mirrored back-chevrons and right-aligned settings pages).
+- **Feedback Board.** `src/components/FeedbackBoard.tsx` + `src/utils/board.ts` — a hamburger settings sub-page where any signed-in user can post an idea/comment/suggestion. Admins (see below) get two tabs on the same page instead — "Write" and "Inbox" (every user's posts, with a handled/delete workflow); guests get a sign-in prompt. Backed by a public Supabase table added in migration `0005`.
+- **Admin account role.** A row in `public.admins`, surfaced as `auth.admin` from `useAuth.ts`. Gates the debug-log panel (previously visible to everyone), the Feedback Board's admin Inbox tab, and a dedicated `admin` role-badge (a new, non-levelled third badge kind alongside session/lifetime badges).
+- **Voice dictation for text input.** `useDictation` (used by the Feedback Board's compose box) — a distinct, smaller voice feature from the answer-mode `useVoiceAnswer`: speech-to-text for filling in a text field rather than answering a drill question.
+- **Coming-soon instrument placeholders (admin-only).** `COMING_SOON_INSTRUMENTS` in `src/utils/instruments.ts` lists Ukulele (G C E A) and Mandolin (G D A E) as disabled tiles in the instrument picker, visible to admins only for now, "so the plan is visible in-app without implying they work." Deliberately not part of `InstrumentId` — nothing can actually select or drill them yet. Confirms intent but not delivery for the Premium "instruments from other families" idea in §6.
