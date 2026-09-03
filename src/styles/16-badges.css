@@ -14,33 +14,9 @@
 }
 
 /* Compact badge pointer shown inside the Account section — links through to
-   the full "🏅 Badges" page rather than embedding the whole grid. */
-.account-badges-link {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 12px 14px;
-  background: #15152a;
-  border: 1px solid #2a2a4a;
-  border-radius: 12px;
-  color: #f0f0f8;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-/* Same undo as `.set-card` in 02-settings.css: the explicit physical
-   `text-align: left` above defeats the RTL root's right alignment otherwise. */
-.settings-page-inner[dir="rtl"] .account-badges-link { text-align: right; }
-.account-badges-link:hover { border-color: #00e5ff; }
-.account-badges-medal { font-size: 1.4rem; line-height: 1; }
-.account-badges-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
-}
+   the full "🏅 Badges" page rather than embedding the whole grid. Uses the
+   shared `.nav-row` layout (02-settings.css) so it flips with `dir` on its
+   own; only the text sizes are specific to this row. */
 .account-badges-count { font-size: 0.82rem; font-weight: 800; }
 .account-badges-hint { font-size: 0.68rem; color: #9a9ab8; }
 

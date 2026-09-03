@@ -304,7 +304,7 @@ export function LeaderboardPanel({
         }}
       >
         <span>{t('How is XP counted?')}</span>
-        <span className="sp2-chev" aria-hidden="true">{xpOpen ? '▾' : '▸'}</span>
+        <span className="sp2-chev" aria-hidden="true">{xpOpen ? '▴' : '▾'}</span>
       </button>
       {xpOpen && (
         <p className="lb-xpexp-body">

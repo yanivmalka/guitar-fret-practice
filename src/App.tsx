@@ -6,6 +6,7 @@ import SelectorPanel from './components/SelectorPanel';
 import ProgressPanel from './components/ProgressPanel';
 import { SettingCard, SegmentedControl } from './components/SettingCard';
 import Onboarding from './components/Onboarding';
+import { Chevron } from './components/Chevron';
 import SpeedBar from './components/SpeedBar';
 import AnimatedScore from './components/AnimatedScore';
 import { displayNote, setActiveInstrument } from './utils/music';
@@ -1352,15 +1353,15 @@ export default function App() {
           return (
             <button
               type="button"
-              className="account-badges-link"
+              className="nav-row"
               onClick={click(() => setDrawerSection('badges'))}
             >
-              <span className="account-badges-medal" aria-hidden="true">🏅</span>
-              <span className="account-badges-text">
+              <span className="nav-row__lead" aria-hidden="true">🏅</span>
+              <span className="nav-row__label">
                 <span className="account-badges-count">{earned} / {visible.length} {t('badges earned')}</span>
                 <span className="account-badges-hint">{t('See the full list and what earns each one')}</span>
               </span>
-              <span className="sp2-chev" aria-hidden="true">›</span>
+              <Chevron dir="forward" className="nav-row__chev" />
             </button>
           );
         })()}
@@ -1458,7 +1459,7 @@ export default function App() {
         <div className="app settings-page">
           <div className="sp2 settings-page-inner" dir={lang === 'he' ? 'rtl' : undefined}>
             <div className="sp2-head settings-page-head">
-              <button className="sp2-back" onClick={click(() => setDrawerSection(null))}>{lang === 'he' ? '›' : '‹'} {t('Back')}</button>
+              <button className="sp2-back" onClick={click(() => setDrawerSection(null))}><Chevron dir="back" /> {t('Back')}</button>
             </div>
             <header className="settings-page-hero">
               <span className="settings-page-emoji" aria-hidden="true">
@@ -1541,20 +1542,27 @@ export default function App() {
                   className="sp2-back"
                   onClick={click(() => setSettingsOpen(false))}
                 >
-                  {lang === 'he' ? '›' : '‹'} {t('Back')}
+                  <Chevron dir="back" /> {t('Back')}
                 </button>
                 <span className="sp2-title">{t('Settings')}</span>
               </div>
-              {settingsSections.map(s => (
-                <button
-                  key={s.id}
-                  className="sp2-exp"
-                  onClick={click(() => { if (s.onSelect) s.onSelect(); else setDrawerSection(s.id); })}
-                >
-                  <span>{s.title}</span>
-                  <span className="sp2-chev" aria-hidden="true">{lang === 'he' ? '‹' : '›'}</span>
-                </button>
-              ))}
+              {settingsSections.map(s => {
+                // `title` is "<emoji> <label>" — keep the emoji as its own
+                // leading-icon node so it never disturbs the bidi resolution
+                // of the (possibly RTL) label text next to it.
+                const [emoji, ...rest] = s.title.split(' ');
+                return (
+                  <button
+                    key={s.id}
+                    className="nav-row"
+                    onClick={click(() => { if (s.onSelect) s.onSelect(); else setDrawerSection(s.id); })}
+                  >
+                    <span className="nav-row__lead" aria-hidden="true">{emoji}</span>
+                    <span className="nav-row__label">{rest.join(' ')}</span>
+                    <Chevron dir="forward" className="nav-row__chev" />
+                  </button>
+                );
+              })}
             </nav>
           </div>
         </div>
