@@ -122,6 +122,20 @@ function BadgeTile({
         )}
       </span>
 
+      {maxedOut && (
+        <span className={`badge-crown tier-${medalTier}`} aria-hidden="true">
+          {medalTier === 'platinum' ? (
+            <svg viewBox="0 0 24 24" width="14" height="14">
+              <path d="M2 8l4.6 3.2L12 3l5.4 8.2L22 8l-2.1 11.3H4.1L2 8Z" fill="currentColor" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" width="13" height="13">
+              <path d="M12 2.6l2.7 6 6.6.6-5 4.3 1.5 6.4L12 16.5 6.2 19.9l1.5-6.4-5-4.3 6.6-.6z" fill="currentColor" />
+            </svg>
+          )}
+        </span>
+      )}
+
       <span className="badge-id-row">
         <span className="badge-name">{def.name}</span>
         {def.instrumentScoped && <span className="badge-scope">{instrument.label}</span>}
@@ -141,7 +155,7 @@ function BadgeTile({
       )}
 
       {!isRole && earned && (
-        <span className={`badge-tier-word${maxedOut ? ' is-max' : ` tier-${tier}`}`}>
+        <span className={`badge-tier-word${maxedOut ? ' is-max' : ''}${tier ? ` tier-${tier}` : ''}`}>
           {maxedOut ? (
             'Max'
           ) : (
@@ -157,7 +171,7 @@ function BadgeTile({
         {isRole ? def.blurb : (maxedOut ? def.levels[def.levels.length - 1].blurb : nextLevel?.blurb)}
       </span>
 
-      {progress && progress.target > 0 && (
+      {!earned && progress && progress.target > 0 && (
         <span className="badge-progress">
           <span className="badge-progress-track">
             <span
@@ -176,6 +190,22 @@ function BadgeTile({
                 day: 'numeric', month: 'short', year: 'numeric',
               })}`
             : '✓ Earned'}
+        </span>
+      )}
+
+      {/* Earned, not maxed: the next-tier climb is a quiet footnote, and only
+          when there's real progress to show — never a big empty bar. */}
+      {earned && !maxedOut && nextLevel && progress && progress.target > 0 && progress.current > 0 && (
+        <span className="badge-progress badge-progress--next">
+          <span className="badge-progress-track">
+            <span
+              className="badge-progress-bar"
+              style={{ width: `${Math.min(100, (progress.current / progress.target) * 100)}%` }}
+            />
+          </span>
+          <span className="badge-progress-txt">
+            {TIER_LABEL[nextLevel.tier]} · {progress.current}/{progress.target}
+          </span>
         </span>
       )}
     </div>
