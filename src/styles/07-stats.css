@@ -2,7 +2,7 @@
 /* Stats */
 .stats-panel {
   background: #0d0d1a; border-radius: 10px; padding: 14px;
-  text-align: left; width: 100%;
+  text-align: start; width: 100%;
 }
 .stats-panel p { font-size: 0.85rem; margin: 3px 0; }
 
@@ -25,6 +25,7 @@
   padding-bottom: 7px; border-bottom: 1px solid #2a2a4a;
 }
 .sp2-back {
+  display: inline-flex; align-items: center; gap: 6px;
   background: none; border: none; cursor: pointer;
   color: #00e5ff; font-size: 0.8rem; font-weight: 700;
 }
@@ -66,7 +67,7 @@
 .sp2-chev { color: #9a9ab8; }
 .sp2-exp-body {
   padding: 8px 4px 2px;
-  border-left: 1px solid #2a2a4a; margin-left: 4px;
+  border-inline-start: 1px solid #2a2a4a; margin-inline-start: 4px;
 }
 
 .sp2-danger {

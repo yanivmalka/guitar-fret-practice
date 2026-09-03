@@ -7,6 +7,7 @@ import {
   TIERS, TIER_LABEL, type BadgeDef, type LifetimeSnapshot, type Tier,
 } from '../utils/badges';
 import { BadgeMedal, BadgeMedalDefs, type Metal } from './BadgeMedal';
+import { Chevron } from './Chevron';
 import type { CelebratedBadge } from './BadgeCelebration';
 import { playClickSound, haptic } from '../utils/feedback';
 import { useTranslation } from '../i18n/useTranslation';
@@ -180,8 +181,6 @@ function BadgeTile({
     : (maxedOut ? def.levels[def.levels.length - 1].blurb : nextLevel?.blurb ?? '');
   const blurb = rawBlurb ? localise(rawBlurb, def, instrument, t) : '';
   const tierWord = (tr: Tier) => t(TIER_LABEL[tr]);
-  // A left-pointing climb arrow reads correctly in the RTL settings page.
-  const climbArrow = lang === 'he' ? '←' : '→';
   const earnedDate = when
     ? new Date(when).toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-GB', {
         day: 'numeric', month: 'short', year: 'numeric',
@@ -249,7 +248,7 @@ function BadgeTile({
             <>
               {tierWord(tier as Tier)}
               {nextLevel && (
-                <span className="badge-tier-next"> {climbArrow} {tierWord(nextLevel.tier)}</span>
+                <span className="badge-tier-next"> <Chevron dir="forward" /> {tierWord(nextLevel.tier)}</span>
               )}
             </>
           )}

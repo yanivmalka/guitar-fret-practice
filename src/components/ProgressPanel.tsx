@@ -9,6 +9,7 @@ import { loadBest, saveBest } from '../utils/personalBest';
 import type { InstrumentConfig } from '../utils/instruments';
 import { playClickSound, haptic } from '../utils/feedback';
 import { useTranslation } from '../i18n/useTranslation';
+import { Chevron } from './Chevron';
 
 interface Props {
   allHistory: Record<string, HistoryEntry[]>;
@@ -442,7 +443,7 @@ export default function ProgressPanel({
   return (
     <div className="stats-panel sp2" dir={lang === 'he' ? 'rtl' : undefined}>
       <div className="sp2-head">
-        <button className="sp2-back" onClick={click(onClose)}>{lang === 'he' ? '›' : '‹'} {t('Back')}</button>
+        <button className="sp2-back" onClick={click(onClose)}><Chevron dir="back" /> {t('Back')}</button>
         <span className="sp2-title">{t('Stats & progress')}</span>
       </div>
 
