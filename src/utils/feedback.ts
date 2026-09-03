@@ -153,6 +153,46 @@ export function correctChimeRemainingMs(): number {
   return Math.max(0, _chimeEndTime - Date.now());
 }
 
+// Badge fanfare — a bright rising triad + octave, capped with a fast sparkle.
+// Used by the achievement toast and the end-of-round reveal. Reuses the shared
+// AudioContext so it stays audible on mobile like the other feedback sounds.
+export function playBadgeFanfare() {
+  const ctx = getCtx();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume();
+  const now = ctx.currentTime;
+
+  [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    const t = now + i * 0.12;
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.12, t + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+    osc.start(t);
+    osc.stop(t + 0.5);
+  });
+
+  [1568, 2093, 1760].forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    const t = now + 0.5 + i * 0.06;
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.07, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    osc.start(t);
+    osc.stop(t + 0.25);
+  });
+}
+
 // Celebration overlay element
 let _celebrationContainer: HTMLElement | null = null;
 function getContainer(): HTMLElement {

@@ -125,6 +125,8 @@ const he: Record<string, string> = {
   'QUESTIONS': 'שאלות',
   'streak': 'רצף',
   'New badge': 'תג חדש',
+  'Badge upgraded': 'התג שודרג',
+  'Continue': 'המשך',
   'Listening…': 'מקשיב…',
   'Member since': 'חבר מאז',
   'badges earned': 'תגים שנצברו',

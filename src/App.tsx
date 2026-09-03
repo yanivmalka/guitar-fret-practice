@@ -13,7 +13,7 @@ import type { HistoryEntry, AccidentalMode, OrderMode, NotationMode } from './ut
 import { getInstrument, COMING_SOON_INSTRUMENTS, type InstrumentId } from './utils/instruments';
 import { preloadAllSamples, unlockAudio, setAudioInstrument } from './utils/audio';
 import { App as CapacitorApp } from '@capacitor/app';
-import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3, celebrateTier2 } from './utils/feedback';
+import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3 } from './utils/feedback';
 import { loadSetting, saveSetting } from './utils/settings';
 import { loadBest, saveBest, loadAllBests, writeAllBests } from './utils/personalBest';
 import { historyForInstrument, flattenHistory, fretMasteryMap, noteMasteryMap } from './utils/mastery';
@@ -34,8 +34,9 @@ import { LeaderboardPanel } from './components/LeaderboardPanel';
 import { computeMyStats, leaderboardName, upsertMyEntry } from './utils/leaderboard';
 import { BadgeGrid } from './components/BadgeGrid';
 import { BadgeMedal, BadgeMedalDefs } from './components/BadgeMedal';
+import { BadgeToast, BadgeRevealOverlay, type CelebratedBadge } from './components/BadgeCelebration';
 import {
-  badgeList, badgeDef, evaluateSession, evaluateLifetime, awardFamilyUpTo, isEarned, TIER_LABEL,
+  badgeList, badgeDef, evaluateSession, evaluateLifetime, awardFamilyUpTo, earnedTier, isEarned, TIER_LABEL,
   type BadgeId, type SessionSnapshot, type LifetimeSnapshot, type Tier,
 } from './utils/badges';
 import { vlog } from './utils/debugLog';
@@ -50,6 +51,15 @@ import { useTranslation } from './i18n/useTranslation';
 import { LANGUAGES } from './i18n/translations';
 
 type AnswerMode = 'tap' | 'voice';
+
+// Merge two lists of freshly-earned badges, keeping one entry per family — the
+// later one wins, so a family that reached Bronze mid-round and Silver at the
+// end is celebrated once, at Silver.
+function mergeCelebrated(prev: CelebratedBadge[], next: CelebratedBadge[]): CelebratedBadge[] {
+  const byFamily = new Map<string, CelebratedBadge>();
+  for (const b of [...prev, ...next]) byFamily.set(b.id, b);
+  return [...byFamily.values()];
+}
 
 export default function App() {
   const { t, lang, setLang } = useTranslation();
@@ -575,7 +585,19 @@ export default function App() {
   // Guards badge evaluation so it runs at most once per completed run, and holds
   // the ids newly earned this run for the game-end summary card.
   const badgesFiredRef = useRef(false);
-  const [newBadges, setNewBadges] = useState<{ id: BadgeId; tier: Tier }[]>([]);
+  // Every badge newly earned this run (mid-game sweeps + the final one), keyed
+  // by family. Feeds the game-end summary list and the reveal finale.
+  const [newBadges, setNewBadges] = useState<CelebratedBadge[]>([]);
+  const newBadgesRef = useRef<CelebratedBadge[]>([]);
+  useEffect(() => { newBadgesRef.current = newBadges; }, [newBadges]);
+  // Pending top-of-screen toasts (one shown at a time) and the badges handed to
+  // the end-of-round reveal overlay.
+  const [toastQueue, setToastQueue] = useState<CelebratedBadge[]>([]);
+  const [revealBadges, setRevealBadges] = useState<CelebratedBadge[]>([]);
+  // Last answered-question count a mid-game badge sweep ran at, so each answer
+  // triggers at most one sweep. A per-run running id for celebrated badges.
+  const midSweepCountRef = useRef(0);
+  const badgeUidRef = useRef(0);
 
   const isPlaying = running && !paused;
   const isStopped = !running && !paused;
@@ -658,6 +680,8 @@ export default function App() {
     setShowStats(false); setGameEnded(false);
     tier3FiredRef.current = false;
     badgesFiredRef.current = false; setNewBadges([]);
+    midSweepCountRef.current = 0;
+    setToastQueue([]); setRevealBadges([]);
   }, [histKey]);
 
   // Mirror the open sub-page in a ref so the Escape handler (bound once per
@@ -706,6 +730,69 @@ export default function App() {
 
   const sessionHistory = historyOps.history;
 
+  // Evaluate this run's session badges plus a retroactive pass over all-time
+  // history, award every reached tier (idempotent), and return the families
+  // that were genuinely new this call. Mid-game it drops the badges that a
+  // later answer could still invalidate — a clean run or whole-round accuracy
+  // is only final once the round is over.
+  const sweepBadges = useCallback((midGame: boolean): CelebratedBadge[] => {
+    const sessionSnap: SessionSnapshot = {
+      questionsAnswered: scoring.session.questionsAnswered,
+      maxQuestions: selector.runQuestionCount(),
+      longestStreak: scoring.session.longestStreak,
+      entries: historyOps.history,
+      instrument,
+    };
+    const lifetimeSnap: LifetimeSnapshot = {
+      instrumentEntries: historyForInstrument(historyOps.allHistory, instrument.id),
+      allEntries: flattenHistory(historyOps.allHistory),
+      instrument,
+    };
+    const reached: Partial<Record<BadgeId, Tier>> = {
+      ...evaluateSession(sessionSnap),
+      ...evaluateLifetime(lifetimeSnap),
+    };
+    if (midGame) {
+      delete reached.perfect_session;
+      delete reached.flawless_sprint;
+      delete reached.every_string;
+    }
+    const earned: CelebratedBadge[] = [];
+    for (const [idStr, tier] of Object.entries(reached) as [BadgeId, Tier | undefined][]) {
+      if (!tier) continue;
+      const def = badgeDef(idStr, instrument);
+      if (!def) continue;
+      const prevTier = earnedTier(idStr, instrument.id);
+      const newly = awardFamilyUpTo(idStr, instrument.id, tier, def.levels);
+      if (newly.length > 0) {
+        earned.push({
+          uid: ++badgeUidRef.current,
+          id: idStr,
+          tier: newly[newly.length - 1],
+          upgrade: prevTier !== null,
+        });
+      }
+    }
+    return earned;
+  }, [
+    scoring.session.questionsAnswered, scoring.session.longestStreak,
+    selector, historyOps.history, historyOps.allHistory, instrument,
+  ]);
+
+  // Mid-game achievement check: after every answered question, sweep for newly
+  // earned badges and slide a toast in from the top for each. The full list is
+  // also accumulated so the end-of-round reveal shows everything won this run.
+  useEffect(() => {
+    if (!running || paused) return;
+    const n = scoring.session.questionsAnswered;
+    if (n === 0 || n === midSweepCountRef.current) return;
+    midSweepCountRef.current = n;
+    const earned = sweepBadges(true);
+    if (earned.length === 0) return;
+    setNewBadges(prev => mergeCelebrated(prev, earned));
+    if (showScore) setToastQueue(q => [...q, ...earned]);
+  }, [running, paused, scoring.session.questionsAnswered, showScore, sweepBadges]);
+
   // Detect game end (skipped when Auto Advance is about to continue straight
   // into the next stage, so the "round complete" screen doesn't flash up for
   // a transition that isn't actually ending the session).
@@ -720,6 +807,7 @@ export default function App() {
       // (tier3FiredRef also blocks a repeat if this effect re-runs).
       const score = scoring.session.score;
       const prevBest = loadBest(histKey);
+      let pbCardShown = false;
       if (!tier3FiredRef.current && score > 0 && score > (prevBest?.score ?? 0)) {
         tier3FiredRef.current = true;
         const hist = historyOps.history;
@@ -729,49 +817,41 @@ export default function App() {
         saveBest(histKey, { score, streak: scoring.session.longestStreak, accuracy });
         // Personal-best progress is always recorded; the celebration itself is
         // a score effect, so it is skipped in "serious learning" mode.
-        if (showScore) celebrateTier3(score, scoring.session.longestStreak);
+        if (showScore) pbCardShown = true;
       }
 
-      // Achievements: evaluate this run's session badges plus a retroactive
-      // pass over the instrument's all-time history, once per completed run
-      // (badgesFiredRef, like tier3FiredRef, blocks a repeat if the effect
-      // re-runs). Awarding is never gated on `showScore` — badges accrue in
-      // Silent / Score-off mode; only the celebration below is a score effect.
+      // Achievements: a final sweep (session badges that only settle at the end
+      // + a retroactive lifetime pass), once per completed run (badgesFiredRef,
+      // like tier3FiredRef, blocks a repeat if the effect re-runs). Awarding is
+      // never gated on `showScore` — badges accrue in Silent / Score-off mode;
+      // only the toast and the reveal below are score effects.
+      let revealList: CelebratedBadge[] = [];
       if (!badgesFiredRef.current) {
         badgesFiredRef.current = true;
-        const sessionSnap: SessionSnapshot = {
-          questionsAnswered: scoring.session.questionsAnswered,
-          maxQuestions: selector.runQuestionCount(),
-          longestStreak: scoring.session.longestStreak,
-          entries: historyOps.history,
-          instrument,
-        };
-        const lifetimeSnap: LifetimeSnapshot = {
-          instrumentEntries: historyForInstrument(historyOps.allHistory, instrument.id),
-          allEntries: flattenHistory(historyOps.allHistory),
-          instrument,
-        };
-        const earned: { id: BadgeId; tier: Tier }[] = [];
-        const reached = { ...evaluateSession(sessionSnap), ...evaluateLifetime(lifetimeSnap) };
-        for (const [idStr, tier] of Object.entries(reached) as [BadgeId, Tier | undefined][]) {
-          if (!tier) continue;
-          const def = badgeDef(idStr, instrument);
-          if (!def) continue;
-          const newly = awardFamilyUpTo(idStr, instrument.id, tier, def.levels);
-          if (newly.length > 0) earned.push({ id: idStr, tier: newly[newly.length - 1] });
-        }
-        if (earned.length > 0) {
-          setNewBadges(earned);
+        const merged = mergeCelebrated(newBadgesRef.current, sweepBadges(false));
+        if (merged.length > 0) {
+          setNewBadges(merged);
           if (showScore) {
-            const def = badgeDef(earned[0].id, instrument);
-            const name = def ? t(def.name) : t('New badge');
-            celebrateTier2(`🏅 ${name} — ${t(TIER_LABEL[earned[0].tier])}`);
+            setToastQueue([]); // the reveal supersedes any still-queued mid-game toasts
+            revealList = merged;
           }
         }
       }
+
+      // The personal-best card is a blocking modal the user must dismiss; only
+      // then does the badge reveal fly in, so it never lands hidden behind it.
+      // With no PB card, a short beat lets the score register first.
+      if (pbCardShown) {
+        celebrateTier3(
+          score, scoring.session.longestStreak,
+          revealList.length > 0 ? () => setRevealBadges(revealList) : undefined,
+        );
+      } else if (revealList.length > 0) {
+        window.setTimeout(() => setRevealBadges(revealList), 900);
+      }
     }
     wasRunningRef.current = running;
-  }, [running, paused, pendingAutoAdvance, scoring.session.questionsAnswered, scoring.session.score, scoring.session.longestStreak, histKey, historyOps.history, historyOps.allHistory, instrument, selector.state.difficulty, selector.state.autoAdvance, showScore]);
+  }, [running, paused, pendingAutoAdvance, scoring.session.questionsAnswered, scoring.session.score, scoring.session.longestStreak, histKey, historyOps.history, historyOps.allHistory, instrument, selector.state.difficulty, selector.state.autoAdvance, showScore, sweepBadges]);
 
   // Push the signed-in player's leaderboard row after each completed run, so
   // the public board tracks their all-time XP without them opening it. Guests
@@ -808,6 +888,8 @@ export default function App() {
     tier3FiredRef.current = false;
     badgesFiredRef.current = false;
     setNewBadges([]);
+    midSweepCountRef.current = 0;
+    setToastQueue([]); setRevealBadges([]);
     // Count-in: the on-screen countdown steps 3 → 2 → 1 once a second and the
     // game comes in on "0" at t = 3s. The four drum-stick clicks run on their
     // own steady, faster cadence — one every 750ms (t = 0, 0.75, 1.5, 2.25s),
@@ -1518,7 +1600,7 @@ export default function App() {
                   })}
                 </div>
               )}
-              <button className="clear-btn" onClick={click(() => { setGameEnded(false); setNewBadges([]); })}>{t('OK')}</button>
+              <button className="clear-btn" onClick={click(() => { setGameEnded(false); setNewBadges([]); setToastQueue([]); setRevealBadges([]); })}>{t('OK')}</button>
             </div>
           )}
 
@@ -1610,6 +1692,20 @@ export default function App() {
           accidental={accidental}
           onClose={() => setShowVoiceCalibration(false)}
           onProfileChanged={() => setVoiceEngineEpoch((n) => n + 1)}
+        />
+      )}
+
+      <BadgeToast
+        key={toastQueue[0]?.uid ?? 'idle'}
+        badge={toastQueue[0] ?? null}
+        instrument={instrument}
+        onDone={() => setToastQueue(q => q.slice(1))}
+      />
+      {gameEnded && revealBadges.length > 0 && (
+        <BadgeRevealOverlay
+          badges={revealBadges}
+          instrument={instrument}
+          onClose={() => setRevealBadges([])}
         />
       )}
     </div>
