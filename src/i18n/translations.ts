@@ -471,6 +471,11 @@ const he: Record<string, string> = {
   'Access runs until': 'הגישה בתוקף עד',
   'Pro isn’t on sale yet — everything above stays free to try in the meantime.':
     'מסלול Pro עדיין אינו נמכר — עד אז כל מה שלמעלה זמין לניסיון בחינם.',
+  // Admin-only Pro toggle (settings ▸ Pro)
+  'Admin: Pro on your account': 'מנהל: Pro בחשבון שלך',
+  'Grants or revokes Pro for your own account only. Writes to the entitlements table and syncs across your devices.':
+    'מעניק או מבטל Pro עבור החשבון שלך בלבד. נכתב לטבלת ההרשאות ומסונכרן בין המכשירים שלך.',
+  'Free': 'חינמי',
 
   // Guest-merge prompt (design §5.4) — shown on the first sign-in on a device
   // that already has local guest practice history.

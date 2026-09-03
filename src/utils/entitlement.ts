@@ -81,3 +81,34 @@ export async function fetchEntitlement(userId: string): Promise<Entitlement> {
   writeCache(userId, result);
   return result;
 }
+
+/**
+ * Admin self-serve grant/revoke of Pro for the caller's OWN account
+ * (0010_admin_entitlement_toggle.sql). `'pro'` upserts a non-expiring
+ * `source='comp'` row; `'free'` deletes the row. The RLS policy still requires
+ * the caller to be in `public.admins` and to be touching their own row, so a
+ * non-admin call fails at the database. On success the offline cache is
+ * updated so the change survives a reload before the next `fetchEntitlement`.
+ * Throws when Supabase is unconfigured or the write is rejected.
+ */
+export async function setOwnEntitlement(userId: string, tier: Tier): Promise<Entitlement> {
+  if (!supabase) throw new Error('Supabase is not configured');
+
+  if (tier === 'pro') {
+    const { error } = await supabase
+      .from('entitlements')
+      .upsert({ user_id: userId, tier: 'pro', source: 'comp', expires_at: null });
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from('entitlements')
+      .delete()
+      .eq('user_id', userId);
+    if (error) throw error;
+  }
+
+  const result: Entitlement =
+    tier === 'pro' ? { tier: 'pro', expiresAt: null, source: 'comp' } : FREE;
+  writeCache(userId, result);
+  return result;
+}

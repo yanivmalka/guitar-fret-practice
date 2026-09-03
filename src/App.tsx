@@ -37,6 +37,7 @@ import { computeMyStats, leaderboardName, upsertMyEntry } from './utils/leaderbo
 import { BadgeGrid } from './components/BadgeGrid';
 import { UpgradeCard } from './components/UpgradeCard';
 import { ProGate } from './components/ProGate';
+import { setOwnEntitlement } from './utils/entitlement';
 import { GuestMergePrompt } from './components/GuestMergePrompt';
 import { registerUpgradeHandler } from './utils/upgradeDrawer';
 import { BadgeMedal, BadgeMedalDefs } from './components/BadgeMedal';
@@ -45,7 +46,7 @@ import {
   badgeList, badgeDef, evaluateSession, evaluateLifetime, awardFamilyUpTo, earnedTier, isEarned, TIER_LABEL,
   type BadgeId, type SessionSnapshot, type LifetimeSnapshot, type Tier,
 } from './utils/badges';
-import { vlog } from './utils/debugLog';
+import { vlog, verror } from './utils/debugLog';
 import type { SpeechNotation } from './utils/speechVocab';
 import { resetSpeechEngine, type VoiceEnginePref } from './utils/speech';
 import {
@@ -1382,7 +1383,38 @@ export default function App() {
       id: 'upgrade',
       title: `⭐ ${t('Pro')}`,
       blurb: '',
-      body: <UpgradeCard />,
+      body: (
+        <>
+          <UpgradeCard />
+          {auth.admin && auth.user && (
+            <SettingCard
+              label={t('Admin: Pro on your account')}
+              help={t('Grants or revokes Pro for your own account only. Writes to the entitlements table and syncs across your devices.')}
+            >
+              <SegmentedControl<'free' | 'pro'>
+                ariaLabel={t('Admin: Pro on your account')}
+                value={auth.tier}
+                options={[
+                  { value: 'free', label: t('Free') },
+                  { value: 'pro', label: t('Pro') },
+                ]}
+                onChange={(next) => {
+                  const userId = auth.user?.id;
+                  if (!userId || next === auth.tier) return;
+                  void (async () => {
+                    try {
+                      await setOwnEntitlement(userId, next);
+                      await auth.refreshEntitlement();
+                    } catch (e) {
+                      verror('[admin] Pro toggle failed', e);
+                    }
+                  })();
+                }}
+              />
+            </SettingCard>
+          )}
+        </>
+      ),
     }] : []),
     {
       id: 'badges',
