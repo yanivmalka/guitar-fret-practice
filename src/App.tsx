@@ -1006,13 +1006,13 @@ export default function App() {
         </SettingCard>
       ),
     },
-    ...(hasAnyHistory ? [{
+    {
       id: 'stats',
       title: `📊 ${t('Stats & progress')}`,
       blurb: '',
       body: null,
       onSelect: () => { setShowStats(true); },
-    }] : []),
+    },
     ...(voice.supported ? [{
       id: 'answer',
       title: `👆 ${t('Answer mode')}`,
