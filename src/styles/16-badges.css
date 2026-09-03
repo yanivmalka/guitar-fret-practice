@@ -493,3 +493,42 @@
   font-weight: 700;
   color: #9a9ab8;
 }
+
+/* ── Admin test controls (admins only) ───────────────────────────────────────
+   Grant / Reset on every tile so an admin can exercise the wall without
+   grinding real conditions. Deliberately utilitarian — kept apart from the
+   trophy-shelf visual language so it never reads as part of the achievement. */
+.badge-admin-note {
+  margin: 0;
+  padding: 9px 11px;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  color: #9a9ab8;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px dashed #3a3a5c;
+  border-radius: 10px;
+}
+.badge-admin-row {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  margin-top: auto;
+  padding-top: 8px;
+}
+.badge-admin-btn {
+  flex: 1;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #c8c8de;
+  background: #1d1d38;
+  border: 1px solid #3a3a5c;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.badge-admin-btn:hover:not(:disabled) { border-color: #00e5ff; color: #fff; }
+.badge-admin-btn--reset:hover:not(:disabled) { border-color: #ff6b6b; color: #ffd7d7; }
+.badge-admin-btn:disabled { opacity: 0.38; cursor: default; }

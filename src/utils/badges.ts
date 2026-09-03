@@ -363,6 +363,49 @@ export function awardFamilyUpTo(
   return newly;
 }
 
+// ── Admin test overrides ─────────────────────────────────────────────────────
+// So an admin can exercise the Badges wall without grinding the real
+// conditions. `resetBadgeFamily` wipes a family's stored tiers across every
+// instrument scope; `grantNextTier` stamps the next rung regardless of whether
+// it was earned. A session family stays reset (those only accrue at game-end);
+// a lifetime family re-derives from play history the next time the Badges
+// screen evaluates it, so a reset there only sticks if history is also cleared.
+
+/** Remove every stored tier of one badge family, across all instrument scopes. */
+export function resetBadgeFamily(id: BadgeId): void {
+  const store = loadBadges();
+  let changed = false;
+  for (const key of Object.keys(store)) {
+    const base = key.includes('::') ? key.slice(0, key.indexOf('::')) : key;
+    if (base === id || base.startsWith(`${id}@`)) {
+      delete store[key];
+      changed = true;
+    }
+  }
+  if (changed) saveBadges(store);
+}
+
+/**
+ * Stamp the next not-yet-earned tier of a family (climbing Bronze→…→Platinum),
+ * or the bare badge for a role badge with no tiers. Returns the tier granted,
+ * or null when the family is already at its top rung.
+ */
+export function grantNextTier(
+  id: BadgeId,
+  instrumentId: string | undefined,
+  familyLevels: readonly LevelDef[],
+): Tier | null {
+  if (familyLevels.length === 0) {
+    return awardBadge(id, instrumentId) ? 'bronze' : null;
+  }
+  const current = earnedTier(id, instrumentId);
+  const nextIdx = current === null ? 0 : tierIndex(current) + 1;
+  const next = familyLevels[nextIdx]?.tier;
+  if (!next) return null;
+  awardBadge(id, instrumentId, next);
+  return next;
+}
+
 // ── Evaluation ───────────────────────────────────────────────────────────────
 export interface SessionSnapshot {
   questionsAnswered: number;

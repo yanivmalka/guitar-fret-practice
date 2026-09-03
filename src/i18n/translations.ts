@@ -290,6 +290,11 @@ const he: Record<string, string> = {
   'unlocked': 'נפתחו',
   'Max': 'שיא',
   'Earned': 'הושג',
+  // Admin test controls
+  'Grant': 'הענק',
+  'Reset': 'אפס',
+  'Admin tools: Grant or Reset each badge to test it. History-based badges re-appear on reopen unless you also clear history.':
+    'כלי מנהל: אפשר להעניק או לאפס כל תג לצורך בדיקה. תגים מבוססי־היסטוריה יחזרו בפתיחה מחדש, אלא אם מנקים גם את ההיסטוריה.',
   // Family names
   'Perfect Session': 'סיבוב מושלם',
   'Speed Demon': 'שד מהירות',

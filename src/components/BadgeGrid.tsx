@@ -1,11 +1,13 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useReducer } from 'react';
 import type { HistoryEntry } from '../utils/music';
 import type { InstrumentConfig } from '../utils/instruments';
 import {
   badgeList, evaluateLifetime, awardBadge, awardFamilyUpTo, earnedTier, earnedAt, badgeProgress,
+  resetBadgeFamily, grantNextTier,
   TIERS, TIER_LABEL, type BadgeDef, type LifetimeSnapshot, type Tier,
 } from '../utils/badges';
 import { BadgeMedal, BadgeMedalDefs, type Metal } from './BadgeMedal';
+import { playClickSound, haptic } from '../utils/feedback';
 import { useTranslation } from '../i18n/useTranslation';
 
 function higherTier(a: Tier | null, b: Tier | null): Tier | null {
@@ -64,6 +66,11 @@ export function BadgeGrid({
 }) {
   const { t } = useTranslation();
 
+  // The tiles read the badge store synchronously on every render (earnedTier /
+  // earnedAt). The admin Grant / Reset controls mutate that store in place, so
+  // bump a counter to re-render the wall after one fires.
+  const [, refreshWall] = useReducer((n: number) => n + 1, 0);
+
   const lifetime = useMemo<LifetimeSnapshot>(
     () => ({ instrumentEntries, allEntries, instrument }),
     [instrumentEntries, allEntries, instrument],
@@ -102,6 +109,11 @@ export function BadgeGrid({
           <span className="badge-collection-meter-fill" style={{ width: `${collectedPct}%` }} />
         </span>
       </div>
+      {isAdmin && (
+        <p className="badge-admin-note">
+          {t('Admin tools: Grant or Reset each badge to test it. History-based badges re-appear on reopen unless you also clear history.')}
+        </p>
+      )}
       <div className="badge-grid">
         {defs.map(def => (
           <BadgeTile
@@ -110,6 +122,8 @@ export function BadgeGrid({
             instrument={instrument}
             lifetime={lifetime}
             tier={def.kind === 'role' ? 'gold' : effectiveTier(def)}
+            isAdmin={isAdmin}
+            onAdminChange={refreshWall}
           />
         ))}
       </div>
@@ -118,13 +132,17 @@ export function BadgeGrid({
 }
 
 function BadgeTile({
-  def, instrument, lifetime, tier,
+  def, instrument, lifetime, tier, isAdmin = false, onAdminChange,
 }: {
   def: BadgeDef;
   instrument: InstrumentConfig;
   lifetime: LifetimeSnapshot;
   /** The family's highest reached tier, or null if not yet earned. */
   tier: Tier | null;
+  /** Current account is an app administrator — shows the Grant / Reset controls. */
+  isAdmin?: boolean;
+  /** Called after an admin Grant / Reset mutates the badge store. */
+  onAdminChange?: () => void;
 }) {
   const { t, lang } = useTranslation();
 
@@ -258,6 +276,38 @@ function BadgeTile({
           <span className="badge-progress-txt">
             {tierWord(nextLevel.tier)} · {progress.current}/{progress.target}
           </span>
+        </span>
+      )}
+
+      {/* Admin-only test controls. The Admin role medal itself is deliberately
+          excluded — it re-grants from the account, so there is nothing to test
+          and nothing an admin should be able to strip from themselves. */}
+      {isAdmin && def.id !== 'admin' && (
+        <span className="badge-admin-row">
+          <button
+            type="button"
+            className="badge-admin-btn"
+            disabled={isRole ? earned : maxedOut}
+            onClick={() => {
+              playClickSound(); haptic.tap();
+              grantNextTier(def.id, instrument.id, def.levels);
+              onAdminChange?.();
+            }}
+          >
+            {t('Grant')}
+          </button>
+          <button
+            type="button"
+            className="badge-admin-btn badge-admin-btn--reset"
+            disabled={!earned}
+            onClick={() => {
+              playClickSound(); haptic.tap();
+              resetBadgeFamily(def.id);
+              onAdminChange?.();
+            }}
+          >
+            {t('Reset')}
+          </button>
         </span>
       )}
     </div>
