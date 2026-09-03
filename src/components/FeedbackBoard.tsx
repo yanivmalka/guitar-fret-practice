@@ -266,7 +266,7 @@ export function FeedbackBoard({
         </button>
       </div>
       {dictation.listening && (
-        <p className="board-mic-hint">{t('Listening… speak now, tap ⏹ to stop.')}</p>
+        <p className="board-mic-hint">{t('Listening… say one sentence — it stops on its own.')}</p>
       )}
       {micError && <p className="board-error">{micError}</p>}
       {sent && !error && (

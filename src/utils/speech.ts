@@ -76,6 +76,15 @@ export interface SpeechListenOptions {
    * Ignored by the Web and native engines.
    */
   profileVocabId?: string;
+  /**
+   * Keep the mic open past the first phrase (default true). The game's answer
+   * path needs this — a question lasts longer than one utterance. Dictation
+   * passes false so a tap of the mic captures exactly one phrase: Android ends
+   * the recogniser after every utterance regardless, and each restart plays
+   * the system's recognition chime, so restarting for a continuous feel turns
+   * a thinking pause into a stream of beeps.
+   */
+  continuous?: boolean;
   onResult: (r: SpeechResult) => void;
   onError: (e: SpeechEngineError) => void;
   /** Fired once the recogniser has stopped, for any reason. */
@@ -251,7 +260,7 @@ class WebSpeechEngine implements SpeechEngine {
     // Keep the mic open for the whole question. In non-continuous mode the
     // browser ends the turn after the first phrase or a brief silence, which
     // left the app deaf for the rest of the question.
-    rec.continuous = true;
+    rec.continuous = opts.continuous !== false;
     rec.interimResults = true;
     rec.maxAlternatives = 5;
 

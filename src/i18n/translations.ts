@@ -582,7 +582,7 @@ const he: Record<string, string> = {
   'Start voice typing': 'התחל הקלדה קולית',
   'Sending…': 'שולח…',
   'Send': 'שלח',
-  'Listening… speak now, tap ⏹ to stop.': 'מקשיב… דבר עכשיו, הקש ⏹ כדי לעצור.',
+  'Listening… say one sentence — it stops on its own.': 'מקשיב… אמור משפט אחד — ייעצר לבד.',
   'Thanks — your message was sent.': 'תודה — ההודעה שלך נשלחה.',
   'Unknown': 'לא ידוע',
   'You': 'אתה',
