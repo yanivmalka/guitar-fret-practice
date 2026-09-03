@@ -3,7 +3,7 @@ import { notes, getCofNotes, getCorrectCofNote, getValidFrets, notesMatch, displ
 import type { AccidentalMode, OrderMode, HistoryEntry } from '../utils/music';
 import type { ScoreResult } from './useScoring';
 import { playNote, playNoteSingle, stopPlayback, beep, isSoundPlaying, soundRemainingMs, pauseAudioContext, resumeAudioContext } from '../utils/audio';
-import { haptic, playCorrectChime, correctChimeRemainingMs, celebrateTier1, celebrateTier2 } from '../utils/feedback';
+import { haptic, playCorrectChime, correctChimeRemainingMs, showFloatingText } from '../utils/feedback';
 import { vlog } from '../utils/debugLog';
 
 interface GameSettings {
@@ -51,8 +51,8 @@ interface ScoreOps {
   getQuestionTime: (baseTime: number) => number;
   // When false ("serious learning" mode) the score itself is still tracked
   // (history + personal best are unaffected) but every score-flavoured effect
-  // is suppressed: the floating "+N", the streak-milestone rings/banner/haptic
-  // and the milestone pause between questions. Defaults to true.
+  // is suppressed: the floating "+N" and the milestone pause between questions.
+  // Defaults to true.
   showScore?: boolean;
 }
 
@@ -153,17 +153,17 @@ export function useGameEngine(
   const scoreCorrect = useCallback((elapsedSeconds: number): ScoreResult => {
     const result = onCorrect(elapsedSeconds, questionTimeRef.current);
     playCorrectChime();
+    haptic.correct();
 
+    // A small floating "+N" by the live score — a clean "you scored" cue with
+    // no ring. Streak milestones (3/5/10…) get no in-game celebration: the
+    // streak shows only through the score multiplier and the HUD.
     if (showScore) {
       const scoreEl = document.getElementById('live-score');
-      if (scoreEl) celebrateTier1(scoreEl, `+${result.points}`);
-    }
-
-    if (showScore && result.milestone) {
-      haptic.milestone();
-      celebrateTier2(`${result.streak} STREAK!`);
-    } else {
-      haptic.correct();
+      if (scoreEl) {
+        const rect = scoreEl.getBoundingClientRect();
+        showFloatingText(`+${result.points}`, '#0ff', 800, rect.left + rect.width / 2, rect.top);
+      }
     }
 
     return result;

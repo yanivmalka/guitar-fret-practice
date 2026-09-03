@@ -120,7 +120,7 @@ export function playToggleOffSound() {
 
 // Satisfying chime for correct answer (major triad: C5 + E5 + G5)
 const CHIME_STAGGER = 0.03; // gap between the three notes
-const CHIME_TAIL = 0.4;     // per-note ring-out
+const CHIME_TAIL = 0.26;    // per-note ring-out — kept short so it doesn't bleed into the next question note
 const CHIME_GAP = 0.1;      // extra silence held after the tail before the next question note
 let _chimeEndTime = 0;      // wall-clock ms when the chime has fully finished (incl. CHIME_GAP)
 
@@ -139,7 +139,7 @@ export function playCorrectChime() {
 
     const t = ctx.currentTime + i * CHIME_STAGGER;
     gain.gain.setValueAtTime(0, t);
-    gain.gain.linearRampToValueAtTime(0.15, t + 0.02);
+    gain.gain.linearRampToValueAtTime(0.08, t + 0.02); // softer peak so it doesn't compete with the question note
     gain.gain.exponentialRampToValueAtTime(0.001, t + CHIME_TAIL);
 
     osc.start(t);
