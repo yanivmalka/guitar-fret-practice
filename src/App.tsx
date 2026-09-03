@@ -35,8 +35,8 @@ import { computeMyStats, leaderboardName, upsertMyEntry } from './utils/leaderbo
 import { BadgeGrid } from './components/BadgeGrid';
 import { BadgeMedal, BadgeMedalDefs } from './components/BadgeMedal';
 import {
-  badgeList, badgeDef, evaluateSession, evaluateLifetime, awardBadge, isEarned,
-  type BadgeId, type SessionSnapshot, type LifetimeSnapshot,
+  badgeList, badgeDef, evaluateSession, evaluateLifetime, awardFamilyUpTo, isEarned, TIER_LABEL,
+  type BadgeId, type SessionSnapshot, type LifetimeSnapshot, type Tier,
 } from './utils/badges';
 import { vlog } from './utils/debugLog';
 import type { SpeechNotation } from './utils/speechVocab';
@@ -575,7 +575,7 @@ export default function App() {
   // Guards badge evaluation so it runs at most once per completed run, and holds
   // the ids newly earned this run for the game-end summary card.
   const badgesFiredRef = useRef(false);
-  const [newBadges, setNewBadges] = useState<BadgeId[]>([]);
+  const [newBadges, setNewBadges] = useState<{ id: BadgeId; tier: Tier }[]>([]);
 
   const isPlaying = running && !paused;
   const isStopped = !running && !paused;
@@ -751,17 +751,20 @@ export default function App() {
           allEntries: flattenHistory(historyOps.allHistory),
           instrument,
         };
-        const earned: BadgeId[] = [];
-        for (const id of evaluateSession(sessionSnap)) {
-          if (awardBadge(id, instrument.id)) earned.push(id);
-        }
-        for (const id of evaluateLifetime(lifetimeSnap)) {
-          if (awardBadge(id, instrument.id)) earned.push(id);
+        const earned: { id: BadgeId; tier: Tier }[] = [];
+        const reached = { ...evaluateSession(sessionSnap), ...evaluateLifetime(lifetimeSnap) };
+        for (const [idStr, tier] of Object.entries(reached) as [BadgeId, Tier | undefined][]) {
+          if (!tier) continue;
+          const def = badgeDef(idStr, instrument);
+          if (!def) continue;
+          const newly = awardFamilyUpTo(idStr, instrument.id, tier, def.levels);
+          if (newly.length > 0) earned.push({ id: idStr, tier: newly[newly.length - 1] });
         }
         if (earned.length > 0) {
           setNewBadges(earned);
           if (showScore) {
-            celebrateTier2(`🏅 ${badgeDef(earned[0], instrument)?.name ?? t('New badge')}`);
+            const name = badgeDef(earned[0].id, instrument)?.name ?? t('New badge');
+            celebrateTier2(`🏅 ${name} — ${TIER_LABEL[earned[0].tier]}`);
           }
         }
       }
@@ -1484,12 +1487,12 @@ export default function App() {
               {newBadges.length > 0 && (
                 <div className="game-end-badges">
                   <BadgeMedalDefs />
-                  {newBadges.map(id => {
+                  {newBadges.map(({ id, tier }) => {
                     const def = badgeDef(id, instrument);
                     return (
                       <div className="game-end-badge" key={id}>
-                        {def && <BadgeMedal def={def} instrumentId={instrument.id} size={30} />}
-                        {t('New badge')} · {def?.name ?? id}
+                        <BadgeMedal id={id} instrumentId={instrument.id} tier={tier} size={30} />
+                        {t('New badge')} · {def?.name ?? id} — {TIER_LABEL[tier]}
                       </div>
                     );
                   })}

@@ -1,18 +1,22 @@
-import type { BadgeDef } from '../utils/badges';
+import type { BadgeId, Tier } from '../utils/badges';
 
 /**
  * A struck-medal rendering for a badge: a domed metal disc with a raised rim,
  * a specular gloss and a per-badge emblem stamped into the metal (a dark inlay
  * over a 1px light bevel). Ported from the "Fretboard Badge Book" design page.
  *
+ * The metal is the *tier* (bronze/silver/gold/platinum, plus onyx for the
+ * untiered Admin role) — the same tier looks identical on guitar and bass.
+ * Instrument identity lives entirely in the *emblem* (a bass badge always
+ * carries a distinct emblem from its guitar twin, e.g. strings4 vs strings6),
+ * so a guitar/bass pair is never confusable and a tier is always recognisable
+ * across every family.
+ *
  * The shared metal gradients live in <BadgeMedalDefs/>, which must be mounted
  * once on any page that renders a <BadgeMedal/>.
  */
 
-// `steel` / `gold` are the guitar instrument-scoped finishes; `bassSteel`
-// (darker graphite) and `bassGold` (rosé / copper) are their bass counterparts,
-// so a guitar badge and its bass twin never look alike.
-type Metal = 'gold' | 'bronze' | 'steel' | 'onyx' | 'bassSteel' | 'bassGold';
+export type Metal = Tier | 'onyx';
 type Emblem = keyof typeof EMBLEMS;
 
 // Emblems authored in the 100×100 medal space, centred on 50,50, using
@@ -40,6 +44,12 @@ const EMBLEMS = {
   string:
     '<path d="M30 50 q5 -11 10 0 t10 0 t10 0 t10 0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>' +
     '<circle cx="30" cy="50" r="3.6" fill="currentColor"/><circle cx="70" cy="50" r="3.6" fill="currentColor"/>',
+  // Bass per-string variant — one thick, slack wave instead of guitar's four
+  // brisk ones, echoing the same "thicker = lower/bass" language as strings4
+  // and lowstring below.
+  stringBass:
+    '<path d="M28 50 q11 -13 22 0 t22 0" fill="none" stroke="currentColor" stroke-width="4.4" stroke-linecap="round"/>' +
+    '<circle cx="28" cy="50" r="3.8" fill="currentColor"/><circle cx="72" cy="50" r="3.8" fill="currentColor"/>',
   strings6:
     '<line x1="32" y1="33" x2="68" y2="33" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>' +
     '<g stroke="currentColor" stroke-width="2.5" stroke-linecap="round">' +
@@ -101,6 +111,11 @@ const EMBLEMS = {
     '<g fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round">' +
     '<path d="M40 31 h-8 v38 h8"/><path d="M60 31 h8 v38 h-8"/></g>' +
     '<line x1="46" y1="50" x2="54" y2="50" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/>',
+  // Bass variant — a wider, thicker span (a longer neck to bracket).
+  spanBass:
+    '<g fill="none" stroke="currentColor" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M37 29 h-9 v42 h9"/><path d="M63 29 h9 v42 h-9"/></g>' +
+    '<line x1="44" y1="50" x2="56" y2="50" stroke="currentColor" stroke-width="4.4" stroke-linecap="round"/>',
   // Quick Read — an eye.
   eye:
     '<path d="M27 50 Q50 33 73 50 Q50 67 27 50 Z" fill="none" stroke="currentColor" stroke-width="3.2"/>' +
@@ -116,53 +131,39 @@ const EMBLEMS = {
 } as const;
 
 const INLAY: Record<Metal, string> = {
-  gold:      'rgba(62,42,4,0.86)',
-  bronze:    'rgba(46,23,7,0.86)',
-  steel:     'rgba(30,36,46,0.86)',
-  onyx:      'rgba(224,230,244,0.9)',
-  bassSteel: 'rgba(22,28,38,0.88)',
-  bassGold:  'rgba(58,28,10,0.86)',
+  bronze:   'rgba(46,23,7,0.86)',
+  silver:   'rgba(30,36,46,0.86)',
+  gold:     'rgba(62,42,4,0.86)',
+  platinum: 'rgba(20,30,44,0.88)',
+  onyx:     'rgba(224,230,244,0.9)',
 };
 
-// Which struck emblem + metal each badge wears. Instrument-scoped badges take
-// a bass-specific finish (and, where the emblem counts something, a
-// bass-specific emblem) so a guitar badge never looks like its bass twin.
-function medalSpec(def: BadgeDef, instrumentId?: string): { emblem: Emblem; metal: Metal } {
+// Which emblem a family wears — the instrument-identity axis. Metal (the tier)
+// is picked entirely separately by the caller.
+function familyEmblem(id: BadgeId, instrumentId?: string): Emblem {
   const bass = instrumentId === 'bass';
-  if (def.id.startsWith('string_master_s')) {
-    return { emblem: 'string', metal: bass ? 'bassSteel' : 'steel' };
-  }
-  if (def.id === 'string_master_all') {
-    return { emblem: bass ? 'strings4' : 'strings6', metal: bass ? 'bassGold' : 'gold' };
-  }
-  if (def.id === 'full_neck') {
-    return { emblem: bass ? 'fretboardLong' : 'fretboard', metal: bass ? 'bassGold' : 'gold' };
-  }
-  if (def.id === 'both_ends') {
-    return { emblem: 'span', metal: bass ? 'bassGold' : 'gold' };
-  }
-  if (def.id === 'low_end') {
-    return { emblem: 'lowstring', metal: 'bassSteel' };
-  }
-  const map: Record<string, [Emblem, Metal]> = {
-    perfect_session: ['target', 'bronze'],
-    speed_demon: ['bolt', 'bronze'],
-    flawless_sprint: ['flag', 'bronze'],
-    on_fire: ['flame', 'bronze'],
-    comeback: ['comeback', 'bronze'],
-    every_string: ['strings6', 'bronze'],
-    week_warrior: ['calendar', 'gold'],
-    dedicated: ['calcheck', 'gold'],
-    century: ['hundred', 'gold'],
-    marathoner: ['trophy', 'gold'],
-    sharpshooter: ['crosshair', 'gold'],
-    most_improved: ['trend', 'gold'],
-    quick_read: ['eye', 'gold'],
-    doubling_up: ['pair', 'gold'],
-    admin: ['shield', 'onyx'],
+  if (id.startsWith('string_master_s')) return bass ? 'stringBass' : 'string';
+  if (id === 'string_master_all' || id === 'every_string') return bass ? 'strings4' : 'strings6';
+  if (id === 'full_neck') return bass ? 'fretboardLong' : 'fretboard';
+  if (id === 'both_ends') return bass ? 'spanBass' : 'span';
+  if (id === 'low_end') return 'lowstring';
+  const map: Partial<Record<BadgeId, Emblem>> = {
+    perfect_session: 'target',
+    speed_demon: 'bolt',
+    flawless_sprint: 'flag',
+    on_fire: 'flame',
+    comeback: 'comeback',
+    week_warrior: 'calendar',
+    dedicated: 'calcheck',
+    century: 'hundred',
+    marathoner: 'trophy',
+    sharpshooter: 'crosshair',
+    most_improved: 'trend',
+    quick_read: 'eye',
+    doubling_up: 'pair',
+    admin: 'shield',
   };
-  const [emblem, metal] = map[def.id] ?? ['target', 'gold'];
-  return { emblem, metal };
+  return map[id] ?? 'target';
 }
 
 function medalSVG(metal: Metal, emblem: Emblem): string {
@@ -181,20 +182,22 @@ function medalSVG(metal: Metal, emblem: Emblem): string {
 }
 
 export function BadgeMedal({
-  def, instrumentId, size = 52,
+  id, instrumentId, tier, size = 52,
 }: {
-  def: BadgeDef;
-  /** The instrument this badge is being shown for — picks the bass finish. */
+  id: BadgeId;
+  /** The instrument this badge is being shown for — picks the emblem variant. */
   instrumentId?: string;
+  /** The metal to render — the tier reached (or 'onyx' for the Admin role). */
+  tier: Metal;
   size?: number;
 }) {
-  const { emblem, metal } = medalSpec(def, instrumentId);
+  const emblem = familyEmblem(id, instrumentId);
   return (
     <span
       className="badge-medal"
       style={{ width: size, height: size }}
       aria-hidden="true"
-      dangerouslySetInnerHTML={{ __html: medalSVG(metal, emblem) }}
+      dangerouslySetInnerHTML={{ __html: medalSVG(tier, emblem) }}
     />
   );
 }
@@ -204,47 +207,40 @@ export function BadgeMedalDefs() {
   return (
     <svg width="0" height="0" aria-hidden="true" focusable="false" style={{ position: 'absolute' }}>
       <defs>
-        <radialGradient id="bm-dome-gold" cx="35%" cy="30%" r="78%">
-          <stop offset="0" stopColor="#fff7d6" /><stop offset="0.34" stopColor="#f5d270" />
-          <stop offset="0.7" stopColor="#cf9a2c" /><stop offset="1" stopColor="#87610f" />
-        </radialGradient>
         <radialGradient id="bm-dome-bronze" cx="35%" cy="30%" r="78%">
           <stop offset="0" stopColor="#ffe7cb" /><stop offset="0.34" stopColor="#e2a672" />
           <stop offset="0.7" stopColor="#a86440" /><stop offset="1" stopColor="#5d3418" />
         </radialGradient>
-        <radialGradient id="bm-dome-steel" cx="35%" cy="30%" r="78%">
+        <radialGradient id="bm-dome-silver" cx="35%" cy="30%" r="78%">
           <stop offset="0" stopColor="#ffffff" /><stop offset="0.34" stopColor="#dee2e9" />
           <stop offset="0.7" stopColor="#a3abb8" /><stop offset="1" stopColor="#616976" />
+        </radialGradient>
+        <radialGradient id="bm-dome-gold" cx="35%" cy="30%" r="78%">
+          <stop offset="0" stopColor="#fff7d6" /><stop offset="0.34" stopColor="#f5d270" />
+          <stop offset="0.7" stopColor="#cf9a2c" /><stop offset="1" stopColor="#87610f" />
+        </radialGradient>
+        <radialGradient id="bm-dome-platinum" cx="35%" cy="30%" r="78%">
+          <stop offset="0" stopColor="#ffffff" /><stop offset="0.3" stopColor="#eef6ff" />
+          <stop offset="0.62" stopColor="#bcd6ee" /><stop offset="1" stopColor="#6f93b8" />
         </radialGradient>
         <radialGradient id="bm-dome-onyx" cx="35%" cy="30%" r="78%">
           <stop offset="0" stopColor="#7c7c93" /><stop offset="0.34" stopColor="#45454f" />
           <stop offset="0.7" stopColor="#26262f" /><stop offset="1" stopColor="#111117" />
         </radialGradient>
-        <radialGradient id="bm-dome-bassSteel" cx="35%" cy="30%" r="78%">
-          <stop offset="0" stopColor="#eef2f6" /><stop offset="0.34" stopColor="#aab6c2" />
-          <stop offset="0.7" stopColor="#6a7581" /><stop offset="1" stopColor="#39414c" />
-        </radialGradient>
-        <radialGradient id="bm-dome-bassGold" cx="35%" cy="30%" r="78%">
-          <stop offset="0" stopColor="#ffe8d8" /><stop offset="0.34" stopColor="#e8a878" />
-          <stop offset="0.7" stopColor="#b9713e" /><stop offset="1" stopColor="#77391b" />
-        </radialGradient>
-        <linearGradient id="bm-rim-gold" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#ffeab0" /><stop offset="0.5" stopColor="#c9942a" /><stop offset="1" stopColor="#79540e" />
-        </linearGradient>
         <linearGradient id="bm-rim-bronze" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#f4d0a9" /><stop offset="0.5" stopColor="#ac6c41" /><stop offset="1" stopColor="#61371b" />
         </linearGradient>
-        <linearGradient id="bm-rim-steel" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id="bm-rim-silver" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#f3f5f8" /><stop offset="0.5" stopColor="#aab1bd" /><stop offset="1" stopColor="#69717d" />
+        </linearGradient>
+        <linearGradient id="bm-rim-gold" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#ffeab0" /><stop offset="0.5" stopColor="#c9942a" /><stop offset="1" stopColor="#79540e" />
+        </linearGradient>
+        <linearGradient id="bm-rim-platinum" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#ffffff" /><stop offset="0.5" stopColor="#bcd9f2" /><stop offset="1" stopColor="#5c85ad" />
         </linearGradient>
         <linearGradient id="bm-rim-onyx" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#9797ab" /><stop offset="0.5" stopColor="#3d3d49" /><stop offset="1" stopColor="#191920" />
-        </linearGradient>
-        <linearGradient id="bm-rim-bassSteel" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#dfe6ec" /><stop offset="0.5" stopColor="#7c8794" /><stop offset="1" stopColor="#3a404a" />
-        </linearGradient>
-        <linearGradient id="bm-rim-bassGold" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#f6cbb0" /><stop offset="0.5" stopColor="#b56f45" /><stop offset="1" stopColor="#6a3a1e" />
         </linearGradient>
         <linearGradient id="bm-edge" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#ffffff" stopOpacity="0.55" />
