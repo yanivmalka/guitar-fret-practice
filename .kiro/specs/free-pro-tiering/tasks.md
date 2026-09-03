@@ -38,30 +38,31 @@ working. **Read `design.md` for the "why" and the full code sketches** — this 
 
 ### [MANUAL] 1.0 — Apply the migration
 
-- [ ] Write `supabase/migrations/0007_entitlements.sql` (task 1.1), then run it in the Supabase
-      SQL Editor or `supabase db push`. It creates `public.entitlements` **and**
-      `public.orphan_practice` (used later in Phase 5 — ship both now so there is one migration).
+- [x] Write `supabase/migrations/0007_entitlements.sql` (task 1.1) — **done**.
+- [ ] **[MANUAL — you]** Run it in the Supabase SQL Editor or `supabase db push`. It creates
+      `public.entitlements` **and** `public.orphan_practice` (used later in Phase 5 — ship both
+      now so there is one migration).
 
 ### 1.1 — `supabase/migrations/0007_entitlements.sql` (new)
 
-- [ ] `public.entitlements` exactly as in `design.md` §3.1: `user_id` PK → `auth.users`,
+- [x] `public.entitlements` exactly as in `design.md` §3.1: `user_id` PK → `auth.users`,
       `tier text check (tier in ('free','pro')) default 'free'`, `source text check (...)`,
       `expires_at timestamptz`, `provider_ref text`, `updated_at`, `created_at`.
-- [ ] RLS: enable; **read-own only** for `authenticated` (`using (user_id = auth.uid())`); **no**
+- [x] RLS: enable; **read-own only** for `authenticated` (`using (user_id = auth.uid())`); **no**
       insert/update/delete policy (writes go through the service-role key).
-- [ ] `public.orphan_practice` as in `design.md` §3.1: `history_entries` columns minus the FK,
+- [x] `public.orphan_practice` as in `design.md` §3.1: `history_entries` columns minus the FK,
       plus `batch_id uuid`, `captured_at timestamptz default now()`; RLS enable; **insert-only**
       for `anon, authenticated` (`with check (true)`); **no select policy**.
-- [ ] Grants: `grant usage on schema public to ...`; `grant select on public.entitlements to
+- [x] Grants: `grant usage on schema public to ...`; `grant select on public.entitlements to
       authenticated`; `grant insert on public.orphan_practice to anon, authenticated`.
-- [ ] Follow the header-comment style of `0001_accounts.sql` / `0006_leaderboard.sql`.
+- [x] Follow the header-comment style of `0001_accounts.sql` / `0006_leaderboard.sql`.
 
 ### 1.2 — `src/utils/entitlement.ts` (new)
 
-- [ ] Export `type Tier = 'free' | 'pro'`.
-- [ ] Export `interface Entitlement { tier: Tier; expiresAt: string | null; source: string }`
+- [x] Export `type Tier = 'free' | 'pro'`.
+- [x] Export `interface Entitlement { tier: Tier; expiresAt: string | null; source: string }`
       and `const FREE: Entitlement = { tier: 'free', expiresAt: null, source: 'none' }`.
-- [ ] `export async function fetchEntitlement(userId: string): Promise<Entitlement>` per
+- [x] `export async function fetchEntitlement(userId: string): Promise<Entitlement>` per
       `design.md` §3.2:
   - `!supabase` → `FREE`.
   - `select tier, expires_at, source ... eq('user_id', userId).maybeSingle()`.
@@ -70,39 +71,48 @@ working. **Read `design.md` for the "why" and the full code sketches** — this 
   - row `tier === 'pro'` and (`expires_at` null or `Date.parse(expires_at) > Date.now()`) →
     `{ tier:'pro', expiresAt, source }`; expired → `FREE`.
   - on success, write cache (1.3).
-- [ ] `export function cachedEntitlement(userId: string): Entitlement | null` and an internal
+- [x] `export function cachedEntitlement(userId: string): Entitlement | null` and an internal
       `writeCache(userId, e)` — localStorage key `entitlementCache:<userId>` holding
       `{ value: Entitlement, fetchedAt: number }`. Wrap in try/catch.
 
 ### 1.3 — Extend `src/hooks/useAuth.ts`
 
-- [ ] Add to `AuthState`: `tier: Tier`, `isPro: boolean`, `entitlementLoading: boolean`.
-- [ ] New state: `const [entitlement, setEntitlement] = useState<Entitlement>(FREE)` seeded
-      **synchronously** from `cachedEntitlement(user?.id)` when possible (avoids a Pro→free
-      flicker on reload).
-- [ ] New effect, keyed on `user`, mirroring the existing `admin` effect:
-      `if (!user) { setEntitlement(FREE); return; }` → `fetchEntitlement(user.id)` → set, with a
-      `cancelled` guard.
-- [ ] Foreground refresh: add a `visibilitychange` + `online` listener (or fold into an existing
-      one) that re-runs `fetchEntitlement` when the tab becomes visible after > ~5 min. Expose
-      `refreshEntitlement: () => Promise<void>` from the hook (Phase 7 / dev toggle use it).
-- [ ] Return `tier: entitlement.tier`, `isPro: entitlement.tier === 'pro' && !!user`,
-      `entitlementLoading`.
-- [ ] Guests: no network, `tier='free'`, `entitlementLoading=false`.
+- [x] Add to `AuthState`: `tier: Tier`, `isPro: boolean`, `entitlementLoading: boolean`
+      (+ `refreshEntitlement`).
+- [~] New state `const [entitlement, setEntitlement] = useState<Entitlement>(FREE)`. **The
+      synchronous cache seed was dropped**: this repo's `react-hooks` lint rules flag both
+      `setState` in an effect body *and* reading/writing a ref during render, so the blessed
+      "adjust state while rendering" pattern is unavailable here without a new lint warning. The
+      hook now mirrors the `admin` effect exactly (fetch → set in a `.then`). Offline flicker is
+      still covered — `fetchEntitlement` falls back to the localStorage cache on error, so a
+      returning Pro user stays Pro. Online, there is a ≤1-frame / 1-RTT `free` flash before the
+      lookup resolves, the same tradeoff the existing `admin` flag already accepts.
+- [x] Effect keyed on `user`, mirroring the `admin` effect: `if (!user) return;` →
+      `fetchEntitlement(user.id)` → set, with a `cancelled` guard. Guest state is masked in the
+      return value (`tier: user ? … : 'free'`) rather than reset in the effect body.
+- [x] Foreground refresh: a `visibilitychange` + `online` listener that re-runs
+      `fetchEntitlement` when the tab is visible again after > 5 min (`ENTITLEMENT_MAX_AGE_MS`).
+      `refreshEntitlement: () => Promise<void>` exported from the hook.
+- [x] Return `tier: user ? entitlement.tier : 'free'`, `isPro: entitlement.tier === 'pro' &&
+      !!user`, `entitlementLoading: !!user && entitlementLoading`.
+- [x] Guests: no network, `tier='free'`, `entitlementLoading=false`.
 
 ### 1.4 — Temporary dev readout
 
-- [ ] In [src/App.tsx](src/App.tsx) `settingsSections` `id: 'account'` body, when
+- [x] In [src/App.tsx](src/App.tsx) `settingsSections` `id: 'account'` body, when
       `import.meta.env.DEV`, render a one-line `tier: {auth.tier}` row. Remove or replace in
       Phase 6.
 
 ### Done when
 
-- [ ] `npm run build` + `npm run lint` clean.
-- [ ] Signed-in user with no row shows `tier: free`; after `update public.entitlements set
-      tier='pro'` for that user id (via SQL), a foreground refresh flips the readout to `pro`.
-- [ ] Guest and unconfigured (`!isSupabaseConfigured`) builds show `free`, no console errors.
-- [ ] Commit: `Tiering: entitlement plumbing + 0007 migration (phase 1)`.
+- [x] `npm run build` + `npm run lint` clean (lint warning count unchanged from the 22-warning
+      baseline; no new warnings in the touched files).
+- [ ] **[MANUAL — you, after running the migration]** Signed-in user with no row shows
+      `tier: free`; after `update public.entitlements set tier='pro'` for that user id (via SQL),
+      a foreground refresh flips the readout to `pro`.
+- [ ] **[MANUAL — you]** Guest and unconfigured (`!isSupabaseConfigured`) builds show `free`, no
+      console errors.
+- [x] Commit: `Tiering: entitlement plumbing + 0007 migration (phase 1)` (`1894d3a`).
 
 ---
 
@@ -354,7 +364,8 @@ seam; nothing in Phases 1–6 changes.
 
 ## Progress tracker
 
-- [ ] Phase 1 — Entitlement plumbing + `0007` migration
+- [~] Phase 1 — Entitlement plumbing + `0007` migration — code done & committed (`1894d3a`);
+      pending the [MANUAL] `supabase db push` + the in-app `free`→`pro` verification
 - [ ] Phase 2 — Feature map + `<ProGate>` + upsell shell
 - [ ] Phase 3 — Gate multi-string / mastery maps / voice profile
 - [ ] Phase 4 — 7-day history window
