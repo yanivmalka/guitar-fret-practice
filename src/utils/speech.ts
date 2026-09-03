@@ -158,6 +158,14 @@ class WebSpeechEngine implements SpeechEngine {
   private rec: SpeechRecognitionLike | null = null;
   /** Bumped on every start()/stop() so late callbacks from a prior turn are ignored. */
   private turn = 0;
+  /**
+   * How many leading results in the current turn have already been emitted as
+   * final. In `continuous` mode Chrome sometimes re-fires `onresult` with
+   * `resultIndex` pointing back at an already-final result, which made the
+   * caller append the same phrase again ("doubled"/"tripled" dictation). We
+   * never re-emit a result once its final has gone out.
+   */
+  private finalizedThrough = 0;
 
   isSupported(): boolean {
     return getSRConstructor() !== null;
@@ -205,6 +213,7 @@ class WebSpeechEngine implements SpeechEngine {
     }
     this.stop(); // end any previous turn
     const myTurn = ++this.turn;
+    this.finalizedThrough = 0;
     const rec = new Ctor();
     this.rec = rec;
     rec.lang = opts.lang;
@@ -234,9 +243,13 @@ class WebSpeechEngine implements SpeechEngine {
     rec.onresult = (e: SpeechRecognitionEventLike) => {
       if (myTurn !== this.turn) return;
       for (let i = e.resultIndex; i < e.results.length; i++) {
+        // Skip any result whose final we have already delivered — Chrome can
+        // replay earlier finals on a later event, which doubled the text.
+        if (i < this.finalizedThrough) continue;
         const res = e.results[i];
         const alt = res[0];
         if (!alt) continue;
+        if (res.isFinal) this.finalizedThrough = i + 1;
         // Pass every alternative, not just the top one: an isolated note
         // letter is often ranked below a common homophone ("see" over "C",
         // "for" over "four"), and the caller keeps the first that parses.
