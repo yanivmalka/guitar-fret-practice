@@ -4,6 +4,7 @@ import {
   type SpeechEngine,
   type SpeechEngineError,
 } from '../utils/speech';
+import { vlog } from '../utils/debugLog';
 
 // ── useDictation ───────────────────────────────────────────────────────
 //
@@ -129,6 +130,13 @@ export function useDictation(opts: UseDictationOptions): UseDictationResult {
   // The `resumeTimerRef` guard also makes the per-turn bookkeeping below run
   // once per gap even though onerror and onend both land here.
   const resume = useCallback(() => {
+    vlog('[voice] dict resume?', {
+      listening: listeningRef.current,
+      pending: resumeTimerRef.current !== null,
+      heard: heardThisTurnRef.current,
+      silentTurns: silentTurnsRef.current,
+      keepAlive: keepAliveRef.current,
+    });
     if (!listeningRef.current || resumeTimerRef.current !== null) return;
 
     if (heardThisTurnRef.current) {
@@ -157,7 +165,9 @@ export function useDictation(opts: UseDictationOptions): UseDictationResult {
     const finals = finalsRef.current;
     const interim = interimRef.current;
     const sep = finals && interim ? ' ' : '';
-    optsRef.current.onSession(finals + sep + interim);
+    const text = finals + sep + interim;
+    vlog('[voice] dict emit', { finals, interim, text });
+    optsRef.current.onSession(text);
   }, []);
 
   // Fold a finished phrase into the session text. Only the first phrase of a
@@ -165,9 +175,13 @@ export function useDictation(opts: UseDictationOptions): UseDictationResult {
   // the speaker's own and must survive.
   const foldFinal = useCallback((text: string) => {
     if (!text) return;
+    const before = finalsRef.current;
     finalsRef.current = justResumedRef.current
-      ? appendWithoutOverlap(finalsRef.current, text)
-      : finalsRef.current + (finalsRef.current ? ' ' : '') + text;
+      ? appendWithoutOverlap(before, text)
+      : before + (before ? ' ' : '') + text;
+    vlog('[voice] dict fold', {
+      before, add: text, after: finalsRef.current, resumed: justResumedRef.current,
+    });
     justResumedRef.current = false;
   }, []);
 
@@ -176,9 +190,18 @@ export function useDictation(opts: UseDictationOptions): UseDictationResult {
     listeningRef.current = true;
     heardThisTurnRef.current = false;
     setListening(true);
+    vlog('[voice] dict turn', {
+      keepAlive: keepAliveRef.current,
+      silentTurns: silentTurnsRef.current,
+      resumed: justResumedRef.current,
+      finals: finalsRef.current,
+    });
     void engine.start({
       lang: optsRef.current.lang || 'he-IL',
       onResult: (r) => {
+        vlog('[voice] dict result', {
+          isFinal: r.isFinal, text: r.transcript, listening: listeningRef.current,
+        });
         if (!listeningRef.current) return;
         heardThisTurnRef.current = true;
         keepAliveRef.current = 0;
@@ -192,6 +215,7 @@ export function useDictation(opts: UseDictationOptions): UseDictationResult {
         emit();
       },
       onError: (e) => {
+        vlog('[voice] dict error', { e, listening: listeningRef.current });
         if (!listeningRef.current) return;
         // A pause in speech surfaces as 'no-speech' (Chrome) or a bare
         // 'aborted' — keep the mic alive rather than treating it as failure.
@@ -204,6 +228,11 @@ export function useDictation(opts: UseDictationOptions): UseDictationResult {
         setError(e);
       },
       onEnd: () => {
+        vlog('[voice] dict end', {
+          interim: interimRef.current,
+          heard: heardThisTurnRef.current,
+          listening: listeningRef.current,
+        });
         if (!listeningRef.current) return;
         // Fold any trailing interim into the finalised text so it isn't lost
         // when the turn ends without a final result.

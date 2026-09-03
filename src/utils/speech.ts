@@ -23,6 +23,7 @@ import {
   ADAPTIVE_PROFILE,
 } from './voiceProfile';
 import { TemplateSpeechEngine } from './templateSpeechEngine';
+import { vlog } from './debugLog';
 
 export type SpeechEngineKind = 'web' | 'native' | 'none' | 'profile' | 'general';
 
@@ -242,6 +243,21 @@ class WebSpeechEngine implements SpeechEngine {
 
     rec.onresult = (e: SpeechRecognitionEventLike) => {
       if (myTurn !== this.turn) return;
+      // Raw browser event, before any of our filtering — the ground truth for
+      // diagnosing duplicated dictation. Shows whether the doubling is already
+      // present in what Chrome hands us or is introduced downstream.
+      const dump: string[] = [];
+      for (let i = 0; i < e.results.length; i++) {
+        const r = e.results[i];
+        dump.push(`${i}${r.isFinal ? 'F' : 'i'}:${r[0]?.transcript ?? ''}`);
+      }
+      vlog('[voice] web onresult', {
+        turn: myTurn,
+        idx: e.resultIndex,
+        n: e.results.length,
+        through: this.finalizedThrough,
+        results: dump,
+      });
       for (let i = e.resultIndex; i < e.results.length; i++) {
         // Skip any result whose final we have already delivered — Chrome can
         // replay earlier finals on a later event, which doubled the text.
@@ -267,10 +283,12 @@ class WebSpeechEngine implements SpeechEngine {
       }
     };
     rec.onerror = (e: { error: string }) => {
+      vlog('[voice] web onerror', { turn: myTurn, live: myTurn === this.turn, error: e.error });
       if (myTurn !== this.turn) return;
       opts.onError(mapWebError(e.error));
     };
     rec.onend = () => {
+      vlog('[voice] web onend', { turn: myTurn, live: myTurn === this.turn });
       if (myTurn !== this.turn) return;
       this.rec = null;
       opts.onEnd?.();
@@ -278,8 +296,10 @@ class WebSpeechEngine implements SpeechEngine {
 
     try {
       rec.start();
+      vlog('[voice] web started', { turn: myTurn, lang: rec.lang, continuous: rec.continuous });
     } catch {
       // start() throws if called while already running — treat as aborted
+      vlog('[voice] web start threw', { turn: myTurn });
       this.rec = null;
       opts.onError('aborted');
     }
