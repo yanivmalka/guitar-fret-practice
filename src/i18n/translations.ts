@@ -444,6 +444,31 @@ const he: Record<string, string> = {
   // Admin (role)
   'Granted to app administrators — read every Feedback board post, not just your own.':
     'מוענק למנהלי האפליקציה — מאפשר לקרוא את כל הפוסטים בלוח המשוב, לא רק את הפוסטים שלך.',
+
+  // Free vs Pro tiering — ProGate lock states + the Upgrade card
+  'Unlock with Pro': 'זמין במסלול Pro',
+  'You have Pro': 'יש לך Pro',
+  "You're on Free": 'אתה במסלול החינמי',
+  'Pro is for training seriously and tracking progress over time.':
+    'מסלול Pro מיועד לתרגול רציני ולמעקב אחר ההתקדמות לאורך זמן.',
+  'Your full practice history — all-time stats and trends, not just the last 7 days':
+    'כל היסטוריית התרגול שלך — סטטיסטיקות ומגמות מאז ומתמיד, לא רק שבעת הימים האחרונים.',
+  'Mastery maps — per-note and per-fret accuracy overlays on the circle and grid':
+    'מפות שליטה — שכבות דיוק לכל תו ולכל סריג על גבי הגלגל והרשת.',
+  'Browse your personal bests across every settings combination':
+    'עיון בשיאים האישיים שלך בכל צירוף הגדרות.',
+  'Multi-string drilling mode': 'מצב תרגול רב־מיתרי.',
+  'A personal voice profile built from your own calibration recordings':
+    'פרופיל קול אישי הנבנה מהקלטות הכיול שלך.',
+  'Your Pro access is complimentary.': 'גישת ה־Pro שלך ניתנה ללא תשלום.',
+  'Your Pro access came from a promotion.': 'גישת ה־Pro שלך התקבלה במסגרת מבצע.',
+  'Your Pro access was granted manually.': 'גישת ה־Pro שלך הוענקה ידנית.',
+  'Your Pro access is from your subscription.': 'גישת ה־Pro שלך היא חלק מהמנוי שלך.',
+  'Your Pro access is active.': 'גישת ה־Pro שלך פעילה.',
+  'It does not expire.': 'הגישה אינה פגה.',
+  'Access runs until': 'הגישה בתוקף עד',
+  'Pro isn’t on sale yet — everything above stays free to try in the meantime.':
+    'מסלול Pro עדיין אינו נמכר — עד אז כל מה שלמעלה זמין לניסיון בחינם.',
 };
 
 const dictionaries: Record<Lang, Record<string, string>> = { en: {}, he };

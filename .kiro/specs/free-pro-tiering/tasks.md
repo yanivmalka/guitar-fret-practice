@@ -126,63 +126,69 @@ working. **Read `design.md` for the "why" and the full code sketches** — this 
 
 ### 2.1 — `src/utils/features.ts` (new)
 
-- [ ] `export type Feature = 'historyBeyond7Days' | 'masteryMaps' | 'allPersonalBests' |
+- [x] `export type Feature = 'historyBeyond7Days' | 'masteryMaps' | 'allPersonalBests' |
       'multiString' | 'voiceProfile' | 'noAds'` (comments per `design.md` §4.1).
-- [ ] `const MIN_TIER: Record<Feature, Tier>` — all `'pro'` for now.
-- [ ] `const RANK: Record<Tier, number> = { free: 0, pro: 1 }`.
-- [ ] `export function can(feature: Feature, tier: Tier): boolean`.
-- [ ] `export const FREE_HISTORY_DAYS = 7`.
-- [ ] Comment noting what is deliberately **not** here (sync/restore, leaderboard, badges,
+- [x] `const MIN_TIER: Record<Feature, Tier>` — all `'pro'` for now.
+- [x] `const RANK: Record<Tier, number> = { free: 0, pro: 1 }`.
+- [x] `export function can(feature: Feature, tier: Tier): boolean`.
+- [x] `export const FREE_HISTORY_DAYS = 7`.
+- [x] Comment noting what is deliberately **not** here (sync/restore, leaderboard, badges,
       current-combo best).
 
 ### 2.2 — `src/components/ProGate.tsx` (new)
 
-- [ ] Props: `{ feature: Feature; children: ReactNode; variant?: 'overlay'|'replace'|'inline-badge';
+- [x] Props: `{ feature: Feature; children: ReactNode; variant?: 'overlay'|'replace'|'inline-badge';
       pitch?: string }`.
-- [ ] Reads `useAuth()` (or a thin `useEntitlement()` — see 2.4). If `can(feature, tier)` →
-      render `children` unchanged.
-- [ ] Locked rendering per `design.md` §4.2:
-  - `overlay` — `children` dimmed/blurred + lock chip + "Pro" pill overlay; the pill/overlay
-    click opens the `upgrade` drawer section.
+- [x] Reads `useEntitlement()` (see 2.4). If `can(feature, tier)` → render `children` unchanged.
+- [x] Locked rendering per `design.md` §4.2:
+  - `overlay` — `children` in a `.progate-dim` (blur + dim + `pointer-events:none`); a
+    full-cover `.progate-lock` button (lock glyph + "Pro" pill + `pitch`) opens the `upgrade`
+    drawer section.
   - `replace` — render only `<UpgradeCard pitch={pitch} />`.
-  - `inline-badge` — render `children` + a small "Pro" pill; intercept the primary interaction
-    (pass an `onBlockedActivate` or wrap in a click-capturing span) to open `upgrade` instead.
-- [ ] No security logic — purely presentational.
+  - `inline-badge` — render `children` + a small "Pro" pill; a transparent full-cover
+    `.progate-inline-catch` button swallows the primary tap and opens `upgrade` instead
+    (child is left interactive-looking, not disabled).
+- [x] No security logic — purely presentational. The "open upgrade" call goes through the
+      `utils/upgradeDrawer.ts` module singleton (`openUpgrade()` / `registerUpgradeHandler`),
+      mirroring `setSyncUser` in `utils/sync.ts` — no prop/context threaded through every gate.
 
 ### 2.3 — `src/components/UpgradeCard.tsx` (new)
 
-- [ ] Reuses `SettingCard` / drawer-page styling. Shows: what Pro unlocks (short list), current
-      tier, and — for Pro — `source` + `expiresAt`.
-- [ ] CTA is a **placeholder** ("Coming soon" / expands the feature list). **No payment button.**
-      Leave a clearly marked `// Phase 7: wire purchase entry point here`.
+- [x] Reuses `SettingCard` / drawer-page styling (new `.pro-card` surface). Shows: what Pro
+      unlocks (short list), current tier, and — for Pro — `source` + `expiresAt` as whole
+      translated sentences (not glued fragments), per the Hebrew glossary.
+- [x] CTA is a **placeholder** (disabled "Coming soon" button + a "not on sale yet" note). **No
+      payment button.** Marked `// Phase 7: wire purchase entry point here`.
 
-### 2.4 — (optional) `src/hooks/useEntitlement.ts`
+### 2.4 — `src/hooks/useEntitlement.ts`
 
-- [ ] Thin re-export: `export function useEntitlement() { const { tier, isPro, entitlementLoading,
-      refreshEntitlement } = useAuth(); return { tier, isPro, loading: entitlementLoading,
-      refresh: refreshEntitlement }; }` so call sites don't pull the whole auth object.
+- [x] Thin read over `useAuth()`: returns `{ tier, isPro, entitlement, loading, refresh }` so
+      call sites don't pull the whole auth object. **Deviation from the sketch:** it also
+      surfaces the full `entitlement` (`source` + `expiresAt`) that `<UpgradeCard>` needs — this
+      required adding `entitlement: Entitlement` to `AuthState` in
+      [src/hooks/useAuth.ts](src/hooks/useAuth.ts) (`FREE` for guests).
 
 ### 2.5 — `upgrade` drawer section
 
-- [ ] In [src/App.tsx](src/App.tsx) `settingsSections`, add `{ id: 'upgrade', title: '⭐ Pro',
-      blurb: ..., body: <UpgradeCard /> }`, present when `auth.configured` (like `account`).
-      Place it right after `account`.
-- [ ] A helper to open it programmatically (set `drawerSection = 'upgrade'`) that `<ProGate>` can
-      call.
+- [x] In [src/App.tsx](src/App.tsx) `settingsSections`, added `{ id: 'upgrade', title: '⭐ Pro',
+      blurb: '', body: <UpgradeCard /> }`, present when `auth.configured`, right after `account`.
+- [x] A mount effect registers an `openUpgrade` handler that clears any full-screen view
+      (`setShowStats(false)`) then `setSettingsOpen(true)` + `setDrawerSection('upgrade')`.
 
 ### 2.6 — CSS + i18n
 
-- [ ] New `src/styles/21-pro-gate.css`; add `@import './styles/21-pro-gate.css';` to
-      [src/index.css](src/index.css) after line 24.
-- [ ] Add all new strings to `src/i18n/translations.ts` (en + he).
+- [x] New `src/styles/21-pro-gate.css`; `@import './styles/21-pro-gate.css';` added to
+      [src/index.css](src/index.css).
+- [x] All new strings added to `src/i18n/translations.ts` (`he`; `en` falls through to source).
 
 ### Done when
 
-- [ ] Build + lint clean.
-- [ ] Temporarily drop a `<ProGate feature="multiString" variant="replace">` around some element
-      to eyeball all three variants + the `upgrade` section in both languages, then remove the
-      temporary wrap.
-- [ ] Commit: `Tiering: ProGate + feature map + upgrade shell (phase 2)`.
+- [x] Build + lint clean (lint unchanged at the 21-warning baseline — the count dropped from 22
+      to 21 on the rebase onto `origin/main`, before Phase 2; no new warnings in touched files).
+- [x] Eyeballed all three variants + `<UpgradeCard>` via a temporary `progate-preview` drawer
+      section, headless, in **both** languages (screenshots) — RTL, gold accent and the perk list
+      all render; temp section removed.
+- [x] Commit: `Tiering: ProGate + feature map + upgrade shell (phase 2)`.
 
 ---
 
@@ -370,7 +376,10 @@ seam; nothing in Phases 1–6 changes.
 
 - [~] Phase 1 — Entitlement plumbing + `0007` migration — code done & committed (`1894d3a`);
       pending the [MANUAL] `supabase db push` + the in-app `free`→`pro` verification
-- [ ] Phase 2 — Feature map + `<ProGate>` + upsell shell
+- [x] Phase 2 — Feature map + `<ProGate>` + upsell shell — done & committed. `utils/features.ts`,
+      `components/ProGate.tsx` (3 variants), `components/UpgradeCard.tsx`, `hooks/useEntitlement.ts`
+      (+ `entitlement` on `AuthState`), `utils/upgradeDrawer.ts` singleton, the `upgrade` drawer
+      section, `styles/21-pro-gate.css`, i18n. Nothing gated yet.
 - [ ] Phase 3 — Gate multi-string / mastery maps / voice profile
 - [ ] Phase 4 — 7-day history window
 - [ ] Phase 5 — Guest-merge prompt + orphan capture

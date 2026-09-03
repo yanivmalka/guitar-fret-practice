@@ -33,6 +33,8 @@ import { FeedbackBoard } from './components/FeedbackBoard';
 import { LeaderboardPanel } from './components/LeaderboardPanel';
 import { computeMyStats, leaderboardName, upsertMyEntry } from './utils/leaderboard';
 import { BadgeGrid } from './components/BadgeGrid';
+import { UpgradeCard } from './components/UpgradeCard';
+import { registerUpgradeHandler } from './utils/upgradeDrawer';
 import { BadgeMedal, BadgeMedalDefs } from './components/BadgeMedal';
 import { BadgeToast, BadgeRevealOverlay, type CelebratedBadge } from './components/BadgeCelebration';
 import {
@@ -689,6 +691,18 @@ export default function App() {
   const drawerSectionRef = useRef<string | null>(null);
   useEffect(() => { drawerSectionRef.current = drawerSection; }, [drawerSection]);
 
+  // A locked <ProGate> anywhere in the tree opens the `upgrade` drawer section
+  // through this handler (see utils/upgradeDrawer.ts). Leave any full-screen
+  // view (Stats, an open sub-page) first so the section actually renders.
+  useEffect(() => {
+    registerUpgradeHandler(() => {
+      setShowStats(false);
+      setSettingsOpen(true);
+      setDrawerSection('upgrade');
+    });
+    return () => registerUpgradeHandler(null);
+  }, []);
+
   // Escape steps back to the list of titles first, then closes the drawer.
   useEffect(() => {
     if (!settingsOpen) return;
@@ -1273,6 +1287,12 @@ export default function App() {
         )}
         </>
       ),
+    }] : []),
+    ...(auth.configured ? [{
+      id: 'upgrade',
+      title: `⭐ ${t('Pro')}`,
+      blurb: '',
+      body: <UpgradeCard />,
     }] : []),
     {
       id: 'badges',

@@ -20,6 +20,9 @@ export interface AuthState {
   tier: Tier;
   /** Convenience: a signed-in user on the Pro tier. */
   isPro: boolean;
+  /** The full entitlement row (tier + `source` + `expiresAt`), `FREE` for
+   *  guests. `source` / `expiresAt` back the Pro details in `<UpgradeCard>`. */
+  entitlement: Entitlement;
   /** True while the first entitlement lookup for the current user is in flight. */
   entitlementLoading: boolean;
   loading: boolean;
@@ -152,6 +155,7 @@ export function useAuth(): AuthState {
     admin: admin && !!user,
     tier: user ? entitlement.tier : 'free',
     isPro: entitlement.tier === 'pro' && !!user,
+    entitlement: user ? entitlement : FREE,
     entitlementLoading: !!user && entitlementLoading,
     loading,
     configured: isSupabaseConfigured,
