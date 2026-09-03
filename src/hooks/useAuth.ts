@@ -3,7 +3,9 @@ import type { User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured, authRedirectTo } from '../utils/supabase';
 import { setSyncUser } from '../utils/sync';
 import { fetchIsAdmin } from '../utils/board';
-import { fetchEntitlement, FREE, type Entitlement, type Tier } from '../utils/entitlement';
+import {
+  fetchEntitlement, cachedEntitlement, FREE, type Entitlement, type Tier,
+} from '../utils/entitlement';
 import {
   getDevSimulatePro, subscribeDevSimulatePro, setDevSimulatePro,
 } from '../utils/devSimulatePro';
@@ -117,6 +119,14 @@ export function useAuth(): AuthState {
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
+    // Seed synchronously from the offline cache so a returning Pro user isn't
+    // shown the locked UI for the ~half-second the network lookup takes. The
+    // fetch below still runs and corrects an expired / downgraded row.
+    const cached = cachedEntitlement(user.id);
+    if (cached) {
+      setEntitlement(cached);
+      setEntitlementLoading(false);
+    }
     fetchEntitlement(user.id).then(e => {
       if (cancelled) return;
       setEntitlement(e);
