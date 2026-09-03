@@ -1400,10 +1400,18 @@ export default function App() {
           </button>
         </SettingCard>
       )}
+        {/* The badge shelf: up to five medals the player pins beside their
+            name, plus the floating picker that leads into the full Badges
+            page (which used to be its own nav-row here). */}
+        <PinnedBadges
+          isAdmin={auth.admin}
+          onOpenBadges={() => setDrawerSection('badges')}
+        />
         {/* Admin-only account tools, grouped here rather than on the
-            customer-facing Pro screen. Gated on `adminAccount` (the real
-            row in public.admins) so the "back to admin" switch stays
-            reachable even while browsing as a regular user. */}
+            customer-facing Pro screen — kept below the badge shelf so the
+            player-facing bits of Account come first. Gated on `adminAccount`
+            (the real row in public.admins) so the "back to admin" switch
+            stays reachable even while browsing as a regular user. */}
         {auth.adminAccount && (
           <SettingCard
             label={t('Admin: view the app as')}
@@ -1447,13 +1455,6 @@ export default function App() {
             />
           </SettingCard>
         )}
-        {/* The badge shelf: up to five medals the player pins beside their
-            name, plus the floating picker that leads into the full Badges
-            page (which used to be its own nav-row here). */}
-        <PinnedBadges
-          isAdmin={auth.admin}
-          onOpenBadges={() => setDrawerSection('badges')}
-        />
         {import.meta.env.DEV && (
           <p
             className="dev-tier-readout"
