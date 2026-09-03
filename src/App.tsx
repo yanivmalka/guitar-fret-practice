@@ -1106,28 +1106,23 @@ export default function App() {
               </div>
             </div>
           )}
+          {/* Note-name notation used to be its own drawer row; it's really a
+              display preference for the instrument, so it lives here now. */}
+          <SettingCard
+            label={t('Note names')}
+            help={t("Display only — the drill itself doesn't change.")}
+          >
+            <SegmentedControl
+              ariaLabel={t('Note names')}
+              value={notation}
+              options={[
+                { value: 'alpha', label: 'A B C' },
+                { value: 'solfege', label: 'Do Re Mi' },
+              ]}
+              onChange={(n) => { setNotation(n); saveSetting('pref_notation', n); }}
+            />
+          </SettingCard>
         </>
-      ),
-    },
-    {
-      id: 'notes',
-      title: `🎵 ${t('Note names')}`,
-      blurb: '',
-      body: (
-        <SettingCard
-          label={t('Written as')}
-          help={t("Display only — the drill itself doesn't change.")}
-        >
-          <SegmentedControl
-            ariaLabel={t('Note names')}
-            value={notation}
-            options={[
-              { value: 'alpha', label: 'A B C' },
-              { value: 'solfege', label: 'Do Re Mi' },
-            ]}
-            onChange={(n) => { setNotation(n); saveSetting('pref_notation', n); }}
-          />
-        </SettingCard>
       ),
     },
     {
