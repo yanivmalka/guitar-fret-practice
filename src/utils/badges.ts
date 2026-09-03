@@ -38,7 +38,7 @@
 import type { HistoryEntry } from './music';
 import type { InstrumentConfig, InstrumentId } from './instruments';
 import { dailyStats, practiceStreak, lifetimeTotals } from './progress';
-import { cloudPushBadges } from './badgeSync';
+import { cloudPushBadges, retireBadgeFamily } from './badgeSync';
 
 // Fixed-identity badges. String Master is per-string and generated at runtime
 // from the instrument (`string_master_s1`…), so those ids are not listed here.
@@ -376,6 +376,9 @@ export function awardFamilyUpTo(
 // it was earned. A session family stays reset (those only accrue at game-end);
 // a lifetime family re-derives from play history the next time the Badges
 // screen evaluates it, so a reset there only sticks if history is also cleared.
+// For signed-in admins the reset also records a cloud tombstone (`badgeSync`)
+// so it propagates to their other devices instead of being resurrected by the
+// next sync.
 
 /** Remove every stored tier of one badge family, across all instrument scopes. */
 export function resetBadgeFamily(id: BadgeId): void {
@@ -388,7 +391,10 @@ export function resetBadgeFamily(id: BadgeId): void {
       changed = true;
     }
   }
-  if (changed) saveBadges(store);
+  if (changed) {
+    retireBadgeFamily(id);
+    saveBadges(store);
+  }
 }
 
 /**

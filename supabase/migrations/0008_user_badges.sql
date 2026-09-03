@@ -11,10 +11,17 @@
 -- keeps the earliest `earnedAt`, so a plain last-writer upsert after a
 -- pull+merge is safe and order-independent. Same exposure pattern as
 -- 0004_user_settings.sql.
+--
+-- `retired` carries admin-"Reset" tombstones: `{ "<familyId>": "<iso>" }`.
+-- A union merge would otherwise resurrect a family an admin cleared on
+-- another device; instead the client drops every earned key in a retired
+-- family whose `earnedAt` predates the tombstone (a later Grant survives),
+-- the same way 0003_deleted_keys.sql retires cleared history.
 
 create table if not exists public.user_badges (
   user_id     uuid primary key references auth.users (id) on delete cascade,
   badges      jsonb not null default '{}'::jsonb,
+  retired     jsonb not null default '{}'::jsonb,
   updated_at  timestamptz not null default now()
 );
 
