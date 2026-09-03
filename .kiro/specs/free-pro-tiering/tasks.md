@@ -322,6 +322,39 @@ reading the full history.
 **Goal:** first sign-in on a device with local guest history asks before merging, instead of the
 current silent auto-merge. Not tier-specific. See `design.md` §5.4.
 
+> **Notes for a fresh session picking this up (Phases 1–4 are done):**
+> - **Where:** work in `C:/source/gfp-tiering` on `claude/free-pro-tiering-work` (see the banner
+>   at the top of this file). `npm install` is already done there. `git fetch` first; the branch
+>   base was `2efe89f` and `origin/main` was `636e0ee` — rebase only if `origin/main` has moved.
+>   Do **not** edit the shared `C:/source/guitar-fret-practice` checkout — another session is on it.
+> - **Bar:** `npm run build` green and ESLint at **0 errors / 21 warnings** (the standing
+>   baseline), no new warnings in touched files. No test runner exists.
+> - **The sign-in effect** is [src/App.tsx](src/App.tsx) lines ~177–208 — an async IIFE inside a
+>   `useEffect` with a `cancelled` guard. `bootstrapUser` for a first sign-in is called from
+>   **two** places: this mount effect (~L187) and the `online`-reconnect handler (~L284). Per
+>   `design.md` §5.3 only the mount-effect branch changes; leave the `online` handler and the
+>   `reconcileUser` (already-synced) branch alone. Restructure so the effect just sets a
+>   `pendingGuestMerge` state; the actual `bootstrapUser` / capture+restore runs in the modal's
+>   button handlers, so the async flow isn't blocked waiting on a user choice.
+> - **`batch_id`:** reuse the existing UUID helper in `src/utils/sync.ts` (~L100, the
+>   `crypto.randomUUID()` guard) rather than calling `crypto.randomUUID()` raw.
+> - **`orphan_practice`** already exists (migration `0007`, shipped in Phase 1): RLS is
+>   insert-only for `anon, authenticated`, no select policy — so `cloudCaptureOrphans` is just a
+>   `supabase.from('orphan_practice').insert([...])` in a try/catch.
+> - **Modal styling:** reuse the existing `.mic-overlay` / `.mic-card` classes (see the
+>   clear-history confirm in [src/components/ProgressPanel.tsx](src/components/ProgressPanel.tsx)
+>   ~L517) instead of a new CSS partial.
+> - **i18n:** add both the `he` string and rely on `en` falling through to source; keep the
+>   Hebrew glossary/tone (memory `hebrew-localization-glossary`).
+> - **Verification:** the modal UI can be eyeballed headless (CDP driver in the session
+>   scratchpad as `cdp.mjs`; seed `localStorage.selectorHistory`, force the prompt, use a free
+>   `--port`, kill vite servers after). The real merge / orphan-capture / `select count(*) from
+>   orphan_practice` needs sign-in — **defer that to the preview deploy**, joining the Phase 1
+>   readout, Phase 3 pro re-enable and Phase 4 pro all-time checks already queued there.
+> - **Commit** on `claude/free-pro-tiering-work`, tick the boxes here (commit box + hash) in the
+>   same commit, `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`. The user reconciles
+>   `claude/free-pro-tiering-work` back into `claude/free-pro-tiering`.
+
 ### 5.1 — `src/utils/sync.ts`
 
 - [ ] Add `cloudCaptureOrphans(entries: HistoryEntry[]): Promise<void>` — one bulk `insert` into
