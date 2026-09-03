@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured, authRedirectTo } from '../utils/supabase';
 import { setSyncUser } from '../utils/sync';
 import { fetchIsAdmin } from '../utils/board';
+import { fetchEntitlement, FREE, type Entitlement, type Tier } from '../utils/entitlement';
 
 export interface AuthProfile {
   name: string | null;
@@ -15,11 +16,23 @@ export interface AuthState {
   profile: AuthProfile | null;
   /** True when the signed-in user has a row in `public.admins`. */
   admin: boolean;
+  /** Subscription tier. `'free'` for guests and signed-in free users. */
+  tier: Tier;
+  /** Convenience: a signed-in user on the Pro tier. */
+  isPro: boolean;
+  /** True while the first entitlement lookup for the current user is in flight. */
+  entitlementLoading: boolean;
   loading: boolean;
   configured: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  /** Re-fetch the entitlement now (used by the foreground refresh and, later,
+   *  the post-purchase flow). No-op for guests. */
+  refreshEntitlement: () => Promise<void>;
 }
+
+// How stale the entitlement may get before a foreground return re-fetches it.
+const ENTITLEMENT_MAX_AGE_MS = 5 * 60_000;
 
 // Google's OAuth `profile` scope (requested by default) puts the display name
 // and picture into `user_metadata`. Supabase key names vary a little by
@@ -45,6 +58,8 @@ export function useAuth(): AuthState {
   const [user, setUser] = useState<User | null>(null);
   const [admin, setAdmin] = useState(false);
   const [loading, setLoading] = useState(isSupabaseConfigured);
+  const [entitlement, setEntitlement] = useState<Entitlement>(FREE);
+  const [entitlementLoading, setEntitlementLoading] = useState(isSupabaseConfigured);
 
   useEffect(() => {
     if (!supabase) return;
@@ -74,6 +89,50 @@ export function useAuth(): AuthState {
     return () => { cancelled = true; };
   }, [user]);
 
+  // Entitlement: same shape as the admin effect — re-checked whenever the
+  // signed-in user changes; a stale value after sign-out is masked below by
+  // gating the exposed `tier` / `isPro` on `user`. Offline, `fetchEntitlement`
+  // falls back to the localStorage cache, so a returning Pro user stays Pro
+  // without a network round-trip (design §9).
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    fetchEntitlement(user.id).then(e => {
+      if (cancelled) return;
+      setEntitlement(e);
+      setEntitlementLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [user]);
+
+  // Foreground refresh: a just-upgraded user on another device (or an expiry)
+  // becomes visible without a reload. Re-fetch when the tab returns to the
+  // foreground after more than ~5 min, and whenever the network reconnects.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    let lastFetch = Date.now();
+    const maybeRefresh = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - lastFetch < ENTITLEMENT_MAX_AGE_MS) return;
+      lastFetch = Date.now();
+      fetchEntitlement(user.id).then(e => { if (!cancelled) setEntitlement(e); });
+    };
+    const onOnline = () => { lastFetch = 0; maybeRefresh(); };
+    document.addEventListener('visibilitychange', maybeRefresh);
+    window.addEventListener('online', onOnline);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', maybeRefresh);
+      window.removeEventListener('online', onOnline);
+    };
+  }, [user]);
+
+  const refreshEntitlement = useCallback(async () => {
+    if (!user) { setEntitlement(FREE); return; }
+    setEntitlement(await fetchEntitlement(user.id));
+  }, [user]);
+
   const signInWithGoogle = async () => {
     if (!supabase) return;
     await supabase.auth.signInWithOAuth({
@@ -91,9 +150,13 @@ export function useAuth(): AuthState {
     user,
     profile: toProfile(user),
     admin: admin && !!user,
+    tier: user ? entitlement.tier : 'free',
+    isPro: entitlement.tier === 'pro' && !!user,
+    entitlementLoading: !!user && entitlementLoading,
     loading,
     configured: isSupabaseConfigured,
     signInWithGoogle,
     signOut,
+    refreshEntitlement,
   };
 }

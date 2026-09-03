@@ -1262,6 +1262,15 @@ export default function App() {
             </button>
           );
         })()}
+        {import.meta.env.DEV && (
+          <p
+            className="dev-tier-readout"
+            style={{ opacity: 0.6, fontSize: '0.8em', margin: '8px 0 0' }}
+          >
+            {/* Temporary — replaced by the "tier: X (+sim)" line in Phase 6. */}
+            tier: {auth.tier}{auth.entitlementLoading ? ' …' : ''}
+          </p>
+        )}
         </>
       ),
     }] : []),
