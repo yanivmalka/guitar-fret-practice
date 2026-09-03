@@ -1577,10 +1577,11 @@ export default function App() {
                 {/* No title here on purpose: the burger menu is just the list
                     of sections. "Settings" is one of those sections now. */}
               </div>
-              {settingsSections.filter(s => s.id !== 'upgrade').map(s => {
-                // The subscription tier ("Pro") is no longer its own top-level
-                // row — it's a tappable tile inside the Account section that
-                // opens this same `upgrade` sub-page.
+              {settingsSections.filter(s => s.id !== 'upgrade' && s.id !== 'badges').map(s => {
+                // `upgrade` (subscription tier) and `badges` are not top-level
+                // rows — each is a tappable tile inside the Account section that
+                // opens its sub-page. They stay in `settingsSections` only so
+                // that sub-page still resolves by id.
                 // `title` is "<emoji> <label>" — keep the emoji as its own
                 // leading-icon node so it never disturbs the bidi resolution
                 // of the (possibly RTL) label text next to it.
