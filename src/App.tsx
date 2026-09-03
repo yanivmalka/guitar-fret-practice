@@ -1345,6 +1345,16 @@ export default function App() {
               )}
             </span>
           </div>
+          {/* Subscription tier: a plain tappable tile showing the current plan,
+              sitting just above Sign out. Opens the `upgrade` sub-page. */}
+          <button
+            type="button"
+            className={`account-plan${auth.isPro ? ' is-pro' : ''}`}
+            onClick={click(() => setDrawerSection('upgrade'))}
+          >
+            <span className="account-plan-icon" aria-hidden="true">⭐</span>
+            <span className="account-plan-tier">{auth.isPro ? t('Pro') : t('Free')}</span>
+          </button>
           <button
             className="set-card-danger"
             onClick={click(() => { void auth.signOut(); })}
@@ -1378,20 +1388,6 @@ export default function App() {
           isAdmin={auth.admin}
           onOpenBadges={() => setDrawerSection('badges')}
         />
-        {/* Subscription tier: a tappable tile that opens the `upgrade`
-            sub-page (which used to be its own top-level drawer row). */}
-        <button
-          type="button"
-          className="nav-row"
-          onClick={click(() => setDrawerSection('upgrade'))}
-        >
-          <span className="nav-row__lead" aria-hidden="true">⭐</span>
-          <span className="nav-row__label">
-            <span className="account-badges-count">{auth.isPro ? t('Pro') : t('Free')}</span>
-            <span className="account-badges-hint">{t('See plans and what Pro unlocks')}</span>
-          </span>
-          <Chevron dir="forward" className="nav-row__chev" />
-        </button>
         {import.meta.env.DEV && (
           <p
             className="dev-tier-readout"

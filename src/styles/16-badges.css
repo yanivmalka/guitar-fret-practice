@@ -13,13 +13,6 @@
   gap: 16px;
 }
 
-/* Compact badge pointer shown inside the Account section — links through to
-   the full "🏅 Badges" page rather than embedding the whole grid. Uses the
-   shared `.nav-row` layout (02-settings.css) so it flips with `dir` on its
-   own; only the text sizes are specific to this row. */
-.account-badges-count { font-size: 0.82rem; font-weight: 800; }
-.account-badges-hint { font-size: 0.68rem; color: #9a9ab8; }
-
 /* Collection tracker — the shelf's overall completion as one meter. */
 .badge-collection-head {
   display: flex;

@@ -491,6 +491,32 @@
   color: #6f6f88;
   margin-top: 1px;
 }
+/* Plan tile inside the signed-in Account card: a plain tappable row between
+   the identity block and Sign out, showing just the current plan (Free /
+   Pro). Tapping opens the plans sub-page. */
+.account-plan {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  background: #1c1c38;
+  border: 1px solid #2a2a4a;
+  border-radius: 10px;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.account-plan:hover { border-color: #3a3a5a; }
+.account-plan-icon { font-size: 0.95rem; line-height: 1; }
+.account-plan-tier {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #0ff;
+}
+.account-plan.is-pro .account-plan-tier { color: #ffd76a; }
 .account-row-in .account-btn {
   width: 100%;
 }

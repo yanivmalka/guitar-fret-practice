@@ -487,7 +487,6 @@ const he: Record<string, string> = {
   'Grants or revokes Pro for your own account only. Writes to the entitlements table and syncs across your devices.':
     'מעניק או מבטל Pro עבור החשבון שלך בלבד. נכתב לטבלת ההרשאות ומסונכרן בין המכשירים שלך.',
   'Free': 'חינמי',
-  'See plans and what Pro unlocks': 'צפייה במסלולים ובמה ש־Pro פותח',
 
   // Guest-merge prompt (design §5.4) — shown on the first sign-in on a device
   // that already has local guest practice history.
