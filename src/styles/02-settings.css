@@ -42,7 +42,9 @@
 }
 
 .burger-btn {
-  position: fixed;
+  /* Anchored to .app (the position:relative scroll container) rather than the
+     viewport, so the button scrolls up with the page instead of hovering. */
+  position: absolute;
   top: 10px;
   inset-inline-end: 12px;
   z-index: 60;
