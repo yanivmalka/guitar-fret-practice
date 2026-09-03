@@ -1069,16 +1069,16 @@ export default function App() {
   const settingsSections: Array<{ id: string; title: string; blurb: string; body: ReactNode; onSelect?: () => void }> = [
     {
       id: 'instrument',
-      title: `🎸 ${t('Instrument')}`,
+      title: `🎸 ${t('Playing')}`,
       blurb: '',
       body: (
         <>
           <SettingCard
-            label={t('Instrument')}
+            label={t('Instruments')}
             help={t('Switches tuning, string count and fret range, then reloads the note samples.')}
           >
             <SegmentedControl
-              ariaLabel={t('Instrument')}
+              ariaLabel={t('Instruments')}
               value={instrumentId}
               options={[
                 { value: 'guitar', label: <>🎸 {t('Guitar')}</> },
@@ -1109,11 +1109,11 @@ export default function App() {
           {/* Note-name notation used to be its own drawer row; it's really a
               display preference for the instrument, so it lives here now. */}
           <SettingCard
-            label={t('Note names')}
+            label={t('Notes')}
             help={t("Display only — the drill itself doesn't change.")}
           >
             <SegmentedControl
-              ariaLabel={t('Note names')}
+              ariaLabel={t('Notes')}
               value={notation}
               options={[
                 { value: 'alpha', label: 'A B C' },

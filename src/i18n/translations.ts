@@ -24,6 +24,9 @@ const he: Record<string, string> = {
 
   // Settings — section titles / labels / help
   'Instrument': 'כלי נגינה',
+  'Playing': 'נגינה',
+  'Instruments': 'כלים',
+  'Notes': 'תווים',
   'Switches tuning, string count and fret range, then reloads the note samples.':
     'כאן ניתן לשנות את הכיוון, את מספר המיתרים ואת טווח הסריגים. לאחר מכן דגימות התווים ייטענו מחדש.',
   'Note names': 'שמות התווים',
