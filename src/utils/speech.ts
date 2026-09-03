@@ -154,6 +154,30 @@ interface SpeechRecognitionEventLike {
   >;
 }
 
+/**
+ * Add one result's text to a turn's segment list, treating a result that
+ * extends or restates its immediate predecessor as a revision of it rather
+ * than as new speech.
+ *
+ * Browsers disagree about what a result index means. Chrome emits disjoint
+ * segments that must be joined ("מה שלומך", then " 1 2 3"). Samsung Internet
+ * never emits interim results at all — it marks every revision of the same
+ * utterance final and appends it as a *new* index, each restating the whole
+ * phrase ("מה", then "מה שלומך", then "מה שלומך"), so joining them repeats
+ * the opening words. Collapsing a prefix-related pair and keeping the longer
+ * text handles both: unrelated segments still concatenate.
+ */
+function pushSegment(segments: string[], raw: string): void {
+  const text = raw.replace(/\s+/g, ' ').trim();
+  if (!text) return;
+  const prev = segments.length ? segments[segments.length - 1] : undefined;
+  if (prev !== undefined && (text.startsWith(prev) || prev.startsWith(text))) {
+    segments[segments.length - 1] = text.length >= prev.length ? text : prev;
+    return;
+  }
+  segments.push(text);
+}
+
 function getSRConstructor(): SRConstructor | null {
   const w = window as unknown as {
     SpeechRecognition?: SRConstructor;
@@ -252,20 +276,17 @@ class WebSpeechEngine implements SpeechEngine {
       // Rebuild the whole turn from the current result list. Chrome moves text
       // between result indices as it listens, so this snapshot — not any
       // per-index bookkeeping — is the only sound view of what was said.
-      let turnFinal = '';
-      let turnInterim = '';
+      const finalSegs: string[] = [];
+      const interimSegs: string[] = [];
       const dump: string[] = [];
       for (let i = 0; i < e.results.length; i++) {
         const r = e.results[i];
         const t = r[0]?.transcript ?? '';
-        // Join with an explicit space rather than bare concatenation. Chrome
-        // happens to prefix continuation results with one, but relying on that
-        // would run words together the moment it doesn't; the caller collapses
-        // any doubled space.
-        if (r.isFinal) turnFinal = turnFinal ? `${turnFinal} ${t}` : t;
-        else turnInterim = turnInterim ? `${turnInterim} ${t}` : t;
+        pushSegment(r.isFinal ? finalSegs : interimSegs, t);
         dump.push(`${i}${r.isFinal ? 'F' : 'i'}:${t}`);
       }
+      const turnFinal = finalSegs.join(' ');
+      const turnInterim = interimSegs.join(' ');
       vlog('[voice] web onresult', {
         turn: myTurn,
         idx: e.resultIndex,
