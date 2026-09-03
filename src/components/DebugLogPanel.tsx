@@ -7,6 +7,7 @@ import {
   setVoiceVerbose,
   subscribeDebugLog,
 } from '../utils/debugLog';
+import { useTranslation } from '../i18n/useTranslation';
 
 interface Props {
   /** Current dev "simulate Pro" state (always `false` in production). */
@@ -21,6 +22,7 @@ interface Props {
 // the installed Android PWA. Collapsed to a single unobtrusive 🐞 button until
 // tapped.
 export default function DebugLogPanel({ devSimulatePro, onToggleSimulatePro }: Props = {}) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -61,8 +63,8 @@ export default function DebugLogPanel({ devSimulatePro, onToggleSimulatePro }: P
       <button
         className="debuglog-fab"
         onClick={() => setOpen(true)}
-        title="Debug log"
-        aria-label="Open debug log"
+        title={t('Debug log')}
+        aria-label={t('Open debug log')}
       >
         🐞{count ? <span className="debuglog-fab-count">{count}</span> : null}
       </button>
@@ -70,23 +72,23 @@ export default function DebugLogPanel({ devSimulatePro, onToggleSimulatePro }: P
   }
 
   return (
-    <div className="debuglog-panel" role="dialog" aria-label="Debug log">
+    <div className="debuglog-panel" role="dialog" aria-label={t('Debug log')}>
       <div className="debuglog-head">
         <span className="debuglog-title">
-          {voiceOn ? 'Errors + voice · auto-clears daily' : 'Errors · auto-clears daily'}
+          {voiceOn ? t('Errors + voice · auto-clears daily') : t('Errors · auto-clears daily')}
         </span>
         <div className="debuglog-actions">
           <button
             className="debuglog-btn"
             onClick={() => setVoiceVerbose(!voiceOn)}
           >
-            {voiceOn ? 'Voice: on' : 'Voice: off'}
+            {voiceOn ? t('Voice: on') : t('Voice: off')}
           </button>
           <button className="debuglog-btn" onClick={() => { void copy(); }}>
-            {copied ? 'Copied' : 'Copy'}
+            {copied ? t('Copied') : t('Copy')}
           </button>
-          <button className="debuglog-btn" onClick={clearDebugLog}>Clear</button>
-          <button className="debuglog-btn" onClick={() => setOpen(false)}>Close</button>
+          <button className="debuglog-btn" onClick={clearDebugLog}>{t('Clear')}</button>
+          <button className="debuglog-btn" onClick={() => setOpen(false)}>{t('Close')}</button>
         </div>
       </div>
       {import.meta.env.DEV && onToggleSimulatePro && (
@@ -96,10 +98,10 @@ export default function DebugLogPanel({ devSimulatePro, onToggleSimulatePro }: P
             checked={!!devSimulatePro}
             onChange={(e) => onToggleSimulatePro(e.target.checked)}
           />
-          Simulate Pro (dev only — no DB change)
+          {t('Simulate Pro (dev only — no DB change)')}
         </label>
       )}
-      <pre ref={preRef} className="debuglog-body">{text || '(no errors)'}</pre>
+      <pre ref={preRef} className="debuglog-body">{text || t('(no errors)')}</pre>
     </div>
   );
 }

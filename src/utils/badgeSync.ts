@@ -1,0 +1,219 @@
+// ── Cloud sync for earned achievement badges ──────────────────────────
+//
+// Same spirit as settingsSync.ts / voiceSync.ts: localStorage (key `badges`)
+// stays the source of truth the badge wall reads from on every render. The
+// cloud is a restore layer for signed-in users.
+//
+// The badge store is a tiny fixed-size map — `{ "<storeKey>": { earnedAt } }`
+// — and "earned" is monotonic, so it merges cleanly field-wise (unlike the
+// settings blob): the merge is a key union that keeps the earliest `earnedAt`
+// for any key both sides hold. That makes it commutative and idempotent, so
+// every push is really a pull -> merge -> write-back -> upsert mini-reconcile;
+// two devices can never diverge the way they do with a last-writer blob.
+//
+//   - first sign-in on a device: pull cloud, merge with local, write the
+//     merged set back to localStorage, push it up.
+//   - while signed in + online: each new badge triggers a debounced reconcile.
+//   - on reconnect / later app starts: the same idempotent reconcile re-runs.
+//
+// Retirements (admin "Reset"): a plain union merge would resurrect a family an
+// admin cleared on another device, so a reset also records a tombstone —
+// `retired[familyId] = <iso>` — carried in the same `user_badges` row and
+// mirrored to localStorage. `applyRetired` then drops every earned key in that
+// family whose `earnedAt` predates the tombstone, on every device, exactly the
+// way sync.ts's `applyTombstones` retires cleared history. A later Grant
+// (newer `earnedAt`) survives, so the tombstone just goes inert rather than
+// needing to be cleared.
+//
+// This module never imports badges.ts (which imports this one for the
+// write-through hook) — it reads and writes the `badges` key directly, exactly
+// as settingsSync.ts stays independent of settings.ts.
+//
+// When a reconcile actually changes the local store it dispatches a
+// `badges-synced` window event; a mounted BadgeGrid listens for it and
+// re-reads. No full-page reload (the settings model needs one only because its
+// hooks read localStorage once at mount — the badge wall re-reads every render
+// and remounts each time it's opened).
+
+import { supabase } from './supabase';
+import { getSyncUserId } from './sync';
+
+const STORE_KEY = 'badges';
+const RETIRED_KEY = 'badgesRetired';
+
+type EarnedBadge = { earnedAt: string };
+type BadgeStore = Record<string, EarnedBadge>;
+// familyId -> ISO timestamp of the admin reset. Earned keys in that family at
+// or before it are retired; a Grant afterwards (newer earnedAt) survives.
+type Retired = Record<string, string>;
+
+function cloudReady(): boolean {
+  return !!supabase && !!getSyncUserId() && navigator.onLine;
+}
+
+// Marks that this device has completed the initial local<->cloud merge for a
+// given user, so a later sign-in of the same account doesn't re-bootstrap.
+const SYNCED_FLAG = 'cloudSyncedBadgesUser';
+export function syncedBadgesUser(): string | null {
+  try { return localStorage.getItem(SYNCED_FLAG); } catch { return null; }
+}
+function setSyncedBadgesUser(id: string): void {
+  try { localStorage.setItem(SYNCED_FLAG, id); } catch { /* ignore */ }
+}
+export function clearSyncedBadgesUser(): void {
+  try { localStorage.removeItem(SYNCED_FLAG); } catch { /* ignore */ }
+}
+
+function loadLocal(): BadgeStore {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    return raw ? (JSON.parse(raw) as BadgeStore) : {};
+  } catch {
+    return {};
+  }
+}
+
+function loadLocalRetired(): Retired {
+  try {
+    const raw = localStorage.getItem(RETIRED_KEY);
+    return raw ? (JSON.parse(raw) as Retired) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeLocalRetired(retired: Retired): void {
+  try { localStorage.setItem(RETIRED_KEY, JSON.stringify(retired)); } catch { /* ignore */ }
+}
+
+// Write the merged store straight to localStorage, bypassing badges.ts's
+// `saveBadges` so a reconcile never re-triggers its own write-through. Returns
+// true only if the on-disk value actually changed, and lets a mounted badge
+// wall know to re-read.
+function writeLocal(store: BadgeStore): boolean {
+  try {
+    const next = JSON.stringify(store);
+    if (localStorage.getItem(STORE_KEY) === next) return false;
+    localStorage.setItem(STORE_KEY, next);
+  } catch {
+    return false;
+  }
+  try { window.dispatchEvent(new Event('badges-synced')); } catch { /* non-DOM env */ }
+  return true;
+}
+
+// The badge family a store key belongs to: strip the `::tier` suffix and any
+// `@instrument` scope. `on_fire::silver` -> `on_fire`,
+// `string_master_s1@guitar::gold` -> `string_master_s1`. Matches the families
+// `resetBadgeFamily` clears in badges.ts.
+function familyOf(storeKey: string): string {
+  const base = storeKey.includes('::') ? storeKey.slice(0, storeKey.indexOf('::')) : storeKey;
+  return base.includes('@') ? base.slice(0, base.indexOf('@')) : base;
+}
+
+// Key union; for a key both sides hold, keep the earliest `earnedAt` (a badge
+// earned is earned — the first time it happened is the honest timestamp).
+export function mergeBadgeStores(a: BadgeStore, b: BadgeStore): BadgeStore {
+  const out: BadgeStore = { ...a };
+  for (const [k, v] of Object.entries(b)) {
+    const cur = out[k];
+    out[k] = !cur
+      ? v
+      : { earnedAt: cur.earnedAt <= v.earnedAt ? cur.earnedAt : v.earnedAt };
+  }
+  return out;
+}
+
+// Newest reset per family wins.
+export function mergeRetired(a: Retired, b: Retired): Retired {
+  const out: Retired = { ...a };
+  for (const [k, v] of Object.entries(b)) {
+    if (!out[k] || v > out[k]) out[k] = v;
+  }
+  return out;
+}
+
+// Drop earned keys whose family was reset at or after the key was earned; a
+// re-Grant after the reset (newer earnedAt) is kept. Applied to each side
+// *before* the union, not just to the result: otherwise "keep earliest
+// earnedAt" would pull a re-Grant back down to the cleared copy's timestamp
+// and the tombstone would then retire it.
+export function applyRetired(store: BadgeStore, retired: Retired): BadgeStore {
+  const out: BadgeStore = {};
+  for (const [key, val] of Object.entries(store)) {
+    const cut = retired[familyOf(key)];
+    if (cut && val.earnedAt <= cut) continue;
+    out[key] = val;
+  }
+  return out;
+}
+
+// pull -> merge -> write-back -> upsert. Idempotent and order-independent.
+// Returns whether the local store changed on disk.
+async function reconcile(userId: string): Promise<boolean> {
+  const { data: row, error } = await supabase!
+    .from('user_badges')
+    .select('badges, retired')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw error;
+
+  const cloudStore = (row?.badges ?? {}) as BadgeStore;
+  const cloudRetired = (row?.retired ?? {}) as Retired;
+
+  const retired = mergeRetired(loadLocalRetired(), cloudRetired);
+  const merged = mergeBadgeStores(
+    applyRetired(loadLocal(), retired),
+    applyRetired(cloudStore, retired),
+  );
+
+  const changed = writeLocal(merged);
+  writeLocalRetired(retired);
+
+  const { error: upErr } = await supabase!.from('user_badges').upsert(
+    { user_id: userId, badges: merged, retired, updated_at: new Date().toISOString() },
+    { onConflict: 'user_id' },
+  );
+  if (upErr) throw upErr;
+
+  return changed;
+}
+
+// ── Write-through (debounced) ─────────────────────────────────────────
+// Called from badges.ts after any successful `saveBadges`.
+
+let pushTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function cloudPushBadges(): void {
+  if (!cloudReady()) return;
+  if (pushTimer) clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => {
+    pushTimer = null;
+    void (async () => {
+      if (!cloudReady()) return;
+      try { await reconcile(getSyncUserId()!); } catch { /* best-effort */ }
+    })();
+  }, 800);
+}
+
+// Record an admin "Reset" of a badge family as a tombstone. Written to
+// localStorage synchronously (so it survives an offline reset) and pushed on
+// the reconcile `saveBadges` schedules right after. Retiring on one device
+// therefore clears the family on every device, and no later push resurrects it.
+export function retireBadgeFamily(familyId: string): void {
+  const retired = loadLocalRetired();
+  retired[familyId] = new Date().toISOString();
+  writeLocalRetired(retired);
+}
+
+// ── Bootstrap on sign-in ─────────────────────────────────────────────
+// Pull/merge/push once per sign-in on this device. Throws on failure so the
+// caller leaves local data untouched and retries on the next app start.
+// Returns whether the local store changed, so the caller can refresh a
+// badge wall that happens to already be mounted.
+export async function bootstrapBadges(userId: string): Promise<{ changed: boolean }> {
+  if (!supabase) return { changed: false };
+  const changed = await reconcile(userId);
+  setSyncedBadgesUser(userId);
+  return { changed };
+}

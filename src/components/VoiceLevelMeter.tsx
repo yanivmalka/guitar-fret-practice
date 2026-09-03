@@ -1,4 +1,5 @@
 import { useMicLevel } from '../hooks/useMicLevel';
+import { useTranslation } from '../i18n/useTranslation';
 
 interface Props {
   /** True while a question is on screen in Voice answer mode. */
@@ -12,6 +13,7 @@ const GOOD_MIN = 0.16;
 // A leaf component on purpose: `useMicLevel` updates on every animation frame,
 // so it must not sit in a big component or the whole screen re-renders at 60fps.
 export default function VoiceLevelMeter({ active }: Props) {
+  const { t } = useTranslation();
   const { level, peak, ready } = useMicLevel(active);
 
   if (!active || !ready) return null;
@@ -20,7 +22,7 @@ export default function VoiceLevelMeter({ active }: Props) {
   const loudEnough = peak >= GOOD_MIN;
 
   return (
-    <div className="mic-level" role="img" aria-label={loudEnough ? 'Microphone level good' : 'Microphone level low, speak louder'}>
+    <div className="mic-level" role="img" aria-label={loudEnough ? t('Microphone level good') : t('Microphone level low, speak louder')}>
       <div className="mic-level-track">
         <div className="mic-level-goodzone" />
         <div
@@ -29,7 +31,7 @@ export default function VoiceLevelMeter({ active }: Props) {
         />
       </div>
       <span className={`mic-level-hint ${loudEnough ? 'is-good' : 'is-low'}`}>
-        {loudEnough ? 'Good level' : 'Too quiet — speak up'}
+        {loudEnough ? t('Good level') : t('Too quiet — speak up')}
       </span>
     </div>
   );

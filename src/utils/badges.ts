@@ -15,8 +15,11 @@
 // fourth rung (Dedicated, Century, Marathoner). A player keeps the family the
 // moment Bronze is reached and keeps progressing through the same tile.
 //
-// Storage is local-only for v1 (localStorage key `badges`), mirroring
-// `stat_longestStreakEver`. Cloud write-through is a later phase.
+// localStorage (key `badges`) is the source of truth the wall reads from.
+// For signed-in users `saveBadges` also write-throughs to the cloud via
+// `badgeSync.ts` (pull/merge/push), and a sign-in bootstrap restores the set
+// on a new device — so session badges and their `earnedAt` survive a device
+// switch instead of being lost. Guests never touch the network.
 //
 // Instrument scoping has two layers (unchanged from the binary-badge design):
 //  • The *store key* — string/fret-shaped badges are earned per instrument
@@ -35,6 +38,7 @@
 import type { HistoryEntry } from './music';
 import type { InstrumentConfig, InstrumentId } from './instruments';
 import { dailyStats, practiceStreak, lifetimeTotals } from './progress';
+import { cloudPushBadges, retireBadgeFamily } from './badgeSync';
 
 // Fixed-identity badges. String Master is per-string and generated at runtime
 // from the instrument (`string_master_s1`…), so those ids are not listed here.
@@ -315,6 +319,8 @@ function saveBadges(store: BadgeStore): void {
   } catch {
     /* localStorage unavailable — best-effort only */
   }
+  // Write-through for signed-in users (debounced, no-op for guests / offline).
+  cloudPushBadges();
 }
 
 export function isEarned(id: BadgeId, instrumentId?: string, tier: Tier = 'bronze'): boolean {
@@ -370,6 +376,9 @@ export function awardFamilyUpTo(
 // it was earned. A session family stays reset (those only accrue at game-end);
 // a lifetime family re-derives from play history the next time the Badges
 // screen evaluates it, so a reset there only sticks if history is also cleared.
+// For signed-in admins the reset also records a cloud tombstone (`badgeSync`)
+// so it propagates to their other devices instead of being resurrected by the
+// next sync.
 
 /** Remove every stored tier of one badge family, across all instrument scopes. */
 export function resetBadgeFamily(id: BadgeId): void {
@@ -382,7 +391,10 @@ export function resetBadgeFamily(id: BadgeId): void {
       changed = true;
     }
   }
-  if (changed) saveBadges(store);
+  if (changed) {
+    retireBadgeFamily(id);
+    saveBadges(store);
+  }
 }
 
 /**

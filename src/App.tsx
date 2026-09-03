@@ -20,6 +20,7 @@ import { historyForInstrument, flattenHistory, fretMasteryMap, noteMasteryMap, t
 import { useAuth } from './hooks/useAuth';
 import { bootstrapUser, reconcileUser, syncedUser, clearSyncedUser, cloudCaptureOrphans, restoreOnly } from './utils/sync';
 import { bootstrapSettings, syncedSettingsUser, clearSyncedSettingsUser, cloudPushSettings } from './utils/settingsSync';
+import { bootstrapBadges, syncedBadgesUser, clearSyncedBadgesUser, cloudPushBadges } from './utils/badgeSync';
 import { useSelector } from './hooks/useSelector';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useGameEngine } from './hooks/useGameEngine';
@@ -281,6 +282,26 @@ export default function App() {
     return () => { cancelled = true; };
   }, [auth.user]);
 
+  // Earned badges: pull/merge/push the `badges` store on sign-in / app start,
+  // so session badges (and every badge's original earnedAt) restore instead of
+  // being lost on a device switch. The merge keeps the earliest earnedAt per
+  // badge, so it's safe to re-run; badgeSync fires a `badges-synced` event if
+  // the local set changed, which a mounted BadgeGrid re-reads on. A device
+  // that already bootstrapped this account still runs the cheap reconcile
+  // (one row) to pull anything earned elsewhere since its last visit.
+  useEffect(() => {
+    const user = auth.user;
+    if (!user) { clearSyncedBadgesUser(); return; }
+    if (syncedBadgesUser() === user.id) { cloudPushBadges(); return; }
+    void (async () => {
+      try {
+        await bootstrapBadges(user.id);
+      } catch {
+        /* offline or transient error — retried on next sign-in / app start */
+      }
+    })();
+  }, [auth.user]);
+
   // Same model, for the personal voice profile: pull/merge/push once per
   // sign-in on this device, then switch the app onto the restored profile.
   useEffect(() => {
@@ -344,6 +365,7 @@ export default function App() {
           /* transient — retried on the next reconnect / app start */
         }
         cloudPushSettings();
+        cloudPushBadges();
       })();
     };
     window.addEventListener('online', onOnline);
