@@ -62,25 +62,14 @@ const RESUME_DEBOUNCE_MS = 400;
 // let the user tap it again.
 const MAX_SILENT_TURNS = 3;
 
-/**
- * Append `next` to `prev`, dropping a leading run of words in `next` that
- * merely repeats the tail of `prev`. A restarted recogniser re-hears the end
- * of whatever was being said across the gap, so the first word or two of the
- * new turn can arrive already recorded.
- */
-function appendWithoutOverlap(prev: string, next: string): string {
-  if (!prev) return next;
-  if (!next) return prev;
-  const a = prev.split(/\s+/);
-  const b = next.split(/\s+/);
-  for (let k = Math.min(a.length, b.length); k > 0; k--) {
-    let same = true;
-    for (let i = 0; i < k; i++) {
-      if (a[a.length - k + i].toLowerCase() !== b[i].toLowerCase()) { same = false; break; }
-    }
-    if (same) return [...a, ...b.slice(k)].join(' ');
-  }
-  return `${prev} ${next}`;
+/** Collapse runs of whitespace and trim — transcripts arrive space-padded. */
+function tidy(s: string): string {
+  return s.replace(/\s+/g, ' ').trim();
+}
+
+/** Join non-empty parts with single spaces. */
+function joinText(...parts: string[]): string {
+  return parts.map(tidy).filter(Boolean).join(' ');
 }
 
 export function useDictation(opts: UseDictationOptions): UseDictationResult {
@@ -99,9 +88,13 @@ export function useDictation(opts: UseDictationOptions): UseDictationResult {
 
   const listeningRef = useRef(false);
   const keepAliveRef = useRef(0);
-  // Text finalised so far this session, and the in-progress phrase.
-  const finalsRef = useRef('');
-  const interimRef = useRef('');
+  // Text committed by turns that have already ended. A turn's own text is not
+  // accumulated word by word — it is replaced wholesale from the recogniser's
+  // current view of the turn (see `onResult`) — and only folded in here once
+  // that turn is over and its results can no longer change.
+  const committedRef = useRef('');
+  const turnFinalRef = useRef('');
+  const turnInterimRef = useRef('');
   const startRef = useRef<() => void>(() => {});
   // Set while a coalesced restart is pending, so overlapping onerror/onend
   // callbacks for the same pause don't each spawn a recogniser.
@@ -110,9 +103,6 @@ export function useDictation(opts: UseDictationOptions): UseDictationResult {
   // in a row have produced none.
   const heardThisTurnRef = useRef(false);
   const silentTurnsRef = useRef(0);
-  // True for the first result of a turn that began as a restart, where the
-  // recogniser may re-hear the tail of the previous turn.
-  const justResumedRef = useRef(false);
 
   const clearResumeTimer = useCallback(() => {
     if (resumeTimerRef.current !== null) {
@@ -156,33 +146,34 @@ export function useDictation(opts: UseDictationOptions): UseDictationResult {
       resumeTimerRef.current = null;
       if (!listeningRef.current) return;
       keepAliveRef.current++;
-      justResumedRef.current = true;
       startRef.current();
     }, RESUME_DEBOUNCE_MS);
   }, [halt]);
 
   const emit = useCallback(() => {
-    const finals = finalsRef.current;
-    const interim = interimRef.current;
-    const sep = finals && interim ? ' ' : '';
-    const text = finals + sep + interim;
-    vlog('[voice] dict emit', { finals, interim, text });
+    const text = joinText(
+      committedRef.current, turnFinalRef.current, turnInterimRef.current,
+    );
+    vlog('[voice] dict emit', {
+      committed: committedRef.current,
+      turnFinal: turnFinalRef.current,
+      turnInterim: turnInterimRef.current,
+      text,
+    });
     optsRef.current.onSession(text);
   }, []);
 
-  // Fold a finished phrase into the session text. Only the first phrase of a
-  // restarted turn is overlap-trimmed; mid-turn a genuinely repeated word is
-  // the speaker's own and must survive.
-  const foldFinal = useCallback((text: string) => {
-    if (!text) return;
-    const before = finalsRef.current;
-    finalsRef.current = justResumedRef.current
-      ? appendWithoutOverlap(before, text)
-      : before + (before ? ' ' : '') + text;
-    vlog('[voice] dict fold', {
-      before, add: text, after: finalsRef.current, resumed: justResumedRef.current,
-    });
-    justResumedRef.current = false;
+  /**
+   * Move the finished turn's text into the committed prefix. Called when a
+   * turn ends, at which point its results are frozen and it is safe to treat
+   * them as history.
+   */
+  const commitTurn = useCallback(() => {
+    const turnText = joinText(turnFinalRef.current, turnInterimRef.current);
+    if (turnText) committedRef.current = joinText(committedRef.current, turnText);
+    turnFinalRef.current = '';
+    turnInterimRef.current = '';
+    vlog('[voice] dict commit', { turnText, committed: committedRef.current });
   }, []);
 
   const beginTurn = useCallback(() => {
@@ -193,24 +184,27 @@ export function useDictation(opts: UseDictationOptions): UseDictationResult {
     vlog('[voice] dict turn', {
       keepAlive: keepAliveRef.current,
       silentTurns: silentTurnsRef.current,
-      resumed: justResumedRef.current,
-      finals: finalsRef.current,
+      committed: committedRef.current,
     });
     void engine.start({
       lang: optsRef.current.lang || 'he-IL',
       onResult: (r) => {
-        vlog('[voice] dict result', {
-          isFinal: r.isFinal, text: r.transcript, listening: listeningRef.current,
-        });
         if (!listeningRef.current) return;
         heardThisTurnRef.current = true;
         keepAliveRef.current = 0;
-        const text = r.transcript.trim();
-        if (r.isFinal) {
-          foldFinal(text);
-          interimRef.current = '';
+        // Replace this turn's text with the recogniser's current view of it.
+        // Never append: the result list is re-partitioned as it listens, so
+        // appending both repeats and drops words.
+        if (r.turnFinal !== undefined || r.turnInterim !== undefined) {
+          turnFinalRef.current = r.turnFinal ?? '';
+          turnInterimRef.current = r.turnInterim ?? '';
+        } else if (r.isFinal) {
+          // An engine with no turn snapshot (fixed-vocabulary template
+          // engines) hands over one whole utterance at a time.
+          turnFinalRef.current = joinText(turnFinalRef.current, r.transcript);
+          turnInterimRef.current = '';
         } else {
-          interimRef.current = text;
+          turnInterimRef.current = r.transcript;
         }
         emit();
       },
@@ -229,22 +223,17 @@ export function useDictation(opts: UseDictationOptions): UseDictationResult {
       },
       onEnd: () => {
         vlog('[voice] dict end', {
-          interim: interimRef.current,
-          heard: heardThisTurnRef.current,
-          listening: listeningRef.current,
+          heard: heardThisTurnRef.current, listening: listeningRef.current,
         });
         if (!listeningRef.current) return;
-        // Fold any trailing interim into the finalised text so it isn't lost
-        // when the turn ends without a final result.
-        if (interimRef.current) {
-          foldFinal(interimRef.current);
-          interimRef.current = '';
-          emit();
-        }
+        // The turn's results are frozen now — including any interim that never
+        // got a final — so bank them before the next turn starts fresh.
+        commitTurn();
+        emit();
         resume();
       },
     });
-  }, [engine, emit, resume, clearResumeTimer, halt, foldFinal]);
+  }, [engine, emit, resume, clearResumeTimer, halt, commitTurn]);
 
   useEffect(() => { startRef.current = beginTurn; }, [beginTurn]);
 
@@ -252,7 +241,6 @@ export function useDictation(opts: UseDictationOptions): UseDictationResult {
     listeningRef.current = false;
     keepAliveRef.current = 0;
     silentTurnsRef.current = 0;
-    justResumedRef.current = false;
     clearResumeTimer();
     engine?.stop();
     setListening(false);
@@ -264,9 +252,9 @@ export function useDictation(opts: UseDictationOptions): UseDictationResult {
     clearResumeTimer();
     keepAliveRef.current = 0;
     silentTurnsRef.current = 0;
-    justResumedRef.current = false;
-    finalsRef.current = '';
-    interimRef.current = '';
+    committedRef.current = '';
+    turnFinalRef.current = '';
+    turnInterimRef.current = '';
     void (async () => {
       const granted = await engine.requestPermission();
       if (!granted) { setError('no-permission'); return; }

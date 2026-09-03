@@ -48,6 +48,21 @@ export interface SpeechResult {
   alternatives: string[];
   isFinal: boolean;
   confidence?: number;
+  /**
+   * Everything settled so far in the *current listen turn*, and everything
+   * still in flight, each as one string.
+   *
+   * A continuous recogniser does not keep its results partitioned stably:
+   * Chrome re-splits an utterance across result indices while it listens (a
+   * turn can go from two results to three and back, with words moving between
+   * them), so a caller that appends result-by-result both loses and repeats
+   * words. These two fields are rebuilt from the whole result list on every
+   * event, so a caller can simply *replace* its turn text instead of
+   * accumulating. Dictation wants these; the fixed-vocabulary answer path
+   * still reads `transcript`/`alternatives` per result.
+   */
+  turnFinal?: string;
+  turnInterim?: string;
 }
 
 export interface SpeechListenOptions {
@@ -159,14 +174,6 @@ class WebSpeechEngine implements SpeechEngine {
   private rec: SpeechRecognitionLike | null = null;
   /** Bumped on every start()/stop() so late callbacks from a prior turn are ignored. */
   private turn = 0;
-  /**
-   * How many leading results in the current turn have already been emitted as
-   * final. In `continuous` mode Chrome sometimes re-fires `onresult` with
-   * `resultIndex` pointing back at an already-final result, which made the
-   * caller append the same phrase again ("doubled"/"tripled" dictation). We
-   * never re-emit a result once its final has gone out.
-   */
-  private finalizedThrough = 0;
 
   isSupported(): boolean {
     return getSRConstructor() !== null;
@@ -214,7 +221,6 @@ class WebSpeechEngine implements SpeechEngine {
     }
     this.stop(); // end any previous turn
     const myTurn = ++this.turn;
-    this.finalizedThrough = 0;
     const rec = new Ctor();
     this.rec = rec;
     rec.lang = opts.lang;
@@ -243,29 +249,31 @@ class WebSpeechEngine implements SpeechEngine {
 
     rec.onresult = (e: SpeechRecognitionEventLike) => {
       if (myTurn !== this.turn) return;
-      // Raw browser event, before any of our filtering — the ground truth for
-      // diagnosing duplicated dictation. Shows whether the doubling is already
-      // present in what Chrome hands us or is introduced downstream.
+      // Rebuild the whole turn from the current result list. Chrome moves text
+      // between result indices as it listens, so this snapshot — not any
+      // per-index bookkeeping — is the only sound view of what was said.
+      let turnFinal = '';
+      let turnInterim = '';
       const dump: string[] = [];
       for (let i = 0; i < e.results.length; i++) {
         const r = e.results[i];
-        dump.push(`${i}${r.isFinal ? 'F' : 'i'}:${r[0]?.transcript ?? ''}`);
+        const t = r[0]?.transcript ?? '';
+        if (r.isFinal) turnFinal += t;
+        else turnInterim += t;
+        dump.push(`${i}${r.isFinal ? 'F' : 'i'}:${t}`);
       }
       vlog('[voice] web onresult', {
         turn: myTurn,
         idx: e.resultIndex,
         n: e.results.length,
-        through: this.finalizedThrough,
+        turnFinal,
+        turnInterim,
         results: dump,
       });
       for (let i = e.resultIndex; i < e.results.length; i++) {
-        // Skip any result whose final we have already delivered — Chrome can
-        // replay earlier finals on a later event, which doubled the text.
-        if (i < this.finalizedThrough) continue;
         const res = e.results[i];
         const alt = res[0];
         if (!alt) continue;
-        if (res.isFinal) this.finalizedThrough = i + 1;
         // Pass every alternative, not just the top one: an isolated note
         // letter is often ranked below a common homophone ("see" over "C",
         // "for" over "four"), and the caller keeps the first that parses.
@@ -279,6 +287,8 @@ class WebSpeechEngine implements SpeechEngine {
           alternatives,
           isFinal: res.isFinal,
           confidence: alt.confidence,
+          turnFinal,
+          turnInterim,
         });
       }
     };
@@ -457,7 +467,12 @@ class NativeSpeechEngine implements SpeechEngine {
         if (myTurn !== this.turn) return;
         const matches = (data.matches ?? []).filter(Boolean);
         if (matches.length) {
-          opts.onResult({ transcript: matches[0], alternatives: matches, isFinal: false });
+          // Android's partial results already carry the whole utterance so
+          // far, so the turn snapshot is just the top match.
+          opts.onResult({
+            transcript: matches[0], alternatives: matches, isFinal: false,
+            turnFinal: '', turnInterim: matches[0],
+          });
         }
       });
       this.listener = sub as { remove: () => void };
@@ -475,7 +490,10 @@ class NativeSpeechEngine implements SpeechEngine {
       if (myTurn !== this.turn) return;
       const matches = (res.matches ?? []).filter(Boolean);
       if (matches.length) {
-        opts.onResult({ transcript: matches[0], alternatives: matches, isFinal: true });
+        opts.onResult({
+          transcript: matches[0], alternatives: matches, isFinal: true,
+          turnFinal: matches[0], turnInterim: '',
+        });
       }
       opts.onEnd?.();
     } catch (err) {
