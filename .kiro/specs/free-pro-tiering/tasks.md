@@ -1,0 +1,363 @@
+# Free vs Pro Tiering — Implementation Tasks
+
+Executable, session-portable build plan for `design.md` in this folder. A fresh session (or you)
+should be able to pick this up cold: each phase is independently shippable and leaves `main`
+working. **Read `design.md` for the "why" and the full code sketches** — this file is the ordered
+"what to do", with just enough detail to act without re-deriving decisions.
+
+## How to use this file
+
+- Do the phases **in order**. Phases 1–3 and 5 carry no product risk; Phase 4 is the visible one
+  (still no comms needed — no user base). Phase 6 is tooling. Phase 7 is a separate later spec.
+- After each phase: `npm run build` (runs `tsc -b` then Vite) **and** `npm run lint` must pass.
+  There is **no test suite** in this repo — verification is build + lint + a manual click-through.
+- Mark progress by ticking the boxes below and committing per phase (branch off `main`, don't
+  commit to `main` directly). Suggested commit prefixes match the repo style, e.g.
+  `Tiering: entitlement plumbing (phase 1)`.
+- Anything marked **[MANUAL]** is a step the human runs (Supabase SQL, env), not code.
+- File references use the repo convention: `path:line` and markdown links.
+
+## Conventions to follow (from `CLAUDE.md` + existing code)
+
+- New Supabase data-access modules mirror `src/utils/board.ts` (`fetchIsAdmin` shape): single
+  shared `supabase` client, return a safe default on any error / when `!supabase`.
+- Client hooks that depend on the signed-in user mirror the `admin` effect in
+  [src/hooks/useAuth.ts](src/hooks/useAuth.ts) — keyed on `user`, cancelled flag, gated output.
+- Timer/callback values use refs, not state, inside `setTimeout`/`setInterval` (not relevant to
+  most of this work, but `useGameEngine` touches apply).
+- CSS is per-domain partials under `src/styles/NN-*.css`, `@import`-ed in order from
+  [src/index.css](src/index.css). Next free number is **21**.
+- All user-facing strings go through `src/i18n/translations.ts` (+ `useTranslation`), Hebrew
+  included. Keep the app's tone (see the Hebrew localization glossary).
+
+---
+
+## Phase 1 — Entitlement plumbing (no visible change)
+
+**Goal:** the app knows a user's tier; nothing is gated yet.
+
+### [MANUAL] 1.0 — Apply the migration
+
+- [ ] Write `supabase/migrations/0007_entitlements.sql` (task 1.1), then run it in the Supabase
+      SQL Editor or `supabase db push`. It creates `public.entitlements` **and**
+      `public.orphan_practice` (used later in Phase 5 — ship both now so there is one migration).
+
+### 1.1 — `supabase/migrations/0007_entitlements.sql` (new)
+
+- [ ] `public.entitlements` exactly as in `design.md` §3.1: `user_id` PK → `auth.users`,
+      `tier text check (tier in ('free','pro')) default 'free'`, `source text check (...)`,
+      `expires_at timestamptz`, `provider_ref text`, `updated_at`, `created_at`.
+- [ ] RLS: enable; **read-own only** for `authenticated` (`using (user_id = auth.uid())`); **no**
+      insert/update/delete policy (writes go through the service-role key).
+- [ ] `public.orphan_practice` as in `design.md` §3.1: `history_entries` columns minus the FK,
+      plus `batch_id uuid`, `captured_at timestamptz default now()`; RLS enable; **insert-only**
+      for `anon, authenticated` (`with check (true)`); **no select policy**.
+- [ ] Grants: `grant usage on schema public to ...`; `grant select on public.entitlements to
+      authenticated`; `grant insert on public.orphan_practice to anon, authenticated`.
+- [ ] Follow the header-comment style of `0001_accounts.sql` / `0006_leaderboard.sql`.
+
+### 1.2 — `src/utils/entitlement.ts` (new)
+
+- [ ] Export `type Tier = 'free' | 'pro'`.
+- [ ] Export `interface Entitlement { tier: Tier; expiresAt: string | null; source: string }`
+      and `const FREE: Entitlement = { tier: 'free', expiresAt: null, source: 'none' }`.
+- [ ] `export async function fetchEntitlement(userId: string): Promise<Entitlement>` per
+      `design.md` §3.2:
+  - `!supabase` → `FREE`.
+  - `select tier, expires_at, source ... eq('user_id', userId).maybeSingle()`.
+  - error → cached value if present (see 1.3) else `FREE`.
+  - no row → `FREE`.
+  - row `tier === 'pro'` and (`expires_at` null or `Date.parse(expires_at) > Date.now()`) →
+    `{ tier:'pro', expiresAt, source }`; expired → `FREE`.
+  - on success, write cache (1.3).
+- [ ] `export function cachedEntitlement(userId: string): Entitlement | null` and an internal
+      `writeCache(userId, e)` — localStorage key `entitlementCache:<userId>` holding
+      `{ value: Entitlement, fetchedAt: number }`. Wrap in try/catch.
+
+### 1.3 — Extend `src/hooks/useAuth.ts`
+
+- [ ] Add to `AuthState`: `tier: Tier`, `isPro: boolean`, `entitlementLoading: boolean`.
+- [ ] New state: `const [entitlement, setEntitlement] = useState<Entitlement>(FREE)` seeded
+      **synchronously** from `cachedEntitlement(user?.id)` when possible (avoids a Pro→free
+      flicker on reload).
+- [ ] New effect, keyed on `user`, mirroring the existing `admin` effect:
+      `if (!user) { setEntitlement(FREE); return; }` → `fetchEntitlement(user.id)` → set, with a
+      `cancelled` guard.
+- [ ] Foreground refresh: add a `visibilitychange` + `online` listener (or fold into an existing
+      one) that re-runs `fetchEntitlement` when the tab becomes visible after > ~5 min. Expose
+      `refreshEntitlement: () => Promise<void>` from the hook (Phase 7 / dev toggle use it).
+- [ ] Return `tier: entitlement.tier`, `isPro: entitlement.tier === 'pro' && !!user`,
+      `entitlementLoading`.
+- [ ] Guests: no network, `tier='free'`, `entitlementLoading=false`.
+
+### 1.4 — Temporary dev readout
+
+- [ ] In [src/App.tsx](src/App.tsx) `settingsSections` `id: 'account'` body, when
+      `import.meta.env.DEV`, render a one-line `tier: {auth.tier}` row. Remove or replace in
+      Phase 6.
+
+### Done when
+
+- [ ] `npm run build` + `npm run lint` clean.
+- [ ] Signed-in user with no row shows `tier: free`; after `update public.entitlements set
+      tier='pro'` for that user id (via SQL), a foreground refresh flips the readout to `pro`.
+- [ ] Guest and unconfigured (`!isSupabaseConfigured`) builds show `free`, no console errors.
+- [ ] Commit: `Tiering: entitlement plumbing + 0007 migration (phase 1)`.
+
+---
+
+## Phase 2 — Feature map + `<ProGate>` + upsell shell
+
+**Goal:** the gating primitives exist and render; still nothing is actually gated.
+
+### 2.1 — `src/utils/features.ts` (new)
+
+- [ ] `export type Feature = 'historyBeyond7Days' | 'masteryMaps' | 'allPersonalBests' |
+      'multiString' | 'voiceProfile' | 'noAds'` (comments per `design.md` §4.1).
+- [ ] `const MIN_TIER: Record<Feature, Tier>` — all `'pro'` for now.
+- [ ] `const RANK: Record<Tier, number> = { free: 0, pro: 1 }`.
+- [ ] `export function can(feature: Feature, tier: Tier): boolean`.
+- [ ] `export const FREE_HISTORY_DAYS = 7`.
+- [ ] Comment noting what is deliberately **not** here (sync/restore, leaderboard, badges,
+      current-combo best).
+
+### 2.2 — `src/components/ProGate.tsx` (new)
+
+- [ ] Props: `{ feature: Feature; children: ReactNode; variant?: 'overlay'|'replace'|'inline-badge';
+      pitch?: string }`.
+- [ ] Reads `useAuth()` (or a thin `useEntitlement()` — see 2.4). If `can(feature, tier)` →
+      render `children` unchanged.
+- [ ] Locked rendering per `design.md` §4.2:
+  - `overlay` — `children` dimmed/blurred + lock chip + "Pro" pill overlay; the pill/overlay
+    click opens the `upgrade` drawer section.
+  - `replace` — render only `<UpgradeCard pitch={pitch} />`.
+  - `inline-badge` — render `children` + a small "Pro" pill; intercept the primary interaction
+    (pass an `onBlockedActivate` or wrap in a click-capturing span) to open `upgrade` instead.
+- [ ] No security logic — purely presentational.
+
+### 2.3 — `src/components/UpgradeCard.tsx` (new)
+
+- [ ] Reuses `SettingCard` / drawer-page styling. Shows: what Pro unlocks (short list), current
+      tier, and — for Pro — `source` + `expiresAt`.
+- [ ] CTA is a **placeholder** ("Coming soon" / expands the feature list). **No payment button.**
+      Leave a clearly marked `// Phase 7: wire purchase entry point here`.
+
+### 2.4 — (optional) `src/hooks/useEntitlement.ts`
+
+- [ ] Thin re-export: `export function useEntitlement() { const { tier, isPro, entitlementLoading,
+      refreshEntitlement } = useAuth(); return { tier, isPro, loading: entitlementLoading,
+      refresh: refreshEntitlement }; }` so call sites don't pull the whole auth object.
+
+### 2.5 — `upgrade` drawer section
+
+- [ ] In [src/App.tsx](src/App.tsx) `settingsSections`, add `{ id: 'upgrade', title: '⭐ Pro',
+      blurb: ..., body: <UpgradeCard /> }`, present when `auth.configured` (like `account`).
+      Place it right after `account`.
+- [ ] A helper to open it programmatically (set `drawerSection = 'upgrade'`) that `<ProGate>` can
+      call.
+
+### 2.6 — CSS + i18n
+
+- [ ] New `src/styles/21-pro-gate.css`; add `@import './styles/21-pro-gate.css';` to
+      [src/index.css](src/index.css) after line 24.
+- [ ] Add all new strings to `src/i18n/translations.ts` (en + he).
+
+### Done when
+
+- [ ] Build + lint clean.
+- [ ] Temporarily drop a `<ProGate feature="multiString" variant="replace">` around some element
+      to eyeball all three variants + the `upgrade` section in both languages, then remove the
+      temporary wrap.
+- [ ] Commit: `Tiering: ProGate + feature map + upgrade shell (phase 2)`.
+
+---
+
+## Phase 3 — Gate the low-risk toggles
+
+**Goal:** multi-string, mastery maps, and voice profile are Pro-gated. Self-contained, easy to
+verify.
+
+### 3.1 — Multi-string (`multiString`) — `design.md` §5.3
+
+- [ ] [src/components/SelectorPanel.tsx](src/components/SelectorPanel.tsx): the multi-string
+      toggle wrapped in `<ProGate feature="multiString" variant="inline-badge">`. Free user sees
+      it, tapping opens `upgrade`.
+- [ ] [src/hooks/useSelector.ts](src/hooks/useSelector.ts): in the `multiStrings` derivation,
+      when `!isPro`, clamp to single-string **without** overwriting the persisted `multiMode`
+      setting (so it reactivates on upgrade). `useSelector` will need `isPro` passed in (from
+      `App.tsx`, which has `auth`).
+- [ ] Confirm a persisted `multiMode = true` on a free account drills single-string and does not
+      get written back to `false`.
+
+### 3.2 — Mastery maps (`masteryMaps`) — `design.md` §5.2
+
+- [ ] [src/App.tsx](src/App.tsx): when `!isPro`, force the fret/note mastery overlay off
+      (don't compute / don't pass the map) regardless of the stored toggle.
+- [ ] The "Mastery on the fretboard" toggle in the Stats & progress screen wrapped in
+      `<ProGate feature="masteryMaps" variant="overlay">`.
+
+### 3.3 — Voice profile (`voiceProfile`) — `design.md` §5.5
+
+- [ ] [src/components/VoiceCalibration.tsx](src/components/VoiceCalibration.tsx) entry point and
+      the "use my voice profile" switch (in the `answer` drawer section) wrapped in
+      `<ProGate feature="voiceProfile" variant="replace">`.
+- [ ] No change needed in `src/utils/speech.ts` — `getSpeechEngine()` already falls back to the
+      generic/template engine when no profile is ready.
+- [ ] Existing calibration data must be left intact (re-enables on upgrade).
+
+### Done when
+
+- [ ] Build + lint clean.
+- [ ] With a `free` account: multi-string toggle → upsell; mastery overlay absent + toggle
+      locked; voice-profile UI replaced by upsell. Flip the account to `pro` via SQL → all three
+      work normally, and any previously-set preferences come back.
+- [ ] Commit: `Tiering: gate multi-string, mastery maps, voice profile (phase 3)`.
+
+---
+
+## Phase 4 — Gate the history view
+
+**Goal:** the Stats & Progress screen (and mastery aggregation) shows only the last 7 days for
+free users. **Nothing else is touched** — sync, restore, XP, badges, current-combo best all keep
+reading the full history.
+
+### 4.1 — `src/utils/progress.ts`
+
+- [ ] Add `export function withinFreeWindow(entries: HistoryEntry[]): HistoryEntry[]` —
+      `filter(e => e.createdAt && Date.parse(e.createdAt) >= Date.now() - FREE_HISTORY_DAYS*864e5)`.
+      Import `FREE_HISTORY_DAYS` from `utils/features.ts`.
+
+### 4.2 — `src/components/ProgressPanel.tsx`
+
+- [ ] Receive `isPro` (from `App.tsx`).
+- [ ] When `!isPro`, apply `withinFreeWindow` to the `history` array it derives every stat from,
+      in **both** the "This setup" and "All time" scopes.
+- [ ] Relabel: for a free user the "All time" scope reads "Last 7 days" — or hide the "All time"
+      scope button and show it behind `<ProGate feature="historyBeyond7Days" variant="overlay">`.
+- [ ] The "All bests" expander (`allBestsSummary`) is Pro — wrap in
+      `<ProGate feature="allPersonalBests" variant="overlay">`. The "This setup" current-combo
+      best stays visible to everyone.
+
+### 4.3 — `src/App.tsx` mastery aggregation
+
+- [ ] The `fretMasteryMap` / `noteMasteryMap` `useMemo`s already only matter when the overlay is
+      shown, and Phase 3 turned the overlay off for free users — so **no history-window filter is
+      needed here**. Just double-check a free user never triggers the aggregation. Leave the
+      full-history read for Pro.
+
+### 4.4 — Leave alone (verify, don't change)
+
+- [ ] `useHistory.addEntry`, `utils/sync.ts` (`bootstrapUser`/`reconcileUser`/write-throughs),
+      `utils/leaderboard.ts`, `utils/badges.ts` — all keep reading/writing the **full** history.
+      Grep for `withinFreeWindow` and confirm it appears only in `ProgressPanel`.
+
+### Done when
+
+- [ ] Build + lint clean.
+- [ ] Free account with history older than 7 days: Stats screen shows only recent rows; XP on the
+      leaderboard and lifetime badges still reflect the full history; "Clear history" still clears
+      everything. Flip to `pro` → all-time stats appear with no backfill step.
+- [ ] Commit: `Tiering: 7-day history window for free (phase 4)`.
+
+---
+
+## Phase 5 — Guest-merge prompt
+
+**Goal:** first sign-in on a device with local guest history asks before merging, instead of the
+current silent auto-merge. Not tier-specific. See `design.md` §5.4.
+
+### 5.1 — `src/utils/sync.ts`
+
+- [ ] Add `cloudCaptureOrphans(entries: HistoryEntry[]): Promise<void>` — one bulk `insert` into
+      `orphan_practice` with a fresh `batch_id = crypto.randomUUID()`, mapping each entry's
+      fields + its `createdAt`. Best-effort (try/catch), no-op if `!supabase`.
+- [ ] Add a merge-skipping restore: either a `bootstrapUser(userId, {}, {})` call (pass empty
+      local maps so the union is a no-op) or an explicit `restoreOnly(userId)` that does
+      pull → commit without the local union. Prefer reusing `bootstrapUser` with empty inputs to
+      keep one code path.
+
+### 5.2 — `src/components/GuestMergePrompt.tsx` (new)
+
+- [ ] Modal with the copy from `design.md` §5.4 and two buttons: **Merge my progress** /
+      **Use account only**. i18n both languages.
+- [ ] If the local set is large (> 50 rows) and the user picks "Use account only", show a second
+      confirm ("these won't be added to your account").
+
+### 5.3 — `src/App.tsx` sign-in effect
+
+- [ ] In the first-sign-in branch (`syncedUser() !== user.id`) — currently calls `bootstrapUser`
+      directly (see [src/App.tsx](src/App.tsx#L167-L197)):
+  - if local `allHistory` is empty → restore only, no prompt (current behavior is fine).
+  - else, if `guestMergeChoice:<user.id>` is already stored → honor it silently.
+  - else → show `<GuestMergePrompt>`. On **Merge** → existing `bootstrapUser(user.id,
+    getAllHistory(), loadAllBests())`. On **Use account only** → `await
+    cloudCaptureOrphans(flatten(getAllHistory()))`, then the merge-skipping restore, then wipe
+    local `selectorHistory` + local bests to the restored set.
+  - persist the choice in `guestMergeChoice:<user.id>`.
+- [ ] The `online`-reconnect handler and the `reconcileUser` (already-synced) path are unchanged.
+
+### Done when
+
+- [ ] Build + lint clean.
+- [ ] Manual: practice as a guest, sign in → prompt appears. "Merge" behaves as today. "Use
+      account only" → local guest rows gone from the device, account shows only its cloud data,
+      and a `select count(*) from orphan_practice` (as service role) increased by the guest row
+      count. Signing in again does not re-prompt.
+- [ ] Commit: `Tiering: guest-merge prompt + orphan capture (phase 5)`.
+
+---
+
+## Phase 6 — Admin provisioning + dev toggle
+
+**Goal:** a way to grant Pro out-of-band, and a way to test both experiences fast.
+
+### 6.1 — `scripts/grant-pro.mts` (new)
+
+- [ ] Node/tsx script (match `scripts/*.mts` style, e.g. `scripts/eval-voice.mts`). Reads
+      `SUPABASE_URL` + a **service-role** key from env (never commit it; document in `.env.example`
+      as a local-only var). Args: `--email <addr> [--months N | --lifetime] [--revoke]`.
+- [ ] Looks up the `auth.users` id by email, upserts `public.entitlements`
+      (`tier='pro', source='comp', expires_at = now()+N months or null`). `--revoke` sets
+      `tier='free'`.
+- [ ] Print the resulting row.
+
+### 6.2 — Dev-only "simulate Pro" toggle
+
+- [ ] Only under `import.meta.env.DEV`. Surface it in the Debug log panel
+      ([src/components/DebugLogPanel.tsx](src/components/DebugLogPanel.tsx)) or the dev readout
+      from 1.4.
+- [ ] Mechanism: a `localStorage` flag `devSimulatePro` that `useAuth` OR-s into `isPro`
+      (`isPro = (entitlement.tier === 'pro' || (import.meta.env.DEV && devSimulatePro)) && !!user`).
+      Never reads in production bundles.
+- [ ] Replace the temporary 1.4 readout with a clean "tier: X (+sim)" line.
+
+### Done when
+
+- [ ] `tsx scripts/grant-pro.mts --email you@example.com --months 1` flips your account to Pro
+      (verify in-app after a refresh).
+- [ ] The dev toggle flips gated UI on/off with no DB change and is absent from `npm run build`
+      output (grep the `dist/` bundle for `devSimulatePro` → nothing meaningful).
+- [ ] Commit: `Tiering: grant-pro script + dev simulate-pro toggle (phase 6)`.
+
+---
+
+## Phase 7 — Payment rail (SEPARATE SPEC, not now)
+
+Out of scope here. Needs the pricing / trial decision first (`design.md` §11). When ready, write
+`.kiro/specs/free-pro-payments/` covering: RevenueCat SDK wiring (web + Play Billing via
+Capacitor), the `entitlement-webhook` Supabase Edge Function (service-role upsert into
+`entitlements`, keyed by `provider_ref`), and turning the `<UpgradeCard>` placeholder CTA into the
+real purchase entry point that calls `refreshEntitlement()` on success. `design.md` §7 is the
+seam; nothing in Phases 1–6 changes.
+
+---
+
+## Progress tracker
+
+- [ ] Phase 1 — Entitlement plumbing + `0007` migration
+- [ ] Phase 2 — Feature map + `<ProGate>` + upsell shell
+- [ ] Phase 3 — Gate multi-string / mastery maps / voice profile
+- [ ] Phase 4 — 7-day history window
+- [ ] Phase 5 — Guest-merge prompt + orphan capture
+- [ ] Phase 6 — grant-pro script + dev toggle
+- [ ] Phase 7 — Payment rail (separate spec)
