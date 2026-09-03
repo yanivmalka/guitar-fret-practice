@@ -44,15 +44,43 @@ export interface UseDictationResult {
 // The web recogniser ends its own turn on a pause in speech. While the user
 // still has the mic on we transparently resume, up to this many times, so it
 // doesn't go dead mid-thought.
-const MAX_KEEPALIVE = 120;
+const MAX_KEEPALIVE = 40;
 
 // The browser recogniser can fire `onerror` ('no-speech'/'aborted') *and*
 // `onend` for the same pause. Starting a fresh SpeechRecognition for each
-// leaves two (or three) instances briefly overlapping, and each re-delivers
-// the phrase still being spoken as its own final result — this is what
-// doubled/tripled the dictated words. Every resume path is funnelled through
-// one short timer so a burst of callbacks yields a single restart.
-const RESUME_DEBOUNCE_MS = 120;
+// leaves two instances briefly overlapping, and each transcribes the audio
+// across the seam — which is what duplicated the first word of a phrase.
+// Every resume path is funnelled through one timer, so a burst of callbacks
+// yields a single restart, and the delay is long enough for the outgoing
+// recogniser to release the microphone before the next one claims it.
+const RESUME_DEBOUNCE_MS = 400;
+
+// Chrome plays its own start/stop chime on every recognition session, so
+// resuming forever turns a thinking pause into a stream of beeps. After this
+// many consecutive turns that heard nothing at all, switch the mic off and
+// let the user tap it again.
+const MAX_SILENT_TURNS = 3;
+
+/**
+ * Append `next` to `prev`, dropping a leading run of words in `next` that
+ * merely repeats the tail of `prev`. A restarted recogniser re-hears the end
+ * of whatever was being said across the gap, so the first word or two of the
+ * new turn can arrive already recorded.
+ */
+function appendWithoutOverlap(prev: string, next: string): string {
+  if (!prev) return next;
+  if (!next) return prev;
+  const a = prev.split(/\s+/);
+  const b = next.split(/\s+/);
+  for (let k = Math.min(a.length, b.length); k > 0; k--) {
+    let same = true;
+    for (let i = 0; i < k; i++) {
+      if (a[a.length - k + i].toLowerCase() !== b[i].toLowerCase()) { same = false; break; }
+    }
+    if (same) return [...a, ...b.slice(k)].join(' ');
+  }
+  return `${prev} ${next}`;
+}
 
 export function useDictation(opts: UseDictationOptions): UseDictationResult {
   // The engine is picked once, on mount, and kept for the hook's lifetime.
@@ -77,6 +105,13 @@ export function useDictation(opts: UseDictationOptions): UseDictationResult {
   // Set while a coalesced restart is pending, so overlapping onerror/onend
   // callbacks for the same pause don't each spawn a recogniser.
   const resumeTimerRef = useRef<number | null>(null);
+  // Whether the turn now ending produced any transcript, and how many turns
+  // in a row have produced none.
+  const heardThisTurnRef = useRef(false);
+  const silentTurnsRef = useRef(0);
+  // True for the first result of a turn that began as a restart, where the
+  // recogniser may re-hear the tail of the previous turn.
+  const justResumedRef = useRef(false);
 
   const clearResumeTimer = useCallback(() => {
     if (resumeTimerRef.current !== null) {
@@ -85,21 +120,38 @@ export function useDictation(opts: UseDictationOptions): UseDictationResult {
     }
   }, []);
 
+  const halt = useCallback(() => {
+    listeningRef.current = false;
+    setListening(false);
+  }, []);
+
   // Single-flight restart: schedule at most one `beginTurn()` per quiet gap.
+  // The `resumeTimerRef` guard also makes the per-turn bookkeeping below run
+  // once per gap even though onerror and onend both land here.
   const resume = useCallback(() => {
     if (!listeningRef.current || resumeTimerRef.current !== null) return;
+
+    if (heardThisTurnRef.current) {
+      silentTurnsRef.current = 0;
+    } else if (++silentTurnsRef.current >= MAX_SILENT_TURNS) {
+      // Nothing heard for several turns running — the user is quiet (or the
+      // recogniser cannot start at all). Stop rather than beep indefinitely.
+      halt();
+      return;
+    }
+
     if (keepAliveRef.current >= MAX_KEEPALIVE) {
-      listeningRef.current = false;
-      setListening(false);
+      halt();
       return;
     }
     resumeTimerRef.current = window.setTimeout(() => {
       resumeTimerRef.current = null;
       if (!listeningRef.current) return;
       keepAliveRef.current++;
+      justResumedRef.current = true;
       startRef.current();
     }, RESUME_DEBOUNCE_MS);
-  }, []);
+  }, [halt]);
 
   const emit = useCallback(() => {
     const finals = finalsRef.current;
@@ -108,27 +160,31 @@ export function useDictation(opts: UseDictationOptions): UseDictationResult {
     optsRef.current.onSession(finals + sep + interim);
   }, []);
 
+  // Fold a finished phrase into the session text. Only the first phrase of a
+  // restarted turn is overlap-trimmed; mid-turn a genuinely repeated word is
+  // the speaker's own and must survive.
+  const foldFinal = useCallback((text: string) => {
+    if (!text) return;
+    finalsRef.current = justResumedRef.current
+      ? appendWithoutOverlap(finalsRef.current, text)
+      : finalsRef.current + (finalsRef.current ? ' ' : '') + text;
+    justResumedRef.current = false;
+  }, []);
+
   const beginTurn = useCallback(() => {
     if (!engine || engine.kind === 'none') return;
     listeningRef.current = true;
+    heardThisTurnRef.current = false;
     setListening(true);
     void engine.start({
       lang: optsRef.current.lang || 'he-IL',
       onResult: (r) => {
         if (!listeningRef.current) return;
-        // A result means this instance is alive and working — cancel any
-        // queued restart so it can't spawn a second, overlapping recogniser.
-        clearResumeTimer();
+        heardThisTurnRef.current = true;
         keepAliveRef.current = 0;
         const text = r.transcript.trim();
         if (r.isFinal) {
-          // Drop a final that merely repeats the tail already recorded: the
-          // signature of a lingering previous instance re-delivering the same
-          // phrase after a coalesced restart slipped through.
-          const tail = finalsRef.current.slice(-text.length);
-          if (text && tail.toLowerCase() !== text.toLowerCase()) {
-            finalsRef.current += (finalsRef.current ? ' ' : '') + text;
-          }
+          foldFinal(text);
           interimRef.current = '';
         } else {
           interimRef.current = text;
@@ -144,8 +200,7 @@ export function useDictation(opts: UseDictationOptions): UseDictationResult {
           return;
         }
         clearResumeTimer();
-        listeningRef.current = false;
-        setListening(false);
+        halt();
         setError(e);
       },
       onEnd: () => {
@@ -153,20 +208,22 @@ export function useDictation(opts: UseDictationOptions): UseDictationResult {
         // Fold any trailing interim into the finalised text so it isn't lost
         // when the turn ends without a final result.
         if (interimRef.current) {
-          finalsRef.current += (finalsRef.current ? ' ' : '') + interimRef.current;
+          foldFinal(interimRef.current);
           interimRef.current = '';
           emit();
         }
         resume();
       },
     });
-  }, [engine, emit, resume, clearResumeTimer]);
+  }, [engine, emit, resume, clearResumeTimer, halt, foldFinal]);
 
   useEffect(() => { startRef.current = beginTurn; }, [beginTurn]);
 
   const stop = useCallback(() => {
     listeningRef.current = false;
     keepAliveRef.current = 0;
+    silentTurnsRef.current = 0;
+    justResumedRef.current = false;
     clearResumeTimer();
     engine?.stop();
     setListening(false);
@@ -177,6 +234,8 @@ export function useDictation(opts: UseDictationOptions): UseDictationResult {
     setError(null);
     clearResumeTimer();
     keepAliveRef.current = 0;
+    silentTurnsRef.current = 0;
+    justResumedRef.current = false;
     finalsRef.current = '';
     interimRef.current = '';
     void (async () => {
