@@ -44,13 +44,18 @@ export function FeedbackBoard({
   user,
   profile,
   onSignIn,
+  suppressAdmin = false,
 }: {
   user: User | null;
   profile: AuthProfile | null;
   onSignIn: () => void;
+  /** An admin is browsing the app as a regular user — treat this board as a
+   *  non-admin would see it (compose box + own posts, no inbox). */
+  suppressAdmin?: boolean;
 }) {
   const { t } = useTranslation();
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdminAccount, setIsAdminAccount] = useState(false);
+  const isAdmin = isAdminAccount && !suppressAdmin;
   const [posts, setPosts] = useState<BoardPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +100,7 @@ export function FeedbackBoard({
         fetchIsAdmin(userId),
         fetchPosts(userId),
       ]);
-      setIsAdmin(admin);
+      setIsAdminAccount(admin);
       setPosts(list);
     } catch {
       setError(t('Couldn’t load the board. Check your connection and try again.'));
@@ -114,7 +119,7 @@ export function FeedbackBoard({
           fetchPosts(userId),
         ]);
         if (!alive) return;
-        setIsAdmin(admin);
+        setIsAdminAccount(admin);
         setPosts(list);
       } catch {
         if (alive) setError(t('Couldn’t load the board. Check your connection and try again.'));

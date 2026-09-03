@@ -462,6 +462,22 @@ const he: Record<string, string> = {
   'Unlock with Pro': 'זמין במסלול Pro',
   'You have Pro': 'יש לך Pro',
   "You're on Free": 'אתה במסלול החינמי',
+  'Your plan': 'המסלול שלך',
+  'Included with Pro': 'כלול גם ב-Pro',
+  'Everything in Free, plus:': 'כל מה שיש בחינמי, ובנוסף:',
+  'Everything you need to practice daily, at no cost.':
+    'כל מה שצריך כדי לתרגל כל יום, ללא עלות.',
+  'The full fretboard drill — by note and by fret, on every string':
+    'תרגול מלא על סרגל הסריגים — לפי תו ולפי סריג, על כל מיתר.',
+  'Badges and achievements, with your pinned medal shelf':
+    'עיטורים והישגים, כולל מדף המדליות הנעוצות שלך.',
+  'The leaderboard — XP, questions answered and accuracy':
+    'לוח המובילים — ניקוד, מספר שאלות ודיוק.',
+  'Cloud sync and full restore of your practice on every device':
+    'סנכרון ענן ושחזור מלא של התרגול שלך בכל מכשיר.',
+  'Your last 7 days of stats, plus the personal best for what you’re drilling':
+    'סטטיסטיקות שבעת הימים האחרונים, בתוספת השיא האישי בתרגול הנוכחי.',
+  'Free, forever': 'חינמי, לתמיד',
   'Pro is for training seriously and tracking progress over time.':
     'מסלול Pro מיועד לתרגול רציני ולמעקב אחר ההתקדמות לאורך זמן.',
   'Your full practice history — all-time stats and trends, not just the last 7 days':
@@ -482,10 +498,14 @@ const he: Record<string, string> = {
   'Access runs until': 'הגישה בתוקף עד',
   'Pro isn’t on sale yet — everything above stays free to try in the meantime.':
     'מסלול Pro עדיין אינו נמכר — עד אז כל מה שלמעלה זמין לניסיון בחינם.',
-  // Admin-only Pro toggle (settings ▸ Pro)
+  // Admin-only account tools (settings ▸ Account)
   'Admin: Pro on your account': 'מנהל: Pro בחשבון שלך',
   'Grants or revokes Pro for your own account only. Writes to the entitlements table and syncs across your devices.':
     'מעניק או מבטל Pro עבור החשבון שלך בלבד. נכתב לטבלת ההרשאות ומסונכרן בין המכשירים שלך.',
+  'Admin: view the app as': 'מנהל: הצג את האפליקציה בתור',
+  'Hides every admin-only control so you see exactly what a regular user sees. Switch back here any time — this is a local view change only and does not change what your account can do.':
+    'מסתיר כל פקד שמיועד למנהלים בלבד כדי שתראה בדיוק מה שמשתמש רגיל רואה. אפשר לחזור למצב מנהל כאן בכל רגע — זהו שינוי תצוגה מקומי בלבד ואינו משנה את מה שהחשבון שלך יכול לעשות.',
+  'Regular user': 'משתמש רגיל',
   'Free': 'חינמי',
 
   // Guest-merge prompt (design §5.4) — shown on the first sign-in on a device

@@ -9,6 +9,9 @@ import {
 import {
   getDevSimulatePro, subscribeDevSimulatePro, setDevSimulatePro,
 } from '../utils/devSimulatePro';
+import {
+  getAdminViewAsUser, subscribeAdminViewAsUser, setAdminViewAsUser,
+} from '../utils/adminViewAsUser';
 
 export interface AuthProfile {
   name: string | null;
@@ -19,8 +22,19 @@ export interface AuthProfile {
 export interface AuthState {
   user: User | null;
   profile: AuthProfile | null;
-  /** True when the signed-in user has a row in `public.admins`. */
+  /** True when the signed-in user has a row in `public.admins` AND is not
+   *  currently browsing as a regular user (see {@link viewingAsUser}). This is
+   *  the flag the UI should gate admin-only chrome on. */
   admin: boolean;
+  /** True when the account actually has a row in `public.admins`, regardless of
+   *  the {@link viewingAsUser} mask. Use this only to decide whether to offer
+   *  the "back to admin" / "view as user" switch — never to unlock admin UI. */
+  adminAccount: boolean;
+  /** An admin has flipped "view the app as a regular user" from the Account
+   *  tab. Purely a client-side view mask over {@link admin}. */
+  viewingAsUser: boolean;
+  /** Toggle {@link viewingAsUser} (persisted to localStorage). */
+  setViewingAsUser: (on: boolean) => void;
   /** Subscription tier. `'free'` for guests and signed-in free users. */
   tier: Tier;
   /** Convenience: a signed-in user on the Pro tier. */
@@ -82,6 +96,11 @@ export function useAuth(): AuthState {
   // instance updates together; `import.meta.env.DEV`-gated, so a production
   // build folds it to `false` (verified by grepping `dist/`).
   const devSimulatePro = useSyncExternalStore(subscribeDevSimulatePro, getDevSimulatePro);
+
+  // Admin "view as a regular user": an external-store flag AND-ed out of the
+  // exposed `admin` below so every `useAuth()` instance masks admin chrome
+  // together. Backed by a store for the same reason as `devSimulatePro`.
+  const viewingAsUser = useSyncExternalStore(subscribeAdminViewAsUser, getAdminViewAsUser);
 
   useEffect(() => {
     if (!supabase) return;
@@ -184,7 +203,10 @@ export function useAuth(): AuthState {
   return {
     user,
     profile: toProfile(user),
-    admin: admin && !!user,
+    admin: admin && !!user && !viewingAsUser,
+    adminAccount: admin && !!user,
+    viewingAsUser,
+    setViewingAsUser: setAdminViewAsUser,
     tier: simPro ? 'pro' : user ? entitlement.tier : 'free',
     isPro: simPro || (entitlement.tier === 'pro' && !!user),
     entitlement: user ? entitlement : FREE,

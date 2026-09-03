@@ -654,6 +654,11 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Which settings sub-page is open inside the drawer; null = the list of titles.
   const [drawerSection, setDrawerSection] = useState<string | null>(null);
+  // The `upgrade` (Pro) sub-page is reachable both from the Account tab's plan
+  // tile and from any locked <ProGate> in the app (via registerUpgradeHandler,
+  // which may open it without Account ever being shown). Back should return to
+  // Account only in the former case, so track which way we got there.
+  const upgradeFromAccountRef = useRef(false);
   // Friendly in-app microphone card shown *before* the browser's own bare
   // permission prompt: 'primer' explains why we need the mic, 'denied' is the
   // recovery card for when the browser has already refused (it won't re-ask).
@@ -785,6 +790,7 @@ export default function App() {
     registerUpgradeHandler(() => {
       setShowStats(false);
       setSettingsOpen(true);
+      upgradeFromAccountRef.current = false;
       setDrawerSection('upgrade');
     });
     return () => registerUpgradeHandler(null);
@@ -798,8 +804,10 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       const cur = drawerSectionRef.current;
-      if (cur !== null) setDrawerSection(cur === 'badges' ? 'account' : null);
-      else setSettingsOpen(false);
+      if (cur !== null) {
+        const backToAccount = cur === 'badges' || (cur === 'upgrade' && upgradeFromAccountRef.current);
+        setDrawerSection(backToAccount ? 'account' : null);
+      } else setSettingsOpen(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -1284,6 +1292,7 @@ export default function App() {
         <FeedbackBoard
           user={auth.user}
           profile={auth.profile}
+          suppressAdmin={auth.viewingAsUser}
           onSignIn={() => { void auth.signInWithGoogle(); }}
         />
       ),
@@ -1350,7 +1359,7 @@ export default function App() {
           <button
             type="button"
             className={`account-plan${auth.isPro ? ' is-pro' : ''}`}
-            onClick={click(() => setDrawerSection('upgrade'))}
+            onClick={click(() => { upgradeFromAccountRef.current = true; setDrawerSection('upgrade'); })}
           >
             <span className="account-plan-icon" aria-hidden="true">⭐</span>
             <span className="account-plan-tier">{auth.isPro ? t('Pro') : t('Free')}</span>
@@ -1372,7 +1381,7 @@ export default function App() {
           <button
             type="button"
             className="account-plan account-plan-lg"
-            onClick={click(() => setDrawerSection('upgrade'))}
+            onClick={click(() => { upgradeFromAccountRef.current = true; setDrawerSection('upgrade'); })}
           >
             <span className="account-plan-icon" aria-hidden="true">⭐</span>
             <span className="account-plan-tier">{t('Free')}</span>
@@ -1391,6 +1400,53 @@ export default function App() {
           </button>
         </SettingCard>
       )}
+        {/* Admin-only account tools, grouped here rather than on the
+            customer-facing Pro screen. Gated on `adminAccount` (the real
+            row in public.admins) so the "back to admin" switch stays
+            reachable even while browsing as a regular user. */}
+        {auth.adminAccount && (
+          <SettingCard
+            label={t('Admin: view the app as')}
+            help={t('Hides every admin-only control so you see exactly what a regular user sees. Switch back here any time — this is a local view change only and does not change what your account can do.')}
+          >
+            <SegmentedControl<'admin' | 'user'>
+              ariaLabel={t('Admin: view the app as')}
+              value={auth.viewingAsUser ? 'user' : 'admin'}
+              options={[
+                { value: 'admin', label: t('Admin') },
+                { value: 'user', label: t('Regular user') },
+              ]}
+              onChange={(next) => auth.setViewingAsUser(next === 'user')}
+            />
+          </SettingCard>
+        )}
+        {auth.admin && auth.user && (
+          <SettingCard
+            label={t('Admin: Pro on your account')}
+            help={t('Grants or revokes Pro for your own account only. Writes to the entitlements table and syncs across your devices.')}
+          >
+            <SegmentedControl<'free' | 'pro'>
+              ariaLabel={t('Admin: Pro on your account')}
+              value={auth.tier}
+              options={[
+                { value: 'free', label: t('Free') },
+                { value: 'pro', label: t('Pro') },
+              ]}
+              onChange={(next) => {
+                const userId = auth.user?.id;
+                if (!userId || next === auth.tier) return;
+                void (async () => {
+                  try {
+                    await setOwnEntitlement(userId, next);
+                    await auth.refreshEntitlement();
+                  } catch (e) {
+                    verror('[admin] Pro toggle failed', e);
+                  }
+                })();
+              }}
+            />
+          </SettingCard>
+        )}
         {/* The badge shelf: up to five medals the player pins beside their
             name, plus the floating picker that leads into the full Badges
             page (which used to be its own nav-row here). */}
@@ -1415,38 +1471,10 @@ export default function App() {
       id: 'upgrade',
       title: `⭐ ${t('Pro')}`,
       blurb: '',
-      body: (
-        <>
-          <UpgradeCard />
-          {auth.admin && auth.user && (
-            <SettingCard
-              label={t('Admin: Pro on your account')}
-              help={t('Grants or revokes Pro for your own account only. Writes to the entitlements table and syncs across your devices.')}
-            >
-              <SegmentedControl<'free' | 'pro'>
-                ariaLabel={t('Admin: Pro on your account')}
-                value={auth.tier}
-                options={[
-                  { value: 'free', label: t('Free') },
-                  { value: 'pro', label: t('Pro') },
-                ]}
-                onChange={(next) => {
-                  const userId = auth.user?.id;
-                  if (!userId || next === auth.tier) return;
-                  void (async () => {
-                    try {
-                      await setOwnEntitlement(userId, next);
-                      await auth.refreshEntitlement();
-                    } catch (e) {
-                      verror('[admin] Pro toggle failed', e);
-                    }
-                  })();
-                }}
-              />
-            </SettingCard>
-          )}
-        </>
-      ),
+      // The admin Pro toggle used to live here; it now sits in the Account tab
+      // (design note: admin controls are grouped under Account, not on the
+      // customer-facing subscription screen).
+      body: <UpgradeCard />,
     }] : []),
     {
       id: 'badges',
@@ -1502,10 +1530,17 @@ export default function App() {
           <div className="sp2 settings-page-inner" dir={lang === 'he' ? 'rtl' : undefined}>
             <div className="sp2-head settings-page-head">
               {/* Badges is a sub-page of Account (opened from the pinned-badge
-                  picker), so Back returns there, not to the hamburger list. */}
+                  picker), so Back returns there, not to the hamburger list.
+                  Upgrade is a sub-page of Account too when opened from the
+                  plan tile, but can also be opened directly by a locked
+                  ProGate elsewhere — upgradeFromAccountRef tracks which. */}
               <button
                 className="sp2-back"
-                onClick={click(() => setDrawerSection(drawerSection === 'badges' ? 'account' : null))}
+                onClick={click(() => {
+                  const backToAccount = drawerSection === 'badges'
+                    || (drawerSection === 'upgrade' && upgradeFromAccountRef.current);
+                  setDrawerSection(backToAccount ? 'account' : null);
+                })}
               >
                 <Chevron dir="back" /> {t('Back')}
               </button>
