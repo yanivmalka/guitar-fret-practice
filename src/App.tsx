@@ -1251,9 +1251,9 @@ export default function App() {
     if (activeSection && activeSection.body != null) {
       return (
         <div className="app settings-page">
-          <div className="sp2 settings-page-inner">
+          <div className="sp2 settings-page-inner" dir={lang === 'he' ? 'rtl' : undefined}>
             <div className="sp2-head settings-page-head">
-              <button className="sp2-back" onClick={click(() => setDrawerSection(null))}>‹ {t('Back')}</button>
+              <button className="sp2-back" onClick={click(() => setDrawerSection(null))}>{lang === 'he' ? '›' : '‹'} {t('Back')}</button>
             </div>
             <header className="settings-page-hero">
               <span className="settings-page-emoji" aria-hidden="true">
@@ -1320,13 +1320,13 @@ export default function App() {
             aria-label={t('Game settings')}
             onClick={(e) => e.stopPropagation()}
           >
-            <nav className="settings-menu">
+            <nav className="settings-menu" dir={lang === 'he' ? 'rtl' : undefined}>
               <div className="sp2-head">
                 <button
                   className="sp2-back"
                   onClick={click(() => setSettingsOpen(false))}
                 >
-                  ‹ {t('Back')}
+                  {lang === 'he' ? '›' : '‹'} {t('Back')}
                 </button>
                 <span className="sp2-title">{t('Settings')}</span>
               </div>
@@ -1337,7 +1337,7 @@ export default function App() {
                   onClick={click(() => { if (s.onSelect) s.onSelect(); else setDrawerSection(s.id); })}
                 >
                   <span>{s.title}</span>
-                  <span className="sp2-chev" aria-hidden="true">›</span>
+                  <span className="sp2-chev" aria-hidden="true">{lang === 'he' ? '‹' : '›'}</span>
                 </button>
               ))}
             </nav>

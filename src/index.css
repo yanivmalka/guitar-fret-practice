@@ -473,6 +473,15 @@ h1 { font-size: 1.3rem; margin-bottom: 10px; }
   color: #f0f0f8;
 }
 
+/* Hebrew: the settings drawer, its sub-pages and the stats screen read
+   right-to-left. `dir="rtl"` is set on each root from `lang` (App.tsx /
+   ProgressPanel.tsx), which reverses the flex rows on its own; these rules
+   only undo the physical `text-align: left` those panels set. Scoped so the
+   game board keeps its fixed LTR layout per the note at the top of this file. */
+.settings-menu[dir="rtl"],
+.settings-page-inner[dir="rtl"],
+.stats-panel[dir="rtl"] { text-align: right; }
+
 /* Account (Google sign-in / sign-out) row at the bottom of the settings panel. */
 .account-row {
   margin-top: 14px;

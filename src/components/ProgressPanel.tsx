@@ -435,9 +435,9 @@ export default function ProgressPanel({
   const history = scope === 'setup' ? currentHistory : all;
 
   return (
-    <div className="stats-panel sp2">
+    <div className="stats-panel sp2" dir={lang === 'he' ? 'rtl' : undefined}>
       <div className="sp2-head">
-        <button className="sp2-back" onClick={click(onClose)}>‹ {t('Back')}</button>
+        <button className="sp2-back" onClick={click(onClose)}>{lang === 'he' ? '›' : '‹'} {t('Back')}</button>
         <span className="sp2-title">{t('Stats & progress')}</span>
       </div>
 
