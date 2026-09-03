@@ -5,6 +5,7 @@ import { getInstrument, type InstrumentId } from '../utils/instruments';
 import { historyForInstrument } from '../utils/mastery';
 import type { HistoryEntry } from '../utils/music';
 import { playClickSound, haptic } from '../utils/feedback';
+import { useTranslation } from '../i18n/useTranslation';
 import {
   fetchLeaderboard,
   upsertMyEntry,
@@ -62,6 +63,7 @@ export function LeaderboardPanel({
   onOptOutChange: (next: boolean) => void;
   onSignIn: () => void;
 }) {
+  const { t } = useTranslation();
   const [view, setView] = useState<InstrumentId>(activeInstrumentId);
   const [rows, setRows] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,13 +148,13 @@ export function LeaderboardPanel({
   const podium = rows.length >= 3 ? rows.slice(0, 3) : [];
   const listRows = podium.length ? rows.slice(3) : rows;
   const playerCount =
-    rows.length === 0 ? null : rows.length >= 100 ? '100+ players' : `${rows.length} player${rows.length === 1 ? '' : 's'}`;
+    rows.length === 0 ? null : rows.length >= 100 ? `100+ ${t('players')}` : `${rows.length} ${t(rows.length === 1 ? 'player' : 'players')}`;
 
   // ── sub-blocks ────────────────────────────────────────────────────────────
 
   const subtitle = (
     <p className="lb-subtitle">
-      {instrument.label} · ranked by XP{playerCount ? ` · ${playerCount}` : ''} · free for everyone
+      {t(instrument.label)} · {t('ranked by XP')}{playerCount ? ` · ${playerCount}` : ''} · {t('free for everyone')}
     </p>
   );
 
@@ -165,14 +167,14 @@ export function LeaderboardPanel({
             className={`sp2-scope-btn${view === id ? ' sp2-scope-active' : ''}`}
             onClick={() => switchView(id)}
           >
-            {getInstrument(id).label}
+            {t(getInstrument(id).label)}
           </button>
         ))}
       </div>
       <div className="sp2-scope lb-scope">
-        <button className="sp2-scope-btn sp2-scope-active">All-time</button>
-        <button className="sp2-scope-btn lb-scope-soon" disabled title="Coming soon">
-          This week
+        <button className="sp2-scope-btn sp2-scope-active">{t('All-time')}</button>
+        <button className="sp2-scope-btn lb-scope-soon" disabled title={t('Coming soon')}>
+          {t('This week')}
         </button>
       </div>
     </div>

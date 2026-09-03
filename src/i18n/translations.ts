@@ -129,6 +129,14 @@ const he: Record<string, string> = {
   'Member since': 'חבר/ה מאז',
   'badges earned': 'תגים הושגו',
 
+  // LeaderboardPanel — standings sub-page
+  'player': 'שחקן/ית',
+  'players': 'שחקנים/יות',
+  'ranked by XP': 'מדורג לפי נקודות ניסיון',
+  'free for everyone': 'חינם לכולם',
+  'All-time': 'כל הזמנים',
+  'This week': 'השבוע',
+
   // SelectorPanel — mode/difficulty/fret-range picker
   'all': 'כל',
   'strings': 'מיתרים',
