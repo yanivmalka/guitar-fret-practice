@@ -1156,6 +1156,78 @@ export default function App() {
               onChange={(l) => { playClickSound(); haptic.tap(); setLang(l); }}
             />
           </SettingCard>
+          {voice.supported && (
+            <>
+              <SettingCard
+                label={t('How you answer')}
+                help={t('Voice mode asks for microphone permission the first time.')}
+              >
+                <SegmentedControl
+                  ariaLabel={t('Answer mode')}
+                  value={answerMode}
+                  options={[
+                    { value: 'tap', label: <>👆 {t('Tap')}</> },
+                    { value: 'voice', label: <>🎤 {t('Voice')}</> },
+                  ]}
+                  onChange={(m) => {
+                    setAnswerMode(m);
+                    saveSetting('pref_answerMode', m);
+                    if (m === 'voice') askForMic();
+                  }}
+                />
+              </SettingCard>
+              {/* Voice engine + personal profile only matter once Voice is the
+                  chosen answer mode, so they live nested under it. */}
+              {answerMode === 'voice' && (
+                <ProGate
+                  feature="voiceProfile"
+                  variant="replace"
+                  pitch={t('A personal voice profile built from your own calibration recordings')}
+                >
+                  <SettingCard
+                    label={t('Voice engine')}
+                    help={t('Auto picks the best available. Personal uses your calibrated profile; General uses the built-in model.')}
+                  >
+                    <SegmentedControl
+                      ariaLabel={t('Voice engine')}
+                      value={voiceEnginePref}
+                      options={[
+                        { value: 'auto', label: t('Auto') },
+                        { value: 'profile', label: t('Personal') },
+                        { value: 'general', label: t('General') },
+                      ]}
+                      onChange={(v) => pickVoiceEngine(v)}
+                    />
+                  </SettingCard>
+                  <SettingCard
+                    label={t('Your voice profile')}
+                    help={t('Calibrating your own voice improves recognition when answering by voice.')}
+                  >
+                    {voiceProfileStat && voiceProfileStat.count > 0 && (
+                      <div className="sp2-hero">
+                        <div className="sp2-tile">
+                          <span className="sp2-tile-v">{voiceProfileStat.count}</span>
+                          <span className="sp2-tile-l">{t('recordings')}</span>
+                        </div>
+                        <div className="sp2-tile">
+                          <span className="sp2-tile-v" style={{ color: voiceProfileStat.enabled ? '#34e07a' : '#ff9d2e' }}>
+                            {voiceProfileStat.enabled ? t('On') : t('Off')}
+                          </span>
+                          <span className="sp2-tile-l">{t('enabled')}</span>
+                        </div>
+                      </div>
+                    )}
+                    <button
+                      className="set-card-btn"
+                      onClick={click(() => { setSettingsOpen(false); setShowVoiceCalibration(true); })}
+                    >🎙️ {voiceProfileStat && voiceProfileStat.count > 0
+                      ? t('Add / review recordings')
+                      : t('Calibrate my voice')}</button>
+                  </SettingCard>
+                </ProGate>
+              )}
+            </>
+          )}
           <ProGate
             feature="masteryMaps"
             variant="replace"
@@ -1187,83 +1259,6 @@ export default function App() {
       body: null,
       onSelect: () => { setShowStats(true); },
     },
-    ...(voice.supported ? [{
-      id: 'answer',
-      title: `👆 ${t('Answer mode')}`,
-      blurb: '',
-      body: (
-        <>
-        <SettingCard
-          label={t('How you answer')}
-          help={t('Voice mode asks for microphone permission the first time.')}
-        >
-          <SegmentedControl
-            ariaLabel={t('Answer mode')}
-            value={answerMode}
-            options={[
-              { value: 'tap', label: <>👆 {t('Tap')}</> },
-              { value: 'voice', label: <>🎤 {t('Voice')}</> },
-            ]}
-            onChange={(m) => {
-              setAnswerMode(m);
-              saveSetting('pref_answerMode', m);
-              if (m === 'voice') askForMic();
-            }}
-          />
-        </SettingCard>
-        {/* Voice engine + personal profile only matter once Voice is the
-            chosen answer mode, so they live nested under it. */}
-        {answerMode === 'voice' && (
-          <ProGate
-            feature="voiceProfile"
-            variant="replace"
-            pitch={t('A personal voice profile built from your own calibration recordings')}
-          >
-          <SettingCard
-            label={t('Voice engine')}
-            help={t('Auto picks the best available. Personal uses your calibrated profile; General uses the built-in model.')}
-          >
-            <SegmentedControl
-              ariaLabel={t('Voice engine')}
-              value={voiceEnginePref}
-              options={[
-                { value: 'auto', label: t('Auto') },
-                { value: 'profile', label: t('Personal') },
-                { value: 'general', label: t('General') },
-              ]}
-              onChange={(v) => pickVoiceEngine(v)}
-            />
-          </SettingCard>
-          <SettingCard
-            label={t('Your voice profile')}
-            help={t('Calibrating your own voice improves recognition when answering by voice.')}
-          >
-            {voiceProfileStat && voiceProfileStat.count > 0 && (
-              <div className="sp2-hero">
-                <div className="sp2-tile">
-                  <span className="sp2-tile-v">{voiceProfileStat.count}</span>
-                  <span className="sp2-tile-l">{t('recordings')}</span>
-                </div>
-                <div className="sp2-tile">
-                  <span className="sp2-tile-v" style={{ color: voiceProfileStat.enabled ? '#34e07a' : '#ff9d2e' }}>
-                    {voiceProfileStat.enabled ? t('On') : t('Off')}
-                  </span>
-                  <span className="sp2-tile-l">{t('enabled')}</span>
-                </div>
-              </div>
-            )}
-            <button
-              className="set-card-btn"
-              onClick={click(() => { setSettingsOpen(false); setShowVoiceCalibration(true); })}
-            >🎙️ {voiceProfileStat && voiceProfileStat.count > 0
-              ? t('Add / review recordings')
-              : t('Calibrate my voice')}</button>
-          </SettingCard>
-          </ProGate>
-        )}
-        </>
-      ),
-    }] : []),
     ...(auth.configured ? [{
       id: 'board',
       title: `💬 ${t('Feedback board')}`,
