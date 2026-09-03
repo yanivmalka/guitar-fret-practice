@@ -480,6 +480,12 @@
   white-space: nowrap;
   min-width: 0;
 }
+/* The email is an all-Latin string, so the global `unicode-bidi: plaintext`
+   (01-base) makes it follow its own LTR base direction and `text-align: start`
+   resolves to the left — even inside the RTL Account card, where the name
+   (Hebrew) sits at the right. Pin the address back to the reading-start edge
+   so it lines up under the name. */
+[dir="rtl"] .account-email { text-align: right; }
 .account-member-since {
   font-size: 0.72rem;
   color: #6f6f88;

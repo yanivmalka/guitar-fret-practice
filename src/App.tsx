@@ -1338,7 +1338,7 @@ export default function App() {
               </span>
               {auth.user.created_at && (
                 <span className="account-member-since">
-                  {t('Member since')} {new Date(auth.user.created_at).toLocaleDateString('en-GB', {
+                  {t('Member since')} {new Date(auth.user.created_at).toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-GB', {
                     day: 'numeric', month: 'long', year: 'numeric',
                   })}
                 </span>
