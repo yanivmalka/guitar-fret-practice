@@ -63,7 +63,7 @@ export function LeaderboardPanel({
   onOptOutChange: (next: boolean) => void;
   onSignIn: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const [view, setView] = useState<InstrumentId>(activeInstrumentId);
   const [rows, setRows] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,11 +85,11 @@ export function LeaderboardPanel({
     try {
       setRows(await fetchLeaderboard(view, userId));
     } catch {
-      setError('Couldn’t load the leaderboard. Check your connection and try again.');
+      setError(t('Couldn’t load the leaderboard. Check your connection and try again.'));
     } finally {
       setLoading(false);
     }
-  }, [view, userId]);
+  }, [view, userId, t]);
 
   // On open (and on instrument / sign-in change): push our own up-to-date row
   // first when we're participating, then load the standings so our position is
@@ -108,7 +108,7 @@ export function LeaderboardPanel({
         const list = await fetchLeaderboard(view, userId);
         if (alive) setRows(list);
       } catch {
-        if (alive) setError('Couldn’t load the leaderboard. Check your connection and try again.');
+        if (alive) setError(t('Couldn’t load the leaderboard. Check your connection and try again.'));
       } finally {
         if (alive) setLoading(false);
       }
@@ -138,7 +138,7 @@ export function LeaderboardPanel({
       onOptOutChange(nextOut);
       await load();
     } catch {
-      setError('Couldn’t update that. Check your connection and try again.');
+      setError(t('Couldn’t update that. Check your connection and try again.'));
     } finally {
       setBusy(false);
     }
@@ -182,16 +182,16 @@ export function LeaderboardPanel({
 
   const meCard = user ? (
     <div className="lb-standing">
-      <div className="lb-standing-k">Your standing</div>
+      <div className="lb-standing-k">{t('Your standing')}</div>
       <div className="lb-standing-row">
         <div className="lb-rankpill">
           <span className="lb-rankpill-n">{mine ? mine.rank : optedOut ? '–' : '–'}</span>
-          <span className="lb-rankpill-l">RANK</span>
+          <span className="lb-rankpill-l">{t('RANK')}</span>
         </div>
         <div className="lb-standing-id">
           <div className="lb-standing-name">{myName}</div>
           <div className="lb-standing-sub">
-            {myStats.questions.toLocaleString()} answered · {myStats.accuracy}% accuracy
+            {myStats.questions.toLocaleString()} {t('answered')} · {myStats.accuracy}% {t('accuracy')}
           </div>
         </div>
         <div className="lb-standing-xp">
@@ -200,7 +200,7 @@ export function LeaderboardPanel({
         </div>
       </div>
       <div className="lb-standing-foot">
-        <span>{optedOut ? 'Hidden from the leaderboard' : 'Visible on the leaderboard'}</span>
+        <span>{optedOut ? t('Hidden from the leaderboard') : t('Visible on the leaderboard')}</span>
         <button
           className={`lb-switch${optedOut ? '' : ' lb-switch-on'}`}
           role="switch"
@@ -214,10 +214,9 @@ export function LeaderboardPanel({
     </div>
   ) : (
     <div className="lb-standing lb-standing-guest">
-      <div className="lb-standing-k">Join the board</div>
+      <div className="lb-standing-k">{t('Join the board')}</div>
       <p className="lb-guest-copy">
-        You can see every player’s standing right now. Sign in with Google to take your own
-        place — every correct answer you’ve ever played counts. Free, no subscription.
+        {t('You can see every player’s standing right now. Sign in with Google to take your own place — every correct answer you’ve ever played counts. Free, no subscription.')}
       </p>
       <button
         className="set-card-btn set-card-btn-primary"
@@ -227,7 +226,7 @@ export function LeaderboardPanel({
           onSignIn();
         }}
       >
-        Sign in with Google
+        {t('Sign in with Google')}
       </button>
     </div>
   );
@@ -248,7 +247,7 @@ export function LeaderboardPanel({
           </div>
           <div className="lb-pod-name">{r.displayName}</div>
           <div className="lb-pod-xp">{r.xp.toLocaleString()}</div>
-          <div className="lb-pod-acc">{r.accuracy}% acc</div>
+          <div className="lb-pod-acc">{r.accuracy}% {t('acc')}</div>
         </div>
       ))}
     </div>
@@ -264,11 +263,11 @@ export function LeaderboardPanel({
           <span className="lb-av">{initialOf(r.displayName)}</span>
           <span className="lb-name">
             {r.displayName}
-            {r.mine && <span className="lb-you"> (you)</span>}
+            {r.mine && <span className="lb-you"> {t('(you)')}</span>}
           </span>
           <span className="lb-stat">
             <span className="lb-xp">{r.xp.toLocaleString()}</span>
-            <span className="lb-acc">{r.accuracy}% acc</span>
+            <span className="lb-acc">{r.accuracy}% {t('acc')}</span>
           </span>
         </li>
       ))}
@@ -286,9 +285,9 @@ export function LeaderboardPanel({
         <path d="M6 5H4a2 2 0 0 0 0 4h1M18 5h2a2 2 0 0 1 0 4h-1" />
         <path d="M10 12v3M14 12v3M8 20h8M9 20a3 3 0 0 1 6 0" />
       </svg>
-      <div className="lb-empty-title">No one’s on the board yet</div>
+      <div className="lb-empty-title">{t('No one’s on the board yet')}</div>
       <p className="lb-empty-copy">
-        Finish a practice run while signed in and your name lands here first.
+        {t('Finish a practice run while signed in and your name lands here first.')}
       </p>
     </div>
   );
@@ -304,15 +303,26 @@ export function LeaderboardPanel({
           setXpOpen((v) => !v);
         }}
       >
-        <span>How is XP counted?</span>
+        <span>{t('How is XP counted?')}</span>
         <span className="sp2-chev" aria-hidden="true">{xpOpen ? '▾' : '▸'}</span>
       </button>
       {xpOpen && (
         <p className="lb-xpexp-body">
-          1&nbsp;XP for every correct answer, added up across all your {instrument.label.toLowerCase()}{' '}
-          practice — the same lifetime total as your Stats screen. Speed and streak bonuses lift
-          your in-game score, not your XP. Turn <em>Visible on the leaderboard</em> off any time to
-          leave the board.
+          {lang === 'he' ? (
+            <>
+              נקודת ניסיון אחת על כל תשובה נכונה, מצטברת על פני כל תרגול ה{t(instrument.label)} שלך
+              — אותו סך כולל לאורך זמן כמו במסך הסטטיסטיקות. בונוסים של מהירות ורצף מעלים את הניקוד
+              שלך במשחק, לא את נקודות הניסיון. כבה את <em>{t('Visible on the leaderboard')}</em> בכל
+              עת כדי לעזוב את הלוח.
+            </>
+          ) : (
+            <>
+              1&nbsp;XP for every correct answer, added up across all your {instrument.label.toLowerCase()}{' '}
+              practice — the same lifetime total as your Stats screen. Speed and streak bonuses lift
+              your in-game score, not your XP. Turn <em>Visible on the leaderboard</em> off any time to
+              leave the board.
+            </>
+          )}
         </p>
       )}
     </div>
@@ -325,7 +335,7 @@ export function LeaderboardPanel({
       {meCard}
       {error && <p className="board-error">{error}</p>}
       {loading ? (
-        <p className="board-empty">Loading…</p>
+        <p className="board-empty">{t('Loading…')}</p>
       ) : rows.length === 0 ? (
         emptyBlock
       ) : (

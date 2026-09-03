@@ -136,6 +136,24 @@ const he: Record<string, string> = {
   'free for everyone': 'חינם לכולם',
   'All-time': 'כל הזמנים',
   'This week': 'השבוע',
+  'Loading…': 'טוען…',
+  'Couldn’t load the leaderboard. Check your connection and try again.':
+    'לא ניתן לטעון את טבלת המובילים. בדוק את החיבור ונסה שוב.',
+  'Couldn’t update that. Check your connection and try again.':
+    'לא ניתן לעדכן. בדוק את החיבור ונסה שוב.',
+  'Your standing': 'הדירוג שלך',
+  'RANK': 'דירוג',
+  'acc': 'דיוק',
+  '(you)': '(את/ה)',
+  'Hidden from the leaderboard': 'מוסתר/ת מטבלת המובילים',
+  'Visible on the leaderboard': 'גלוי/ה בטבלת המובילים',
+  'Join the board': 'הצטרף לטבלה',
+  'You can see every player’s standing right now. Sign in with Google to take your own place — every correct answer you’ve ever played counts. Free, no subscription.':
+    'אפשר לראות את הדירוג של כל שחקן/ית כבר עכשיו. התחבר עם Google כדי לתפוס את המקום שלך — כל תשובה נכונה שאי פעם ניגנת נספרת. חינם, ללא מנוי.',
+  'No one’s on the board yet': 'אף אחד עוד לא בטבלה',
+  'Finish a practice run while signed in and your name lands here first.':
+    'סיים סיבוב תרגול כשאתה מחובר והשם שלך יופיע כאן ראשון.',
+  'How is XP counted?': 'איך סופרים נקודות ניסיון?',
 
   // SelectorPanel — mode/difficulty/fret-range picker
   'all': 'כל',
