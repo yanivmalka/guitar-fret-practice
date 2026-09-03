@@ -8,11 +8,19 @@ import {
   subscribeDebugLog,
 } from '../utils/debugLog';
 
+interface Props {
+  /** Current dev "simulate Pro" state (always `false` in production). */
+  devSimulatePro?: boolean;
+  /** Toggle handler — passed only under `import.meta.env.DEV`. When omitted,
+   *  the simulate-Pro row is not rendered. */
+  onToggleSimulatePro?: (on: boolean) => void;
+}
+
 // A small on-screen viewer for the in-app debug log (see utils/debugLog.ts).
 // Always mounted so it is reachable on a device with no DevTools — most of all
 // the installed Android PWA. Collapsed to a single unobtrusive 🐞 button until
 // tapped.
-export default function DebugLogPanel() {
+export default function DebugLogPanel({ devSimulatePro, onToggleSimulatePro }: Props = {}) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -81,6 +89,16 @@ export default function DebugLogPanel() {
           <button className="debuglog-btn" onClick={() => setOpen(false)}>Close</button>
         </div>
       </div>
+      {import.meta.env.DEV && onToggleSimulatePro && (
+        <label className="debuglog-title" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 0' }}>
+          <input
+            type="checkbox"
+            checked={!!devSimulatePro}
+            onChange={(e) => onToggleSimulatePro(e.target.checked)}
+          />
+          Simulate Pro (dev only — no DB change)
+        </label>
+      )}
       <pre ref={preRef} className="debuglog-body">{text || '(no errors)'}</pre>
     </div>
   );

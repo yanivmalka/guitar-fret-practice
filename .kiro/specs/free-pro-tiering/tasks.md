@@ -415,31 +415,46 @@ current silent auto-merge. Not tier-specific. See `design.md` §5.4.
 
 ### 6.1 — `scripts/grant-pro.mts` (new)
 
-- [ ] Node/tsx script (match `scripts/*.mts` style, e.g. `scripts/eval-voice.mts`). Reads
-      `SUPABASE_URL` + a **service-role** key from env (never commit it; document in `.env.example`
-      as a local-only var). Args: `--email <addr> [--months N | --lifetime] [--revoke]`.
-- [ ] Looks up the `auth.users` id by email, upserts `public.entitlements`
-      (`tier='pro', source='comp', expires_at = now()+N months or null`). `--revoke` sets
-      `tier='free'`.
-- [ ] Print the resulting row.
+- [x] Node script matching the repo's `scripts/*.mts` style (run with
+      `node --experimental-strip-types`, per the `eval-voice.mts` header — the repo has no `tsx`
+      dep and `tsc -b` does not type-check `scripts/`). Reads `SUPABASE_URL` (or `VITE_SUPABASE_URL`)
+      + `SUPABASE_SERVICE_ROLE_KEY` from a git-ignored `.env` (a small no-dep reader) or the shell.
+      Args: `--email <addr> [--months N | --lifetime] [--revoke]`. `.env.example` gains a commented,
+      documented "local admin scripts only" block for the two vars.
+- [x] Pages `auth.admin.listUsers` to resolve the id by email, then `upsert public.entitlements`
+      with the service-role client (`tier='pro', source='comp', expires_at` = N calendar months
+      out via `Date#setMonth`, or `null` for `--lifetime`). `--revoke` upserts `tier='free'`.
+- [x] Prints the resulting row (`.select().single()`).
 
 ### 6.2 — Dev-only "simulate Pro" toggle
 
-- [ ] Only under `import.meta.env.DEV`. Surface it in the Debug log panel
-      ([src/components/DebugLogPanel.tsx](src/components/DebugLogPanel.tsx)) or the dev readout
-      from 1.4.
-- [ ] Mechanism: a `localStorage` flag `devSimulatePro` that `useAuth` OR-s into `isPro`
-      (`isPro = (entitlement.tier === 'pro' || (import.meta.env.DEV && devSimulatePro)) && !!user`).
-      Never reads in production bundles.
-- [ ] Replace the temporary 1.4 readout with a clean "tier: X (+sim)" line.
+- [x] New `src/utils/devSimulatePro.ts` — a tiny `import.meta.env.DEV`-gated external store
+      (`get` / `subscribe` / `set`, localStorage-backed). A store rather than `useState` because
+      `useAuth()` is not context-backed (every `<ProGate>` mounts its own) — all instances react
+      together through `useSyncExternalStore`, so the toggle re-locks/unlocks the gated UI live
+      with no reload.
+- [x] `useAuth` consumes it via `useSyncExternalStore` and exposes `devSimulatePro` +
+      `setDevSimulatePro`; `simPro = import.meta.env.DEV && devSimulatePro` is OR-ed into `isPro`
+      and forces `tier` to `'pro'`. **Deviation from the sketch:** `simPro` is *not* `&& !!user` —
+      design §9 wants it to work on the config-less local dev server (no account there), and it
+      does.
+- [x] The toggle is a checkbox in [src/components/DebugLogPanel.tsx](src/components/DebugLogPanel.tsx)
+      ("Simulate Pro (dev only — no DB change)"), rendered only when `import.meta.env.DEV`; the
+      panel is now mounted for `auth.admin || import.meta.env.DEV`. The Phase 1.4 Account readout
+      becomes `tier: X (+sim)` (the `(+sim)` suffix keyed off `auth.devSimulatePro`).
 
 ### Done when
 
-- [ ] `tsx scripts/grant-pro.mts --email you@example.com --months 1` flips your account to Pro
-      (verify in-app after a refresh).
-- [ ] The dev toggle flips gated UI on/off with no DB change and is absent from `npm run build`
-      output (grep the `dist/` bundle for `devSimulatePro` → nothing meaningful).
-- [ ] Commit: `Tiering: grant-pro script + dev simulate-pro toggle (phase 6)`.
+- [ ] **[DEFERRED — needs a service-role key]** `node --experimental-strip-types
+      scripts/grant-pro.mts --email you@example.com --months 1` flips the account to Pro (verify
+      in-app after a foreground refresh). Runs alongside the other preview-deploy checks.
+- [x] The dev toggle flips the gated UI on/off live with no DB change (verified headless: 3
+      `progate` nodes + 1 "Pro" pill on free → 0/0 with the toggle on, back to 3/1 with it off,
+      and the flag persists across a reload). `npm run build` clean; a `dist/` grep for
+      `devSimulatePro` finds only the two inert minified identifiers (the `useAuth` return-object
+      key and the `DebugLogPanel` prop) — no localStorage key string, no setter body, no
+      "Simulate Pro" label text.
+- [x] Commit: `Tiering: grant-pro script + dev simulate-pro toggle (phase 6)`.
 
 ---
 
@@ -476,5 +491,11 @@ seam; nothing in Phases 1–6 changes.
       (reuses `.mic-*`), `App.tsx` sign-in effect restructured around `pendingGuestMerge` +
       `finishGuestMerge`, 6 i18n strings. Modal verified headless in both languages; the real
       merge / orphan-capture path is deferred to the preview deploy (needs sign-in).
-- [ ] Phase 6 — grant-pro script + dev toggle
+- [~] Phase 6 — grant-pro script + dev simulate-Pro toggle — code done in the `gfp-tiering`
+      worktree. `scripts/grant-pro.mts` (service-role upsert by email, `--months`/`--lifetime`/
+      `--revoke`) + `.env.example` block; `utils/devSimulatePro.ts` external store, `useAuth`
+      `useSyncExternalStore` + `simPro` OR-ed into `isPro`, `DebugLogPanel` checkbox (DEV-only,
+      panel mounted for admin-or-DEV), `App.tsx` `tier: X (+sim)` readout. Toggle verified
+      headless (live lock/unlock, persists); `grant-pro.mts` run deferred to the preview deploy
+      (needs a service-role key).
 - [ ] Phase 7 — Payment rail (separate spec)

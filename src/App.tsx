@@ -1347,8 +1347,9 @@ export default function App() {
             className="dev-tier-readout"
             style={{ opacity: 0.6, fontSize: '0.8em', margin: '8px 0 0' }}
           >
-            {/* Temporary — replaced by the "tier: X (+sim)" line in Phase 6. */}
-            tier: {auth.tier}{auth.entitlementLoading ? ' …' : ''}
+            {/* Dev-only readout; the "simulate Pro" toggle that drives the
+                "(+sim)" state lives in the debug panel (🐞). */}
+            tier: {auth.tier}{auth.devSimulatePro ? ' (+sim)' : ''}{auth.entitlementLoading ? ' …' : ''}
           </p>
         )}
         </>
@@ -1797,7 +1798,13 @@ export default function App() {
         <button className="refresh-btn" onClick={() => window.location.reload()} title={t('Refresh')}>↻</button>
       </div>
 
-      {auth.admin && <DebugLogPanel />}
+      {(auth.admin || import.meta.env.DEV) && (
+        <DebugLogPanel
+          {...(import.meta.env.DEV
+            ? { devSimulatePro: auth.devSimulatePro, onToggleSimulatePro: auth.setDevSimulatePro }
+            : {})}
+        />
+      )}
 
       {showVoiceCalibration && auth.isPro && (
         <VoiceCalibration
