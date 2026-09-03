@@ -43,6 +43,43 @@ export function SegmentedControl<T extends string>({
   );
 }
 
+/**
+ * Same API as `SegmentedControl`, but rendered as the discrete button row the
+ * "Playing" card pickers (Instruments, Notes) use — a row of equal-width tiles
+ * instead of one joined pill. Used for the multi-value Settings controls
+ * (Language, answer mode, voice engine); the plain on/off toggles stay on
+ * `SegmentedControl`.
+ */
+export function PickRow<T extends string>({
+  options, value, onChange, ariaLabel,
+}: {
+  options: ReadonlyArray<SegOption<T>>;
+  value: T;
+  onChange: (v: T) => void;
+  ariaLabel?: string;
+}) {
+  return (
+    <div className="pick-row" role="group" aria-label={ariaLabel}>
+      {options.map(o => (
+        <button
+          key={o.value}
+          type="button"
+          className={`pick-btn${o.value === value ? ' pick-btn-on' : ''}`}
+          aria-pressed={o.value === value}
+          onClick={() => {
+            if (o.value === value) return;
+            playClickSound();
+            haptic.tap();
+            onChange(o.value);
+          }}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function SettingCard({
   label, help, children,
 }: {

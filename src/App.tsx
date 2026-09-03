@@ -4,7 +4,7 @@ import NoteCircle from './components/NoteCircle';
 import FretGrid from './components/FretGrid';
 import SelectorPanel from './components/SelectorPanel';
 import ProgressPanel from './components/ProgressPanel';
-import { SettingCard, SegmentedControl } from './components/SettingCard';
+import { SettingCard, SegmentedControl, PickRow } from './components/SettingCard';
 import Onboarding from './components/Onboarding';
 import { Chevron } from './components/Chevron';
 import SpeedBar from './components/SpeedBar';
@@ -1166,11 +1166,11 @@ export default function App() {
             />
           </SettingCard>
           <SettingCard label={t('Language')}>
-            <SegmentedControl
+            <PickRow
               ariaLabel={t('Language')}
               value={lang}
               options={LANGUAGES}
-              onChange={(l) => { playClickSound(); haptic.tap(); setLang(l); }}
+              onChange={(l) => { setLang(l); }}
             />
           </SettingCard>
           {voice.supported && (
@@ -1179,7 +1179,7 @@ export default function App() {
                 label={t('How you answer')}
                 help={t('Voice mode asks for microphone permission the first time.')}
               >
-                <SegmentedControl
+                <PickRow
                   ariaLabel={t('Answer mode')}
                   value={answerMode}
                   options={[
@@ -1205,7 +1205,7 @@ export default function App() {
                     label={t('Voice engine')}
                     help={t('Auto picks the best available. Personal uses your calibrated profile; General uses the built-in model.')}
                   >
-                    <SegmentedControl
+                    <PickRow
                       ariaLabel={t('Voice engine')}
                       value={voiceEnginePref}
                       options={[
