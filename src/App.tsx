@@ -984,29 +984,9 @@ export default function App() {
       ),
     },
     {
-      // Lives next to "Stats & progress", not under "Score" — it only governs
-      // whether the tracked accuracy is *drawn on the fretboard*, nothing scoring.
-      id: 'fretboard-mastery',
-      title: `📈 ${t('Mastery on the fretboard')}`,
-      blurb: '',
-      body: (
-        <SettingCard
-          label={t('Mastery on the fretboard')}
-          help={<>{t('The per-note / per-fret accuracy bars drawn over the circle and grid while stopped or paused.')} <em>{t('Mastery keeps being tracked and shows on the Stats screen either way.')}</em></>}
-        >
-          <SegmentedControl
-            ariaLabel={t('Mastery on the fretboard')}
-            value={showMastery ? 'on' : 'off'}
-            options={[
-              { value: 'on', label: t('On') },
-              { value: 'off', label: t('Off') },
-            ]}
-            onChange={(v) => { const on = v === 'on'; setShowMastery(on); saveSetting('pref_showMastery', on); }}
-          />
-        </SettingCard>
-      ),
-    },
-    {
+      // Jumps straight to its full screen. The "Mastery on the fretboard"
+      // display toggle used to be its own drawer row; it now lives at the top
+      // of that screen, beside the mastery stats it controls the overlay for.
       id: 'stats',
       title: `📊 ${t('Stats & progress')}`,
       blurb: '',
@@ -1223,6 +1203,22 @@ export default function App() {
     return (
       <div className="app stats-page">
         <ProgressPanel
+          masteryToggle={
+            <SettingCard
+              label={t('Mastery on the fretboard')}
+              help={<>{t('The per-note / per-fret accuracy bars drawn over the circle and grid while stopped or paused.')} <em>{t('Mastery keeps being tracked and shows on the Stats screen either way.')}</em></>}
+            >
+              <SegmentedControl
+                ariaLabel={t('Mastery on the fretboard')}
+                value={showMastery ? 'on' : 'off'}
+                options={[
+                  { value: 'on', label: t('On') },
+                  { value: 'off', label: t('Off') },
+                ]}
+                onChange={(v) => { const on = v === 'on'; setShowMastery(on); saveSetting('pref_showMastery', on); }}
+              />
+            </SettingCard>
+          }
           allHistory={historyOps.allHistory}
           noteNames={cofList}
           accidental={accidental}

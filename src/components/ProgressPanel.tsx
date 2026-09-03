@@ -29,6 +29,10 @@ interface Props {
   setupFretTo: number;
   onClearCurrent?: () => void; // clears just the current settings combination
   onClearAll?: () => void;     // clears every combination
+  // The "Mastery on the fretboard" display toggle, rendered at the top of the
+  // screen. Owned by App (it's a persisted preference); passed in as-is so this
+  // panel stays presentational.
+  masteryToggle?: ReactNode;
 }
 
 type Scope = 'setup' | 'all';
@@ -407,6 +411,7 @@ export default function ProgressPanel({
   allHistory, noteNames, accidental, notation, instrument, onClose,
   currentHistory, sessionScore, longestStreak, currentHistoryKey,
   setupStrings, setupFretFrom, setupFretTo, onClearCurrent, onClearAll,
+  masteryToggle,
 }: Props) {
   const { t, lang } = useTranslation();
   const [scope, setScope] = useState<Scope>('setup');
@@ -440,6 +445,8 @@ export default function ProgressPanel({
         <button className="sp2-back" onClick={click(onClose)}>{lang === 'he' ? '›' : '‹'} {t('Back')}</button>
         <span className="sp2-title">{t('Stats & progress')}</span>
       </div>
+
+      {masteryToggle}
 
       <div className="sp2-scope">
         <button
