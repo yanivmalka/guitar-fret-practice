@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured, authRedirectTo } from '../utils/supabase';
 import { setSyncUser } from '../utils/sync';
 import { fetchIsAdmin } from '../utils/board';
 import { fetchEntitlement, FREE, type Entitlement, type Tier } from '../utils/entitlement';
+import {
+  getDevSimulatePro, subscribeDevSimulatePro, setDevSimulatePro,
+} from '../utils/devSimulatePro';
 
 export interface AuthProfile {
   name: string | null;
@@ -20,6 +23,9 @@ export interface AuthState {
   tier: Tier;
   /** Convenience: a signed-in user on the Pro tier. */
   isPro: boolean;
+  /** The full entitlement row (tier + `source` + `expiresAt`), `FREE` for
+   *  guests. `source` / `expiresAt` back the Pro details in `<UpgradeCard>`. */
+  entitlement: Entitlement;
   /** True while the first entitlement lookup for the current user is in flight. */
   entitlementLoading: boolean;
   loading: boolean;
@@ -29,6 +35,13 @@ export interface AuthState {
   /** Re-fetch the entitlement now (used by the foreground refresh and, later,
    *  the post-purchase flow). No-op for guests. */
   refreshEntitlement: () => Promise<void>;
+  /** Dev-only (`import.meta.env.DEV`): when true, `tier` / `isPro` report Pro
+   *  with no DB change, so the gated UI can be exercised against one account.
+   *  Always `false` in a production bundle. */
+  devSimulatePro: boolean;
+  /** Toggle {@link devSimulatePro} (persisted to localStorage). No-op in a
+   *  production bundle. */
+  setDevSimulatePro: (on: boolean) => void;
 }
 
 // How stale the entitlement may get before a foreground return re-fetches it.
@@ -60,6 +73,13 @@ export function useAuth(): AuthState {
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [entitlement, setEntitlement] = useState<Entitlement>(FREE);
   const [entitlementLoading, setEntitlementLoading] = useState(isSupabaseConfigured);
+
+  // Dev-only "simulate Pro": an external-store flag OR-ed into `isPro` below so
+  // the gated UI can be checked without touching the DB (design §6.2). Backed
+  // by a store rather than local state so every independent `useAuth()`
+  // instance updates together; `import.meta.env.DEV`-gated, so a production
+  // build folds it to `false` (verified by grepping `dist/`).
+  const devSimulatePro = useSyncExternalStore(subscribeDevSimulatePro, getDevSimulatePro);
 
   useEffect(() => {
     if (!supabase) return;
@@ -146,17 +166,25 @@ export function useAuth(): AuthState {
     await supabase.auth.signOut();
   };
 
+  // Dev-only override: force Pro on so both experiences are one tap apart
+  // during development (design §9). Deliberately not gated on `user` — it works
+  // on the config-less local dev server too. `false` in production builds.
+  const simPro = import.meta.env.DEV && devSimulatePro;
+
   return {
     user,
     profile: toProfile(user),
     admin: admin && !!user,
-    tier: user ? entitlement.tier : 'free',
-    isPro: entitlement.tier === 'pro' && !!user,
+    tier: simPro ? 'pro' : user ? entitlement.tier : 'free',
+    isPro: simPro || (entitlement.tier === 'pro' && !!user),
+    entitlement: user ? entitlement : FREE,
     entitlementLoading: !!user && entitlementLoading,
     loading,
     configured: isSupabaseConfigured,
     signInWithGoogle,
     signOut,
     refreshEntitlement,
+    devSimulatePro,
+    setDevSimulatePro,
   };
 }

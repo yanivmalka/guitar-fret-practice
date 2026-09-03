@@ -1,0 +1,162 @@
+/* ── Pro gating: <ProGate> locked states + <UpgradeCard> ───────────────────
+   Used inside .settings-page drawer sub-pages and the Stats screen. Borrows
+   the .set-card surface vocabulary; the accent is the badges' "gold = top
+   tier" pair (--m-gold / --m-gold-deep) so Pro reads as the premium lane
+   rather than another cyan control. No motion — nothing here animates. */
+
+.progate-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #cf9a2c, #f5d270);
+  color: #2a1c00;
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* overlay — dim/blur the real control, float a lock chip over it. The
+   min-height keeps the (absolutely-positioned) lock from spilling past a short
+   child such as a collapsed Stats-screen expander; it is a no-op for tall
+   children like a SettingCard. */
+.progate-overlay { position: relative; min-height: 3.5rem; }
+.progate-dim {
+  filter: blur(2px) saturate(0.6);
+  opacity: 0.45;
+  pointer-events: none;
+  user-select: none;
+}
+.progate-lock {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  border: none;
+  border-radius: 12px;
+  background: rgba(11, 11, 24, 0.35);
+  color: #f0f0f8;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.progate-lock-icon { font-size: 1.1rem; line-height: 1; }
+.progate-lock-text {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #e8e8f4;
+  text-align: center;
+}
+
+/* inline-badge — the control shows in full; a transparent catch layer over it
+   turns the primary tap into "open the upsell" without disabling the child. */
+.progate-inline {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.progate-inline-catch {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+/* keep the "Pro" pill clear of the catch layer so it reads as a label */
+.progate-inline .progate-badge { position: relative; z-index: 1; pointer-events: none; }
+
+/* ── UpgradeCard ─────────────────────────────────────────────────────────── */
+.pro-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #cf9a2c;
+  border-radius: 14px;
+  background: #1a1707;
+}
+.pro-card-head { display: flex; align-items: center; gap: 10px; }
+.pro-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #cf9a2c, #f5d270);
+  color: #2a1c00;
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.pro-card-tier {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #f5d270;
+}
+.pro-card-pitch {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.5;
+  color: #f6ecd6;
+}
+.pro-card-lead {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: #cdbf9f;
+}
+.pro-perks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pro-perks li {
+  display: flex;
+  gap: 8px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #efe9db;
+}
+.pro-perks li span { color: #f5d270; flex: none; }
+.pro-card-status {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: #cdbf9f;
+}
+.pro-cta {
+  align-self: stretch;
+  padding: 11px 16px;
+  border: 1px solid #6b5a2a;
+  border-radius: 12px;
+  background: #241f0d;
+  color: #b6a778;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: not-allowed;
+}
+.pro-card-note {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.5;
+  color: #9a8f70;
+  text-align: center;
+}

@@ -251,8 +251,10 @@ const he: Record<string, string> = {
   'Daily timeline': 'ציר זמן יומי',
   'Personal bests': 'שיאים אישיים',
   'No personal bests recorded yet.': 'עדיין לא נרשמו שיאים אישיים.',
+  'No practice in the last 7 days.': 'אין תרגול ב-7 הימים האחרונים.',
   'This setup': 'ההגדרה הזו',
   'All time': 'כל הזמנים',
+  'Last 7 days': '7 הימים האחרונים',
   'the current settings': 'ההגדרות הנוכחיות',
   'across every': 'בכל',
   'settings combination': 'שילוב הגדרות',
@@ -444,6 +446,44 @@ const he: Record<string, string> = {
   // Admin (role)
   'Granted to app administrators — read every Feedback board post, not just your own.':
     'מוענק למנהלי האפליקציה — מאפשר לקרוא את כל הפוסטים בלוח המשוב, לא רק את הפוסטים שלך.',
+
+  // Free vs Pro tiering — ProGate lock states + the Upgrade card
+  'Unlock with Pro': 'זמין במסלול Pro',
+  'You have Pro': 'יש לך Pro',
+  "You're on Free": 'אתה במסלול החינמי',
+  'Pro is for training seriously and tracking progress over time.':
+    'מסלול Pro מיועד לתרגול רציני ולמעקב אחר ההתקדמות לאורך זמן.',
+  'Your full practice history — all-time stats and trends, not just the last 7 days':
+    'כל היסטוריית התרגול שלך — סטטיסטיקות ומגמות מאז ומתמיד, לא רק שבעת הימים האחרונים.',
+  'Mastery maps — per-note and per-fret accuracy overlays on the circle and grid':
+    'מפות שליטה — שכבות דיוק לכל תו ולכל סריג על גבי הגלגל והרשת.',
+  'Browse your personal bests across every settings combination':
+    'עיון בשיאים האישיים שלך בכל צירוף הגדרות.',
+  'Multi-string drilling mode': 'מצב תרגול רב־מיתרי.',
+  'A personal voice profile built from your own calibration recordings':
+    'פרופיל קול אישי הנבנה מהקלטות הכיול שלך.',
+  'Your Pro access is complimentary.': 'גישת ה־Pro שלך ניתנה ללא תשלום.',
+  'Your Pro access came from a promotion.': 'גישת ה־Pro שלך התקבלה במסגרת מבצע.',
+  'Your Pro access was granted manually.': 'גישת ה־Pro שלך הוענקה ידנית.',
+  'Your Pro access is from your subscription.': 'גישת ה־Pro שלך היא חלק מהמנוי שלך.',
+  'Your Pro access is active.': 'גישת ה־Pro שלך פעילה.',
+  'It does not expire.': 'הגישה אינה פגה.',
+  'Access runs until': 'הגישה בתוקף עד',
+  'Pro isn’t on sale yet — everything above stays free to try in the meantime.':
+    'מסלול Pro עדיין אינו נמכר — עד אז כל מה שלמעלה זמין לניסיון בחינם.',
+
+  // Guest-merge prompt (design §5.4) — shown on the first sign-in on a device
+  // that already has local guest practice history.
+  'Add this device’s progress to your account?':
+    'להוסיף את ההתקדמות מהמכשיר הזה לחשבון שלך?',
+  'You’ve practiced on this device without an account. Add that progress to your account, or keep only what’s already on your account?':
+    'תרגלת על המכשיר הזה בלי חשבון. אפשר להוסיף את ההתקדמות הזו לחשבון שלך, או להשאיר רק את מה שכבר קיים בחשבון.',
+  'Merge my progress': 'הוסף את ההתקדמות שלי',
+  'Use account only': 'השתמש בחשבון בלבד',
+  'Leave this practice off your account?': 'להשאיר את התרגול הזה מחוץ לחשבון?',
+  'You have {n} rounds of practice saved on this device. If you continue, they stay on this device but are not added to your account.':
+    'שמורים על המכשיר הזה {n} סיבובי תרגול. אם תמשיך, הם יישארו על המכשיר אך לא יתווספו לחשבון שלך.',
+
   // VoiceCalibration
   'Voice calibration': 'כיול קול',
   'Personal voice calibration': 'כיול קול אישי',

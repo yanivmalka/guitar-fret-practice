@@ -6,6 +6,7 @@ import SelectorPanel from './components/SelectorPanel';
 import ProgressPanel from './components/ProgressPanel';
 import { SettingCard, SegmentedControl } from './components/SettingCard';
 import Onboarding from './components/Onboarding';
+import { Chevron } from './components/Chevron';
 import SpeedBar from './components/SpeedBar';
 import AnimatedScore from './components/AnimatedScore';
 import { displayNote, setActiveInstrument } from './utils/music';
@@ -16,9 +17,9 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3 } from './utils/feedback';
 import { loadSetting, saveSetting } from './utils/settings';
 import { loadBest, saveBest, loadAllBests, writeAllBests } from './utils/personalBest';
-import { historyForInstrument, flattenHistory, fretMasteryMap, noteMasteryMap } from './utils/mastery';
+import { historyForInstrument, flattenHistory, fretMasteryMap, noteMasteryMap, type MasteryStat } from './utils/mastery';
 import { useAuth } from './hooks/useAuth';
-import { bootstrapUser, reconcileUser, syncedUser, clearSyncedUser } from './utils/sync';
+import { bootstrapUser, reconcileUser, syncedUser, clearSyncedUser, cloudCaptureOrphans, restoreOnly } from './utils/sync';
 import { bootstrapSettings, syncedSettingsUser, clearSyncedSettingsUser, cloudPushSettings } from './utils/settingsSync';
 import { bootstrapBadges, syncedBadgesUser, clearSyncedBadgesUser, cloudPushBadges } from './utils/badgeSync';
 import { useSelector } from './hooks/useSelector';
@@ -34,6 +35,10 @@ import { FeedbackBoard } from './components/FeedbackBoard';
 import { LeaderboardPanel } from './components/LeaderboardPanel';
 import { computeMyStats, leaderboardName, upsertMyEntry } from './utils/leaderboard';
 import { BadgeGrid } from './components/BadgeGrid';
+import { UpgradeCard } from './components/UpgradeCard';
+import { ProGate } from './components/ProGate';
+import { GuestMergePrompt } from './components/GuestMergePrompt';
+import { registerUpgradeHandler } from './utils/upgradeDrawer';
 import { BadgeMedal, BadgeMedalDefs } from './components/BadgeMedal';
 import { BadgeToast, BadgeRevealOverlay, type CelebratedBadge } from './components/BadgeCelebration';
 import {
@@ -81,7 +86,13 @@ export default function App() {
     saveSetting('pref_instrument', id);
   };
 
-  const selector = useSelector(instrument);
+  // Auth carries the entitlement/tier. Read here — above useSelector — because
+  // multi-string gating (spec free-pro-tiering §5.3) needs `isPro` in the
+  // selector's derivation. The account-sync effect further down uses the same
+  // `auth` object.
+  const auth = useAuth();
+
+  const selector = useSelector(instrument, auth.isPro);
   const { derivedSettings } = selector;
 
   const [guitarString, setGuitarString] = useState(derivedSettings.guitarString);
@@ -164,24 +175,75 @@ export default function App() {
   // ── Accounts (optional): guests are unaffected; signing in with Google
   // syncs History + Personal Best to the account and restores them on other
   // devices. localStorage stays the source of truth the UI reads from.
-  const auth = useAuth();
+  // (`auth` is created above, next to useSelector.)
   const { replaceAllHistory, getAllHistory } = historyOps;
+
+  // First sign-in on a device that has local guest history: ask before
+  // merging it into the account (design §5.4). The sign-in effect only sets
+  // this flag; the actual bootstrap / capture+restore runs in the prompt's
+  // button handlers, so the async sign-in flow isn't blocked on a user choice.
+  const [pendingGuestMerge, setPendingGuestMerge] = useState(false);
+  const guestMergeKey = (userId: string) => `guestMergeChoice:${userId}`;
+  const finishGuestMerge = useCallback(async (choice: 'merge' | 'account-only') => {
+    setPendingGuestMerge(false);
+    const user = auth.user;
+    if (!user) return;
+    try {
+      if (choice === 'merge') {
+        // The original behavior: union this device's guest rows into the
+        // account, push, and commit the merged set locally.
+        const { history, bests } = await bootstrapUser(
+          user.id, getAllHistory(), loadAllBests(),
+        );
+        replaceAllHistory(history);
+        writeAllBests(bests);
+      } else {
+        // Keep the guest rows off the account: drop them into orphan_practice
+        // for analytics, then restore the account's own cloud data locally,
+        // replacing the guest history and bests on this device.
+        await cloudCaptureOrphans(flattenHistory(getAllHistory()));
+        const { history, bests } = await restoreOnly(user.id);
+        replaceAllHistory(history);
+        writeAllBests(bests);
+      }
+      try { localStorage.setItem(guestMergeKey(user.id), choice); } catch { /* ignore */ }
+    } catch {
+      /* offline or transient error — the sign-in effect retries next start */
+    }
+  }, [auth.user, getAllHistory, replaceAllHistory]);
+
   useEffect(() => {
     const user = auth.user;
     if (!user) { clearSyncedUser(); return; }
     let cancelled = false;
     (async () => {
+      // Cleared here (inside the async body, not synchronously in the effect)
+      // so a stale prompt from a previous account can't linger; re-armed below
+      // only on a genuine first sign-in with un-merged guest history.
+      setPendingGuestMerge(false);
       try {
         if (syncedUser() !== user.id) {
-          // First sign-in on this device: pull cloud, merge with local, push
-          // the merged set back, then commit it locally. Local data is left
-          // untouched unless every step succeeds.
-          const { history, bests } = await bootstrapUser(
-            user.id, getAllHistory(), loadAllBests(),
-          );
+          // First sign-in on this device. With no local guest history there is
+          // nothing to merge — restore straight from the cloud, no prompt.
+          if (flattenHistory(getAllHistory()).length === 0) {
+            const { history, bests } = await bootstrapUser(
+              user.id, getAllHistory(), loadAllBests(),
+            );
+            if (cancelled) return;
+            replaceAllHistory(history);
+            writeAllBests(bests);
+            return;
+          }
+          // Local guest history exists: honor a remembered choice silently,
+          // otherwise ask (design §5.4).
+          let stored: string | null = null;
+          try { stored = localStorage.getItem(guestMergeKey(user.id)); } catch { /* ignore */ }
           if (cancelled) return;
-          replaceAllHistory(history);
-          writeAllBests(bests);
+          if (stored === 'merge' || stored === 'account-only') {
+            await finishGuestMerge(stored);
+          } else {
+            setPendingGuestMerge(true);
+          }
         } else {
           // Already merged before — pull the tombstone set, retire any
           // cleared rows that still survive here, then re-push what's left
@@ -197,7 +259,7 @@ export default function App() {
       }
     })();
     return () => { cancelled = true; };
-  }, [auth.user, replaceAllHistory, getAllHistory]);
+  }, [auth.user, replaceAllHistory, getAllHistory, finishGuestMerge]);
 
   // Selector picks + UI preferences: once per sign-in on this device, adopt
   // the account's settings blob if it's newer than what this device last
@@ -333,13 +395,16 @@ export default function App() {
     () => flattenHistory(historyOps.allHistory),
     [historyOps.allHistory],
   );
-  const fretMastery = useMemo(
-    () => fretMasteryMap(allHistoryEntries, safeGuitarString),
-    [allHistoryEntries, safeGuitarString],
+  // Mastery maps are Pro-only (spec free-pro-tiering §5.2). For a free user
+  // they are never built — the overlay is forced off below regardless of the
+  // stored toggle, and the Stats-screen toggle is shown in a locked state.
+  const fretMastery = useMemo<Record<number, MasteryStat>>(
+    () => (auth.isPro ? fretMasteryMap(allHistoryEntries, safeGuitarString) : {}),
+    [auth.isPro, allHistoryEntries, safeGuitarString],
   );
-  const noteMastery = useMemo(
-    () => noteMasteryMap(allHistoryEntries, cofList),
-    [allHistoryEntries, cofList],
+  const noteMastery = useMemo<Record<string, MasteryStat>>(
+    () => (auth.isPro ? noteMasteryMap(allHistoryEntries, cofList) : {}),
+    [auth.isPro, allHistoryEntries, cofList],
   );
 
   // Auto Advance: when the current stage/selection is actually completed
@@ -710,6 +775,18 @@ export default function App() {
   // open) reads the current value without re-subscribing on every navigation.
   const drawerSectionRef = useRef<string | null>(null);
   useEffect(() => { drawerSectionRef.current = drawerSection; }, [drawerSection]);
+
+  // A locked <ProGate> anywhere in the tree opens the `upgrade` drawer section
+  // through this handler (see utils/upgradeDrawer.ts). Leave any full-screen
+  // view (Stats, an open sub-page) first so the section actually renders.
+  useEffect(() => {
+    registerUpgradeHandler(() => {
+      setShowStats(false);
+      setSettingsOpen(true);
+      setDrawerSection('upgrade');
+    });
+    return () => registerUpgradeHandler(null);
+  }, []);
 
   // Escape steps back to the list of titles first, then closes the drawer.
   useEffect(() => {
@@ -1125,7 +1202,11 @@ export default function App() {
         {/* Voice engine + personal profile only matter once Voice is the
             chosen answer mode, so they live nested under it. */}
         {answerMode === 'voice' && (
-          <>
+          <ProGate
+            feature="voiceProfile"
+            variant="replace"
+            pitch={t('A personal voice profile built from your own calibration recordings')}
+          >
           <SettingCard
             label={t('Voice engine')}
             help={t('Auto picks the best available. Personal uses your calibrated profile; General uses the built-in model.')}
@@ -1166,7 +1247,7 @@ export default function App() {
               ? t('Add / review recordings')
               : t('Calibrate my voice')}</button>
           </SettingCard>
-          </>
+          </ProGate>
         )}
         </>
       ),
@@ -1272,15 +1353,15 @@ export default function App() {
           return (
             <button
               type="button"
-              className="account-badges-link"
+              className="nav-row"
               onClick={click(() => setDrawerSection('badges'))}
             >
-              <span className="account-badges-medal" aria-hidden="true">🏅</span>
-              <span className="account-badges-text">
+              <span className="nav-row__lead" aria-hidden="true">🏅</span>
+              <span className="nav-row__label">
                 <span className="account-badges-count">{earned} / {visible.length} {t('badges earned')}</span>
                 <span className="account-badges-hint">{t('See the full list and what earns each one')}</span>
               </span>
-              <span className="sp2-chev" aria-hidden="true">›</span>
+              <Chevron dir="forward" className="nav-row__chev" />
             </button>
           );
         })()}
@@ -1289,12 +1370,19 @@ export default function App() {
             className="dev-tier-readout"
             style={{ opacity: 0.6, fontSize: '0.8em', margin: '8px 0 0' }}
           >
-            {/* Temporary — replaced by the "tier: X (+sim)" line in Phase 6. */}
-            tier: {auth.tier}{auth.entitlementLoading ? ' …' : ''}
+            {/* Dev-only readout; the "simulate Pro" toggle that drives the
+                "(+sim)" state lives in the debug panel (🐞). */}
+            tier: {auth.tier}{auth.devSimulatePro ? ' (+sim)' : ''}{auth.entitlementLoading ? ' …' : ''}
           </p>
         )}
         </>
       ),
+    }] : []),
+    ...(auth.configured ? [{
+      id: 'upgrade',
+      title: `⭐ ${t('Pro')}`,
+      blurb: '',
+      body: <UpgradeCard />,
     }] : []),
     {
       id: 'badges',
@@ -1319,20 +1407,26 @@ export default function App() {
       <div className="app stats-page">
         <ProgressPanel
           masteryToggle={
-            <SettingCard
-              label={t('Mastery on the fretboard')}
-              help={<>{t('The per-note / per-fret accuracy bars drawn over the circle and grid while stopped or paused.')} <em>{t('Mastery keeps being tracked and shows on the Stats screen either way.')}</em></>}
+            <ProGate
+              feature="masteryMaps"
+              variant="overlay"
+              pitch={t('Mastery maps — per-note and per-fret accuracy overlays on the circle and grid')}
             >
-              <SegmentedControl
-                ariaLabel={t('Mastery on the fretboard')}
-                value={showMastery ? 'on' : 'off'}
-                options={[
-                  { value: 'on', label: t('On') },
-                  { value: 'off', label: t('Off') },
-                ]}
-                onChange={(v) => { const on = v === 'on'; setShowMastery(on); saveSetting('pref_showMastery', on); }}
-              />
-            </SettingCard>
+              <SettingCard
+                label={t('Mastery on the fretboard')}
+                help={<>{t('The per-note / per-fret accuracy bars drawn over the circle and grid while stopped or paused.')} <em>{t('Mastery keeps being tracked and shows on the Stats screen either way.')}</em></>}
+              >
+                <SegmentedControl
+                  ariaLabel={t('Mastery on the fretboard')}
+                  value={showMastery ? 'on' : 'off'}
+                  options={[
+                    { value: 'on', label: t('On') },
+                    { value: 'off', label: t('Off') },
+                  ]}
+                  onChange={(v) => { const on = v === 'on'; setShowMastery(on); saveSetting('pref_showMastery', on); }}
+                />
+              </SettingCard>
+            </ProGate>
           }
           allHistory={historyOps.allHistory}
           noteNames={cofList}
@@ -1349,6 +1443,7 @@ export default function App() {
           onClearCurrent={() => { historyOps.clearHistory(histKey); }}
           onClearAll={() => { historyOps.clearAllHistory(); }}
           onClose={() => setShowStats(false)}
+          isPro={auth.isPro}
         />
       </div>
     );
@@ -1364,7 +1459,7 @@ export default function App() {
         <div className="app settings-page">
           <div className="sp2 settings-page-inner" dir={lang === 'he' ? 'rtl' : undefined}>
             <div className="sp2-head settings-page-head">
-              <button className="sp2-back" onClick={click(() => setDrawerSection(null))}>{lang === 'he' ? '›' : '‹'} {t('Back')}</button>
+              <button className="sp2-back" onClick={click(() => setDrawerSection(null))}><Chevron dir="back" /> {t('Back')}</button>
             </div>
             <header className="settings-page-hero">
               <span className="settings-page-emoji" aria-hidden="true">
@@ -1447,20 +1542,27 @@ export default function App() {
                   className="sp2-back"
                   onClick={click(() => setSettingsOpen(false))}
                 >
-                  {lang === 'he' ? '›' : '‹'} {t('Back')}
+                  <Chevron dir="back" /> {t('Back')}
                 </button>
                 <span className="sp2-title">{t('Settings')}</span>
               </div>
-              {settingsSections.map(s => (
-                <button
-                  key={s.id}
-                  className="sp2-exp"
-                  onClick={click(() => { if (s.onSelect) s.onSelect(); else setDrawerSection(s.id); })}
-                >
-                  <span>{s.title}</span>
-                  <span className="sp2-chev" aria-hidden="true">{lang === 'he' ? '‹' : '›'}</span>
-                </button>
-              ))}
+              {settingsSections.map(s => {
+                // `title` is "<emoji> <label>" — keep the emoji as its own
+                // leading-icon node so it never disturbs the bidi resolution
+                // of the (possibly RTL) label text next to it.
+                const [emoji, ...rest] = s.title.split(' ');
+                return (
+                  <button
+                    key={s.id}
+                    className="nav-row"
+                    onClick={click(() => { if (s.onSelect) s.onSelect(); else setDrawerSection(s.id); })}
+                  >
+                    <span className="nav-row__lead" aria-hidden="true">{emoji}</span>
+                    <span className="nav-row__label">{rest.join(' ')}</span>
+                    <Chevron dir="forward" className="nav-row__chev" />
+                  </button>
+                );
+              })}
             </nav>
           </div>
         </div>
@@ -1696,7 +1798,7 @@ export default function App() {
               foundFrets={gameActive ? foundFrets : []}
               onSelect={selectFret}
               masteryByFret={fretMastery}
-              showMastery={!boardLive && showMastery}
+              showMastery={!boardLive && showMastery && auth.isPro}
             />
           ) : (
             <NoteCircle
@@ -1715,7 +1817,7 @@ export default function App() {
               accidental={accidental}
               notation={notation}
               masteryByNote={noteMastery}
-              showMastery={!boardLive && showMastery}
+              showMastery={!boardLive && showMastery && auth.isPro}
             />
           )
         )}
@@ -1726,14 +1828,28 @@ export default function App() {
         <button className="refresh-btn" onClick={() => window.location.reload()} title={t('Refresh')}>↻</button>
       </div>
 
-      {auth.admin && <DebugLogPanel />}
+      {(auth.admin || import.meta.env.DEV) && (
+        <DebugLogPanel
+          {...(import.meta.env.DEV
+            ? { devSimulatePro: auth.devSimulatePro, onToggleSimulatePro: auth.setDevSimulatePro }
+            : {})}
+        />
+      )}
 
-      {showVoiceCalibration && (
+      {showVoiceCalibration && auth.isPro && (
         <VoiceCalibration
           notation={notation}
           accidental={accidental}
           onClose={() => setShowVoiceCalibration(false)}
           onProfileChanged={() => setVoiceEngineEpoch((n) => n + 1)}
+        />
+      )}
+
+      {pendingGuestMerge && auth.user && (
+        <GuestMergePrompt
+          localRowCount={flattenHistory(getAllHistory()).length}
+          onMerge={() => void finishGuestMerge('merge')}
+          onAccountOnly={() => void finishGuestMerge('account-only')}
         />
       )}
 

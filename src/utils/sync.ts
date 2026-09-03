@@ -366,6 +366,45 @@ export async function bootstrapUser(
   return { history, bests };
 }
 
+// ── Guest-merge prompt: "Use account only" ──────────────────────────────
+// The first sign-in on a device with local guest history asks whether to
+// merge that history into the account (design §5.4). If the user declines,
+// their guest rows are dropped into this write-only analytics table —
+// unlinked from any account (no user_id / FK) so the data isn't lost to us —
+// and then the account's own cloud data is restored locally without unioning
+// the guest rows in.
+
+export async function cloudCaptureOrphans(entries: HistoryEntry[]): Promise<void> {
+  if (!supabase || !entries.length) return;
+  const batchId = newId();
+  const rows = entries.map(e => {
+    const w = withIds(e);
+    return {
+      batch_id: batchId,
+      note: w.note,
+      fret: w.fret,
+      string: w.string,
+      seconds: w.seconds,
+      skipped: w.skipped,
+      correct: w.correct,
+      created_at: w.createdAt,
+    };
+  });
+  try {
+    for (let i = 0; i < rows.length; i += 500) {
+      const { error } = await supabase.from('orphan_practice').insert(rows.slice(i, i + 500));
+      if (error) throw error;
+    }
+  } catch { /* best-effort — analytics capture only, never blocks sign-in */ }
+}
+
+// "Use account only": restore the account's cloud data locally without
+// unioning in this device's guest rows. Reuses bootstrapUser with empty local
+// maps so there is one pull -> merge -> push code path; the merge is a no-op.
+export function restoreOnly(userId: string): Promise<{ history: HistoryMap; bests: BestMap }> {
+  return bootstrapUser(userId, {}, {});
+}
+
 // Fast path for a device that has already bootstrapped this account: pull
 // only the tombstone set, retire any locally-surviving cleared rows, then
 // re-push. Returns the reconciled sets plus whether anything actually

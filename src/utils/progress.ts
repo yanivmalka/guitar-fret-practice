@@ -7,6 +7,19 @@
 import type { HistoryEntry } from './music';
 import { noteMasteryMap, instrumentOfKey } from './mastery';
 import { loadAllBests, type PersonalBest } from './personalBest';
+import { FREE_HISTORY_DAYS } from './features';
+
+// The trailing slice of practice history a free user is shown in the Stats &
+// Progress screen (spec free-pro-tiering §5.1). This is a *view filter* only:
+// every row is still recorded, synced to Supabase and restored to every
+// device, and XP / badges / the leaderboard all keep reading the full set.
+// Entries without a `createdAt` (localStorage rows that predate timestamp
+// stamping) fall outside the window — the same treatment `dailyStats` gives
+// them. `ProgressPanel` is the only caller; nothing else applies the window.
+export function withinFreeWindow(entries: HistoryEntry[]): HistoryEntry[] {
+  const cut = Date.now() - FREE_HISTORY_DAYS * 864e5;
+  return entries.filter(e => e.createdAt && Date.parse(e.createdAt) >= cut);
+}
 
 export interface DayStat {
   date: string; // YYYY-MM-DD

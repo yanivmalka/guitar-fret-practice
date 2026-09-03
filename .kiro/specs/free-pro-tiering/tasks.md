@@ -5,6 +5,14 @@ should be able to pick this up cold: each phase is independently shippable and l
 working. **Read `design.md` for the "why" and the full code sketches** — this file is the ordered
 "what to do", with just enough detail to act without re-deriving decisions.
 
+> **Working location (from Phase 4 on):** this work moved to a dedicated git worktree at
+> `C:/source/gfp-tiering` on branch `claude/free-pro-tiering-work` (created off
+> `claude/free-pro-tiering` at `2efe89f`), because another session shares the main
+> `C:/source/guitar-fret-practice` checkout and the two were colliding. Do all further phase work
+> in `C:/source/gfp-tiering`; do **not** edit the shared checkout. The user reconciles
+> `claude/free-pro-tiering-work` back into `claude/free-pro-tiering` themselves. Phases 1–3 are
+> committed on `claude/free-pro-tiering` (`614fe6d`, `2efe89f`) and inherited here.
+
 ## How to use this file
 
 - Do the phases **in order**. Phases 1–3 and 5 carry no product risk; Phase 4 is the visible one
@@ -126,63 +134,69 @@ working. **Read `design.md` for the "why" and the full code sketches** — this 
 
 ### 2.1 — `src/utils/features.ts` (new)
 
-- [ ] `export type Feature = 'historyBeyond7Days' | 'masteryMaps' | 'allPersonalBests' |
+- [x] `export type Feature = 'historyBeyond7Days' | 'masteryMaps' | 'allPersonalBests' |
       'multiString' | 'voiceProfile' | 'noAds'` (comments per `design.md` §4.1).
-- [ ] `const MIN_TIER: Record<Feature, Tier>` — all `'pro'` for now.
-- [ ] `const RANK: Record<Tier, number> = { free: 0, pro: 1 }`.
-- [ ] `export function can(feature: Feature, tier: Tier): boolean`.
-- [ ] `export const FREE_HISTORY_DAYS = 7`.
-- [ ] Comment noting what is deliberately **not** here (sync/restore, leaderboard, badges,
+- [x] `const MIN_TIER: Record<Feature, Tier>` — all `'pro'` for now.
+- [x] `const RANK: Record<Tier, number> = { free: 0, pro: 1 }`.
+- [x] `export function can(feature: Feature, tier: Tier): boolean`.
+- [x] `export const FREE_HISTORY_DAYS = 7`.
+- [x] Comment noting what is deliberately **not** here (sync/restore, leaderboard, badges,
       current-combo best).
 
 ### 2.2 — `src/components/ProGate.tsx` (new)
 
-- [ ] Props: `{ feature: Feature; children: ReactNode; variant?: 'overlay'|'replace'|'inline-badge';
+- [x] Props: `{ feature: Feature; children: ReactNode; variant?: 'overlay'|'replace'|'inline-badge';
       pitch?: string }`.
-- [ ] Reads `useAuth()` (or a thin `useEntitlement()` — see 2.4). If `can(feature, tier)` →
-      render `children` unchanged.
-- [ ] Locked rendering per `design.md` §4.2:
-  - `overlay` — `children` dimmed/blurred + lock chip + "Pro" pill overlay; the pill/overlay
-    click opens the `upgrade` drawer section.
+- [x] Reads `useEntitlement()` (see 2.4). If `can(feature, tier)` → render `children` unchanged.
+- [x] Locked rendering per `design.md` §4.2:
+  - `overlay` — `children` in a `.progate-dim` (blur + dim + `pointer-events:none`); a
+    full-cover `.progate-lock` button (lock glyph + "Pro" pill + `pitch`) opens the `upgrade`
+    drawer section.
   - `replace` — render only `<UpgradeCard pitch={pitch} />`.
-  - `inline-badge` — render `children` + a small "Pro" pill; intercept the primary interaction
-    (pass an `onBlockedActivate` or wrap in a click-capturing span) to open `upgrade` instead.
-- [ ] No security logic — purely presentational.
+  - `inline-badge` — render `children` + a small "Pro" pill; a transparent full-cover
+    `.progate-inline-catch` button swallows the primary tap and opens `upgrade` instead
+    (child is left interactive-looking, not disabled).
+- [x] No security logic — purely presentational. The "open upgrade" call goes through the
+      `utils/upgradeDrawer.ts` module singleton (`openUpgrade()` / `registerUpgradeHandler`),
+      mirroring `setSyncUser` in `utils/sync.ts` — no prop/context threaded through every gate.
 
 ### 2.3 — `src/components/UpgradeCard.tsx` (new)
 
-- [ ] Reuses `SettingCard` / drawer-page styling. Shows: what Pro unlocks (short list), current
-      tier, and — for Pro — `source` + `expiresAt`.
-- [ ] CTA is a **placeholder** ("Coming soon" / expands the feature list). **No payment button.**
-      Leave a clearly marked `// Phase 7: wire purchase entry point here`.
+- [x] Reuses `SettingCard` / drawer-page styling (new `.pro-card` surface). Shows: what Pro
+      unlocks (short list), current tier, and — for Pro — `source` + `expiresAt` as whole
+      translated sentences (not glued fragments), per the Hebrew glossary.
+- [x] CTA is a **placeholder** (disabled "Coming soon" button + a "not on sale yet" note). **No
+      payment button.** Marked `// Phase 7: wire purchase entry point here`.
 
-### 2.4 — (optional) `src/hooks/useEntitlement.ts`
+### 2.4 — `src/hooks/useEntitlement.ts`
 
-- [ ] Thin re-export: `export function useEntitlement() { const { tier, isPro, entitlementLoading,
-      refreshEntitlement } = useAuth(); return { tier, isPro, loading: entitlementLoading,
-      refresh: refreshEntitlement }; }` so call sites don't pull the whole auth object.
+- [x] Thin read over `useAuth()`: returns `{ tier, isPro, entitlement, loading, refresh }` so
+      call sites don't pull the whole auth object. **Deviation from the sketch:** it also
+      surfaces the full `entitlement` (`source` + `expiresAt`) that `<UpgradeCard>` needs — this
+      required adding `entitlement: Entitlement` to `AuthState` in
+      [src/hooks/useAuth.ts](src/hooks/useAuth.ts) (`FREE` for guests).
 
 ### 2.5 — `upgrade` drawer section
 
-- [ ] In [src/App.tsx](src/App.tsx) `settingsSections`, add `{ id: 'upgrade', title: '⭐ Pro',
-      blurb: ..., body: <UpgradeCard /> }`, present when `auth.configured` (like `account`).
-      Place it right after `account`.
-- [ ] A helper to open it programmatically (set `drawerSection = 'upgrade'`) that `<ProGate>` can
-      call.
+- [x] In [src/App.tsx](src/App.tsx) `settingsSections`, added `{ id: 'upgrade', title: '⭐ Pro',
+      blurb: '', body: <UpgradeCard /> }`, present when `auth.configured`, right after `account`.
+- [x] A mount effect registers an `openUpgrade` handler that clears any full-screen view
+      (`setShowStats(false)`) then `setSettingsOpen(true)` + `setDrawerSection('upgrade')`.
 
 ### 2.6 — CSS + i18n
 
-- [ ] New `src/styles/21-pro-gate.css`; add `@import './styles/21-pro-gate.css';` to
-      [src/index.css](src/index.css) after line 24.
-- [ ] Add all new strings to `src/i18n/translations.ts` (en + he).
+- [x] New `src/styles/21-pro-gate.css`; `@import './styles/21-pro-gate.css';` added to
+      [src/index.css](src/index.css).
+- [x] All new strings added to `src/i18n/translations.ts` (`he`; `en` falls through to source).
 
 ### Done when
 
-- [ ] Build + lint clean.
-- [ ] Temporarily drop a `<ProGate feature="multiString" variant="replace">` around some element
-      to eyeball all three variants + the `upgrade` section in both languages, then remove the
-      temporary wrap.
-- [ ] Commit: `Tiering: ProGate + feature map + upgrade shell (phase 2)`.
+- [x] Build + lint clean (lint unchanged at the 21-warning baseline — the count dropped from 22
+      to 21 on the rebase onto `origin/main`, before Phase 2; no new warnings in touched files).
+- [x] Eyeballed all three variants + `<UpgradeCard>` via a temporary `progate-preview` drawer
+      section, headless, in **both** languages (screenshots) — RTL, gold accent and the perk list
+      all render; temp section removed.
+- [x] Commit: `Tiering: ProGate + feature map + upgrade shell (phase 2)`.
 
 ---
 
@@ -193,39 +207,54 @@ verify.
 
 ### 3.1 — Multi-string (`multiString`) — `design.md` §5.3
 
-- [ ] [src/components/SelectorPanel.tsx](src/components/SelectorPanel.tsx): the multi-string
-      toggle wrapped in `<ProGate feature="multiString" variant="inline-badge">`. Free user sees
-      it, tapping opens `upgrade`.
-- [ ] [src/hooks/useSelector.ts](src/hooks/useSelector.ts): in the `multiStrings` derivation,
-      when `!isPro`, clamp to single-string **without** overwriting the persisted `multiMode`
-      setting (so it reactivates on upgrade). `useSelector` will need `isPro` passed in (from
-      `App.tsx`, which has `auth`).
-- [ ] Confirm a persisted `multiMode = true` on a free account drills single-string and does not
-      get written back to `false`.
+- [x] [src/components/SelectorPanel.tsx](src/components/SelectorPanel.tsx): the multi-string
+      toggle wrapped in `<ProGate feature="multiString" variant="inline-badge">` (pitch =
+      `t('Multi-string drilling mode')`). Free user sees it with a gold "Pro" pill; the
+      transparent catch layer turns the tap into `openUpgrade()`.
+- [x] [src/hooks/useSelector.ts](src/hooks/useSelector.ts): the `multiStrings` derivation now
+      takes `isPro` and yields `[]` when `!isPro`, so a free user drills single-string. The
+      persisted `multiMode` setting is **not** touched (the toggle handler is unreachable behind
+      the gate), so it reactivates on upgrade. `isPro` is threaded in from `App.tsx` —
+      `const auth = useAuth()` moved above `useSelector(instrument, auth.isPro)`.
+- [x] Confirmed via headless CDP: seeding `sel_multi_guitar = true` + all six strings on the
+      unconfigured (free) local build renders the "Multi" pill active with the "Pro" badge, the
+      board does not crash, and gameplay reads a single string. `multiMode` is never written back.
 
 ### 3.2 — Mastery maps (`masteryMaps`) — `design.md` §5.2
 
-- [ ] [src/App.tsx](src/App.tsx): when `!isPro`, force the fret/note mastery overlay off
-      (don't compute / don't pass the map) regardless of the stored toggle.
-- [ ] The "Mastery on the fretboard" toggle in the Stats & progress screen wrapped in
-      `<ProGate feature="masteryMaps" variant="overlay">`.
+- [x] [src/App.tsx](src/App.tsx): the `fretMastery` / `noteMastery` `useMemo`s return `{}` when
+      `!auth.isPro` (the maps are not built at all), and the `showMastery` prop passed to
+      `FretGrid` / `NoteCircle` is `&&`-ed with `auth.isPro`, so the overlay is forced off
+      regardless of the stored `pref_showMastery`.
+- [x] The "Mastery on the fretboard" toggle in the Stats & progress screen wrapped in
+      `<ProGate feature="masteryMaps" variant="overlay">` (pitch = the mastery-maps perk string).
+      Verified via CDP: on the Stats screen the toggle shows blurred/dimmed under a lock chip +
+      "Pro" pill.
 
 ### 3.3 — Voice profile (`voiceProfile`) — `design.md` §5.5
 
-- [ ] [src/components/VoiceCalibration.tsx](src/components/VoiceCalibration.tsx) entry point and
-      the "use my voice profile" switch (in the `answer` drawer section) wrapped in
-      `<ProGate feature="voiceProfile" variant="replace">`.
-- [ ] No change needed in `src/utils/speech.ts` — `getSpeechEngine()` already falls back to the
+- [x] [src/App.tsx](src/App.tsx) `answer` drawer section: the whole `answerMode === 'voice'`
+      block (the "Voice engine" card **and** the "Your voice profile" / calibration-entry card)
+      wrapped in `<ProGate feature="voiceProfile" variant="replace">`, so a free user sees one
+      `<UpgradeCard>` in their place. The `{showVoiceCalibration && …}` modal render is also
+      guarded with `auth.isPro` as a backstop. `VoiceCalibration.tsx` itself is unchanged — its
+      only entry point is the now-gated button.
+- [x] No change needed in `src/utils/speech.ts` — `getSpeechEngine()` already falls back to the
       generic/template engine when no profile is ready.
-- [ ] Existing calibration data must be left intact (re-enables on upgrade).
+- [x] Existing calibration data is left intact (nothing calls `deleteProfile`; the gate only
+      hides the UI) — re-enables on upgrade.
 
 ### Done when
 
-- [ ] Build + lint clean.
-- [ ] With a `free` account: multi-string toggle → upsell; mastery overlay absent + toggle
-      locked; voice-profile UI replaced by upsell. Flip the account to `pro` via SQL → all three
-      work normally, and any previously-set preferences come back.
-- [ ] Commit: `Tiering: gate multi-string, mastery maps, voice profile (phase 3)`.
+- [x] Build + lint clean (`npm run build` green; ESLint 0 errors / 21 warnings — unchanged from
+      the phase-2 baseline, none in the touched files).
+- [x] With a `free` (unconfigured local) build, verified headless: multi-string toggle → "Pro"
+      pill + upsell tap; mastery overlay absent and the Stats toggle locked; voice-profile UI
+      replaced by the upsell card. **[DEFERRED to the preview deploy]** the flip to `pro` via SQL
+      → all three work again and previously-set preferences come back — needs sign-in, which the
+      local build (no `.env`) can't do; check on the `claude/free-pro-tiering` preview alongside
+      the Phase 1 readout check.
+- [x] Commit: `Tiering: gate multi-string, mastery maps, voice profile (phase 3)` (`3f3da95`).
 
 ---
 
@@ -237,41 +266,54 @@ reading the full history.
 
 ### 4.1 — `src/utils/progress.ts`
 
-- [ ] Add `export function withinFreeWindow(entries: HistoryEntry[]): HistoryEntry[]` —
-      `filter(e => e.createdAt && Date.parse(e.createdAt) >= Date.now() - FREE_HISTORY_DAYS*864e5)`.
-      Import `FREE_HISTORY_DAYS` from `utils/features.ts`.
+- [x] `export function withinFreeWindow(entries: HistoryEntry[]): HistoryEntry[]` added —
+      `filter(e => e.createdAt && Date.parse(e.createdAt) >= Date.now() - FREE_HISTORY_DAYS*864e5)`,
+      `FREE_HISTORY_DAYS` imported from `utils/features.ts`. Rows without `createdAt` fall outside
+      the window, same as `dailyStats`.
 
 ### 4.2 — `src/components/ProgressPanel.tsx`
 
-- [ ] Receive `isPro` (from `App.tsx`).
-- [ ] When `!isPro`, apply `withinFreeWindow` to the `history` array it derives every stat from,
-      in **both** the "This setup" and "All time" scopes.
-- [ ] Relabel: for a free user the "All time" scope reads "Last 7 days" — or hide the "All time"
-      scope button and show it behind `<ProGate feature="historyBeyond7Days" variant="overlay">`.
-- [ ] The "All bests" expander (`allBestsSummary`) is Pro — wrap in
+- [x] New `isPro?: boolean` prop, passed `auth.isPro` from `App.tsx`.
+- [x] `history` is now `isPro ? baseHistory : withinFreeWindow(baseHistory)` — applied to **both**
+      scopes (`baseHistory` = `currentHistory` for "This setup", `all` for the all-combos scope).
+- [x] Relabel chosen over the ProGate option: for a free user the second scope button reads
+      **"Last 7 days"** (`t('Last 7 days')`, he `7 הימים האחרונים`) and the scope caption gets a
+      `· Last 7 days` suffix. The empty-state copy for a windowed view reads *"No practice in the
+      last 7 days."* instead of "nothing recorded yet". The "Clear history" button and its
+      confirm now key off the **unwindowed** `baseHistory` length, so a free user whose only
+      history is older than 7 days can still clear it.
+- [x] The "Personal bests" (`allBestsSummary`) expander in the all-combos scope is wrapped in
       `<ProGate feature="allPersonalBests" variant="overlay">`. The "This setup" current-combo
-      best stays visible to everyone.
+      best (hero tiles + "Last round" summary, all from `loadBest`, not history) is untouched and
+      stays visible to everyone. One CSS line added to `styles/21-pro-gate.css`
+      (`.progate-overlay { min-height: 3.5rem }`) so the lock chip doesn't spill past a collapsed
+      expander.
 
 ### 4.3 — `src/App.tsx` mastery aggregation
 
-- [ ] The `fretMasteryMap` / `noteMasteryMap` `useMemo`s already only matter when the overlay is
-      shown, and Phase 3 turned the overlay off for free users — so **no history-window filter is
-      needed here**. Just double-check a free user never triggers the aggregation. Leave the
-      full-history read for Pro.
+- [x] Nothing to change — Phase 3 already made the `fretMastery` / `noteMastery` `useMemo`s
+      return `{}` when `!auth.isPro`, so a free user never calls `fretMasteryMap` /
+      `noteMasteryMap` here. Pro keeps the full-history read.
 
 ### 4.4 — Leave alone (verify, don't change)
 
-- [ ] `useHistory.addEntry`, `utils/sync.ts` (`bootstrapUser`/`reconcileUser`/write-throughs),
-      `utils/leaderboard.ts`, `utils/badges.ts` — all keep reading/writing the **full** history.
-      Grep for `withinFreeWindow` and confirm it appears only in `ProgressPanel`.
+- [x] `useHistory`, `utils/sync.ts`, `utils/leaderboard.ts`, `utils/badges.ts` — not touched.
+      `grep -rn withinFreeWindow src/` → only `utils/progress.ts` (definition) and
+      `components/ProgressPanel.tsx` (import + the one call).
 
 ### Done when
 
-- [ ] Build + lint clean.
-- [ ] Free account with history older than 7 days: Stats screen shows only recent rows; XP on the
-      leaderboard and lifetime badges still reflect the full history; "Clear history" still clears
-      everything. Flip to `pro` → all-time stats appear with no backfill step.
-- [ ] Commit: `Tiering: 7-day history window for free (phase 4)`.
+- [x] Build + lint clean (`npm run build` green; ESLint 0 errors / 21 warnings — unchanged from
+      the baseline, none in the touched files).
+- [x] Verified headless on the free (unconfigured local) build: seeded history split across
+      recent + 25–45-day-old rows — the Stats screen's hero tiles / "answered" count / weak-note
+      lists reflect only the last 7 days in both scopes, the scope button reads "Last 7 days", the
+      "Personal bests" expander is locked, and with *only* old rows the empty view says "No
+      practice in the last 7 days" while "Clear all history" is still offered. **[DEFERRED to the
+      preview deploy]** flip to `pro` → all-time stats reappear with no backfill; XP / badges
+      reflecting the full history is inherent (they never read `withinFreeWindow`) but worth an
+      eyeball with a real signed-in account.
+- [x] Commit: `Tiering: 7-day history window for free (phase 4)` (`8125cd1`).
 
 ---
 
@@ -280,44 +322,90 @@ reading the full history.
 **Goal:** first sign-in on a device with local guest history asks before merging, instead of the
 current silent auto-merge. Not tier-specific. See `design.md` §5.4.
 
+> **Notes for a fresh session picking this up (Phases 1–4 are done):**
+> - **Where:** work in `C:/source/gfp-tiering` on `claude/free-pro-tiering-work` (see the banner
+>   at the top of this file). `npm install` is already done there. `git fetch` first; the branch
+>   base was `2efe89f` and `origin/main` was `636e0ee` — rebase only if `origin/main` has moved.
+>   Do **not** edit the shared `C:/source/guitar-fret-practice` checkout — another session is on it.
+> - **Bar:** `npm run build` green and ESLint at **0 errors / 21 warnings** (the standing
+>   baseline), no new warnings in touched files. No test runner exists.
+> - **The sign-in effect** is [src/App.tsx](src/App.tsx) lines ~177–208 — an async IIFE inside a
+>   `useEffect` with a `cancelled` guard. `bootstrapUser` for a first sign-in is called from
+>   **two** places: this mount effect (~L187) and the `online`-reconnect handler (~L284). Per
+>   `design.md` §5.3 only the mount-effect branch changes; leave the `online` handler and the
+>   `reconcileUser` (already-synced) branch alone. Restructure so the effect just sets a
+>   `pendingGuestMerge` state; the actual `bootstrapUser` / capture+restore runs in the modal's
+>   button handlers, so the async flow isn't blocked waiting on a user choice.
+> - **`batch_id`:** reuse the existing UUID helper in `src/utils/sync.ts` (~L100, the
+>   `crypto.randomUUID()` guard) rather than calling `crypto.randomUUID()` raw.
+> - **`orphan_practice`** already exists (migration `0007`, shipped in Phase 1): RLS is
+>   insert-only for `anon, authenticated`, no select policy — so `cloudCaptureOrphans` is just a
+>   `supabase.from('orphan_practice').insert([...])` in a try/catch.
+> - **Modal styling:** reuse the existing `.mic-overlay` / `.mic-card` classes (see the
+>   clear-history confirm in [src/components/ProgressPanel.tsx](src/components/ProgressPanel.tsx)
+>   ~L517) instead of a new CSS partial.
+> - **i18n:** add both the `he` string and rely on `en` falling through to source; keep the
+>   Hebrew glossary/tone (memory `hebrew-localization-glossary`).
+> - **Verification:** the modal UI can be eyeballed headless (CDP driver in the session
+>   scratchpad as `cdp.mjs`; seed `localStorage.selectorHistory`, force the prompt, use a free
+>   `--port`, kill vite servers after). The real merge / orphan-capture / `select count(*) from
+>   orphan_practice` needs sign-in — **defer that to the preview deploy**, joining the Phase 1
+>   readout, Phase 3 pro re-enable and Phase 4 pro all-time checks already queued there.
+> - **Commit** on `claude/free-pro-tiering-work`, tick the boxes here (commit box + hash) in the
+>   same commit, `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`. The user reconciles
+>   `claude/free-pro-tiering-work` back into `claude/free-pro-tiering`.
+
 ### 5.1 — `src/utils/sync.ts`
 
-- [ ] Add `cloudCaptureOrphans(entries: HistoryEntry[]): Promise<void>` — one bulk `insert` into
-      `orphan_practice` with a fresh `batch_id = crypto.randomUUID()`, mapping each entry's
-      fields + its `createdAt`. Best-effort (try/catch), no-op if `!supabase`.
-- [ ] Add a merge-skipping restore: either a `bootstrapUser(userId, {}, {})` call (pass empty
-      local maps so the union is a no-op) or an explicit `restoreOnly(userId)` that does
-      pull → commit without the local union. Prefer reusing `bootstrapUser` with empty inputs to
-      keep one code path.
+- [x] Added `cloudCaptureOrphans(entries: HistoryEntry[]): Promise<void>` — bulk `insert` into
+      `orphan_practice` (chunked by 500) with a fresh `batch_id` from the existing `newId()`
+      helper, mapping each entry's fields + `createdAt`. Best-effort (try/catch), no-op if
+      `!supabase` or the list is empty.
+- [x] Added `restoreOnly(userId)` — a one-line wrapper over `bootstrapUser(userId, {}, {})` so the
+      "use account only" path reuses the single pull → merge → push code path with an empty local
+      side (the union is a no-op).
 
 ### 5.2 — `src/components/GuestMergePrompt.tsx` (new)
 
-- [ ] Modal with the copy from `design.md` §5.4 and two buttons: **Merge my progress** /
-      **Use account only**. i18n both languages.
-- [ ] If the local set is large (> 50 rows) and the user picks "Use account only", show a second
-      confirm ("these won't be added to your account").
+- [x] Modal (named export) using the existing `.mic-overlay` / `.mic-card` / `.mic-btn-*` classes
+      — no new CSS partial. Copy from `design.md` §5.4, two buttons: **Merge my progress**
+      (`mic-btn-primary`) / **Use account only** (`mic-btn-ghost`). i18n `he` added; `en` falls
+      through to source.
+- [x] `LARGE_SET = 50`: when `localRowCount > 50` the first "Use account only" tap swaps the card
+      to a second confirm ("…stay on this device but are not added to your account", with the row
+      count) whose buttons are **Use account only** (`mic-btn-danger`) / **Back**.
 
 ### 5.3 — `src/App.tsx` sign-in effect
 
-- [ ] In the first-sign-in branch (`syncedUser() !== user.id`) — currently calls `bootstrapUser`
-      directly (see [src/App.tsx](src/App.tsx#L167-L197)):
-  - if local `allHistory` is empty → restore only, no prompt (current behavior is fine).
-  - else, if `guestMergeChoice:<user.id>` is already stored → honor it silently.
-  - else → show `<GuestMergePrompt>`. On **Merge** → existing `bootstrapUser(user.id,
-    getAllHistory(), loadAllBests())`. On **Use account only** → `await
-    cloudCaptureOrphans(flatten(getAllHistory()))`, then the merge-skipping restore, then wipe
-    local `selectorHistory` + local bests to the restored set.
-  - persist the choice in `guestMergeChoice:<user.id>`.
-- [ ] The `online`-reconnect handler and the `reconcileUser` (already-synced) path are unchanged.
+- [x] The first-sign-in branch (`syncedUser() !== user.id`) now:
+  - no local history (`flattenHistory(getAllHistory()).length === 0`) → `bootstrapUser` as
+    before, no prompt.
+  - a stored `guestMergeChoice:<user.id>` of `merge` / `account-only` → run it silently via the
+    shared `finishGuestMerge` handler.
+  - otherwise → `setPendingGuestMerge(true)` (set inside the async body, never synchronously in
+    the effect, to stay off the `react-hooks` "setState in an effect" warning).
+- [x] `finishGuestMerge(choice)` (a `useCallback`, also the modal's button handlers): **merge** →
+      `bootstrapUser(user.id, getAllHistory(), loadAllBests())`; **account-only** → `await
+      cloudCaptureOrphans(flattenHistory(getAllHistory()))` then `restoreOnly(user.id)`, both
+      committing the result with `replaceAllHistory` + `writeAllBests` so the guest rows are
+      replaced on the device. Choice persisted to `guestMergeChoice:<user.id>`.
+- [x] The `online`-reconnect handler and the `reconcileUser` (already-synced) path are unchanged.
+      The render is guarded `pendingGuestMerge && auth.user` so a sign-out mid-prompt drops it.
 
 ### Done when
 
-- [ ] Build + lint clean.
-- [ ] Manual: practice as a guest, sign in → prompt appears. "Merge" behaves as today. "Use
-      account only" → local guest rows gone from the device, account shows only its cloud data,
-      and a `select count(*) from orphan_practice` (as service role) increased by the guest row
-      count. Signing in again does not re-prompt.
-- [ ] Commit: `Tiering: guest-merge prompt + orphan capture (phase 5)`.
+- [x] Build + lint clean (`npm run build` green; ESLint 0 errors / **21** warnings — unchanged
+      from the baseline, none in the touched files).
+- [x] Modal verified headless (CDP driver, temp standalone `_mergePreview` entry, since local
+      sign-in needs no `.env`): both languages render, RTL Hebrew reads correctly, the three
+      button variants style correctly, and the `> 50` second confirm shows the row count and the
+      **Use account only** / **Back** pair. Temp files removed.
+- [ ] **[DEFERRED to the preview deploy]** the real flow — practice as a guest, sign in → prompt;
+      "Merge" behaves as today; "Use account only" → local guest rows gone from the device,
+      account shows only its cloud data, `select count(*) from orphan_practice` (service role) up
+      by the guest row count; signing in again does not re-prompt. Needs sign-in, joining the
+      Phase 1/3/4 checks already queued there.
+- [x] Commit: `Tiering: guest-merge prompt + orphan capture (phase 5)`.
 
 ---
 
@@ -327,31 +415,46 @@ current silent auto-merge. Not tier-specific. See `design.md` §5.4.
 
 ### 6.1 — `scripts/grant-pro.mts` (new)
 
-- [ ] Node/tsx script (match `scripts/*.mts` style, e.g. `scripts/eval-voice.mts`). Reads
-      `SUPABASE_URL` + a **service-role** key from env (never commit it; document in `.env.example`
-      as a local-only var). Args: `--email <addr> [--months N | --lifetime] [--revoke]`.
-- [ ] Looks up the `auth.users` id by email, upserts `public.entitlements`
-      (`tier='pro', source='comp', expires_at = now()+N months or null`). `--revoke` sets
-      `tier='free'`.
-- [ ] Print the resulting row.
+- [x] Node script matching the repo's `scripts/*.mts` style (run with
+      `node --experimental-strip-types`, per the `eval-voice.mts` header — the repo has no `tsx`
+      dep and `tsc -b` does not type-check `scripts/`). Reads `SUPABASE_URL` (or `VITE_SUPABASE_URL`)
+      + `SUPABASE_SERVICE_ROLE_KEY` from a git-ignored `.env` (a small no-dep reader) or the shell.
+      Args: `--email <addr> [--months N | --lifetime] [--revoke]`. `.env.example` gains a commented,
+      documented "local admin scripts only" block for the two vars.
+- [x] Pages `auth.admin.listUsers` to resolve the id by email, then `upsert public.entitlements`
+      with the service-role client (`tier='pro', source='comp', expires_at` = N calendar months
+      out via `Date#setMonth`, or `null` for `--lifetime`). `--revoke` upserts `tier='free'`.
+- [x] Prints the resulting row (`.select().single()`).
 
 ### 6.2 — Dev-only "simulate Pro" toggle
 
-- [ ] Only under `import.meta.env.DEV`. Surface it in the Debug log panel
-      ([src/components/DebugLogPanel.tsx](src/components/DebugLogPanel.tsx)) or the dev readout
-      from 1.4.
-- [ ] Mechanism: a `localStorage` flag `devSimulatePro` that `useAuth` OR-s into `isPro`
-      (`isPro = (entitlement.tier === 'pro' || (import.meta.env.DEV && devSimulatePro)) && !!user`).
-      Never reads in production bundles.
-- [ ] Replace the temporary 1.4 readout with a clean "tier: X (+sim)" line.
+- [x] New `src/utils/devSimulatePro.ts` — a tiny `import.meta.env.DEV`-gated external store
+      (`get` / `subscribe` / `set`, localStorage-backed). A store rather than `useState` because
+      `useAuth()` is not context-backed (every `<ProGate>` mounts its own) — all instances react
+      together through `useSyncExternalStore`, so the toggle re-locks/unlocks the gated UI live
+      with no reload.
+- [x] `useAuth` consumes it via `useSyncExternalStore` and exposes `devSimulatePro` +
+      `setDevSimulatePro`; `simPro = import.meta.env.DEV && devSimulatePro` is OR-ed into `isPro`
+      and forces `tier` to `'pro'`. **Deviation from the sketch:** `simPro` is *not* `&& !!user` —
+      design §9 wants it to work on the config-less local dev server (no account there), and it
+      does.
+- [x] The toggle is a checkbox in [src/components/DebugLogPanel.tsx](src/components/DebugLogPanel.tsx)
+      ("Simulate Pro (dev only — no DB change)"), rendered only when `import.meta.env.DEV`; the
+      panel is now mounted for `auth.admin || import.meta.env.DEV`. The Phase 1.4 Account readout
+      becomes `tier: X (+sim)` (the `(+sim)` suffix keyed off `auth.devSimulatePro`).
 
 ### Done when
 
-- [ ] `tsx scripts/grant-pro.mts --email you@example.com --months 1` flips your account to Pro
-      (verify in-app after a refresh).
-- [ ] The dev toggle flips gated UI on/off with no DB change and is absent from `npm run build`
-      output (grep the `dist/` bundle for `devSimulatePro` → nothing meaningful).
-- [ ] Commit: `Tiering: grant-pro script + dev simulate-pro toggle (phase 6)`.
+- [ ] **[DEFERRED — needs a service-role key]** `node --experimental-strip-types
+      scripts/grant-pro.mts --email you@example.com --months 1` flips the account to Pro (verify
+      in-app after a foreground refresh). Runs alongside the other preview-deploy checks.
+- [x] The dev toggle flips the gated UI on/off live with no DB change (verified headless: 3
+      `progate` nodes + 1 "Pro" pill on free → 0/0 with the toggle on, back to 3/1 with it off,
+      and the flag persists across a reload). `npm run build` clean; a `dist/` grep for
+      `devSimulatePro` finds only the two inert minified identifiers (the `useAuth` return-object
+      key and the `DebugLogPanel` prop) — no localStorage key string, no setter body, no
+      "Simulate Pro" label text.
+- [x] Commit: `Tiering: grant-pro script + dev simulate-pro toggle (phase 6)`.
 
 ---
 
@@ -370,9 +473,29 @@ seam; nothing in Phases 1–6 changes.
 
 - [~] Phase 1 — Entitlement plumbing + `0007` migration — code done & committed (`1894d3a`);
       pending the [MANUAL] `supabase db push` + the in-app `free`→`pro` verification
-- [ ] Phase 2 — Feature map + `<ProGate>` + upsell shell
-- [ ] Phase 3 — Gate multi-string / mastery maps / voice profile
-- [ ] Phase 4 — 7-day history window
-- [ ] Phase 5 — Guest-merge prompt + orphan capture
-- [ ] Phase 6 — grant-pro script + dev toggle
+- [x] Phase 2 — Feature map + `<ProGate>` + upsell shell — done & committed. `utils/features.ts`,
+      `components/ProGate.tsx` (3 variants), `components/UpgradeCard.tsx`, `hooks/useEntitlement.ts`
+      (+ `entitlement` on `AuthState`), `utils/upgradeDrawer.ts` singleton, the `upgrade` drawer
+      section, `styles/21-pro-gate.css`, i18n. Nothing gated yet.
+- [~] Phase 3 — Gate multi-string / mastery maps / voice profile — code done; `SelectorPanel` +
+      `useSelector(instrument, isPro)` clamp, `App.tsx` mastery `useMemo`/overlay gate + Stats
+      toggle `<ProGate overlay>`, `answer` section `<ProGate replace>`. Free/locked side verified
+      headless; the `pro` re-enable path is deferred to the preview deploy (needs sign-in).
+- [~] Phase 4 — 7-day history window — code done in the `gfp-tiering` worktree.
+      `utils/progress.ts` `withinFreeWindow`, `ProgressPanel` `isPro` prop + both-scope window +
+      "Last 7 days" relabel + locked "Personal bests", `App.tsx` passes `auth.isPro`, one
+      `21-pro-gate.css` line, two i18n strings. Free side verified headless; `pro` re-check
+      deferred to the preview deploy.
+- [~] Phase 5 — Guest-merge prompt + orphan capture — code done in the `gfp-tiering` worktree.
+      `utils/sync.ts` `cloudCaptureOrphans` + `restoreOnly`, new `components/GuestMergePrompt.tsx`
+      (reuses `.mic-*`), `App.tsx` sign-in effect restructured around `pendingGuestMerge` +
+      `finishGuestMerge`, 6 i18n strings. Modal verified headless in both languages; the real
+      merge / orphan-capture path is deferred to the preview deploy (needs sign-in).
+- [~] Phase 6 — grant-pro script + dev simulate-Pro toggle — code done in the `gfp-tiering`
+      worktree. `scripts/grant-pro.mts` (service-role upsert by email, `--months`/`--lifetime`/
+      `--revoke`) + `.env.example` block; `utils/devSimulatePro.ts` external store, `useAuth`
+      `useSyncExternalStore` + `simPro` OR-ed into `isPro`, `DebugLogPanel` checkbox (DEV-only,
+      panel mounted for admin-or-DEV), `App.tsx` `tier: X (+sim)` readout. Toggle verified
+      headless (live lock/unlock, persists); `grant-pro.mts` run deferred to the preview deploy
+      (needs a service-role key).
 - [ ] Phase 7 — Payment rail (separate spec)
