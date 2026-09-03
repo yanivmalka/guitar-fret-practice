@@ -258,8 +258,12 @@ class WebSpeechEngine implements SpeechEngine {
       for (let i = 0; i < e.results.length; i++) {
         const r = e.results[i];
         const t = r[0]?.transcript ?? '';
-        if (r.isFinal) turnFinal += t;
-        else turnInterim += t;
+        // Join with an explicit space rather than bare concatenation. Chrome
+        // happens to prefix continuation results with one, but relying on that
+        // would run words together the moment it doesn't; the caller collapses
+        // any doubled space.
+        if (r.isFinal) turnFinal = turnFinal ? `${turnFinal} ${t}` : t;
+        else turnInterim = turnInterim ? `${turnInterim} ${t}` : t;
         dump.push(`${i}${r.isFinal ? 'F' : 'i'}:${t}`);
       }
       vlog('[voice] web onresult', {

@@ -95,6 +95,8 @@ export function useDictation(opts: UseDictationOptions): UseDictationResult {
   const committedRef = useRef('');
   const turnFinalRef = useRef('');
   const turnInterimRef = useRef('');
+  // Last text handed to the consumer, so identical repeats are dropped.
+  const lastEmittedRef = useRef<string | null>(null);
   const startRef = useRef<() => void>(() => {});
   // Set while a coalesced restart is pending, so overlapping onerror/onend
   // callbacks for the same pause don't each spawn a recogniser.
@@ -150,10 +152,16 @@ export function useDictation(opts: UseDictationOptions): UseDictationResult {
     }, RESUME_DEBOUNCE_MS);
   }, [halt]);
 
-  const emit = useCallback(() => {
+  const emit = useCallback((force = false) => {
     const text = joinText(
       committedRef.current, turnFinalRef.current, turnInterimRef.current,
     );
+    // One browser event can carry several results, and the engine reports each
+    // one separately with the same turn snapshot attached. Emitting per result
+    // would hand the consumer identical text two or three times over; only a
+    // real change is worth reporting.
+    if (!force && text === lastEmittedRef.current) return;
+    lastEmittedRef.current = text;
     vlog('[voice] dict emit', {
       committed: committedRef.current,
       turnFinal: turnFinalRef.current,
@@ -255,6 +263,7 @@ export function useDictation(opts: UseDictationOptions): UseDictationResult {
     committedRef.current = '';
     turnFinalRef.current = '';
     turnInterimRef.current = '';
+    lastEmittedRef.current = null;
     void (async () => {
       const granted = await engine.requestPermission();
       if (!granted) { setError('no-permission'); return; }
