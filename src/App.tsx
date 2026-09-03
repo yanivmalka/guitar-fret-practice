@@ -763,8 +763,9 @@ export default function App() {
         if (earned.length > 0) {
           setNewBadges(earned);
           if (showScore) {
-            const name = badgeDef(earned[0].id, instrument)?.name ?? t('New badge');
-            celebrateTier2(`🏅 ${name} — ${TIER_LABEL[earned[0].tier]}`);
+            const def = badgeDef(earned[0].id, instrument);
+            const name = def ? t(def.name) : t('New badge');
+            celebrateTier2(`🏅 ${name} — ${t(TIER_LABEL[earned[0].tier])}`);
           }
         }
       }
@@ -1511,7 +1512,7 @@ export default function App() {
                     return (
                       <div className="game-end-badge" key={id}>
                         <BadgeMedal id={id} instrumentId={instrument.id} tier={tier} size={30} />
-                        {t('New badge')} · {def?.name ?? id} — {TIER_LABEL[tier]}
+                        {t('New badge')} · {def ? t(def.name) : id} — {t(TIER_LABEL[tier])}
                       </div>
                     );
                   })}

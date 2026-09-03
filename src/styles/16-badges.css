@@ -269,23 +269,63 @@
   gap: 5px;
 }
 .badge-name {
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   font-weight: 800;
-  line-height: 1.2;
+  line-height: 1.24;
+  letter-spacing: -0.005em;
   color: #f0f0f8;
+  /* Long family names (the per-string "String Master · String 1 · high E",
+     and Hebrew, which runs wider here) wrap to two balanced lines and then
+     ellipsize; the full string stays reachable via the tile's title tooltip.
+     Two lines are always reserved so a short name doesn't pull its tile out
+     of step with the rest of the shelf. */
   overflow-wrap: anywhere;
+  text-wrap: balance;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: calc(2 * 1.24em);
 }
 .badge-tile.locked .badge-name { color: #babacf; }
+
+/* Instrument identity — every fretboard-scoped medal (String Master, Neck
+   Runner, Both Ends, Low End) shares its metal with its twin on the other
+   instrument, so the chip carries the distinction: guitar reads warm amber,
+   bass reads cool violet, each with its own emoji, and the two are never
+   mistaken for one another at a glance or side by side. */
 .badge-scope {
-  font-size: 0.56rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  font-size: 0.6rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.05em;
   color: #8484a4;
   padding: 1px 7px;
   border: 1px solid #303052;
   border-radius: 999px;
+  white-space: nowrap;
 }
+.badge-scope-emoji {
+  font-size: 0.85em;
+  line-height: 1;
+  filter: saturate(1.1);
+}
+.badge-scope.is-guitar {
+  color: #e8bd92;
+  border-color: rgba(226, 166, 114, 0.5);
+  background: rgba(226, 166, 114, 0.1);
+}
+.badge-scope.is-bass {
+  color: #bcacf4;
+  border-color: rgba(150, 128, 240, 0.5);
+  background: rgba(140, 120, 235, 0.12);
+}
+.badge-tile.locked .badge-scope { opacity: 0.72; }
 
 /* Tier ladder — Bronze → Silver → Gold → (Platinum) as filled steps. */
 .badge-tier-track {
@@ -317,10 +357,16 @@
 }
 
 .badge-tier-word {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  column-gap: 3px;
+  max-width: 100%;
   font-size: 0.63rem;
   font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: 0.11em;
+  letter-spacing: 0.1em;
 }
 .badge-tier-word.tier-bronze   { color: var(--m-bronze); }
 .badge-tier-word.tier-silver   { color: var(--m-silver); }
@@ -384,6 +430,10 @@
   font-variant-numeric: tabular-nums;
 }
 .badge-earned {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
   margin-top: 2px;
   font-size: 0.62rem;
   font-weight: 800;
@@ -391,6 +441,9 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+/* The tick keeps to the leading edge in both directions — it flips to the
+   right of the date on the RTL settings page instead of trailing it. */
+.badge-earned-mark { flex: none; }
 
 /* Completion mark on a maxed family — a small gilt star (gold cap) or iced
    crown (platinum cap) pinned to the tile corner, so a finished achievement

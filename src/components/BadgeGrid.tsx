@@ -6,11 +6,42 @@ import {
   TIERS, TIER_LABEL, type BadgeDef, type LifetimeSnapshot, type Tier,
 } from '../utils/badges';
 import { BadgeMedal, BadgeMedalDefs, type Metal } from './BadgeMedal';
+import { useTranslation } from '../i18n/useTranslation';
 
 function higherTier(a: Tier | null, b: Tier | null): Tier | null {
   if (!a) return b;
   if (!b) return a;
   return TIERS.indexOf(a) >= TIERS.indexOf(b) ? a : b;
+}
+
+/**
+ * The instrument string-label (`"String 1 · high E"`) baked into a per-string
+ * String Master badge's generated `name`/`blurb`, or null for every other badge.
+ */
+function smStringLabel(def: BadgeDef, instrument: InstrumentConfig): string | null {
+  const m = /^string_master_s(\d+)$/.exec(def.id);
+  return m ? (instrument.stringLabels[Number(m[1])] ?? null) : null;
+}
+
+/**
+ * Localise a badge's `name` or a level `blurb` for the active language. Most
+ * strings pass straight through `t()`. The per-string String Master family is
+ * the exception: its text is generated in `badges.ts` with a string label
+ * spliced in, so a literal dictionary entry per string/tier would be brittle.
+ * Instead the label is lifted to a `{s}` placeholder — one template translation
+ * then covers every string — and the translated label is substituted back.
+ * `badges.ts` is untouched; if its wording or thresholds change, the template
+ * simply misses the dictionary and English shows, exactly like any other
+ * not-yet-translated string in the app. For English this is a no-op.
+ */
+function localise(
+  src: string, def: BadgeDef, instrument: InstrumentConfig, t: (s: string) => string,
+): string {
+  const label = smStringLabel(def, instrument);
+  if (label && src.includes(label)) {
+    return t(src.replace(label, '{s}')).replace('{s}', t(label));
+  }
+  return t(src);
 }
 
 /**
@@ -31,6 +62,8 @@ export function BadgeGrid({
   /** Current account is an app administrator — reveals the Admin role medal. */
   isAdmin?: boolean;
 }) {
+  const { t } = useTranslation();
+
   const lifetime = useMemo<LifetimeSnapshot>(
     () => ({ instrumentEntries, allEntries, instrument }),
     [instrumentEntries, allEntries, instrument],
@@ -63,7 +96,7 @@ export function BadgeGrid({
         <div className="badge-collection-top">
           <span className="badge-collection-num">{earnedCount}</span>
           <span className="badge-collection-total">/ {defs.length}</span>
-          <span className="badge-collection-label">unlocked</span>
+          <span className="badge-collection-label">{t('unlocked')}</span>
         </div>
         <span className="badge-collection-meter" aria-hidden="true">
           <span className="badge-collection-meter-fill" style={{ width: `${collectedPct}%` }} />
@@ -93,6 +126,8 @@ function BadgeTile({
   /** The family's highest reached tier, or null if not yet earned. */
   tier: Tier | null;
 }) {
+  const { t, lang } = useTranslation();
+
   const isRole = def.kind === 'role';
   const earned = tier !== null;
   const nextLevel = isRole
@@ -105,6 +140,21 @@ function BadgeTile({
   const medalTier: Metal = isRole ? 'onyx' : (tier ?? def.levels[0]?.tier ?? 'bronze');
   const maxedOut = !isRole && !nextLevel && earned;
   const reachedIdx = tier ? TIERS.indexOf(tier) : -1;
+
+  // ── Localised text ──────────────────────────────────────────────────────────
+  const name = localise(def.name, def, instrument, t);
+  const rawBlurb = isRole
+    ? (def.blurb ?? '')
+    : (maxedOut ? def.levels[def.levels.length - 1].blurb : nextLevel?.blurb ?? '');
+  const blurb = rawBlurb ? localise(rawBlurb, def, instrument, t) : '';
+  const tierWord = (tr: Tier) => t(TIER_LABEL[tr]);
+  // A left-pointing climb arrow reads correctly in the RTL settings page.
+  const climbArrow = lang === 'he' ? '←' : '→';
+  const earnedDate = when
+    ? new Date(when).toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-GB', {
+        day: 'numeric', month: 'short', year: 'numeric',
+      })
+    : t('Earned');
 
   return (
     <div className={`badge-tile tier-${medalTier} ${earned ? 'earned' : 'locked'}${maxedOut ? ' maxed' : ''}`}>
@@ -137,8 +187,13 @@ function BadgeTile({
       )}
 
       <span className="badge-id-row">
-        <span className="badge-name">{def.name}</span>
-        {def.instrumentScoped && <span className="badge-scope">{instrument.label}</span>}
+        <span className="badge-name" title={name}>{name}</span>
+        {def.instrumentScoped && (
+          <span className={`badge-scope is-${instrument.id}`}>
+            <span className="badge-scope-emoji" aria-hidden="true">{instrument.emoji}</span>
+            {t(instrument.label)}
+          </span>
+        )}
       </span>
 
       {!isRole && def.levels.length > 0 && (
@@ -157,19 +212,19 @@ function BadgeTile({
       {!isRole && earned && (
         <span className={`badge-tier-word${maxedOut ? ' is-max' : ''}${tier ? ` tier-${tier}` : ''}`}>
           {maxedOut ? (
-            'Max'
+            t('Max')
           ) : (
             <>
-              {TIER_LABEL[tier as Tier]}
-              {nextLevel && <span className="badge-tier-next"> → {TIER_LABEL[nextLevel.tier]}</span>}
+              {tierWord(tier as Tier)}
+              {nextLevel && (
+                <span className="badge-tier-next"> {climbArrow} {tierWord(nextLevel.tier)}</span>
+              )}
             </>
           )}
         </span>
       )}
 
-      <span className="badge-blurb">
-        {isRole ? def.blurb : (maxedOut ? def.levels[def.levels.length - 1].blurb : nextLevel?.blurb)}
-      </span>
+      <span className="badge-blurb" title={blurb}>{blurb}</span>
 
       {!earned && progress && progress.target > 0 && (
         <span className="badge-progress">
@@ -185,11 +240,8 @@ function BadgeTile({
 
       {earned && (
         <span className="badge-earned">
-          {when
-            ? `✓ ${new Date(when).toLocaleDateString('en-GB', {
-                day: 'numeric', month: 'short', year: 'numeric',
-              })}`
-            : '✓ Earned'}
+          <span className="badge-earned-mark" aria-hidden="true">✓</span>
+          <span>{earnedDate}</span>
         </span>
       )}
 
@@ -204,7 +256,7 @@ function BadgeTile({
             />
           </span>
           <span className="badge-progress-txt">
-            {TIER_LABEL[nextLevel.tier]} · {progress.current}/{progress.target}
+            {tierWord(nextLevel.tier)} · {progress.current}/{progress.target}
           </span>
         </span>
       )}
