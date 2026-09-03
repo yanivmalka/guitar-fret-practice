@@ -53,11 +53,22 @@ export function BadgeGrid({
   const effectiveTier = (def: BadgeDef): Tier | null =>
     def.kind === 'role' ? null : higherTier(earnedTier(def.id, instrument.id), qualifying[def.id] ?? null);
   const earnedCount = defs.filter(d => d.kind === 'role' ? isAdmin : effectiveTier(d) !== null).length;
+  const collectedPct = defs.length ? Math.round((earnedCount / defs.length) * 100) : 0;
 
   return (
     <div className="badge-wrap">
       <BadgeMedalDefs />
-      <p className="badge-summary">🏅 {earnedCount} / {defs.length} earned</p>
+      {/* Collection tracker — the whole shelf's completion, read as one meter. */}
+      <div className="badge-collection-head">
+        <div className="badge-collection-top">
+          <span className="badge-collection-num">{earnedCount}</span>
+          <span className="badge-collection-total">/ {defs.length}</span>
+          <span className="badge-collection-label">unlocked</span>
+        </div>
+        <span className="badge-collection-meter" aria-hidden="true">
+          <span className="badge-collection-meter-fill" style={{ width: `${collectedPct}%` }} />
+        </span>
+      </div>
       <div className="badge-grid">
         {defs.map(def => (
           <BadgeTile
@@ -93,36 +104,59 @@ function BadgeTile({
     : null;
   const medalTier: Metal = isRole ? 'onyx' : (tier ?? def.levels[0]?.tier ?? 'bronze');
   const maxedOut = !isRole && !nextLevel && earned;
+  const reachedIdx = tier ? TIERS.indexOf(tier) : -1;
 
   return (
-    <div className={`badge-tile${earned ? '' : ' locked'}`}>
-      <BadgeMedal id={def.id} instrumentId={instrument.id} tier={medalTier} />
-      <span className="badge-name">
-        {def.name}
-        {!isRole && earned && <span className={`badge-tier-pill tier-${tier}`}>{TIER_LABEL[tier as Tier]}</span>}
+    <div className={`badge-tile tier-${medalTier} ${earned ? 'earned' : 'locked'}${maxedOut ? ' maxed' : ''}`}>
+      <span className="badge-medal-frame">
+        <BadgeMedal id={def.id} instrumentId={instrument.id} tier={medalTier} size={76} />
+        {!earned && (
+          <span className="badge-lock" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="12" height="12">
+              <path
+                d="M6 10V8a6 6 0 0 1 12 0v2h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h1Zm2 0h8V8a4 4 0 0 0-8 0v2Z"
+                fill="currentColor"
+              />
+            </svg>
+          </span>
+        )}
       </span>
-      {!isRole && def.levels.length > 1 && (
-        <span className="badge-pips" aria-hidden="true">
+
+      <span className="badge-id-row">
+        <span className="badge-name">{def.name}</span>
+        {def.instrumentScoped && <span className="badge-scope">{instrument.label}</span>}
+      </span>
+
+      {!isRole && def.levels.length > 0 && (
+        <span className="badge-tier-track" aria-hidden="true">
           {def.levels.map(l => (
             <span
               key={l.tier}
-              className={`badge-pip tier-${l.tier}${tier !== null && TIERS.indexOf(l.tier) <= TIERS.indexOf(tier) ? ' filled' : ''}`}
+              className={`badge-tier-seg tier-${l.tier}${
+                reachedIdx >= 0 && TIERS.indexOf(l.tier) <= reachedIdx ? ' on' : ''
+              }`}
             />
           ))}
         </span>
       )}
+
+      {!isRole && earned && (
+        <span className={`badge-tier-word${maxedOut ? ' is-max' : ` tier-${tier}`}`}>
+          {maxedOut ? (
+            'Max'
+          ) : (
+            <>
+              {TIER_LABEL[tier as Tier]}
+              {nextLevel && <span className="badge-tier-next"> → {TIER_LABEL[nextLevel.tier]}</span>}
+            </>
+          )}
+        </span>
+      )}
+
       <span className="badge-blurb">
         {isRole ? def.blurb : (maxedOut ? def.levels[def.levels.length - 1].blurb : nextLevel?.blurb)}
       </span>
-      {earned && (
-        <span className="badge-earned">
-          {when
-            ? `Earned ${new Date(when).toLocaleDateString('en-GB', {
-                day: 'numeric', month: 'short', year: 'numeric',
-              })}`
-            : 'Earned'}
-        </span>
-      )}
+
       {progress && progress.target > 0 && (
         <span className="badge-progress">
           <span className="badge-progress-track">
@@ -134,8 +168,15 @@ function BadgeTile({
           <span className="badge-progress-txt">{progress.current} / {progress.target}</span>
         </span>
       )}
-      {def.instrumentScoped && (
-        <span className="badge-scope">for {instrument.label}</span>
+
+      {earned && (
+        <span className="badge-earned">
+          {when
+            ? `✓ ${new Date(when).toLocaleDateString('en-GB', {
+                day: 'numeric', month: 'short', year: 'numeric',
+              })}`
+            : '✓ Earned'}
+        </span>
       )}
     </div>
   );
