@@ -1,0 +1,1185 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
+<title>Fretboard Badge Book</title>
+<meta name="description" content="Every achievement family in Guitar Fret Practice, struck as a tiered medal from Bronze to Platinum, with the exact play that earns each rung." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" />
+
+<style>
+  /* ── Tokens: bare :root is the complete light palette ─────────────────── */
+  :root {
+    --ground:      #f6f3ec;
+    --ground-tint: #efe9db;
+    --surface:     #fffdf8;
+    --surface-2:   #efe9da;
+    --ink:         #1b1b26;
+    --muted:       #63636f;
+    --line:        #e3ddcc;
+    --hairline:    rgba(0, 0, 0, 0.06);
+    --accent:      #00707f;
+    --gold:        #8a6a00;
+    --ember:       #b8480f;
+    --role:        #6a3fb0;
+    --focus:       #00707f;
+
+    /* struck-metal hues — one intrinsic definition, legible on either ground */
+    --m-bronze:   #a86a3c;
+    --m-silver:   #8f97a4;
+    --m-gold:     #c1912a;
+    --m-platinum: #6a93bb;
+  }
+  :root:not([data-theme="light"]) { color-scheme: light; }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #101019;
+      --ground-tint: #16162a;
+      --surface:     #1a1a2b;
+      --surface-2:   #23233a;
+      --ink:         #f1f1f8;
+      --muted:       #9a9ab8;
+      --line:        #2d2d47;
+      --hairline:    rgba(255, 255, 255, 0.07);
+      --accent:      #2ce1ff;
+      --gold:        #ffd25a;
+      --ember:       #ff9d5c;
+      --role:        #c6a4ff;
+      --focus:       #2ce1ff;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:      #101019;
+    --ground-tint: #16162a;
+    --surface:     #1a1a2b;
+    --surface-2:   #23233a;
+    --ink:         #f1f1f8;
+    --muted:       #9a9ab8;
+    --line:        #2d2d47;
+    --hairline:    rgba(255, 255, 255, 0.07);
+    --accent:      #2ce1ff;
+    --gold:        #ffd25a;
+    --ember:       #ff9d5c;
+    --role:        #c6a4ff;
+    --focus:       #2ce1ff;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Newsreader", Georgia, "Times New Roman", serif;
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    position: relative;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0 0 auto 0;
+    height: 520px;
+    background: radial-gradient(120% 100% at 50% -8%, var(--ground-tint), transparent 68%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 820px;
+    margin: 0 auto;
+    padding: clamp(30px, 6vw, 68px) 20px 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 46px;
+  }
+
+  /* ── Theme toggle ────────────────────────────────────────────────────── */
+  .theme {
+    position: fixed;
+    top: 14px;
+    right: 14px;
+    z-index: 20;
+    font: 600 0.7rem/1 "IBM Plex Mono", ui-monospace, monospace;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+  .theme:hover { color: var(--ink); }
+
+  /* ── Medal ──────────────────────────────────────────────────────────── */
+  .medal {
+    flex: none;
+    display: block;
+    width: 56px;
+    height: 56px;
+    transition: transform 0.2s ease, filter 0.2s ease;
+  }
+  .medal svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.30)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.22));
+  }
+  .medal.is-locked { filter: grayscale(0.62) opacity(0.42); }
+  .medal.hero { width: 88px; height: 88px; }
+  .fam:hover .medal.hero:not(.is-locked) { transform: translateY(-2px); filter: brightness(1.05); }
+
+  /* ── Masthead ───────────────────────────────────────────────────────── */
+  .mast { display: flex; flex-direction: column; gap: 16px; }
+  .mast-top { display: flex; align-items: center; gap: 20px; }
+  .kicker {
+    display: block;
+    font: 600 0.74rem/1 "IBM Plex Mono", ui-monospace, monospace;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+  .title {
+    margin: 0;
+    font-family: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
+    font-weight: 700;
+    font-size: clamp(2.4rem, 7vw, 3.6rem);
+    line-height: 0.96;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+  .standfirst {
+    margin: 0;
+    font-style: italic;
+    font-size: 1.18rem;
+    line-height: 1.55;
+    color: var(--muted);
+    max-width: 52ch;
+  }
+  .specline {
+    margin: 4px 0 0;
+    font: 500 0.82rem/1.85 "IBM Plex Mono", ui-monospace, monospace;
+    color: var(--muted);
+    max-width: 64ch;
+  }
+  .specline b { color: var(--ink); font-weight: 600; }
+
+  /* fingerboard-edge divider */
+  .fret-rule {
+    height: 13px;
+    border: 0;
+    margin: 0;
+    background-image:
+      repeating-linear-gradient(90deg, var(--line) 0 2px, transparent 2px 46px),
+      linear-gradient(var(--line), var(--line));
+    background-size: 100% 13px, 100% 1px;
+    background-position: 3px 0, 0 50%;
+    background-repeat: repeat-x, no-repeat;
+  }
+
+  /* ── Key panel: the two axes ────────────────────────────────────────── */
+  .key {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+  }
+  .key-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 22px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: inset 0 1px 0 var(--hairline), 0 1px 2px rgba(0, 0, 0, 0.12);
+  }
+  .key-panel h3 {
+    margin: 0;
+    font: 600 0.72rem/1 "IBM Plex Mono", ui-monospace, monospace;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .key-panel p { margin: 0; font-size: 0.95rem; color: var(--muted); }
+  .key-panel p b { color: var(--ink); font-weight: 500; }
+  .key-row { display: flex; flex-wrap: wrap; gap: 16px 14px; }
+  .key-item { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 62px; }
+  .key-item .medal { width: 46px; height: 46px; }
+  .key-item span {
+    font: 500 0.62rem/1.3 "IBM Plex Mono", ui-monospace, monospace;
+    color: var(--muted);
+    text-align: center;
+  }
+  .key-item b { color: var(--ink); font-weight: 600; }
+
+  /* ── Section ─────────────────────────────────────────────────────────── */
+  .section { display: flex; flex-direction: column; gap: 20px; }
+  .sec-head { display: flex; flex-direction: column; gap: 8px; }
+  .eyebrow {
+    font: 600 0.72rem/1 "IBM Plex Mono", ui-monospace, monospace;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .sec-title {
+    margin: 0;
+    font-family: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 1.72rem;
+    letter-spacing: -0.02em;
+  }
+  .sec-intro { margin: 0; color: var(--muted); max-width: 60ch; }
+
+  /* ── Family grid ────────────────────────────────────────────────────── */
+  .fam-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 16px;
+  }
+  .subhead {
+    grid-column: 1 / -1;
+    margin: 12px 0 0;
+    font: 600 0.7rem/1 "IBM Plex Mono", ui-monospace, monospace;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .subhead::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+  .fam {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 22px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: inset 0 1px 0 var(--hairline), 0 1px 2px rgba(0, 0, 0, 0.12);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+  .fam:hover {
+    border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+    box-shadow: inset 0 1px 0 var(--hairline), 0 6px 20px rgba(0, 0, 0, 0.14);
+  }
+  .fam.is-unearned { border-style: dashed; }
+
+  .fam__head { display: flex; gap: 15px; align-items: center; }
+  .fam__id { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .fam__name {
+    font-family: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 1.3rem;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .fam__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+  .chip {
+    font: 600 0.62rem/1 "IBM Plex Mono", ui-monospace, monospace;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid;
+  }
+  .chip.session  { color: var(--ember); border-color: color-mix(in srgb, var(--ember) 42%, transparent); }
+  .chip.lifetime { color: var(--gold);  border-color: color-mix(in srgb, var(--gold) 45%, transparent); }
+  .chip.role     { color: var(--role);  border-color: color-mix(in srgb, var(--role) 45%, transparent); }
+
+  .scope {
+    font: 500 0.68rem/1.3 "IBM Plex Mono", ui-monospace, monospace;
+    color: var(--muted);
+  }
+
+  /* progression rail */
+  .pips { display: flex; gap: 6px; align-items: center; }
+  .pip {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    border: 1.5px solid var(--line);
+    background: transparent;
+  }
+  .pip.is-filled { border-color: transparent; }
+  .pip--bronze.is-filled   { background: var(--m-bronze); }
+  .pip--silver.is-filled   { background: var(--m-silver); }
+  .pip--gold.is-filled     { background: var(--m-gold); }
+  .pip--platinum.is-filled { background: var(--m-platinum); }
+  .pips .rest {
+    margin-left: 4px;
+    font: 500 0.62rem/1 "IBM Plex Mono", ui-monospace, monospace;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .fam__desc { margin: 0; color: var(--muted); font-size: 0.98rem; }
+  .fam__desc em { color: var(--ink); font-style: italic; }
+
+  /* tier ladder */
+  .ladder { margin: 0; padding: 0; list-style: none; }
+  .ladder li {
+    display: grid;
+    grid-template-columns: 34px 1fr auto;
+    gap: 4px 12px;
+    align-items: center;
+    padding: 11px 0;
+    border-top: 1px solid var(--hairline);
+  }
+  .ladder li:first-child { border-top: 0; padding-top: 4px; }
+  .rung__medal { grid-row: 1 / span 2; width: 34px; height: 34px; }
+  .rung__tier {
+    font: 600 0.72rem/1 "IBM Plex Mono", ui-monospace, monospace;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .rung__state {
+    font: 600 0.6rem/1 "IBM Plex Mono", ui-monospace, monospace;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .rung.is-won .rung__state { color: var(--accent); }
+  .rung.is-locked .rung__state { color: var(--muted); opacity: 0.7; }
+  .rung__cond {
+    grid-column: 2 / -1;
+    font: 400 0.92rem/1.5 "Newsreader", Georgia, serif;
+    color: var(--muted);
+  }
+  .rung.is-locked { opacity: 0.72; }
+
+  /* per-string strip */
+  .strings {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 12px;
+    padding: 4px 0 2px;
+  }
+  .string { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 52px; }
+  .string .medal { width: 40px; height: 40px; }
+  .string b {
+    font-family: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--ink);
+  }
+  .string span {
+    font: 500 0.6rem/1.2 "IBM Plex Mono", ui-monospace, monospace;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  /* bass twin */
+  .twin {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--surface-2);
+    border-radius: 8px;
+  }
+  .twin .medal { width: 40px; height: 40px; }
+  .twin span {
+    font: 400 0.85rem/1.45 "Newsreader", Georgia, serif;
+    color: var(--muted);
+  }
+  .twin span b { color: var(--ink); font-weight: 500; }
+
+  /* ── Compare strip (guitar vs bass) ─────────────────────────────────── */
+  .compare { display: flex; flex-direction: column; gap: 16px; }
+  .compare-row {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 18px 22px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: inset 0 1px 0 var(--hairline), 0 1px 2px rgba(0, 0, 0, 0.12);
+  }
+  .compare-pair { display: flex; gap: 10px; flex: none; }
+  .compare-row p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+  .compare-row p b { color: var(--ink); font-weight: 500; }
+
+  /* ── Ledger / notes ─────────────────────────────────────────────────── */
+  .ledger {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 24px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: inset 0 1px 0 var(--hairline), 0 1px 2px rgba(0, 0, 0, 0.12);
+  }
+  .ledger h2 {
+    margin: 0;
+    font-family: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 1.18rem;
+    letter-spacing: -0.01em;
+  }
+  .ledger ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .ledger li {
+    font: 400 0.94rem/1.55 "Newsreader", Georgia, serif;
+    color: var(--muted);
+    padding-left: 18px;
+    position: relative;
+  }
+  .ledger li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.62em;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .ledger li b { color: var(--ink); font-weight: 500; }
+
+  .foot {
+    font: 500 0.72rem/1.7 "IBM Plex Mono", ui-monospace, monospace;
+    color: var(--muted);
+  }
+
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+    .fam:hover .medal.hero { transform: none; }
+  }
+  @media (max-width: 520px) {
+    .fam-grid { grid-template-columns: 1fr; }
+    .mast-top { gap: 15px; }
+    .medal.hero { width: 74px; height: 74px; }
+    .compare-row { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+
+<!-- shared metal gradients for every struck medal — ported from BadgeMedal.tsx -->
+<svg width="0" height="0" aria-hidden="true" style="position:absolute" focusable="false">
+  <defs>
+    <radialGradient id="dome-bronze" cx="35%" cy="30%" r="78%">
+      <stop offset="0" stop-color="#ffe7cb" /><stop offset="34%" stop-color="#e2a672" />
+      <stop offset="70%" stop-color="#a86440" /><stop offset="100%" stop-color="#5d3418" />
+    </radialGradient>
+    <radialGradient id="dome-silver" cx="35%" cy="30%" r="78%">
+      <stop offset="0" stop-color="#ffffff" /><stop offset="34%" stop-color="#dee2e9" />
+      <stop offset="70%" stop-color="#a3abb8" /><stop offset="100%" stop-color="#616976" />
+    </radialGradient>
+    <radialGradient id="dome-gold" cx="35%" cy="30%" r="78%">
+      <stop offset="0" stop-color="#fff7d6" /><stop offset="34%" stop-color="#f5d270" />
+      <stop offset="70%" stop-color="#cf9a2c" /><stop offset="100%" stop-color="#87610f" />
+    </radialGradient>
+    <radialGradient id="dome-platinum" cx="35%" cy="30%" r="78%">
+      <stop offset="0" stop-color="#ffffff" /><stop offset="30%" stop-color="#eef6ff" />
+      <stop offset="62%" stop-color="#bcd6ee" /><stop offset="100%" stop-color="#6f93b8" />
+    </radialGradient>
+    <radialGradient id="dome-onyx" cx="35%" cy="30%" r="78%">
+      <stop offset="0" stop-color="#7c7c93" /><stop offset="34%" stop-color="#45454f" />
+      <stop offset="70%" stop-color="#26262f" /><stop offset="100%" stop-color="#111117" />
+    </radialGradient>
+    <linearGradient id="rim-bronze" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f4d0a9" /><stop offset="0.5" stop-color="#ac6c41" /><stop offset="1" stop-color="#61371b" />
+    </linearGradient>
+    <linearGradient id="rim-silver" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f3f5f8" /><stop offset="0.5" stop-color="#aab1bd" /><stop offset="1" stop-color="#69717d" />
+    </linearGradient>
+    <linearGradient id="rim-gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffeab0" /><stop offset="0.5" stop-color="#c9942a" /><stop offset="1" stop-color="#79540e" />
+    </linearGradient>
+    <linearGradient id="rim-platinum" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" /><stop offset="0.5" stop-color="#bcd9f2" /><stop offset="1" stop-color="#5c85ad" />
+    </linearGradient>
+    <linearGradient id="rim-onyx" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9797ab" /><stop offset="0.5" stop-color="#3d3d49" /><stop offset="1" stop-color="#191920" />
+    </linearGradient>
+    <linearGradient id="medal-edge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55" />
+      <stop offset="1" stop-color="#000000" stop-opacity="0.35" />
+    </linearGradient>
+    <radialGradient id="medal-gloss" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.6" />
+      <stop offset="68%" stop-color="#ffffff" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+</svg>
+
+<button class="theme" id="themeToggle" type="button" aria-label="Switch colour theme">Theme</button>
+
+<div class="wrap">
+
+  <header class="mast">
+    <div class="mast-top">
+      <span class="medal hero" data-emblem="fretboard" data-metal="gold" aria-hidden="true"></span>
+      <div>
+        <span class="kicker">Guitar Fret Practice · Achievements</span>
+        <h1 class="title">Fretboard Badge Book</h1>
+      </div>
+    </div>
+    <p class="standfirst">Small rewards for the way you practise &mdash; a clean round, a fast one, a week you didn&rsquo;t skip. Each one is a <em>family</em> of medals now: reach it once at Bronze, then keep climbing the same tile to Silver, Gold and, for a few, Platinum.</p>
+    <p class="specline">
+      <b>23 practice families</b> on guitar, <b>22</b> on bass, plus <b>1</b> Admin medal granted by role.
+      <b>6</b> are won inside a single round; the rest build up across your history.
+      Every family carries <b>Bronze, Silver, Gold</b>; three &mdash; Dedicated, Century, Marathoner &mdash;
+      add a fourth <b>Platinum</b> rung. · Kept on this device · Survives Clear&nbsp;History
+    </p>
+  </header>
+
+  <hr class="fret-rule" />
+
+  <!-- ─────────────────────────── THE TWO AXES ─────────────────────────── -->
+  <section class="section">
+    <div class="sec-head">
+      <span class="eyebrow">How to read a medal</span>
+      <h2 class="sec-title">Two things at a glance: tier and instrument</h2>
+      <p class="sec-intro">A struck medal tells you two independent things. The <b>metal</b> is the tier you&rsquo;ve reached. The <b>emblem</b> stamped into it is the instrument. They never trade places, so a Gold always looks Gold and a guitar medal is never mistaken for its bass twin.</p>
+    </div>
+
+    <div class="key">
+      <div class="key-panel">
+        <h3>The metal is the tier</h3>
+        <div class="key-row">
+          <span class="key-item"><span class="medal" data-emblem="flame" data-metal="bronze" aria-hidden="true"></span><span><b>Bronze</b><br />first reach</span></span>
+          <span class="key-item"><span class="medal" data-emblem="flame" data-metal="silver" aria-hidden="true"></span><span><b>Silver</b><br />going deeper</span></span>
+          <span class="key-item"><span class="medal" data-emblem="flame" data-metal="gold" aria-hidden="true"></span><span><b>Gold</b><br />the standard top</span></span>
+          <span class="key-item"><span class="medal" data-emblem="flame" data-metal="platinum" aria-hidden="true"></span><span><b>Platinum</b><br />3 families only</span></span>
+        </div>
+        <p>Same family, same emblem &mdash; only the metal moves as you progress. Platinum exists on <b>Dedicated</b>, <b>Century</b> and <b>Marathoner</b>.</p>
+      </div>
+
+      <div class="key-panel">
+        <h3>The emblem is the instrument</h3>
+        <div class="key-row">
+          <span class="key-item"><span class="medal" data-emblem="strings6" data-metal="gold" aria-hidden="true"></span><span><b>Guitar</b><br />6 strings</span></span>
+          <span class="key-item"><span class="medal" data-emblem="strings4" data-metal="gold" aria-hidden="true"></span><span><b>Bass</b><br />4 strings</span></span>
+          <span class="key-item"><span class="medal" data-emblem="fretboard" data-metal="gold" aria-hidden="true"></span><span>guitar<br />neck</span></span>
+          <span class="key-item"><span class="medal" data-emblem="fretboardLong" data-metal="gold" aria-hidden="true"></span><span>bass<br />24&#8209;fret neck</span></span>
+        </div>
+        <p>Where a medal pictures the fretboard it pictures the <b>real</b> one. Both shown here are Gold: the metal is identical, only the emblem tells guitar from bass.</p>
+      </div>
+
+      <div class="key-panel">
+        <h3>Earned &amp; still to win</h3>
+        <div class="key-row">
+          <span class="key-item"><span class="medal" data-emblem="crosshair" data-metal="gold" aria-hidden="true"></span><span><b>Won</b><br />full strike</span></span>
+          <span class="key-item"><span class="medal is-locked" data-emblem="crosshair" data-metal="gold" aria-hidden="true"></span><span>not yet<br />dimmed</span></span>
+        </div>
+        <p>In every family below, rungs you&rsquo;ve reached are struck in full colour and marked <b>won</b>; the ones ahead sit greyed until you get there. A family you haven&rsquo;t opened at all shows a dashed edge.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="fret-rule" />
+
+  <!-- ─────────────────────────── SESSION ─────────────────────────── -->
+  <section class="section">
+    <div class="sec-head">
+      <span class="eyebrow">Won inside a single round</span>
+      <h2 class="sec-title">Session families</h2>
+      <p class="sec-intro">Struck the moment a round ends, from that round&rsquo;s score, streak and answers. They only ever accrue going forward &mdash; a past round can&rsquo;t be re-scored to lift a tier.</p>
+    </div>
+    <div class="fam-grid" id="g-session"></div>
+  </section>
+
+  <hr class="fret-rule" />
+
+  <!-- ─────────────────────────── LIFETIME ─────────────────────────── -->
+  <section class="section">
+    <div class="sec-head">
+      <span class="eyebrow">Built up across your whole history</span>
+      <h2 class="sec-title">Lifetime families</h2>
+      <p class="sec-intro">Recomputed from your history each time this book opens, so practice from before a tier existed still counts toward it. Fretboard-shape families read only the current instrument; the milestones read every instrument&rsquo;s history together, so bass practice feeds them the moment it happens.</p>
+    </div>
+
+    <div class="fam-grid" id="g-string">
+      <p class="subhead">One string at a time</p>
+    </div>
+
+    <div class="fam-grid" id="g-neck">
+      <p class="subhead">The whole neck</p>
+    </div>
+
+    <div class="fam-grid" id="g-milestone">
+      <p class="subhead">Milestones &mdash; every instrument counts</p>
+    </div>
+
+    <div class="fam-grid" id="g-bass">
+      <p class="subhead">Bass only</p>
+    </div>
+  </section>
+
+  <hr class="fret-rule" />
+
+  <!-- ─────────────────────────── GUITAR vs BASS ─────────────────────────── -->
+  <section class="section">
+    <div class="sec-head">
+      <span class="eyebrow">Two instruments, two sets</span>
+      <h2 class="sec-title">Guitar and bass, struck side by side</h2>
+      <p class="sec-intro">A guitar family and its bass counterpart ask for the same thing on different necks, so they are kept as two separate medals. Under the new tiers the difference is <b>only</b> in the emblem &mdash; the metal for a given tier is the same on both.</p>
+    </div>
+    <div class="compare">
+      <div class="compare-row">
+        <span class="compare-pair">
+          <span class="medal" data-emblem="string" data-metal="silver" aria-hidden="true"></span>
+          <span class="medal" data-emblem="stringBass" data-metal="silver" aria-hidden="true"></span>
+        </span>
+        <p><b>String Master.</b> Guitar draws four brisk string waves; bass draws one thick, slack one. Both here are Silver &mdash; the tier reads the same, the emblem says which neck.</p>
+      </div>
+      <div class="compare-row">
+        <span class="compare-pair">
+          <span class="medal" data-emblem="strings6" data-metal="gold" aria-hidden="true"></span>
+          <span class="medal" data-emblem="strings4" data-metal="gold" aria-hidden="true"></span>
+        </span>
+        <p><b>Full String Master.</b> Six string lines on guitar, four on bass. The Gold metal is shared; only the count in the emblem changes.</p>
+      </div>
+      <div class="compare-row">
+        <span class="compare-pair">
+          <span class="medal" data-emblem="fretboard" data-metal="bronze" aria-hidden="true"></span>
+          <span class="medal" data-emblem="fretboardLong" data-metal="bronze" aria-hidden="true"></span>
+        </span>
+        <p><b>Neck Runner.</b> A short board on guitar, a longer 24-fret board on bass. Both Bronze here &mdash; same strike, different neck.</p>
+      </div>
+      <div class="compare-row">
+        <span class="compare-pair">
+          <span class="medal" data-emblem="hundred" data-metal="platinum" aria-hidden="true"></span>
+        </span>
+        <p><b>Milestones are shared.</b> Century, Marathoner, the streaks, accuracy and speed families are one set of medals, earned for life, fed by guitar and bass history at once &mdash; there is no separate bass copy.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="fret-rule" />
+
+  <!-- ─────────────────────────── ROLE ─────────────────────────── -->
+  <section class="section">
+    <div class="sec-head">
+      <span class="eyebrow">Not earned at the fretboard</span>
+      <h2 class="sec-title">Role medal</h2>
+      <p class="sec-intro">One medal has no tiers at all. It reflects who you are to the app, not what you&rsquo;ve drilled &mdash; struck in gunmetal onyx to set it apart from every practice family.</p>
+    </div>
+    <div class="fam-grid">
+      <article class="fam">
+        <div class="fam__head">
+          <span class="medal hero" data-emblem="shield" data-metal="onyx" aria-hidden="true"></span>
+          <span class="fam__id">
+            <span class="fam__name">Admin</span>
+            <span class="fam__meta">
+              <span class="chip role">Role</span>
+              <span class="scope">Granted, not earned &middot; no tiers</span>
+            </span>
+          </span>
+        </div>
+        <p class="fam__desc">Marks the people who keep the app running. An admin reads <em>every</em> idea posted to the Feedback board, not just their own, and moderates what comes in.</p>
+        <ul class="ladder">
+          <li class="rung is-won">
+            <span class="medal rung__medal" data-emblem="shield" data-metal="onyx" aria-hidden="true"></span>
+            <span class="rung__tier">Onyx</span>
+            <span class="rung__state">granted</span>
+            <span class="rung__cond">Your account is flagged as an app administrator. It appears on its own, always struck, and can&rsquo;t be practised toward. It isn&rsquo;t counted in a player&rsquo;s family total.</span>
+          </li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <hr class="fret-rule" />
+
+  <section class="ledger" aria-label="How the badge book keeps score">
+    <h2>How the book keeps score</h2>
+    <ul>
+      <li>Session families are checked the moment a round ends. Lifetime families are recomputed from your <b>entire</b> history every time this book opens, so old practice retroactively lifts them.</li>
+      <li>Reaching a rung is permanent. <b>Bronze, Silver, Gold and Platinum</b> are each stamped once, with the date you got there, and the celebration for a rung fires a single time.</li>
+      <li>Fretboard-shape families &mdash; String Master, Full String Master, Neck Runner, Both Ends, Low End &mdash; are kept <b>separately for each instrument</b>. Every milestone family is one shared medal, evaluated over <b>guitar and bass history together</b>.</li>
+      <li>Every medal you already held before the tiers arrived is now that family&rsquo;s <b>Bronze</b> &mdash; nothing was lost, and the higher rungs are simply waiting.</li>
+      <li>Medals survive <b>Clear History</b> and <b>Clear all history</b>. They&rsquo;re a record of what you did, not a running stat.</li>
+      <li>They&rsquo;re still awarded in <b>Silent mode</b> and with the score hidden &mdash; only the end-of-round celebration needs the score on screen.</li>
+    </ul>
+  </section>
+
+  <p class="foot">Guitar Fret Practice — 6 session · 17 lifetime · 1 role — 24 families on guitar, 23 on bass · Bronze / Silver / Gold, with Platinum on Dedicated, Century &amp; Marathoner.</p>
+
+</div>
+
+<script>
+  (function () {
+    /* ── struck-medal renderer — ported verbatim from src/components/BadgeMedal.tsx ──
+       One domed disc + raised rim + specular gloss, with a per-family emblem
+       stamped into the metal (a dark inlay over a 1px light bevel). The metal
+       is the tier; the emblem is the instrument. Emblems are authored in the
+       100×100 medal space, centred on 50,50, using `currentColor` so one path
+       serves both the inlay and the bevel copy. */
+    var EMBLEMS = {
+      target:
+        '<circle cx="50" cy="50" r="16" fill="none" stroke="currentColor" stroke-width="3.4"/>' +
+        '<circle cx="50" cy="50" r="8.6" fill="none" stroke="currentColor" stroke-width="3.4"/>' +
+        '<circle cx="50" cy="50" r="2.7" fill="currentColor"/>',
+      bolt:
+        '<path d="M56 29 L39 53 h9.5 l-4.5 18 L63 45 h-9.5 Z" fill="currentColor"/>',
+      flag:
+        '<rect x="35" y="28" width="3.6" height="44" rx="1.6" fill="currentColor"/>' +
+        '<rect x="38.6" y="31" width="26" height="19" fill="none" stroke="currentColor" stroke-width="2.4"/>' +
+        '<g fill="currentColor">' +
+        '<rect x="38.6" y="31" width="8.66" height="6.33"/><rect x="55.94" y="31" width="8.66" height="6.33"/>' +
+        '<rect x="47.28" y="37.33" width="8.66" height="6.33"/>' +
+        '<rect x="38.6" y="43.66" width="8.66" height="6.34"/><rect x="55.94" y="43.66" width="8.66" height="6.34"/>' +
+        '</g>',
+      flame:
+        '<path d="M50 27 C58 37 60.5 44 56.5 52 C61 50.5 62.5 46 62.5 46 C67 57 60.5 73 50 73 C39 73 33 60 39.5 47.5 C40.5 53 43.5 55.5 46 56.5 C41.5 46 45.5 35.5 50 27 Z" fill="currentColor"/>',
+      comeback:
+        '<path d="M33 61 C40 64 45 59 47 50 C49 41 53 35 63 35" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/>' +
+        '<path d="M56 28 L67 34.5 L55.5 41 Z" fill="currentColor"/>',
+      string:
+        '<path d="M30 50 q5 -11 10 0 t10 0 t10 0 t10 0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>' +
+        '<circle cx="30" cy="50" r="3.6" fill="currentColor"/><circle cx="70" cy="50" r="3.6" fill="currentColor"/>',
+      stringBass:
+        '<path d="M28 50 q11 -13 22 0 t22 0" fill="none" stroke="currentColor" stroke-width="4.4" stroke-linecap="round"/>' +
+        '<circle cx="28" cy="50" r="3.8" fill="currentColor"/><circle cx="72" cy="50" r="3.8" fill="currentColor"/>',
+      strings6:
+        '<line x1="32" y1="33" x2="68" y2="33" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>' +
+        '<g stroke="currentColor" stroke-width="2.5" stroke-linecap="round">' +
+        '<line x1="36" y1="35" x2="36" y2="62"/><line x1="41.6" y1="35" x2="41.6" y2="62"/>' +
+        '<line x1="47.2" y1="35" x2="47.2" y2="62"/><line x1="52.8" y1="35" x2="52.8" y2="62"/>' +
+        '<line x1="58.4" y1="35" x2="58.4" y2="62"/><line x1="64" y1="35" x2="64" y2="62"/></g>',
+      strings4:
+        '<line x1="33" y1="33" x2="67" y2="33" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>' +
+        '<g stroke="currentColor" stroke-width="3.4" stroke-linecap="round">' +
+        '<line x1="38" y1="35" x2="38" y2="62"/><line x1="46" y1="35" x2="46" y2="62"/>' +
+        '<line x1="54" y1="35" x2="54" y2="62"/><line x1="62" y1="35" x2="62" y2="62"/></g>',
+      span:
+        '<g fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M40 31 h-8 v38 h8"/><path d="M60 31 h8 v38 h-8"/></g>' +
+        '<line x1="46" y1="50" x2="54" y2="50" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/>',
+      spanBass:
+        '<g fill="none" stroke="currentColor" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M37 29 h-9 v42 h9"/><path d="M63 29 h9 v42 h-9"/></g>' +
+        '<line x1="44" y1="50" x2="56" y2="50" stroke="currentColor" stroke-width="4.4" stroke-linecap="round"/>',
+      eye:
+        '<path d="M27 50 Q50 33 73 50 Q50 67 27 50 Z" fill="none" stroke="currentColor" stroke-width="3.2"/>' +
+        '<circle cx="50" cy="50" r="5.2" fill="currentColor"/>',
+      pair:
+        '<circle cx="42" cy="50" r="12.5" fill="none" stroke="currentColor" stroke-width="3.6"/>' +
+        '<circle cx="58" cy="50" r="12.5" fill="none" stroke="currentColor" stroke-width="3.6"/>',
+      lowstring:
+        '<path d="M28 50 q11 -9 22 0 t22 0" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>' +
+        '<circle cx="28" cy="50" r="4" fill="currentColor"/><circle cx="72" cy="50" r="4" fill="currentColor"/>',
+      calendar:
+        '<rect x="33" y="35" width="34" height="31" rx="4.5" fill="none" stroke="currentColor" stroke-width="3"/>' +
+        '<path d="M33 44 h34" stroke="currentColor" stroke-width="3"/>' +
+        '<g fill="currentColor"><circle cx="41" cy="52" r="2.4"/><circle cx="50" cy="52" r="2.4"/><circle cx="59" cy="52" r="2.4"/>' +
+        '<circle cx="41" cy="60" r="2.4"/><circle cx="50" cy="60" r="2.4"/></g>',
+      calcheck:
+        '<rect x="33" y="35" width="34" height="31" rx="4.5" fill="none" stroke="currentColor" stroke-width="3"/>' +
+        '<path d="M33 44 h34" stroke="currentColor" stroke-width="3"/>' +
+        '<path d="M40 55 l6 6 12 -13" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>',
+      hundred:
+        '<text x="50" y="51.5" text-anchor="middle" dominant-baseline="central" ' +
+        'font-family="Bricolage Grotesque, Arial Narrow, sans-serif" font-weight="700" ' +
+        'font-size="25" letter-spacing="-1" fill="currentColor">100</text>',
+      trophy:
+        '<path d="M39 33 h22 v7 c0 8.5 -4.9 14.5 -11 14.5 S39 48.5 39 40 Z" fill="currentColor"/>' +
+        '<path d="M39 35 c-6.5 0 -8.5 9 -1 11.5" fill="none" stroke="currentColor" stroke-width="3"/>' +
+        '<path d="M61 35 c6.5 0 8.5 9 1 11.5" fill="none" stroke="currentColor" stroke-width="3"/>' +
+        '<rect x="46.7" y="53.5" width="6.6" height="8" fill="currentColor"/>' +
+        '<rect x="39" y="61" width="22" height="5.5" rx="2" fill="currentColor"/>',
+      crosshair:
+        '<circle cx="50" cy="50" r="15" fill="none" stroke="currentColor" stroke-width="3"/>' +
+        '<g stroke="currentColor" stroke-width="3" stroke-linecap="round">' +
+        '<line x1="50" y1="27" x2="50" y2="37"/><line x1="50" y1="63" x2="50" y2="73"/>' +
+        '<line x1="27" y1="50" x2="37" y2="50"/><line x1="63" y1="50" x2="73" y2="50"/></g>' +
+        '<circle cx="50" cy="50" r="2.7" fill="currentColor"/>',
+      trend:
+        '<path d="M31 63 h4 M31 63 L44 51 L52 57 L67 37" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '<path d="M60 35 L69 33 L68 43 Z" fill="currentColor"/>',
+      fretboard:
+        '<rect x="29" y="40" width="42" height="20" rx="3.5" fill="none" stroke="currentColor" stroke-width="3"/>' +
+        '<g stroke="currentColor" stroke-width="2.3">' +
+        '<line x1="39" y1="40" x2="39" y2="60"/><line x1="50" y1="40" x2="50" y2="60"/><line x1="61" y1="40" x2="61" y2="60"/></g>' +
+        '<g fill="currentColor"><circle cx="44.5" cy="50" r="1.9"/><circle cx="55.5" cy="50" r="1.9"/></g>',
+      fretboardLong:
+        '<rect x="24" y="41" width="52" height="18" rx="3.2" fill="none" stroke="currentColor" stroke-width="2.8"/>' +
+        '<g stroke="currentColor" stroke-width="2.1">' +
+        '<line x1="34" y1="41" x2="34" y2="59"/><line x1="43" y1="41" x2="43" y2="59"/>' +
+        '<line x1="52" y1="41" x2="52" y2="59"/><line x1="61" y1="41" x2="61" y2="59"/></g>' +
+        '<g fill="currentColor"><circle cx="38.5" cy="50" r="1.8"/><circle cx="56.5" cy="50" r="1.8"/><circle cx="70" cy="50" r="1.8"/></g>',
+      shield:
+        '<path d="M50 27 L67 33 V49 C67 61 59 69 50 73 C41 69 33 61 33 49 V33 Z" ' +
+        'fill="none" stroke="currentColor" stroke-width="3.3" stroke-linejoin="round"/>' +
+        '<circle cx="50" cy="46" r="4.2" fill="currentColor"/>' +
+        '<path d="M47.9 48.5 h4.2 l-1.3 9 h-1.6 Z" fill="currentColor"/>'
+    };
+
+    var INLAY = {
+      bronze:   "rgba(46,23,7,0.86)",
+      silver:   "rgba(30,36,46,0.86)",
+      gold:     "rgba(62,42,4,0.86)",
+      platinum: "rgba(20,30,44,0.88)",
+      onyx:     "rgba(224,230,244,0.9)"
+    };
+
+    function medalSVG(metal, emblem) {
+      var e = EMBLEMS[emblem] || EMBLEMS.target;
+      return (
+        '<svg viewBox="0 0 100 100" role="img" aria-hidden="true" focusable="false">' +
+          '<circle cx="50" cy="50" r="48" fill="url(#rim-' + metal + ')"/>' +
+          '<circle cx="50" cy="50" r="47.2" fill="none" stroke="url(#medal-edge)" stroke-width="1.4"/>' +
+          '<circle cx="50" cy="50" r="40" fill="url(#dome-' + metal + ')"/>' +
+          '<circle cx="50" cy="50" r="40" fill="none" stroke="#000" stroke-opacity="0.16" stroke-width="1"/>' +
+          '<g transform="translate(0,1.3)" style="color:rgba(255,255,255,0.3)">' + e + '</g>' +
+          '<g style="color:' + INLAY[metal] + '">' + e + '</g>' +
+          '<ellipse cx="40" cy="33" rx="21" ry="12.5" fill="url(#medal-gloss)"/>' +
+        '</svg>'
+      );
+    }
+
+    function strike(root) {
+      root.querySelectorAll(".medal[data-emblem]").forEach(function (el) {
+        if (el.firstChild) return;
+        el.innerHTML = medalSVG(el.getAttribute("data-metal") || "gold", el.getAttribute("data-emblem"));
+      });
+    }
+
+    /* ── Family data — names, emblems, kinds, scoping and per-tier
+       conditions taken 1:1 from src/utils/badges.ts. `reached` is a
+       showcase value so the book displays every earned/locked state; it
+       is not live data. ───────────────────────────────────────────────── */
+    var TIERS = ["bronze", "silver", "gold", "platinum"];
+    var LABEL = { bronze: "Bronze", silver: "Silver", gold: "Gold", platinum: "Platinum" };
+
+    var FAMILIES = [
+      // ── Session ──────────────────────────────────────────────────────
+      { group: "g-session", name: "Perfect Session", emblem: "target", kind: "session",
+        scope: "Any instrument", reached: "gold",
+        desc: "A round with no wrong note in it. Every question you were asked, you answered right &mdash; no misses, no timeouts, no skips.",
+        tiers: {
+          bronze: "Answer 10+ questions in a round with no mistakes at all.",
+          silver: "25+ questions in a round, still zero mistakes.",
+          gold:   "50+ questions in a round, still zero mistakes &mdash; a full clean run."
+        } },
+      { group: "g-session", name: "Speed Demon", emblem: "bolt", kind: "session",
+        scope: "Any instrument", reached: "silver",
+        desc: "Right, and <em>fast</em> &mdash; most of the round answered almost before the note has finished ringing.",
+        tiers: {
+          bronze: "Get 10+ correct answers in a round, at least 8 of them under 1.5s.",
+          silver: "20+ correct answers, at least 16 of them under 1.5s.",
+          gold:   "40+ correct answers, at least 32 of them under 1.2s."
+        } },
+      { group: "g-session", name: "Flawless Sprint", emblem: "flag", kind: "session",
+        scope: "Any instrument", reached: "bronze",
+        desc: "Go the whole distance clean. An Auto&nbsp;Advance run counts as one distance, first stage to last.",
+        tiers: {
+          bronze: "Finish a whole round at 90% accuracy or better.",
+          silver: "Finish a whole round at 95% accuracy or better.",
+          gold:   "Finish a whole round at 100% accuracy."
+        } },
+      { group: "g-session", name: "On Fire", emblem: "flame", kind: "session",
+        scope: "Any instrument", reached: "silver",
+        desc: "A long unbroken streak inside one round. The fire multiplier is roaring by the time this lands.",
+        tiers: {
+          bronze: "Reach a streak of 15 in a single round.",
+          silver: "Reach a streak of 20 in a single round.",
+          gold:   "Reach a streak of 30 in a single round."
+        } },
+      { group: "g-session", name: "Comeback", emblem: "comeback", kind: "session",
+        scope: "Any instrument", reached: "none",
+        desc: "Start rough, finish strong &mdash; the medal for the round you nearly walked away from.",
+        tiers: {
+          bronze: "Miss 3+ of your first 20 questions, then answer the next 8 in a row correctly.",
+          silver: "Miss 5+ of your first 20 questions, then answer the next 12 in a row correctly.",
+          gold:   "Miss 8+ of your first 20 questions, then answer the next 18 in a row correctly."
+        } },
+      { group: "g-session", name: "Every String", emblem: "strings6", emblemBass: "strings4", kind: "session",
+        scope: "Any instrument", reached: "bronze",
+        desc: "One clean round that ranged the whole instrument, not a single string drilled over and over.",
+        tiers: {
+          bronze: "Finish a round that visited every string: 2&times; that many questions, 90% accuracy.",
+          silver: "Visited every string: 4&times; that many questions, 90% accuracy.",
+          gold:   "Visited every string: 6&times; that many questions, 95% accuracy."
+        } },
+
+      // ── Lifetime · the whole neck ────────────────────────────────────
+      { group: "g-neck", name: "Full String Master", emblem: "strings6", emblemBass: "strings4",
+        kind: "lifetime", scope: "Guitar &middot; struck per instrument", reached: "bronze",
+        desc: "Every string mastered at the same rung. The whole fretboard answers to you.",
+        tiers: {
+          bronze: "Earn String Master &mdash; Bronze on every string of this instrument.",
+          silver: "Earn String Master &mdash; Silver on every string.",
+          gold:   "Earn String Master &mdash; Gold on every string."
+        } },
+      { group: "g-neck", name: "Neck Runner", emblem: "fretboard", emblemBass: "fretboardLong",
+        kind: "lifetime", scope: "Guitar &middot; struck per instrument", reached: "silver",
+        desc: "Every fret answered, nut to the end of the board &mdash; then again, and again, as the rungs climb.",
+        tiers: {
+          bronze: "Answer at least one question on every fret of the neck.",
+          silver: "Answer at least 3 questions on every fret of the neck.",
+          gold:   "Answer at least 5 questions on every fret of the neck."
+        } },
+      { group: "g-neck", name: "Both Ends", emblem: "span", emblemBass: "spanBass",
+        kind: "lifetime", scope: "Guitar &middot; struck per instrument", reached: "none",
+        desc: "Most players live below the fifth fret. This is for knowing the far end of the neck as well as the near one.",
+        tiers: {
+          bronze: "Answer 40+ questions above the 12th fret at 85% accuracy or better.",
+          silver: "100+ questions above the 12th fret at 88% accuracy or better.",
+          gold:   "200+ questions above the 12th fret at 92% accuracy or better."
+        } },
+
+      // ── Lifetime · milestones (shared across instruments) ────────────
+      { group: "g-milestone", name: "Week Warrior", emblem: "calendar", kind: "lifetime",
+        scope: "Every instrument combined", reached: "gold",
+        desc: "Practice days stacking up inside a single seven-day window. The habit is taking hold.",
+        tiers: {
+          bronze: "Practise on 5 separate days within a single 7-day window.",
+          silver: "6 separate days within a single 7-day window.",
+          gold:   "All 7 days within a single 7-day window &mdash; a perfect week."
+        } },
+      { group: "g-milestone", name: "Dedicated", emblem: "calcheck", kind: "lifetime",
+        scope: "Every instrument combined", reached: "silver",
+        desc: "Consecutive days, no gaps. A proper run of showing up &mdash; and it keeps climbing to sixty.",
+        tiers: {
+          bronze:   "Build a run of 7 consecutive practice days.",
+          silver:   "14 consecutive practice days.",
+          gold:     "30 consecutive practice days.",
+          platinum: "60 consecutive practice days."
+        } },
+      { group: "g-milestone", name: "Century", emblem: "hundred", kind: "lifetime",
+        scope: "Every instrument combined", reached: "platinum",
+        desc: "Questions faced, counted across every instrument. From a hundred to a thousand, one family.",
+        tiers: {
+          bronze:   "Answer 100 questions all-time, across every instrument.",
+          silver:   "250 questions all-time.",
+          gold:     "500 questions all-time.",
+          platinum: "1,000 questions all-time."
+        } },
+      { group: "g-milestone", name: "Marathoner", emblem: "trophy", kind: "lifetime",
+        scope: "Every instrument combined", reached: "bronze",
+        desc: "Where Century leaves off. A thousand questions to start, ten thousand at the top.",
+        tiers: {
+          bronze:   "Answer 1,000 questions all-time, across every instrument.",
+          silver:   "2,500 questions all-time.",
+          gold:     "5,000 questions all-time.",
+          platinum: "10,000 questions all-time."
+        } },
+      { group: "g-milestone", name: "Sharpshooter", emblem: "crosshair", kind: "lifetime",
+        scope: "Every instrument combined", reached: "bronze",
+        desc: "High accuracy held over the long haul &mdash; not one lucky round, a lasting hit rate.",
+        tiers: {
+          bronze: "Hold 85% accuracy over at least 200 questions, across every instrument.",
+          silver: "88% accuracy over at least 500 questions.",
+          gold:   "92% accuracy over at least 1,000 questions."
+        } },
+      { group: "g-milestone", name: "Quick Read", emblem: "eye", kind: "lifetime",
+        scope: "Every instrument combined", reached: "none",
+        desc: "The name is off the fret before you&rsquo;ve thought about it. Sight-reading speed, sustained.",
+        tiers: {
+          bronze: "Hold an average answer time under 2.0s over 200+ questions.",
+          silver: "Under 1.6s over 500+ questions.",
+          gold:   "Under 1.3s over 1,000+ questions."
+        } },
+      { group: "g-milestone", name: "Most Improved", emblem: "trend", kind: "lifetime",
+        scope: "Every instrument combined", reached: "none",
+        desc: "Your latest days markedly sharper than your first. Real, measured progress.",
+        tiers: {
+          bronze: "Over 10+ practice days, lift your accuracy by 20 points from your first days to your latest.",
+          silver: "Over 15+ practice days, lift your accuracy by 30 points.",
+          gold:   "Over 20+ practice days, lift your accuracy by 40 points."
+        } },
+      { group: "g-milestone", name: "Doubling Up", emblem: "pair", kind: "lifetime",
+        scope: "Every instrument combined", reached: "none",
+        desc: "A bassist&rsquo;s word for playing both. The capstone that only exists once you&rsquo;ve put the work into each instrument.",
+        tiers: {
+          bronze: "Earn String Master on every string of both guitar and bass.",
+          silver: "Earn Full String Master &mdash; Silver on both guitar and bass.",
+          gold:   "Earn Full String Master &mdash; Gold and Neck Runner &mdash; Gold on both guitar and bass."
+        } },
+
+      // ── Lifetime · bass only ────────────────────────────────────────
+      { group: "g-bass", name: "Low End", emblem: "lowstring", kind: "lifetime",
+        scope: "Bass only &middot; struck per instrument", reached: "bronze",
+        desc: "The defining string of the instrument. There is no guitar equivalent &mdash; this medal is struck on bass alone.",
+        tiers: {
+          bronze: "Answer 40+ questions on the bass low-E string at 90% accuracy or better.",
+          silver: "100+ questions on the low-E string at 93% accuracy or better.",
+          gold:   "200+ questions on the low-E string at 96% accuracy or better."
+        } }
+    ];
+
+    function tierList(fam) {
+      return TIERS.filter(function (t) { return fam.tiers[t] != null; });
+    }
+
+    function pipRail(fam, reachedIdx) {
+      var order = tierList(fam);
+      var html = '<span class="pips" aria-hidden="true">';
+      order.forEach(function (t, i) {
+        html += '<span class="pip pip--' + t + (i <= reachedIdx ? ' is-filled' : '') + '"></span>';
+      });
+      var label = reachedIdx < 0
+        ? "not started"
+        : (reachedIdx >= order.length - 1 ? "every rung won" : LABEL[order[reachedIdx]] + " &mdash; climbing");
+      html += '<span class="rest">' + label + '</span></span>';
+      return html;
+    }
+
+    function ladder(fam, reachedIdx) {
+      var order = tierList(fam);
+      var rows = order.map(function (t, i) {
+        var won = i <= reachedIdx;
+        return '' +
+          '<li class="rung ' + (won ? "is-won" : "is-locked") + '">' +
+            '<span class="medal rung__medal' + (won ? "" : " is-locked") + '" data-emblem="' + fam.emblem + '" data-metal="' + t + '" aria-hidden="true"></span>' +
+            '<span class="rung__tier">' + LABEL[t] + '</span>' +
+            '<span class="rung__state">' + (won ? "&#10022; won" : "locked") + '</span>' +
+            '<span class="rung__cond">' + fam.tiers[t] + '</span>' +
+          '</li>';
+      });
+      return '<ul class="ladder">' + rows.join("") + '</ul>';
+    }
+
+    function twinBlock(fam, reachedIdx) {
+      if (!fam.emblemBass) return "";
+      var metal = reachedIdx >= 0 ? tierList(fam)[reachedIdx] : "gold";
+      return '' +
+        '<div class="twin">' +
+          '<span class="medal" data-emblem="' + fam.emblemBass + '" data-metal="' + metal + '" aria-hidden="true"></span>' +
+          '<span>On <b>bass</b> the same family is struck with the four-string emblem. Same metal for the same tier &mdash; only the emblem changes.</span>' +
+        '</div>';
+    }
+
+    function famCard(fam) {
+      var order = tierList(fam);
+      var reachedIdx = fam.reached === "none" ? -1 : order.indexOf(fam.reached);
+      var heroMetal = reachedIdx >= 0 ? order[reachedIdx] : "bronze";
+      var heroLocked = reachedIdx < 0 ? " is-locked" : "";
+      var platNote = order.indexOf("platinum") >= 0 ? " &middot; runs to Platinum" : "";
+
+      return '' +
+        '<article class="fam' + (reachedIdx < 0 ? " is-unearned" : "") + '">' +
+          '<div class="fam__head">' +
+            '<span class="medal hero' + heroLocked + '" data-emblem="' + fam.emblem + '" data-metal="' + heroMetal + '" aria-hidden="true"></span>' +
+            '<span class="fam__id">' +
+              '<span class="fam__name">' + fam.name + '</span>' +
+              '<span class="fam__meta">' +
+                '<span class="chip ' + fam.kind + '">' + (fam.kind === "session" ? "Session" : "Lifetime") + '</span>' +
+                '<span class="scope">' + fam.scope + platNote + '</span>' +
+              '</span>' +
+              pipRail(fam, reachedIdx) +
+            '</span>' +
+          '</div>' +
+          '<p class="fam__desc">' + fam.desc + '</p>' +
+          ladder(fam, reachedIdx) +
+          twinBlock(fam, reachedIdx) +
+        '</article>';
+    }
+
+    /* String Master — six medals, one per string, each tiered on its own.
+       Kept as one visual unit with a per-string strip. */
+    function stringMasterCard() {
+      var strings = [
+        { n: 1, note: "high E", reached: "gold" },
+        { n: 2, note: "B",      reached: "silver" },
+        { n: 3, note: "G",      reached: "bronze" },
+        { n: 4, note: "D",      reached: "bronze" },
+        { n: 5, note: "A",      reached: "bronze" },
+        { n: 6, note: "low E",  reached: "bronze" }
+      ];
+      var strip = strings.map(function (s) {
+        return '' +
+          '<span class="string">' +
+            '<span class="medal" data-emblem="string" data-metal="' + s.reached + '" aria-hidden="true"></span>' +
+            '<b>' + s.n + '</b><span>' + s.note + '</span>' +
+          '</span>';
+      }).join("");
+
+      var conds = {
+        bronze: "On a given string: 40+ questions answered all-time at 90% accuracy or better.",
+        silver: "100+ questions on that string at 92% accuracy or better.",
+        gold:   "200+ questions on that string at 95% accuracy or better."
+      };
+      var rungs = ["bronze", "silver", "gold"].map(function (t) {
+        return '' +
+          '<li class="rung is-won">' +
+            '<span class="medal rung__medal" data-emblem="string" data-metal="' + t + '" aria-hidden="true"></span>' +
+            '<span class="rung__tier">' + LABEL[t] + '</span>' +
+            '<span class="rung__state">per string</span>' +
+            '<span class="rung__cond">' + conds[t] + '</span>' +
+          '</li>';
+      }).join("");
+
+      return '' +
+        '<article class="fam">' +
+          '<div class="fam__head">' +
+            '<span class="medal hero" data-emblem="string" data-metal="silver" aria-hidden="true"></span>' +
+            '<span class="fam__id">' +
+              '<span class="fam__name">String Master</span>' +
+              '<span class="fam__meta">' +
+                '<span class="chip lifetime">Lifetime</span>' +
+                '<span class="scope">Guitar: 6 medals &middot; Bass: 4 &middot; struck per instrument</span>' +
+              '</span>' +
+            '</span>' +
+          '</div>' +
+          '<p class="fam__desc">One string known cold &mdash; nut to the last fret, not just the open position. Six medals on guitar, four on bass, and <em>each</em> climbs its own Bronze&ndash;Silver&ndash;Gold.</p>' +
+          '<div class="strings">' + strip + '</div>' +
+          '<ul class="ladder">' + rungs + '</ul>' +
+          '<div class="twin">' +
+            '<span class="medal" data-emblem="stringBass" data-metal="silver" aria-hidden="true"></span>' +
+            '<span>On <b>bass</b> each string medal carries the single thick, slack wave instead of guitar&rsquo;s four. Same tiers, same metals.</span>' +
+          '</div>' +
+        '</article>';
+    }
+
+    // ── Render ───────────────────────────────────────────────────────────
+    var buckets = {};
+    FAMILIES.forEach(function (fam) {
+      (buckets[fam.group] = buckets[fam.group] || []).push(famCard(fam));
+    });
+    Object.keys(buckets).forEach(function (id) {
+      var host = document.getElementById(id);
+      if (host) host.insertAdjacentHTML("beforeend", buckets[id].join(""));
+    });
+    var strHost = document.getElementById("g-string");
+    if (strHost) strHost.insertAdjacentHTML("beforeend", stringMasterCard());
+
+    strike(document);
+
+    /* ── theme toggle ─────────────────────────────────────────────────── */
+    var KEY = "badgebook-theme";
+    var root = document.documentElement;
+    var btn = document.getElementById("themeToggle");
+    var stored = null;
+    try { stored = localStorage.getItem(KEY); } catch (e) {}
+    if (stored === "dark" || stored === "light") root.setAttribute("data-theme", stored);
+
+    function current() {
+      var explicit = root.getAttribute("data-theme");
+      if (explicit) return explicit;
+      return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    function renderBtn() { btn.textContent = current() === "dark" ? "Light" : "Dark"; }
+    btn.addEventListener("click", function () {
+      var next = current() === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem(KEY, next); } catch (e) {}
+      renderBtn();
+    });
+    if (window.matchMedia) {
+      try { window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderBtn); } catch (e) {}
+    }
+    renderBtn();
+  })();
+</script>
+</body></html>
