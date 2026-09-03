@@ -94,8 +94,8 @@ const he: Record<string, string> = {
   'Use tap instead': 'השתמש בהקשה במקום',
   'Sign in': 'התחברות',
   'Save your progress': 'שמור את ההתקדמות שלך',
-  'Sign in with Google to keep your history, badges and personal bests across devices. You can keep playing as a guest — everything still works, it just stays on this device.':
-    'התחברות עם Google שומרת את ההיסטוריה, התגים והשיאים האישיים שלך בין מכשירים. אפשר להמשיך לשחק כאורח — הכול ימשיך לעבוד, זה פשוט יישאר במכשיר הזה.',
+  'Sign in to keep your history, badges and personal bests across devices. You can keep playing as a guest — everything still works, it just stays on this device.':
+    'התחברות שומרת את ההיסטוריה, התגים והשיאים האישיים שלך בין מכשירים. אפשר להמשיך לשחק כאורח — הכול ימשיך לעבוד, זה פשוט יישאר במכשיר הזה.',
   'Maybe later': 'אולי מאוחר יותר',
 
   // In-game
