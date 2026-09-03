@@ -5,6 +5,14 @@ should be able to pick this up cold: each phase is independently shippable and l
 working. **Read `design.md` for the "why" and the full code sketches** — this file is the ordered
 "what to do", with just enough detail to act without re-deriving decisions.
 
+> **Working location (from Phase 4 on):** this work moved to a dedicated git worktree at
+> `C:/source/gfp-tiering` on branch `claude/free-pro-tiering-work` (created off
+> `claude/free-pro-tiering` at `2efe89f`), because another session shares the main
+> `C:/source/guitar-fret-practice` checkout and the two were colliding. Do all further phase work
+> in `C:/source/gfp-tiering`; do **not** edit the shared checkout. The user reconciles
+> `claude/free-pro-tiering-work` back into `claude/free-pro-tiering` themselves. Phases 1–3 are
+> committed on `claude/free-pro-tiering` (`614fe6d`, `2efe89f`) and inherited here.
+
 ## How to use this file
 
 - Do the phases **in order**. Phases 1–3 and 5 carry no product risk; Phase 4 is the visible one
