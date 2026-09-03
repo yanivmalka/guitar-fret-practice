@@ -233,17 +233,13 @@
 
 .set-seg {
   display: flex;
-  flex-wrap: wrap;
   gap: 3px;
   padding: 3px;
   background: #1c1c38;
   border-radius: 999px;
 }
-.set-seg + .set-seg {
-  margin-top: 6px;
-}
 .set-seg-btn {
-  flex: 1 1 28%;
+  flex: 1;
   padding: 10px 0;
   border: none;
   border-radius: 999px;
@@ -260,11 +256,27 @@
   background: #00e5ff;
   color: #06222a;
 }
-/* Roadmap instruments not yet playable — same pill as Guitar/Bass but
-   inert. Admin-only for now (gated in App.tsx's instrument section). */
-.set-seg-btn:disabled {
+/* Roadmap instruments not yet playable — a second row inside the
+   Instruments card, below the Guitar/Bass pill: three smaller standalone
+   buttons, inert. Admin-only for now (gated in App.tsx). */
+.instr-soon-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+  margin-top: 6px;
+}
+.instr-soon-btn {
+  padding: 7px 4px;
+  border: 1px dashed #2a2a4a;
+  border-radius: 999px;
+  background: #1c1c38;
+  color: #9a9ab8;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
   opacity: 0.5;
   cursor: not-allowed;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .set-card-btn {

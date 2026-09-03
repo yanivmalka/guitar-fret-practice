@@ -1092,16 +1092,15 @@ export default function App() {
               }}
             />
             {/* Roadmap instruments the engine can't drill yet — shown to admins
-                as disabled pills in the same segmented control as Guitar/Bass
-                rather than a separate grid, so the plan reads as part of the
-                picker. */}
+                inside the same card as Guitar/Bass, as a second row of smaller
+                disabled buttons, so the plan reads as part of the picker. */}
             {auth.admin && (
-              <div className="set-seg" role="group" aria-label={t('Coming soon')}>
+              <div className="instr-soon-row" role="group" aria-label={t('Coming soon')}>
                 {COMING_SOON_INSTRUMENTS.map((ci) => (
                   <button
                     key={ci.label}
                     type="button"
-                    className="set-seg-btn"
+                    className="instr-soon-btn"
                     disabled
                     aria-disabled="true"
                     title={`${t('Coming soon')} — ${ci.tuning}`}
