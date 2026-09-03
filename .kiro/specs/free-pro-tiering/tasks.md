@@ -39,9 +39,9 @@ working. **Read `design.md` for the "why" and the full code sketches** — this 
 ### [MANUAL] 1.0 — Apply the migration
 
 - [x] Write `supabase/migrations/0007_entitlements.sql` (task 1.1) — **done**.
-- [ ] **[MANUAL — you]** Run it in the Supabase SQL Editor or `supabase db push`. It creates
-      `public.entitlements` **and** `public.orphan_practice` (used later in Phase 5 — ship both
-      now so there is one migration).
+- [x] **[MANUAL — you]** Run it in the Supabase SQL Editor or `supabase db push` — **done**. It
+      creates `public.entitlements` **and** `public.orphan_practice` (used later in Phase 5 —
+      shipped both now so there is one migration).
 
 ### 1.1 — `supabase/migrations/0007_entitlements.sql` (new)
 
