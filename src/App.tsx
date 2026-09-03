@@ -1078,30 +1078,34 @@ export default function App() {
             label={t('Instruments')}
             help={t('Switches tuning, string count and fret range, then reloads the note samples.')}
           >
-            <SegmentedControl
-              ariaLabel={t('Instruments')}
-              value={instrumentId}
-              options={[
-                { value: 'guitar', label: <>🎸 {t('Guitar')}</> },
-                { value: 'bass', label: <>🎵 {t('Bass')}</> },
-              ]}
-              onChange={(id) => {
-                if (id === instrumentId) return;
-                if (running || paused) stop();
-                applyInstrument(id);
-                setPreloaded(false);
-              }}
-            />
+            <div className="pick-row" role="group" aria-label={t('Instruments')}>
+              {([['guitar', '🎸', t('Guitar')], ['bass', '🎵', t('Bass')]] as const).map(([id, emoji, name]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`pick-btn${instrumentId === id ? ' pick-btn-on' : ''}`}
+                  aria-pressed={instrumentId === id}
+                  onClick={click(() => {
+                    if (id === instrumentId) return;
+                    if (running || paused) stop();
+                    applyInstrument(id);
+                    setPreloaded(false);
+                  })}
+                >
+                  {emoji} {name}
+                </button>
+              ))}
+            </div>
             {/* Roadmap instruments the engine can't drill yet — shown to admins
                 inside the same card as Guitar/Bass, as a second row of smaller
                 disabled buttons, so the plan reads as part of the picker. */}
             {auth.admin && (
-              <div className="instr-soon-row" role="group" aria-label={t('Coming soon')}>
+              <div className="pick-soon-row" role="group" aria-label={t('Coming soon')}>
                 {COMING_SOON_INSTRUMENTS.map((ci) => (
                   <button
                     key={ci.label}
                     type="button"
-                    className="instr-soon-btn"
+                    className="pick-btn-soon"
                     disabled
                     aria-disabled="true"
                     title={`${t('Coming soon')} — ${ci.tuning}`}
@@ -1118,15 +1122,19 @@ export default function App() {
             label={t('Notes')}
             help={t("Display only — the drill itself doesn't change.")}
           >
-            <SegmentedControl
-              ariaLabel={t('Notes')}
-              value={notation}
-              options={[
-                { value: 'alpha', label: 'A B C' },
-                { value: 'solfege', label: 'Do Re Mi' },
-              ]}
-              onChange={(n) => { setNotation(n); saveSetting('pref_notation', n); }}
-            />
+            <div className="pick-row" role="group" aria-label={t('Notes')}>
+              {([['alpha', 'A B C'], ['solfege', 'Do Re Mi']] as const).map(([val, label]) => (
+                <button
+                  key={val}
+                  type="button"
+                  className={`pick-btn${notation === val ? ' pick-btn-on' : ''}`}
+                  aria-pressed={notation === val}
+                  onClick={click(() => { setNotation(val); saveSetting('pref_notation', val); })}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </SettingCard>
         </>
       ),

@@ -256,19 +256,45 @@
   background: #00e5ff;
   color: #06222a;
 }
-/* Roadmap instruments not yet playable — a second row inside the
-   Instruments card, below the Guitar/Bass pill: three smaller standalone
-   buttons, inert. Admin-only for now (gated in App.tsx). */
-.instr-soon-row {
+/* The "Playing" card pickers (Instruments, Notes) are discrete buttons
+   rather than one joined segmented pill: a row of equal-width tiles that
+   share the card's #1c1c38 / 12px vocabulary, the selected one going cyan
+   like .set-seg-on. Roadmap instruments the engine can't drill yet sit in
+   a second, smaller row below (admin-only, gated in App.tsx). */
+.pick-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 6px;
+}
+.pick-btn {
+  padding: 10px 8px;
+  border: 1px solid #2a2a4a;
+  border-radius: 12px;
+  background: #1c1c38;
+  color: #f0f0f8;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.pick-btn.pick-btn-on {
+  background: #00e5ff;
+  border-color: #00e5ff;
+  color: #06222a;
+}
+.pick-soon-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 3px;
+  gap: 6px;
   margin-top: 6px;
 }
-.instr-soon-btn {
+.pick-btn-soon {
   padding: 7px 4px;
   border: 1px dashed #2a2a4a;
-  border-radius: 999px;
+  border-radius: 12px;
   background: #1c1c38;
   color: #9a9ab8;
   font: inherit;
