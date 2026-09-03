@@ -1,0 +1,69 @@
+/* ── "?" info affordance — pinned to the Note-by-Fret card corner ──
+   The bubble is absolutely positioned below the marker so showing /
+   hiding it never shifts the surrounding layout. */
+.mode-card-info {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #444;
+  border-radius: 50%;
+  color: #0ff;
+  font-size: 11px;
+  font-weight: bold;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.mode-card-info:hover { border-color: #0ff; background: rgba(0, 255, 255, 0.1); }
+.mode-card-info-bubble {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(340px, calc(100vw - 32px));
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #ccc;
+  text-align: start;
+  background: #111120;
+  border: 1px solid #2a2a3a;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  z-index: 20;
+  animation: info-bubble-in 0.18s ease-out;
+}
+.mode-card-info-summary {
+  display: block;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #2a2a3a;
+  color: #eee;
+  font-weight: 500;
+}
+@keyframes info-bubble-in {
+  from { opacity: 0; transform: translate(-50%, 4px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mode-card-info-bubble { animation: none; }
+}
+
+/* Container query (not a viewport media query) so this tracks the
+   .app frame's own rendered width - on desktop .app is a fixed
+   390px-wide phone frame regardless of the browser window's width,
+   so a viewport-based breakpoint here would never fire and desktop
+   would diverge from mobile's stacked layout. */
+@container (max-width: 600px) {
+  .game-row { flex-direction: column; gap: 10px; }
+  .fret-display { font-size: 4rem; }
+}

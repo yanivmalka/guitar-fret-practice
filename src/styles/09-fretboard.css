@@ -1,0 +1,73 @@
+
+/* By Note mode */
+.note-display { font-size: 4rem; color: #0ff; line-height: 1; text-shadow: 0 0 16px rgba(0, 255, 255, 0.5); }
+
+.fret-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  width: 280px;
+  flex-shrink: 0;
+}
+
+.fret-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative;
+  height: 56px; border-radius: 10px;
+  background: #2a2a4a; border: 2px solid #555;
+  color: #eee; cursor: pointer;
+  transition: all 0.2s, box-shadow 0.6s;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+.fret-btn:focus { outline: none; box-shadow: none; border-color: #555; background: #2a2a4a; }
+.fret-btn:focus-visible { outline: none; }
+.fret-btn:active:not(:disabled) { transform: scale(0.93); background: #2a2a4a; border-color: #555; }
+.fret-btn:disabled { opacity: 0.4; cursor: default; }
+.fret-btn.fret-disabled { opacity: 0.2; cursor: not-allowed; }
+
+
+.fret-btn-num { font-size: 18px; font-weight: bold; line-height: 1; }
+.fret-btn-dot { font-size: 8px; color: #ff0; line-height: 1; }
+
+.fret-found { background: #0a0 !important; border-color: #0f0 !important; color: #fff !important; box-shadow: 0 0 8px 2px rgba(0, 255, 0, 0.4); }
+.fret-wrong { background: #a00 !important; border-color: #f00 !important; color: #fff !important; }
+.fret-reveal { background: #0a0 !important; border-color: #0f0 !important; color: #fff !important; box-shadow: 0 0 8px 2px rgba(0, 255, 0, 0.4); }
+
+/* Mastery "equalizer" overlay: how well-known this fret/note is, all-time. */
+.mastery-bar {
+  position: absolute; right: 4px; bottom: 4px;
+  width: 5px;
+  border-radius: 2px;
+  pointer-events: none;
+  transition: height 0.3s ease;
+}
+.mastery-bar.mastery-known { background: #2ecc71; box-shadow: 0 0 4px rgba(46, 204, 113, 0.7); }
+.mastery-bar.mastery-needsWork { background: #f5a623; box-shadow: 0 0 4px rgba(245, 166, 35, 0.7); }
+
+.note-mastery-track {
+  display: block;
+  width: 26px; height: 4px;
+  margin-top: 3px;
+  border-radius: 2px;
+  /* No track fill behind the bar: the by-note FretGrid equaliser is a bare
+     solid bar, and a translucent grey remainder here mixed with the green
+     fill to read as a second, muddier shade of green on high-DPI screens.
+     No overflow clip either, so the fill's glow reads like FretGrid's. */
+}
+.note-mastery-fill { display: block; height: 100%; border-radius: 2px; transition: width 0.3s ease; }
+/* Colour + glow kept in lockstep with .mastery-bar (the by-note FretGrid
+   equaliser) so both quiz modes read the exact same green/orange. */
+.note-mastery-fill.mastery-known { background: #2ecc71; box-shadow: 0 0 4px rgba(46, 204, 113, 0.7); }
+.note-mastery-fill.mastery-needsWork { background: #f5a623; box-shadow: 0 0 4px rgba(245, 166, 35, 0.7); }
+.fret-glow {
+  box-shadow: 0 0 14px 5px rgba(0, 255, 255, 0.7) !important;
+  animation: fret-glow-fade 0.4s ease-out forwards;
+}
+@keyframes fret-glow-fade {
+  0%   { box-shadow: 0 0 14px 5px rgba(0, 255, 255, 0.7); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 255, 255, 0); }
+}

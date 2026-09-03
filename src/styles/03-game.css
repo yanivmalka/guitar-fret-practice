@@ -1,0 +1,148 @@
+
+/* Game layout */
+.game-row {
+  position: relative;
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  margin: 6px 0;
+}
+
+/* Pause: dim the entire app screen without moving anything underneath.
+   .controls is raised above it (see z-index there) so Resume (and Stop)
+   stay sharp and clickable in the exact same spot as before. */
+.pause-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 5;
+}
+.question-col { display: flex; flex-direction: column; align-items: center; min-width: 200px; }
+
+.fret-display { font-size: 4rem; color: #0ff; line-height: 1; text-shadow: 0 0 16px rgba(0, 255, 255, 0.5); }
+.countdown { font-size: 1.5rem; color: #ff0; height: 2rem; }
+
+/* Speed bar */
+.speed-bar-container {
+  position: relative;
+  width: 100%;
+  max-width: 220px;
+  height: 6px;
+  background: #222;
+  border-radius: 3px;
+  margin: 8px 0 4px;
+  overflow: hidden;
+}
+.speed-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: none;
+}
+.speed-bar-frozen {
+  animation: speed-bar-flash 0.3s ease-out;
+}
+@keyframes speed-bar-flash {
+  0% { filter: brightness(2); }
+  100% { filter: brightness(1); }
+}
+.speed-bar-time {
+  position: absolute;
+  right: -28px;
+  top: -4px;
+  font-size: 0.75rem;
+  color: #ff0;
+  font-weight: bold;
+}
+
+/* Live score during game */
+.score-live {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0;
+}
+.score-live-pts {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: #ffd700;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+  font-family: 'Georgia', serif;
+}
+.score-live-streak {
+  font-size: 0.85rem;
+  color: #f90;
+  font-weight: bold;
+}
+
+/* Game progress — now in game-info-row */
+
+/* Minimized selector during play */
+.selector-panel-mini {
+  gap: 6px !important;
+  padding: 4px 8px !important;
+}
+.selector-mini {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #aaa;
+}
+.selector-mini-item {
+  font-weight: 600;
+  color: #ccc;
+}
+.selector-mini-sep {
+  color: #555;
+}
+
+/* Session score in stats panel */
+.session-score-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 0.85rem;
+  color: #ccc;
+}
+.session-score-value {
+  font-weight: bold;
+  color: #0ff;
+}
+.session-score-streak {
+  color: #f90;
+}
+
+/* Score summary */
+.score-summary {
+  margin: 8px 0;
+}
+.score-summary-line {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 0.85rem;
+  border-bottom: 1px solid #222;
+}
+.score-summary-label { color: #888; }
+.score-summary-value { color: #eee; font-weight: 600; }
+.score-gold { color: #ffd700; font-family: 'Georgia', serif; font-size: 1.1rem; }
+
+.score-best {
+  margin: 8px 0 4px;
+  text-align: center;
+  font-size: 0.85rem;
+}
+.score-best-new {
+  color: #ffd700;
+  font-weight: bold;
+  animation: best-pulse 0.6s ease-out;
+}
+.score-best-prev { color: #888; }
+@keyframes best-pulse {
+  0% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+.paused-text { color: #f90; font-size: 1.2rem; margin: 8px 0; }
+.info { font-size: 0.9rem; color: #aaa; margin-bottom: 4px; }
+.feedback { font-size: 1.2rem; min-height: 1.6rem; margin: 4px 0; }
+.good { color: #0f0; }
+.bad { color: #f55; }
+.warn { color: #f90; }

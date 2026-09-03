@@ -1,0 +1,75 @@
+
+/* In-app debug log viewer */
+.debuglog-fab {
+  position: fixed;
+  left: 8px;
+  bottom: 8px;
+  z-index: 9999;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0.5;
+  cursor: pointer;
+}
+.debuglog-fab:hover { opacity: 1; }
+.debuglog-fab-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 8px;
+  background: #0af;
+  color: #fff;
+  font-size: 10px;
+  line-height: 15px;
+}
+.debuglog-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  max-height: 55vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(10, 12, 16, 0.97);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+.debuglog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+.debuglog-title { font-size: 0.75rem; color: #9ab; }
+.debuglog-actions { display: flex; gap: 6px; }
+.debuglog-btn {
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #cde;
+  cursor: pointer;
+}
+.debuglog-body {
+  margin: 0;
+  padding: 8px;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: #bcd;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

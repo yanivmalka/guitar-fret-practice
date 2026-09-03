@@ -1,0 +1,172 @@
+
+/* Stats */
+.stats-panel {
+  background: #0d0d1a; border-radius: 10px; padding: 14px;
+  text-align: left; width: 100%;
+}
+.stats-panel p { font-size: 0.85rem; margin: 3px 0; }
+
+.stats-wrapper {
+  max-width: 370px;
+  margin: 12px auto 0;
+  overflow: hidden;
+}
+
+/* Unified "Stats & progress" screen: its own page, replacing the game. */
+.stats-page {
+  padding-top: 18px;
+}
+
+/* ── Stats & progress — redesigned single-page layout (sp2) ─── */
+.sp2 { display: flex; flex-direction: column; gap: 8px; max-width: 400px; margin: 0 auto; }
+
+.sp2-head {
+  display: flex; align-items: center; gap: 8px;
+  padding-bottom: 7px; border-bottom: 1px solid #2a2a4a;
+}
+.sp2-back {
+  background: none; border: none; cursor: pointer;
+  color: #00e5ff; font-size: 0.8rem; font-weight: 700;
+}
+.sp2-title { font-size: 0.95rem; font-weight: 800; color: #f0f0f8; }
+
+.sp2-scope {
+  display: flex; gap: 3px; padding: 3px;
+  background: #1c1c38; border-radius: 999px;
+}
+.sp2-scope-btn {
+  flex: 1; padding: 6px 0; border: none; cursor: pointer;
+  background: none; color: #9a9ab8;
+  font-size: 0.72rem; font-weight: 700; border-radius: 999px;
+}
+.sp2-scope-active { background: #00e5ff; color: #06222a; }
+.sp2-scope-cap {
+  text-align: center; font-size: 0.65rem; color: #9a9ab8; margin: -2px 0 2px;
+}
+
+.sp2-hero { display: flex; gap: 6px; }
+.sp2-tile {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 9px 4px; background: #15152a;
+  border: 1px solid #2a2a4a; border-radius: 10px;
+}
+.sp2-tile-v { font-size: 0.95rem; font-weight: 800; color: #f0f0f8; }
+.sp2-tile-l {
+  font-size: 0.58rem; color: #9a9ab8;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+
+.sp2-exp {
+  display: flex; justify-content: space-between; align-items: center;
+  width: 100%; padding: 9px 10px; cursor: pointer;
+  background: #15152a; border: 1px solid #2a2a4a; border-radius: 6px;
+  color: #c8c8de; font-size: 0.72rem; font-weight: 700;
+}
+.sp2-exp-open { border-color: #00e5ff; color: #f0f0f8; }
+.sp2-chev { color: #9a9ab8; }
+.sp2-exp-body {
+  padding: 8px 4px 2px;
+  border-left: 1px solid #2a2a4a; margin-left: 4px;
+}
+
+.sp2-danger {
+  align-self: center; margin-top: 4px;
+  background: none; border: none; cursor: pointer;
+  color: #ff5470; font-size: 0.62rem; font-weight: 700;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+
+/* Bar-row / timeline fills on the Stats & progress screen use the softer
+   preview-lab palette, scoped so the in-game mastery bars keep #0f0/#7bf/#f90. */
+.sp2 .string-bar-fill.bar-mastered { background: #34e07a; }
+.sp2 .string-bar-fill.bar-solid    { background: #0aa; }
+.sp2 .string-bar-fill.bar-growing  { background: #ff9d2e; }
+
+/* Fretboard heatmap: soft rounded cells with gaps, not hard-bordered
+   squares — matches the stats-redesign lab. */
+.sp2-heat-scroll { overflow-x: auto; padding-bottom: 4px; }
+.sp2-heat { display: flex; flex-direction: column; gap: 3px; width: max-content; }
+.sp2-heat-row { display: flex; gap: 3px; align-items: center; }
+.sp2-heat-str {
+  width: 24px; flex-shrink: 0; text-align: right;
+  font-size: 0.6rem; color: #9a9ab8;
+}
+.sp2-heat-cell {
+  width: 14px; height: 14px; flex-shrink: 0;
+  border-radius: 3px;
+}
+.sp2-heat-nums { margin-top: 1px; }
+.sp2-heat-num {
+  width: 14px; flex-shrink: 0; text-align: center;
+  font-size: 0.5rem; color: #9a9ab8;
+}
+.sp2-heat-legend {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  margin-top: 8px; font-size: 0.6rem; color: #9a9ab8;
+}
+.sp2-heat-legend i {
+  display: inline-block; width: 10px; height: 10px;
+  border-radius: 3px; vertical-align: -1px; margin-right: 3px;
+}
+
+.filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.filter-chip {
+  padding: 6px 12px; border-radius: 14px; border: 1px solid #444;
+  background: #1a1a2e; color: #aaa; font-size: 12px; cursor: pointer;
+}
+.filter-active { background: #0aa; border-color: #0ff; color: #1a1a2e; font-weight: bold; }
+
+.note-preview-chip {
+  padding: 4px 10px; border-radius: 12px; border: 1px solid #0ff;
+  background: #1a1a2e; color: #0ff; font-size: 12px; font-weight: bold;
+}
+
+.score-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.score { font-size: 2rem; font-weight: bold; color: #0ff; }
+.encouragement { font-size: 0.9rem; color: #ccc; }
+
+/* Speed stats in panel */
+.speed-stats {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 0.8rem;
+  color: #aaa;
+}
+.speed-stat {
+  white-space: nowrap;
+}
+
+.stat-group { margin-bottom: 10px; }
+.stat-group-title { font-size: 0.85rem; font-weight: bold; margin-bottom: 4px; }
+.note-stats { display: flex; flex-wrap: wrap; gap: 6px; }
+.note-stat {
+  background: #1a1a2e; border: 1px solid #333; border-radius: 10px;
+  padding: 4px 10px; font-size: 13px; color: #ddd;
+}
+
+.note-stat-split {
+  display: inline-flex; align-items: center; gap: 0;
+  background: #1a1a2e; border: 1px solid #333; border-radius: 10px;
+  overflow: hidden; font-size: 13px; padding: 0;
+}
+.note-stat-label { padding: 4px 7px; color: #ddd; }
+.note-stat-good { padding: 4px 7px; background: #0a3a0a; color: #0f0; border-left: 1px solid #333; }
+.note-stat-bad  { padding: 4px 7px; background: #3a0a0a; color: #f55; border-left: 1px solid #333; }
+
+.sp2-unplayed { margin-top: 10px; }
+.sp2-unplayed-title {
+  font-size: 0.72rem; font-weight: 700; color: #9a9ab8;
+  margin: 0 0 5px;
+}
+.note-stat-muted {
+  background: #15152a; border-color: #2a2a4a; color: #8a8aa2;
+}
+
+.solid { color: #7bf; }
+.improving { color: #f90; }
+
+.build-info {
+  font-size: 10px; color: #444; margin-top: 16px; font-family: monospace;
+}
+

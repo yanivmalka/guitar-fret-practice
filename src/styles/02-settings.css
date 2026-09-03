@@ -1,0 +1,502 @@
+
+/* Settings drawer overlay (burger menu) — a half-page sheet that slides in
+   from the inline-end edge. It only ever holds the list of section titles;
+   tapping a title opens that section as its own full page. */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  padding: 0;
+  overscroll-behavior: contain;
+}
+.settings-panel {
+  background: #111122;
+  border: none;
+  border-inline-start: 1px solid #2a2a4a;
+  border-radius: 0;
+  padding: 24px 18px calc(24px + env(safe-area-inset-bottom, 0px));
+  width: 50%;
+  min-width: 260px;
+  max-width: 460px;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.55);
+  animation: settings-drawer-in 0.22s ease-out;
+}
+@keyframes settings-drawer-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+/* The drawer's Back button sits inside a .sp2-head row and reuses .sp2-back /
+   .sp2-title so the drawer header matches every settings sub-page. */
+.settings-menu .sp2-back {
+  align-self: center;
+  padding: 4px 6px 4px 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.burger-btn {
+  position: fixed;
+  top: 10px;
+  inset-inline-end: 12px;
+  z-index: 60;
+  background: #1a1a2e;
+  border: 1px solid #444;
+  border-radius: 8px;
+  color: #0ff;
+  width: 40px;
+  height: 36px;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Secondary top-corner button (stats shortcut), sits inline-before the burger. */
+.stats-burger-btn {
+  inset-inline-end: 58px;
+  color: #999;
+}
+.stats-burger-btn[aria-pressed="true"] {
+  color: #0ff;
+  border-color: #0ff;
+}
+
+/* Hamburger settings: each section opens as its own full page, styled to
+   match the Stats & progress screen (sp2) rather than a cramped side sheet. */
+.settings-page {
+  padding-top: 22px;
+}
+.settings-page-inner {
+  text-align: left;
+}
+/* Back button on its own line — no divider under it; the divider belongs
+   under the page hero below. */
+.settings-page-head {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.settings-page .sp2-back {
+  font-size: 0.95rem;
+}
+/* Page hero: the section's emoji as a large glyph, its name beneath, then a
+   hairline — gives the single-card pages a proper head instead of a tiny
+   title floating over empty space. */
+.settings-page-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 16px 0 16px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #2a2a4a;
+}
+.settings-page-emoji {
+  font-size: 2.4rem;
+  line-height: 1;
+}
+.settings-page-name {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #f0f0f8;
+  letter-spacing: -0.01em;
+}
+.settings-page-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Roomier card internals on the settings pages — the shared sp2 metrics are
+   tuned for a dense stats screen; a settings page shows one control, so it
+   gets more air and a larger touch/type scale. */
+.settings-page .set-card {
+  padding: 18px;
+  gap: 14px;
+  border-radius: 14px;
+}
+.settings-page .set-card-k {
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  color: #b6b6cc;
+}
+.settings-page .set-card-help {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #b6b6cc;
+}
+.settings-page .set-seg {
+  padding: 4px;
+}
+.settings-page .set-seg-btn {
+  padding: 14px 0;
+  font-size: 1.05rem;
+}
+.settings-page .set-card-btn {
+  padding: 14px 18px;
+  font-size: 1rem;
+}
+.settings-page .sp2-tile {
+  padding: 16px 6px;
+}
+.settings-page .sp2-tile-v {
+  font-size: 1.35rem;
+}
+.settings-page .sp2-tile-l {
+  font-size: 0.72rem;
+}
+.settings-page .account-name {
+  font-size: 1.05rem;
+}
+.settings-page .account-email {
+  font-size: 0.9rem;
+}
+.settings-page .account-member-since {
+  font-size: 0.82rem;
+  margin-top: 3px;
+}
+.settings-page .set-card-danger {
+  font-size: 0.85rem;
+}
+
+/* Roomier, easier-to-hit controls on the settings pages. */
+.settings-page .selector-panel,
+.settings-page .mode-cards,
+.settings-page .difficulty-road {
+  max-width: 100%;
+}
+.settings-page .notation-row {
+  gap: 10px;
+  margin-bottom: 4px;
+  justify-content: flex-start;
+}
+.settings-page .order-chip {
+  padding: 12px 18px;
+  font-size: 14px;
+  border-radius: 14px;
+}
+.settings-page .chip {
+  padding: 12px 18px;
+  font-size: 15px;
+}
+.settings-page .adj-btn {
+  width: 42px;
+  height: 42px;
+  font-size: 22px;
+}
+.settings-page .account-btn {
+  padding: 12px 18px;
+  font-size: 0.9rem;
+}
+
+/* ── Setting card + segmented pill ──────────────────────────────
+   The hamburger sub-pages are built from these, sharing the Stats &
+   progress (sp2) vocabulary: #15152a card surface, #2a2a4a hairline,
+   cyan pill. Scoped to .settings-page so the in-game .order-chip
+   (Circle-Order buttons in SelectorPanel) is untouched. */
+.set-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: #15152a;
+  border: 1px solid #2a2a4a;
+  border-radius: 12px;
+  text-align: left;
+}
+.set-card-k {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #9a9ab8;
+}
+.set-card-help {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.55;
+  color: #9a9ab8;
+}
+.set-card-help em {
+  font-style: normal;
+  font-weight: 700;
+  color: #00e5ff;
+}
+
+.set-seg {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  background: #1c1c38;
+  border-radius: 999px;
+}
+.set-seg-btn {
+  flex: 1;
+  padding: 10px 0;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  background: none;
+  color: #9a9ab8;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  transition: background 0.15s, color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.set-seg-btn.set-seg-on {
+  background: #00e5ff;
+  color: #06222a;
+}
+
+/* Roadmap instruments not yet playable — disabled tiles under the picker.
+   Admin-only for now (gated in App.tsx's instrument section). */
+.instr-soon {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+.instr-soon-k {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #9a9ab8;
+}
+.instr-soon-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.instr-soon-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 4px;
+  border: 1px dashed #2a2a4a;
+  border-radius: 12px;
+  background: none;
+  opacity: 0.55;
+  cursor: not-allowed;
+  text-align: center;
+}
+.instr-soon-emoji { font-size: 1.2rem; line-height: 1; }
+.instr-soon-name { font-size: 0.72rem; font-weight: 700; color: #f0f0f8; }
+.instr-soon-tuning {
+  font-size: 0.58rem;
+  letter-spacing: 0.04em;
+  color: #9a9ab8;
+}
+
+.set-card-btn {
+  align-self: stretch;
+  padding: 11px 16px;
+  border: 1px solid #2a2a4a;
+  border-radius: 12px;
+  background: #1c1c38;
+  color: #f0f0f8;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+.set-card-btn-primary {
+  background: #00e5ff;
+  color: #06222a;
+  border-color: transparent;
+}
+.set-card-danger {
+  align-self: center;
+  margin-top: 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #ff5470;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Account identity block sits inside a .set-card now, so it no longer
+   needs the standalone row's top border / column layout. */
+.set-card .account-user { gap: 11px; }
+
+/* Full-page list of section titles. */
+.settings-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* Section rows use the exact .sp2-exp treatment from the Stats & progress
+   screen; here they navigate rather than expand, so add a hover/active state
+   and keep a comfortable touch target. */
+.settings-menu .sp2-exp {
+  min-height: 52px;
+  padding: 14px 14px;
+  font-size: 1rem;
+  border-radius: 10px;
+  transition: border-color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.settings-menu .sp2-chev {
+  font-size: 1.1rem;
+}
+.settings-menu .sp2-exp:hover,
+.settings-menu .sp2-exp:focus-visible {
+  border-color: #00e5ff;
+  background: #1c1c38;
+  color: #f0f0f8;
+}
+
+/* Hebrew: the settings drawer, its sub-pages and the stats screen read
+   right-to-left. `dir="rtl"` is set on each root from `lang` (App.tsx /
+   ProgressPanel.tsx), which reverses the flex rows on its own; these rules
+   only undo the physical `text-align: left` those panels set. Scoped so the
+   game board keeps its fixed LTR layout per the note at the top of this file. */
+.settings-menu[dir="rtl"],
+.settings-page-inner[dir="rtl"],
+.stats-panel[dir="rtl"] { text-align: right; }
+
+/* Account (Google sign-in / sign-out) row at the bottom of the settings panel. */
+.account-row {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #2a2a4a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+/* Signed-in: identity card stacked above a full-width action button. */
+.account-row-in {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+}
+.account-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.account-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+  border: 1px solid #444;
+}
+.account-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+.account-name {
+  font-size: 0.9rem;
+  color: #eee;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-email {
+  font-size: 0.78rem;
+  color: #9a9ab0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.account-member-since {
+  font-size: 0.72rem;
+  color: #6f6f88;
+  margin-top: 1px;
+}
+.account-row-in .account-btn {
+  width: 100%;
+}
+.account-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #1a1a2e;
+  border: 1px solid #444;
+  border-radius: 8px;
+  color: #ccc;
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.account-btn-primary {
+  color: #0ff;
+  border-color: #0ff;
+  width: 100%;
+}
+.google-icon {
+  flex-shrink: 0;
+  background: #fff;
+  border-radius: 2px;
+  padding: 1px;
+}
+
+/* Note-names (A-B-C / solfège) row in the settings panel. */
+.notation-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.notation-label {
+  font-size: 0.7rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-inline-end: 2px;
+}
+
+/* Settings */
+.settings { margin-bottom: 12px; }
+.setting-group { margin-bottom: 10px; }
+.group-title {
+  display: block; color: #888; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 1px; margin-bottom: 4px;
+}
+.setting-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; }
+
+.chip {
+  padding: 8px 14px; border-radius: 18px; border: 1px solid #555;
+  background: #2a2a4a; color: #ccc; font-size: 13px; cursor: pointer;
+  transition: all 0.15s;
+}
+.chip-active { background: #0aa; border-color: #0ff; color: #1a1a2e; font-weight: bold; }
+.chip-toggle-active { background: transparent; border-color: #0ff; color: #0ff; font-weight: bold; }
+.chip-disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
+
+.adj-btn {
+  width: 34px; height: 34px; border-radius: 50%; border: none;
+  background: #2a2a4a; color: #0ff; font-size: 20px; font-weight: bold;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.range-val { color: #eee; font-size: 15px; margin: 0 6px; }

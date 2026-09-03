@@ -1,0 +1,110 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* i18n: each text run picks its own reading direction (LTR for English,
+   RTL for Hebrew) from its own content, independent of any other element.
+   This only affects bidi reordering of inline text — it does not touch the
+   `direction` property, so flex/grid layout, positioning and sizing are
+   completely unaffected. This is deliberate: only words/sentences should
+   flip for Hebrew, the app's layout itself must not. */
+*, *::before, *::after { unicode-bidi: plaintext; }
+
+/* Single dark palette — opt out of mobile browsers' automatic dark-mode
+   re-tinting (see the matching <meta name="color-scheme"> in index.html). */
+:root { color-scheme: dark; }
+
+html, body {
+  overflow: hidden;
+  overscroll-behavior: none;
+  height: 100%;
+  width: 100%;
+  position: fixed;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #1a1a2e;
+  color: #eee;
+  height: 100dvh;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: pan-x pan-y;
+}
+
+.app {
+  position: relative;
+  container-type: inline-size;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 12px;
+  text-align: center;
+  height: 100dvh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* On larger (desktop/tablet) screens, render the app at its native
+   mobile size (--phone-w/--phone-h, set in index.html) inside #root,
+   then uniformly scale that whole frame down to fit the window
+   (--phone-scale, computed in index.html on load/resize). This is a
+   pure visual zoom of the exact mobile layout - nothing reflows or
+   redesigns, so it can never clip or need its own scrollbar. */
+@media (min-width: 601px) {
+  body {
+    background: #0c0c18;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  #root {
+    width: var(--phone-w, 390px);
+    height: var(--phone-h, 844px);
+    flex-shrink: 0;
+    transform: scale(var(--phone-scale, 1));
+    border-radius: 36px;
+    box-shadow: 0 0 0 8px #111122, 0 0 0 10.5px rgba(255, 215, 0, 0.9), 0 0 28px rgba(255, 215, 0, 0.3), 0 20px 60px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+  }
+
+  .app {
+    position: relative;
+    width: var(--phone-w, 390px);
+    max-width: var(--phone-w, 390px);
+    height: var(--phone-h, 844px);
+    outline: none;
+    box-shadow: none;
+  }
+
+  /* Keep full-screen overlays confined to the phone frame instead of
+     covering the whole desktop viewport. */
+  .settings-overlay,
+  .burger-btn,
+  .onboarding,
+  .picker-overlay,
+  .countdown-overlay {
+    position: absolute;
+  }
+}
+
+/* Mobile only: a delicate gold edge tracing the visible app viewport.
+   Drawn on a position:fixed overlay (not on .app, which is the scroll
+   container and whose border box extends past the dynamic viewport /
+   gets clipped by html,body { position: fixed; overflow: hidden }), so
+   the frame stays pinned to the four visible edges and never renders
+   outside them. Desktop keeps its own #root frame - this block can't
+   match there (viewport is always > 600px when the phone frame shows). */
+@media (max-width: 600px) {
+  .app::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    border: 1px solid rgba(255, 215, 0, 0.18);
+    box-shadow: inset 0 0 12px rgba(255, 215, 0, 0.06);
+  }
+}
+
+h1 { font-size: 1.3rem; margin-bottom: 10px; }

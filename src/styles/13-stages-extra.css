@@ -1,0 +1,315 @@
+
+/* ── Stage nav chevrons (US-04 + US-05) ─────────────────── */
+.stage-chevron {
+  background: none;
+  border: 1px solid #444;
+  border-radius: 8px;        /* rectangular, not circular — distinct from play ▶ */
+  width: 36px;
+  height: 52px;
+  color: #0ff;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.stage-chevron:disabled { opacity: 0.2; cursor: not-allowed; }
+.stage-chevron:not(:disabled):hover { background: rgba(0,255,255,0.1); border-color: #0ff; }
+.stage-chevron:active:not(:disabled) { transform: scale(0.92); }
+.stage-chevron-suggest {
+  border-color: #ff0 !important;
+  color: #ff0 !important;
+  animation: stage-blink 1.2s ease-in-out infinite;
+}
+
+/* ── Stage center text ──────────────────────────────────── */
+.stage-center-text {
+  display: flex; align-items: baseline; gap: 6px;
+  justify-content: center; flex-wrap: wrap;
+  margin: 4px 0 2px;
+}
+.stage-center-title { font-size: 14px; font-weight: bold; color: #eee; }
+.stage-center-step  { font-size: 11px; color: #888; }
+
+/* ── Suggestion subtitle ───────────────────────────────── */
+.stage-suggestion-subtitle {
+  font-size: 11px; color: #ff0;
+  margin-top: 2px; letter-spacing: 0.3px;
+  animation: stage-blink 1.4s ease-in-out infinite;
+}
+
+/* ── Custom stage badge (US-14) ─────────────────────────── */
+.custom-stage-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; color: #f90;
+  background: #2a1a00; border: 1px solid #f90;
+  border-radius: 10px; padding: 3px 10px;
+  margin: 4px 0 6px;
+}
+.custom-reset-btn {
+  background: none; border: none; color: #f90;
+  font-size: 11px; cursor: pointer; padding: 0;
+  text-decoration: underline;
+}
+.custom-reset-btn:hover { color: #ffa; }
+
+/* ── Toggle chip vs action chip (US-13) ─────────────────── */
+/* Toggle chips: always show a dashed border to indicate togglable nature */
+.chip-toggle {
+  border-style: dashed;
+}
+/* Toggle chips active: outlined style (shows state, not selection) */
+.chip-toggle-active {
+  background: transparent;
+  border-color: #0ff;
+  border-style: dashed;
+  color: #0ff;
+  font-weight: bold;
+}
+/* Action chips: filled when active (confirms selection) */
+.chip-active {
+  background: #0aa;
+  border-color: #0ff;
+  color: #1a1a2e;
+  font-weight: bold;
+}
+
+/* ── Dashed-border treatment for settings toggles ───────────
+   Same visual language as the order "By String" toggle above: a dashed
+   outline signals "tappable setting" and (for genuine on/off toggles)
+   stays dashed while active to read as state rather than selection.
+   Selectors are scoped so they win over the base .string-pill / .diff-btn
+   / .stats-icon-btn rules further down the file regardless of source order,
+   and the border width is left unchanged so no control box resizes. */
+
+/* Multi — an on/off toggle, not one of the string selections. */
+.string-pill.string-pill-toggle {
+  border: 1px dashed #555;
+}
+.string-pill.string-pill-toggle.active {
+  border-color: #0ff;
+  color: #0ff;
+}
+
+/* Difficulty buttons — dashed until one is chosen (discoverability); the
+   selected one switches back to the solid accent via its .active rule. */
+.difficulty-road .diff-btn {
+  border-style: dashed;
+}
+.difficulty-road .diff-btn.active {
+  border-style: solid;
+}
+
+/* Auto Advance — on/off toggle in the difficulty row.
+   Its colours are driven ONLY by the .stats-icon-on class (the JS on/off
+   state), never by :hover or :focus. Touch devices latch :hover (and often
+   :focus-visible) onto the last-tapped element and only clear it on the next
+   tap elsewhere, which was leaving the button painted cyan for a beat after
+   it had been switched off. Pinning every interaction state to the current
+   on/off look makes it flip to grey the instant it's deselected. */
+.difficulty-road .auto-advance-toggle,
+.difficulty-road .auto-advance-toggle:hover,
+.difficulty-road .auto-advance-toggle:focus,
+.difficulty-road .auto-advance-toggle:focus-visible,
+.difficulty-road .auto-advance-toggle:active {
+  border-style: dashed;
+  border-color: #444;
+  color: #666;
+  background: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.difficulty-road .auto-advance-toggle.stats-icon-on,
+.difficulty-road .auto-advance-toggle.stats-icon-on:hover,
+.difficulty-road .auto-advance-toggle.stats-icon-on:focus,
+.difficulty-road .auto-advance-toggle.stats-icon-on:focus-visible,
+.difficulty-road .auto-advance-toggle.stats-icon-on:active {
+  border-color: #0ff;
+  color: #0ff;
+  background: #1a2a3a;
+}
+/* No UA focus ring after a pointer/touch tap (keyboard :focus-visible keeps one). */
+.difficulty-road .auto-advance-toggle:focus:not(:focus-visible) { outline: none; }
+
+/* ── Bottom-center ? button ───────────────────────────────── */
+.desc-question-btn-bottom {
+  background: none;
+  border: 1px solid #444;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  color: #0ff;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+  margin: 12px auto 4px;
+  display: block;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.desc-question-btn-bottom:hover { border-color: #0ff; background: rgba(0,255,255,0.1); }
+
+.stage-description-bottom {
+  margin: 8px auto 4px;
+  max-width: 600px;
+  font-size: 12px;
+  color: #777;
+  line-height: 1.5;
+  padding: 8px 12px;
+  background: #111120;
+  border-radius: 8px;
+  border: 1px solid #2a2a3a;
+  text-align: center;
+}
+
+/* ── Custom stage area ────────────────────────────────────── */
+.custom-stage-area {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 6px 0;
+}
+.custom-save-btn {
+  background: none; border: none; color: #0ff; font-size: 11px;
+  cursor: pointer; padding: 0; margin-left: 6px;
+}
+.custom-save-btn:hover { color: #fff; }
+.custom-save-btn-big {
+  background: #0a1a2a; border: 1px solid #0ff; border-radius: 10px;
+  color: #0ff; font-size: 13px; padding: 6px 14px; cursor: pointer;
+}
+.custom-save-btn-big:hover { background: #0a2a3a; }
+.custom-save-modal {
+  display: flex; gap: 6px; align-items: center;
+}
+.custom-name-input {
+  background: #1a1a3a; border: 1px solid #444; border-radius: 8px;
+  color: #eee; padding: 6px 10px; font-size: 13px; width: 160px;
+  outline: none;
+}
+.custom-name-input:focus { border-color: #0ff; }
+.custom-save-confirm {
+  background: #0aa; border: none; border-radius: 8px;
+  color: #1a1a2e; font-size: 12px; font-weight: bold;
+  padding: 6px 12px; cursor: pointer;
+}
+.custom-save-cancel {
+  background: none; border: none; color: #888; font-size: 14px; cursor: pointer;
+}
+.custom-stages-list {
+  display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
+}
+.custom-stage-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #1a1a3a; border: 1px solid #0ff; border-radius: 12px;
+  color: #0ff; font-size: 11px; padding: 4px 10px;
+}
+.custom-delete-btn {
+  background: none; border: none; color: #f55; font-size: 11px;
+  cursor: pointer; padding: 0 2px;
+}
+
+/* ── Stage Picker Overlay ─────────────────────────────────── */
+.picker-overlay {
+  position: fixed; inset: 0; z-index: 70;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.picker-panel {
+  background: #111122; border: 1px solid #2a2a4a;
+  border-radius: 16px; padding: 20px 16px;
+  width: min(340px, 92vw);
+  max-height: 75dvh;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.picker-title {
+  font-size: 15px; font-weight: bold; color: #eee;
+  text-align: center; margin: 0;
+}
+.picker-list {
+  display: flex; flex-direction: column; gap: 4px;
+  overflow-y: auto; overscroll-behavior: contain;
+  max-height: 60dvh;
+  padding-right: 4px;
+}
+.picker-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 10px;
+  border: 1px solid #333; background: #1a1a3a;
+  color: #ccc; font-size: 13px; cursor: pointer;
+  text-align: left; width: 100%;
+  transition: border-color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.picker-item:hover { border-color: #0ff; background: #1a1a4a; }
+.picker-item-current {
+  border-color: #0ff; background: #0a1a2a;
+  color: #0ff; font-weight: bold;
+}
+.picker-status {
+  font-size: 14px; width: 20px; text-align: center; flex-shrink: 0;
+}
+.picker-label { flex: 1; }
+.picker-close {
+  background: none; border: 1px solid #444; border-radius: 10px;
+  color: #888; font-size: 13px; padding: 8px; cursor: pointer;
+  align-self: center; width: 100px;
+}
+.picker-close:hover { border-color: #0ff; color: #0ff; }
+
+.refresh-btn {
+  background: none; border: none; color: #555; font-size: 14px;
+  cursor: pointer; margin-left: 8px; padding: 2px 4px;
+}
+.refresh-btn:hover { color: #0ff; }
+
+
+/* Bug 6: Title glow on stage change */
+@keyframes title-glow-pulse {
+  0% { background: rgba(0,255,255,0.25); transform: scale(1.08); }
+  100% { background: transparent; transform: scale(1); }
+}
+.stage-title-glow {
+  animation: title-glow-pulse 0.7s ease-out forwards;
+  border-radius: 8px;
+}
+
+/* ── Settings separator & custom stage section ────────────── */
+.setting-separator {
+  height: 1px;
+  background: #2a2a4a;
+  margin: 14px 0;
+  border: none;
+}
+
+.custom-stage-section {
+  padding: 10px 0 4px;
+}
+
+.custom-stage-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: #f90;
+  margin-top: 6px;
+}
+
+.custom-action-btn {
+  background: none;
+  border: 1px solid #555;
+  border-radius: 10px;
+  color: #aaa;
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.custom-action-btn:hover {
+  border-color: #0ff;
+  color: #0ff;
+}
+.custom-action-btn-danger:hover {
+  border-color: #f55;
+  color: #f55;
+}
