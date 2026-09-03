@@ -104,6 +104,12 @@
   font-size: 2.4rem;
   line-height: 1;
 }
+/* Metal 3D tab icon (replaces the emoji hero for sections that have one). */
+.settings-page-icon-img {
+  display: block;
+  width: 48px;
+  height: 48px;
+}
 .settings-page-name {
   margin: 0;
   font-size: 1.5rem;
@@ -412,6 +418,12 @@
   flex-shrink: 0;
   font-size: 1.35rem;
   line-height: 1;
+}
+/* Metal 3D tab icon (replaces the emoji lead for sections that have one). */
+.nav-row__icon-img {
+  display: block;
+  width: 28px;
+  height: 28px;
 }
 .nav-row__label {
   flex: 1;

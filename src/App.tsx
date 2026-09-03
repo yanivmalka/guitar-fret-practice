@@ -1,5 +1,11 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import type { ReactNode } from 'react';
+import menuIconPlaying from './assets/menu-icons/playing.png';
+import menuIconSettings from './assets/menu-icons/settings.png';
+import menuIconStats from './assets/menu-icons/stats.png';
+import menuIconFeedback from './assets/menu-icons/feedback.png';
+import menuIconLeaderboard from './assets/menu-icons/leaderboard.png';
+import menuIconAccount from './assets/menu-icons/account.png';
 import NoteCircle from './components/NoteCircle';
 import FretGrid from './components/FretGrid';
 import SelectorPanel from './components/SelectorPanel';
@@ -1078,10 +1084,11 @@ export default function App() {
   // sub-page with a short blurb plus just that section's controls.
   // `onSelect`, when set, fires on tap instead of opening the section's sub-page —
   // used by "Stats & progress" to jump straight to its full screen like a page.
-  const settingsSections: Array<{ id: string; title: string; blurb: string; body: ReactNode; onSelect?: () => void }> = [
+  const settingsSections: Array<{ id: string; title: string; icon?: string; blurb: string; body: ReactNode; onSelect?: () => void }> = [
     {
       id: 'instrument',
-      title: `🎸 ${t('Playing')}`,
+      title: t('Playing'),
+      icon: menuIconPlaying,
       blurb: '',
       body: (
         <>
@@ -1155,7 +1162,8 @@ export default function App() {
       // the fretboard-mastery overlay toggle (which used to sit at the top of
       // the Stats & progress screen) all live together here now.
       id: 'settings',
-      title: `⚙️ ${t('Settings')}`,
+      title: t('Settings'),
+      icon: menuIconSettings,
       blurb: '',
       body: (
         <>
@@ -1279,14 +1287,16 @@ export default function App() {
     {
       // Jumps straight to its full screen.
       id: 'stats',
-      title: `📊 ${t('Stats & progress')}`,
+      title: t('Stats & progress'),
+      icon: menuIconStats,
       blurb: '',
       body: null,
       onSelect: () => { setShowStats(true); },
     },
     ...(auth.configured ? [{
       id: 'board',
-      title: `💬 ${t('Feedback board')}`,
+      title: t('Feedback board'),
+      icon: menuIconFeedback,
       blurb: '',
       body: (
         <FeedbackBoard
@@ -1299,7 +1309,8 @@ export default function App() {
     }] : []),
     ...(auth.configured ? [{
       id: 'leaderboard',
-      title: `🏆 ${t('Leaderboard')}`,
+      title: t('Leaderboard'),
+      icon: menuIconLeaderboard,
       blurb: '',
       body: (
         <LeaderboardPanel
@@ -1318,7 +1329,8 @@ export default function App() {
     }] : []),
     ...(auth.configured ? [{
       id: 'account',
-      title: `👤 ${t('Account')}`,
+      title: t('Account'),
+      icon: menuIconAccount,
       blurb: '',
       body: (
         <>
@@ -1547,11 +1559,15 @@ export default function App() {
               </button>
             </div>
             <header className="settings-page-hero">
-              <span className="settings-page-emoji" aria-hidden="true">
-                {activeSection.title.split(' ')[0]}
-              </span>
+              {activeSection.icon ? (
+                <img src={activeSection.icon} alt="" className="settings-page-icon-img" />
+              ) : (
+                <span className="settings-page-emoji" aria-hidden="true">
+                  {activeSection.title.split(' ')[0]}
+                </span>
+              )}
               <h2 className="settings-page-name">
-                {activeSection.title.slice(activeSection.title.indexOf(' ') + 1)}
+                {activeSection.icon ? activeSection.title : activeSection.title.slice(activeSection.title.indexOf(' ') + 1)}
               </h2>
             </header>
             <div className="settings-page-body">{activeSection.body}</div>
@@ -1637,18 +1653,23 @@ export default function App() {
                 // rows — each is a tappable tile inside the Account section that
                 // opens its sub-page. They stay in `settingsSections` only so
                 // that sub-page still resolves by id.
-                // `title` is "<emoji> <label>" — keep the emoji as its own
-                // leading-icon node so it never disturbs the bidi resolution
-                // of the (possibly RTL) label text next to it.
-                const [emoji, ...rest] = s.title.split(' ');
+                // `s.icon` is a real image (the metal 3D tab icons); sections
+                // without one (upgrade, badges — not shown as top-level rows
+                // right now) fall back to the old "<emoji> <label>" title
+                // convention, split apart so the emoji is its own leading-icon
+                // node and never disturbs the bidi resolution of the
+                // (possibly RTL) label text next to it.
+                const [emoji, ...rest] = s.icon ? [] : s.title.split(' ');
                 return (
                   <button
                     key={s.id}
                     className="nav-row"
                     onClick={click(() => { if (s.onSelect) s.onSelect(); else setDrawerSection(s.id); })}
                   >
-                    <span className="nav-row__lead" aria-hidden="true">{emoji}</span>
-                    <span className="nav-row__label">{rest.join(' ')}</span>
+                    <span className="nav-row__lead" aria-hidden="true">
+                      {s.icon ? <img src={s.icon} alt="" className="nav-row__icon-img" /> : emoji}
+                    </span>
+                    <span className="nav-row__label">{s.icon ? s.title : rest.join(' ')}</span>
                     <Chevron dir="forward" className="nav-row__chev" />
                   </button>
                 );
