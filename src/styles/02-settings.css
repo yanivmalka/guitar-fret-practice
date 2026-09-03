@@ -371,6 +371,10 @@
 .settings-menu[dir="rtl"],
 .settings-page-inner[dir="rtl"],
 .stats-panel[dir="rtl"] { text-align: right; }
+/* `.set-card` carries its own physical `text-align: left`, so it needs the
+   same undo as the panel roots above or its label/help line stay LTR. */
+.settings-page-inner[dir="rtl"] .set-card,
+.stats-panel[dir="rtl"] .set-card { text-align: right; }
 
 /* Account (Google sign-in / sign-out) row at the bottom of the settings panel. */
 .account-row {

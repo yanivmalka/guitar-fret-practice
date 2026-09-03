@@ -29,6 +29,9 @@
   text-align: left;
   cursor: pointer;
 }
+/* Same undo as `.set-card` in 02-settings.css: the explicit physical
+   `text-align: left` above defeats the RTL root's right alignment otherwise. */
+.settings-page-inner[dir="rtl"] .account-badges-link { text-align: right; }
 .account-badges-link:hover { border-color: #00e5ff; }
 .account-badges-medal { font-size: 1.4rem; line-height: 1; }
 .account-badges-text {
