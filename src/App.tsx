@@ -1367,6 +1367,16 @@ export default function App() {
           label={t('Account')}
           help={t('Sign in with Google to keep your preferences and data across devices.')}
         >
+          {/* Signed-out: no plan on the account, so show the current (Free)
+              plan large. Tapping opens the `upgrade` sub-page. */}
+          <button
+            type="button"
+            className="account-plan account-plan-lg"
+            onClick={click(() => setDrawerSection('upgrade'))}
+          >
+            <span className="account-plan-icon" aria-hidden="true">⭐</span>
+            <span className="account-plan-tier">{t('Free')}</span>
+          </button>
           <button
             className="set-card-btn set-card-btn-primary"
             onClick={click(() => { void auth.signInWithGoogle(); })}

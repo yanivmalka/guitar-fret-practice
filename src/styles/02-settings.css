@@ -519,6 +519,18 @@
   color: #0ff;
 }
 .account-plan.is-pro .account-plan-tier { color: #ffd76a; }
+/* Large variant: shown in the signed-out Account card, where the plan is
+   the headline rather than a small row above Sign out. */
+.account-plan-lg {
+  justify-content: center;
+  padding: 18px 12px;
+  background: #1a1a30;
+}
+.account-plan-lg .account-plan-icon { font-size: 1.35rem; }
+.account-plan-lg .account-plan-tier {
+  font-size: 1.3rem;
+  letter-spacing: 0.14em;
+}
 .account-row-in .account-btn {
   width: 100%;
 }
