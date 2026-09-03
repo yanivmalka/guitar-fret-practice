@@ -74,6 +74,14 @@ export function BadgeGrid({
   // earnedAt). The admin Grant / Reset controls mutate that store in place, so
   // bump a counter to re-render the wall after one fires.
   const [, refreshWall] = useReducer((n: number) => n + 1, 0);
+
+  // Cloud sync (badgeSync.ts) can rewrite the store from under us — a sign-in
+  // restore, or a badge earned on another device arriving during a reconcile.
+  // Re-read the wall when it does.
+  useEffect(() => {
+    window.addEventListener('badges-synced', refreshWall);
+    return () => window.removeEventListener('badges-synced', refreshWall);
+  }, []);
   // Per-mount running id for the CelebratedBadge records the Grant button emits.
   const celebrateUidRef = useRef(0);
 
