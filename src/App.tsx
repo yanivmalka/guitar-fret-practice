@@ -790,12 +790,15 @@ export default function App() {
     return () => registerUpgradeHandler(null);
   }, []);
 
-  // Escape steps back to the list of titles first, then closes the drawer.
+  // Escape steps back one level, then closes the drawer. The Badges page is
+  // only reachable from inside Account (via the pinned-badge picker), so it
+  // steps back there rather than to the hamburger list of titles.
   useEffect(() => {
     if (!settingsOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      if (drawerSectionRef.current !== null) setDrawerSection(null);
+      const cur = drawerSectionRef.current;
+      if (cur !== null) setDrawerSection(cur === 'badges' ? 'account' : null);
       else setSettingsOpen(false);
     };
     window.addEventListener('keydown', onKey);
@@ -1492,7 +1495,14 @@ export default function App() {
         <div className="app settings-page">
           <div className="sp2 settings-page-inner" dir={lang === 'he' ? 'rtl' : undefined}>
             <div className="sp2-head settings-page-head">
-              <button className="sp2-back" onClick={click(() => setDrawerSection(null))}><Chevron dir="back" /> {t('Back')}</button>
+              {/* Badges is a sub-page of Account (opened from the pinned-badge
+                  picker), so Back returns there, not to the hamburger list. */}
+              <button
+                className="sp2-back"
+                onClick={click(() => setDrawerSection(drawerSection === 'badges' ? 'account' : null))}
+              >
+                <Chevron dir="back" /> {t('Back')}
+              </button>
             </div>
             <header className="settings-page-hero">
               <span className="settings-page-emoji" aria-hidden="true">
