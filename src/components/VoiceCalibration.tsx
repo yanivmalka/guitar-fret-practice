@@ -16,6 +16,7 @@ import { resetSpeechEngine } from '../utils/speech';
 import { cloudInsertTemplate, cloudDeleteTemplate, cloudDeleteProfile } from '../utils/voiceSync';
 import type { SpeechNotation } from '../utils/speechVocab';
 import { playClickSound, getFeedbackAudioCtx, haptic } from '../utils/feedback';
+import { useTranslation } from '../i18n/useTranslation';
 
 
 interface Props {
@@ -40,6 +41,7 @@ type RecState = 'idle' | 'recording' | 'thinking';
 // saved as a template, and each take can be deleted individually if it
 // still came out wrong.
 export default function VoiceCalibration({ notation, accidental, onClose, onProfileChanged }: Props) {
+  const { t, lang } = useTranslation();
   const vocabId = profileVocabId(notation as SpeechNotation);
   const [profile, setProfile] = useState(() => getActiveProfile() ?? 'My profile');
   const [idx, setIdx] = useState(0);
@@ -73,8 +75,8 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
     ? accidentalWord
     : displayNote(label, accidental, notation);
   const hint = isAccidental
-    ? 'Say just this word, on its own'
-    : 'Say just the note name, on its own';
+    ? t('Say just this word, on its own')
+    : t('Say just the note name, on its own');
 
   // Display text for any label (letter or accidental), for the self-test list.
   const labelText = useCallback((l: string) => {
@@ -138,14 +140,14 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
           onLevel: (rms) => setLevel(Math.min(1, rms * 6)),
         });
       } catch {
-        setErr('Could not use the microphone — try again');
+        setErr(t('Could not use the microphone — try again'));
         autoMissRef.current++;
         return;
       }
       setLevel(0);
       if (abort.signal.aborted) return;
       if (!captured) {
-        setErr('No sound captured — try again, closer to the mic');
+        setErr(t('No sound captured — try again, closer to the mic'));
         autoMissRef.current++;
         return;
       }
@@ -155,11 +157,11 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
       try {
         const { frames } = computeMfcc(captured.pcm, captured.sampleRate);
         if (!frames.length) {
-          setErr('Recording too short — try again');
+          setErr(t('Recording too short — try again'));
           autoMissRef.current++;
         } else if (!(await resemblesSpokenNote(frames, label, vocabId))) {
           // Sounded like noise, not a spoken note — don't save it.
-          setErr("That didn't sound like a note — try again");
+          setErr(t("That didn't sound like a note — try again"));
           autoMissRef.current++;
         } else {
           // Stop pressed (or the panel closed) while this take was still being
@@ -173,13 +175,13 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
           haptic.tap();
         }
       } catch {
-        setErr('Saving the recording failed');
+        setErr(t('Saving the recording failed'));
         autoMissRef.current++;
       }
     } finally {
       setRec('idle');
     }
-  }, [rec, profile, vocabId, label, refreshCounts]);
+  }, [rec, profile, vocabId, label, refreshCounts, t]);
 
   const stopRun = useCallback(() => {
     setRunning(false);
@@ -282,8 +284,12 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
           // "close", so skip rather than warn on everything.
           if (!Number.isFinite(within) || !Number.isFinite(cross)) continue;
           if (cross <= within * 1.15) {
+            const a = labelText(labels[i]);
+            const b = labelText(labels[j]);
             warns.push(
-              `“${labelText(labels[i])}” and “${labelText(labels[j])}” sound very similar — re-record one of them.`,
+              lang === 'he'
+                ? `“${a}” ו-“${b}” נשמעים דומים מדי — הקלט מחדש אחד מהם.`
+                : `“${a}” and “${b}” sound very similar — re-record one of them.`,
             );
           }
         }
@@ -292,7 +298,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
     } finally {
       setTesting(false);
     }
-  }, [profile, vocabId, labelText]);
+  }, [profile, vocabId, labelText, lang]);
 
   const removeTake = async (key: string) => {
     playClickSound(); haptic.tap();
@@ -336,15 +342,15 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
   const lettersDone = LETTER_LABELS.filter((n) => (counts[n] ?? 0) >= SAMPLES_PER_LABEL).length;
 
   return (
-    <div className="vcal-backdrop" role="dialog" aria-label="Voice calibration">
+    <div className="vcal-backdrop" role="dialog" aria-label={t('Voice calibration')}>
       <div className="vcal-card">
         <div className="vcal-head">
-          <span className="vcal-title">Personal voice calibration</span>
-          <button className="vcal-x" onClick={() => { playClickSound(); onClose(); }} aria-label="Close">✕</button>
+          <span className="vcal-title">{t('Personal voice calibration')}</span>
+          <button className="vcal-x" onClick={() => { playClickSound(); onClose(); }} aria-label={t('Close')}>✕</button>
         </div>
 
         <label className="vcal-profile">
-          Profile name
+          {t('Profile name')}
           <input
             value={profile}
             onChange={(e) => setProfile(e.target.value)}
@@ -353,16 +359,16 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
         </label>
 
         <div className="vcal-progress">
-          Recorded {doneLabels}/{total} ({lettersDone}/{LETTER_LABELS.length} notes, {doneLabels - lettersDone}/{ACCIDENTAL_LABELS.length} accidentals)
+          {t('Recorded')} {doneLabels}/{total} ({lettersDone}/{LETTER_LABELS.length} {t('notes')}, {doneLabels - lettersDone}/{ACCIDENTAL_LABELS.length} {t('accidentals')})
           <div className="vcal-progress-track">
             <div className="vcal-progress-fill" style={{ width: `${(doneLabels / total) * 100}%` }} />
           </div>
         </div>
 
         <div className="vcal-prompt">
-          <span className="vcal-prompt-label">Say:</span>
+          <span className="vcal-prompt-label">{t('Say:')}</span>
           <span className="vcal-note">{prompt}</span>
-          <span className="vcal-here">{here} / {SAMPLES_PER_LABEL} recordings</span>
+          <span className="vcal-here">{here} / {SAMPLES_PER_LABEL} {t('recordings')}</span>
         </div>
         <div className="vcal-hint">{hint}</div>
 
@@ -374,7 +380,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
 
         {hasLast && (
           <button className="vcal-btn vcal-link" onClick={playLast} disabled={rec !== 'idle'}>
-            ▶ Play last recording
+            ▶ {t('Play last recording')}
           </button>
         )}
 
@@ -384,41 +390,43 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
           disabled={allDone && !running}
         >
           {running
-            ? (rec === 'recording' ? '● Listening…' : '⏸ Stop')
-            : '▶️ Start'}
+            ? (rec === 'recording' ? `● ${t('Listening…')}` : `⏸ ${t('Stop')}`)
+            : `▶️ ${t('Start')}`}
         </button>
         {running && (
-          <div className="vcal-hint">Speak the word on screen — calibration advances on its own</div>
+          <div className="vcal-hint">{t('Speak the word on screen — calibration advances on its own')}</div>
         )}
 
         <div className="vcal-takes">
           {takes.length === 0
-            ? <span className="vcal-here">No recordings for “{prompt}” yet</span>
-            : takes.map((t, i) => (
-              <span key={t.key} className="vcal-take">
-                Take {i + 1}
+            ? <span className="vcal-here">
+                {lang === 'he' ? `אין הקלטות עבור “${prompt}” עדיין` : `No recordings for “${prompt}” yet`}
+              </span>
+            : takes.map((tk, i) => (
+              <span key={tk.key} className="vcal-take">
+                {t('Take')} {i + 1}
                 <button
                   className="vcal-take-x"
-                  onClick={() => void removeTake(t.key)}
+                  onClick={() => void removeTake(tk.key)}
                   disabled={rec !== 'idle' || running}
-                  aria-label={`Delete take ${i + 1} of ${prompt}`}
+                  aria-label={lang === 'he' ? `מחק הקלטה ${i + 1} של ${prompt}` : `Delete take ${i + 1} of ${prompt}`}
                 >✕</button>
               </span>
             ))}
         </div>
 
         <div className="vcal-actions">
-          <button className="vcal-btn" onClick={() => step(-1)} disabled={idx === 0 || rec !== 'idle' || running}>Previous</button>
-          <button className="vcal-btn" onClick={() => step(1)} disabled={idx === total - 1 || rec !== 'idle' || running}>Next</button>
+          <button className="vcal-btn" onClick={() => step(-1)} disabled={idx === 0 || rec !== 'idle' || running}>{t('Previous')}</button>
+          <button className="vcal-btn" onClick={() => step(1)} disabled={idx === total - 1 || rec !== 'idle' || running}>{t('Next')}</button>
         </div>
 
         <div className="vcal-actions vcal-actions-sec">
-          <button className="vcal-btn vcal-link vcal-danger" onClick={wipe} disabled={running}>Delete profile</button>
+          <button className="vcal-btn vcal-link vcal-danger" onClick={wipe} disabled={running}>{t('Delete profile')}</button>
         </div>
 
         <div className="vcal-actions vcal-actions-sec">
           <button className="vcal-btn vcal-link" onClick={wipeLearned} disabled={running}>
-            Reset automatic learning of the general mode
+            {t('Reset automatic learning of the general mode')}
           </button>
         </div>
 
@@ -429,20 +437,20 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
               onClick={() => void runSelfTest()}
               disabled={testing || rec !== 'idle' || running}
             >
-              {testing ? 'Checking recordings…' : 'Self-test recordings'}
+              {testing ? t('Checking recordings…') : t('Self-test recordings')}
             </button>
           </div>
         )}
         {selfTest && (
           <div className="vcal-selftest">
             {selfTest.length === 0
-              ? <span className="vcal-here">All words are distinct enough — looks good.</span>
+              ? <span className="vcal-here">{t('All words are distinct enough — looks good.')}</span>
               : selfTest.map((w, i) => <div key={i} className="vcal-err">{w}</div>)}
           </div>
         )}
 
         <button className="vcal-btn vcal-finish" onClick={finish} disabled={!allDone || rec !== 'idle'}>
-          {allDone ? 'Finish & enable' : `${total - doneLabels} to go`}
+          {allDone ? t('Finish & enable') : `${total - doneLabels} ${t('to go')}`}
         </button>
       </div>
     </div>

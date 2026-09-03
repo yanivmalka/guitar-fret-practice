@@ -11,6 +11,7 @@ import {
   deletePost,
   type BoardPost,
 } from '../utils/board';
+import { useTranslation } from '../i18n/useTranslation';
 
 /**
  * Full-page feedback board, rendered as a hamburger settings sub-page.
@@ -48,6 +49,7 @@ export function FeedbackBoard({
   profile: AuthProfile | null;
   onSignIn: () => void;
 }) {
+  const { t } = useTranslation();
   const [isAdmin, setIsAdmin] = useState(false);
   const [posts, setPosts] = useState<BoardPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,11 +98,11 @@ export function FeedbackBoard({
       setIsAdmin(admin);
       setPosts(list);
     } catch {
-      setError('Couldn’t load the board. Check your connection and try again.');
+      setError(t('Couldn’t load the board. Check your connection and try again.'));
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, t]);
 
   useEffect(() => {
     let alive = true;
@@ -115,13 +117,13 @@ export function FeedbackBoard({
         setIsAdmin(admin);
         setPosts(list);
       } catch {
-        if (alive) setError('Couldn’t load the board. Check your connection and try again.');
+        if (alive) setError(t('Couldn’t load the board. Check your connection and try again.'));
       } finally {
         if (alive) setLoading(false);
       }
     })();
     return () => { alive = false; };
-  }, [userId]);
+  }, [userId, t]);
 
   // An admin leaving the "Write" tab (compose box unmounts) must not leave
   // the mic listening in the background.
@@ -144,7 +146,7 @@ export function FeedbackBoard({
       setSent(true);
       await load();
     } catch {
-      setError('Couldn’t send that. Check your connection and try again.');
+      setError(t('Couldn’t send that. Check your connection and try again.'));
     } finally {
       setSending(false);
     }
@@ -184,8 +186,7 @@ export function FeedbackBoard({
     return (
       <div className="board">
         <p className="board-intro">
-          Sign in with Google to leave a comment, idea, or suggestion. Only
-          admins can read the full board.
+          {t('Sign in with Google to leave a comment, idea, or suggestion. Only admins can read the full board.')}
         </p>
         <button
           className="set-card-btn set-card-btn-primary"
@@ -195,7 +196,7 @@ export function FeedbackBoard({
             onSignIn();
           }}
         >
-          Sign in with Google
+          {t('Sign in with Google')}
         </button>
       </div>
     );
@@ -203,18 +204,18 @@ export function FeedbackBoard({
 
   const micError =
     dictation.error === 'no-permission'
-      ? 'Microphone access is off — turn it on to dictate.'
+      ? t('Microphone access is off — turn it on to dictate.')
       : dictation.error === 'not-supported'
-        ? 'Voice typing isn’t available on this device.'
+        ? t('Voice typing isn’t available on this device.')
         : dictation.error
-          ? 'Couldn’t hear that — try again.'
+          ? t('Couldn’t hear that — try again.')
           : null;
 
   const compose = (
     <div className="board-compose">
       <textarea
         className="board-textarea"
-        placeholder="What’s on your mind?"
+        placeholder={t('What’s on your mind?')}
         value={draft}
         maxLength={MAX_LEN}
         rows={4}
@@ -233,7 +234,7 @@ export function FeedbackBoard({
               className={`board-mic${dictation.listening ? ' board-mic-on' : ''}`}
               aria-pressed={dictation.listening}
               aria-label={
-                dictation.listening ? 'Stop voice typing' : 'Start voice typing'
+                dictation.listening ? t('Stop voice typing') : t('Start voice typing')
               }
               onClick={() => {
                 playClickSound();
@@ -256,15 +257,15 @@ export function FeedbackBoard({
           disabled={!draft.trim() || sending}
           onClick={() => void send()}
         >
-          {sending ? 'Sending…' : 'Send'}
+          {sending ? t('Sending…') : t('Send')}
         </button>
       </div>
       {dictation.listening && (
-        <p className="board-mic-hint">Listening… speak now, tap ⏹ to stop.</p>
+        <p className="board-mic-hint">{t('Listening… speak now, tap ⏹ to stop.')}</p>
       )}
       {micError && <p className="board-error">{micError}</p>}
       {sent && !error && (
-        <p className="board-thanks">Thanks — your message was sent.</p>
+        <p className="board-thanks">{t('Thanks — your message was sent.')}</p>
       )}
     </div>
   );
@@ -276,7 +277,7 @@ export function FeedbackBoard({
     >
       <div className="board-item-head">
         <span className="board-item-who">
-          {isAdmin ? post.authorName || post.authorEmail || 'Unknown' : 'You'}
+          {isAdmin ? post.authorName || post.authorEmail || t('Unknown') : t('You')}
         </span>
         <span className="board-item-date">{fmtDate(post.createdAt)}</span>
       </div>
@@ -284,14 +285,14 @@ export function FeedbackBoard({
         <span className="board-item-email">{post.authorEmail}</span>
       )}
       <p className="board-item-body">{post.body}</p>
-      {post.handled && <span className="board-item-tag">Handled</span>}
+      {post.handled && <span className="board-item-tag">{t('Handled')}</span>}
       {isAdmin && (
         <div className="board-item-actions">
           <button
             className="board-action"
             onClick={() => void toggleHandled(post)}
           >
-            {post.handled ? 'Mark unhandled' : 'Mark handled'}
+            {post.handled ? t('Mark unhandled') : t('Mark handled')}
           </button>
           <button
             className="board-action board-action-danger"
@@ -301,7 +302,7 @@ export function FeedbackBoard({
               setPendingDelete(post);
             }}
           >
-            Delete
+            {t('Delete')}
           </button>
         </div>
       )}
@@ -311,9 +312,9 @@ export function FeedbackBoard({
   // Regular user's own posts, all together (the "Handled" tag already marks
   // the ones an admin has actioned).
   const myList = loading ? (
-    <p className="board-empty">Loading…</p>
+    <p className="board-empty">{t('Loading…')}</p>
   ) : posts.length === 0 ? (
-    <p className="board-empty">You haven’t sent anything yet.</p>
+    <p className="board-empty">{t('You haven’t sent anything yet.')}</p>
   ) : (
     <ul className="board-list">{posts.map(renderItem)}</ul>
   );
@@ -323,8 +324,7 @@ export function FeedbackBoard({
     return (
       <div className="board">
         <p className="board-intro">
-          Share a comment, idea, or suggestion. Admins read every post; below
-          you can see the ones you’ve sent.
+          {t('Share a comment, idea, or suggestion. Admins read every post; below you can see the ones you’ve sent.')}
         </p>
         {compose}
         {error && <p className="board-error">{error}</p>}
@@ -341,7 +341,7 @@ export function FeedbackBoard({
   const unhandled = open.length;
   return (
     <div className="board">
-      <div className="board-tabs" role="tablist" aria-label="Feedback board">
+      <div className="board-tabs" role="tablist" aria-label={t('Feedback board')}>
         <button
           role="tab"
           aria-selected={adminTab === 'write'}
@@ -352,7 +352,7 @@ export function FeedbackBoard({
             setAdminTab('write');
           }}
         >
-          Write
+          {t('Write')}
         </button>
         <button
           role="tab"
@@ -364,7 +364,7 @@ export function FeedbackBoard({
             setAdminTab('inbox');
           }}
         >
-          Inbox
+          {t('Inbox')}
           <span
             className={`board-tab-badge${unhandled > 0 ? ' board-tab-badge-alert' : ''}`}
           >
@@ -378,28 +378,27 @@ export function FeedbackBoard({
       {adminTab === 'write' ? (
         <>
           <p className="board-intro">
-            Post a comment, idea, or suggestion of your own.
+            {t('Post a comment, idea, or suggestion of your own.')}
           </p>
           {compose}
         </>
       ) : (
         <>
           <p className="board-intro">
-            Every post from every user
-            {unhandled > 0 ? ` — ${unhandled} still to handle` : ''}. Mark one
-            handled once you’ve dealt with it, or delete it.
+            {t('Every post from every user')}
+            {unhandled > 0 ? ` — ${unhandled} ${t('still to handle')}` : ''}. {t('Mark one handled once you’ve dealt with it, or delete it.')}
           </p>
 
           {loading ? (
-            <p className="board-empty">Loading…</p>
+            <p className="board-empty">{t('Loading…')}</p>
           ) : posts.length === 0 ? (
-            <p className="board-empty">No posts yet.</p>
+            <p className="board-empty">{t('No posts yet.')}</p>
           ) : (
             <>
               {open.length > 0 ? (
                 <ul className="board-list">{open.map(renderItem)}</ul>
               ) : (
-                <p className="board-empty">Nothing open — all caught up.</p>
+                <p className="board-empty">{t('Nothing open — all caught up.')}</p>
               )}
 
               {done.length > 0 && (
@@ -413,7 +412,7 @@ export function FeedbackBoard({
                       setShowHandled((v) => !v);
                     }}
                   >
-                    <span>Handled ({done.length})</span>
+                    <span>{t('Handled')} ({done.length})</span>
                     <span className="board-handled-chev" aria-hidden="true">
                       {showHandled ? '▾' : '▸'}
                     </span>
@@ -439,18 +438,18 @@ export function FeedbackBoard({
             className="board-confirm-card"
             role="dialog"
             aria-modal="true"
-            aria-label="Delete post"
+            aria-label={t('Delete post')}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="board-confirm-icon" aria-hidden="true">🗑️</div>
-            <div className="board-confirm-title">Delete this post?</div>
+            <div className="board-confirm-title">{t('Delete this post?')}</div>
             <p className="board-confirm-quote">“{preview(pendingDelete.body)}”</p>
             <p className="board-confirm-note">
-              This permanently removes it for everyone, including{' '}
+              {t('This permanently removes it for everyone, including')}{' '}
               {pendingDelete.authorName ||
                 pendingDelete.authorEmail ||
-                'the author'}
-              . It can’t be undone.
+                t('the author')}
+              . {t('It can’t be undone.')}
             </p>
             <div className="board-confirm-actions">
               <button
@@ -461,13 +460,13 @@ export function FeedbackBoard({
                   setPendingDelete(null);
                 }}
               >
-                Cancel
+                {t('Cancel')}
               </button>
               <button
                 className="board-confirm-btn board-confirm-delete"
                 onClick={() => void confirmRemove()}
               >
-                Delete for everyone
+                {t('Delete for everyone')}
               </button>
             </div>
           </div>
