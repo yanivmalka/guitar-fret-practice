@@ -107,11 +107,15 @@ working. **Read `design.md` for the "why" and the full code sketches** — this 
 
 - [x] `npm run build` + `npm run lint` clean (lint warning count unchanged from the 22-warning
       baseline; no new warnings in the touched files).
-- [ ] **[MANUAL — you, after running the migration]** Signed-in user with no row shows
-      `tier: free`; after `update public.entitlements set tier='pro'` for that user id (via SQL),
-      a foreground refresh flips the readout to `pro`.
-- [ ] **[MANUAL — you]** Guest and unconfigured (`!isSupabaseConfigured`) builds show `free`, no
-      console errors.
+- [ ] **[DEFERRED to a deploy]** Signed-in user with no row shows `tier: free`; after
+      `update public.entitlements set tier='pro'` for that user id (via SQL), a foreground
+      refresh flips the readout to `pro`. Not checkable on the local dev server — there is no
+      local `.env`, so `isSupabaseConfigured` is false and the Account section (with the readout)
+      does not render. Verify on the `claude/free-pro-tiering` preview deploy, where sign-in
+      works.
+- [x] Guest / unconfigured (`!isSupabaseConfigured`) path: local `npm run dev` has no `.env`, so
+      it runs the unconfigured path — no Account section, no `entitlements` network call, `tier`
+      is `free`, no console errors. Matches design §9.
 - [x] Commit: `Tiering: entitlement plumbing + 0007 migration (phase 1)` (`1894d3a`).
 
 ---
