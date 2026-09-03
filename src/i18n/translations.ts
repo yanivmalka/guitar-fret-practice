@@ -296,7 +296,7 @@ const he: Record<string, string> = {
   'Comeback': 'קאמבק',
   'Every String': 'כל המיתרים',
   'String Master': 'שליטה במיתר',
-  'String Master · {s}': 'שליטה במיתר · {s}',
+  'String Master · {s}': 'שליטה · {s}',
   'Full String Master': 'שליטה מלאה במיתרים',
   'Neck Runner': 'רץ הצוואר',
   'Both Ends': 'שני הקצוות',
@@ -312,18 +312,18 @@ const he: Record<string, string> = {
   'Admin': 'מנהל',
   // Earning conditions — Perfect Session
   'Answer 10+ questions in a round with no mistakes at all.':
-    'ענה על 10+ שאלות בסיבוב ללא שום טעות.',
+    'ענה על 10+ שאלות בסיבוב בלי אף טעות.',
   '25+ questions in a round, still zero mistakes.':
-    '25+ שאלות בסיבוב, עדיין אפס טעויות.',
+    '25+ שאלות בסיבוב, ועדיין בלי אף טעות.',
   '50+ questions in a round, still zero mistakes — a full clean run.':
-    '50+ שאלות בסיבוב, עדיין אפס טעויות — סיבוב נקי לחלוטין.',
+    '50+ שאלות בסיבוב, ועדיין בלי אף טעות — סיבוב נקי לחלוטין.',
   // Speed Demon
   'Get 10+ correct answers in a round, at least 8 of them under 1.5s.':
-    'קבל 10+ תשובות נכונות בסיבוב, לפחות 8 מהן מתחת ל-1.5 שנ׳.',
+    'ענה נכון על 10+ שאלות בסיבוב, לפחות 8 מהן בתוך פחות מ־1.5 שנ׳.',
   '20+ correct answers, at least 16 of them under 1.5s.':
-    '20+ תשובות נכונות, לפחות 16 מהן מתחת ל-1.5 שנ׳.',
+    '20+ תשובות נכונות, לפחות 16 מהן בתוך פחות מ־1.5 שנ׳.',
   '40+ correct answers, at least 32 of them under 1.2s.':
-    '40+ תשובות נכונות, לפחות 32 מהן מתחת ל-1.2 שנ׳.',
+    '40+ תשובות נכונות, לפחות 32 מהן בתוך פחות מ־1.2 שנ׳.',
   // Flawless Sprint
   'Finish a whole round at 90% accuracy or better.':
     'סיים סיבוב שלם בדיוק של 90% ומעלה.',
@@ -332,37 +332,37 @@ const he: Record<string, string> = {
   'Finish a whole round at 100% accuracy.':
     'סיים סיבוב שלם בדיוק של 100%.',
   // On Fire
-  'Reach a streak of 15 in a single round.': 'הגע לרצף של 15 בסיבוב אחד.',
-  'Reach a streak of 20 in a single round.': 'הגע לרצף של 20 בסיבוב אחד.',
-  'Reach a streak of 30 in a single round.': 'הגע לרצף של 30 בסיבוב אחד.',
+  'Reach a streak of 15 in a single round.': 'הגיע לרצף של 15 תשובות נכונות בסיבוב אחד.',
+  'Reach a streak of 20 in a single round.': 'הגיע לרצף של 20 תשובות נכונות בסיבוב אחד.',
+  'Reach a streak of 30 in a single round.': 'הגיע לרצף של 30 תשובות נכונות בסיבוב אחד.',
   // Comeback
   'Miss 3+ of your first 20 questions, then answer the next 8 in a row correctly.':
-    'החמץ 3+ מ-20 השאלות הראשונות שלך, ואז ענה נכון על 8 הבאות ברצף.',
+    'פספס 3+ מתוך 20 השאלות הראשונות, ואז ענה נכון על 8 השאלות הבאות ברצף.',
   'Miss 5+ of your first 20 questions, then answer the next 12 in a row correctly.':
-    'החמץ 5+ מ-20 השאלות הראשונות שלך, ואז ענה נכון על 12 הבאות ברצף.',
+    'פספס 5+ מתוך 20 השאלות הראשונות, ואז ענה נכון על 12 השאלות הבאות ברצף.',
   'Miss 8+ of your first 20 questions, then answer the next 18 in a row correctly.':
-    'החמץ 8+ מ-20 השאלות הראשונות שלך, ואז ענה נכון על 18 הבאות ברצף.',
+    'פספס 8+ מתוך 20 השאלות הראשונות, ואז ענה נכון על 18 השאלות הבאות ברצף.',
   // Every String
   'Finish a round that visited every string: 2x that many questions, 90% accuracy.':
-    'סיים סיבוב שעבר בכל מיתר: פי 2 שאלות מכך, 90% דיוק.',
+    'סיים סיבוב שעבר בכל המיתרים: פי 2 ממספר המיתרים בשאלות, בדיוק של 90%.',
   'Visited every string: 4x that many questions, 90% accuracy.':
-    'עבר בכל מיתר: פי 4 שאלות מכך, 90% דיוק.',
+    'עבר בכל המיתרים: פי 4 ממספר המיתרים בשאלות, בדיוק של 90%.',
   'Visited every string: 6x that many questions, 95% accuracy.':
-    'עבר בכל מיתר: פי 6 שאלות מכך, 95% דיוק.',
+    'עבר בכל המיתרים: פי 6 ממספר המיתרים בשאלות, בדיוק של 95%.',
   // Per-string String Master — {s} is the translated string label
   'Answer 40+ questions on {s} at 90% accuracy or better.':
-    'ענה על 40+ שאלות ב{s} בדיוק של 90% ומעלה.',
+    'ענה על 40+ שאלות על {s} בדיוק של 90% ומעלה.',
   '100+ questions on {s} at 92% accuracy or better.':
-    '100+ שאלות ב{s} בדיוק של 92% ומעלה.',
+    '100+ שאלות על {s} בדיוק של 92% ומעלה.',
   '200+ questions on {s} at 95% accuracy or better.':
-    '200+ שאלות ב{s} בדיוק של 95% ומעלה.',
+    '200+ שאלות על {s} בדיוק של 95% ומעלה.',
   // Full String Master
   'Earn String Master — Bronze on every string of this instrument.':
-    'השג שליטה במיתר — ברונזה בכל מיתר של הכלי הזה.',
+    'השג דרגת ברונזה של שליטה במיתר בכל מיתרי הכלי.',
   'Earn String Master — Silver on every string.':
-    'השג שליטה במיתר — כסף בכל מיתר.',
+    'השג דרגת כסף של שליטה במיתר בכל המיתרים.',
   'Earn String Master — Gold on every string.':
-    'השג שליטה במיתר — זהב בכל מיתר.',
+    'השג דרגת זהב של שליטה במיתר בכל המיתרים.',
   // Neck Runner
   'Answer at least one question on every fret of the neck.':
     'ענה על לפחות שאלה אחת בכל סריג בצוואר.',
@@ -372,27 +372,27 @@ const he: Record<string, string> = {
     'ענה על לפחות 5 שאלות בכל סריג בצוואר.',
   // Both Ends
   'Answer 40+ questions above the 12th fret at 85% accuracy or better.':
-    'ענה על 40+ שאלות מעל הסריג ה-12 בדיוק של 85% ומעלה.',
+    'ענה על 40+ שאלות מעל הסריג ה־12 בדיוק של 85% ומעלה.',
   '100+ questions above the 12th fret at 88% accuracy or better.':
-    '100+ שאלות מעל הסריג ה-12 בדיוק של 88% ומעלה.',
+    '100+ שאלות מעל הסריג ה־12 בדיוק של 88% ומעלה.',
   '200+ questions above the 12th fret at 92% accuracy or better.':
-    '200+ שאלות מעל הסריג ה-12 בדיוק של 92% ומעלה.',
+    '200+ שאלות מעל הסריג ה־12 בדיוק של 92% ומעלה.',
   // Low End
   'Answer 40+ questions on the bass low-E string at 90% accuracy or better.':
-    'ענה על 40+ שאלות במיתר המי הנמוך של הבס בדיוק של 90% ומעלה.',
+    'ענה על 40+ שאלות על מיתר המי הנמוך בבס בדיוק של 90% ומעלה.',
   '100+ questions on the low-E string at 93% accuracy or better.':
-    '100+ שאלות במיתר המי הנמוך בדיוק של 93% ומעלה.',
+    '100+ שאלות על מיתר המי הנמוך בבס בדיוק של 93% ומעלה.',
   '200+ questions on the low-E string at 96% accuracy or better.':
-    '200+ שאלות במיתר המי הנמוך בדיוק של 96% ומעלה.',
+    '200+ שאלות על מיתר המי הנמוך בבס בדיוק של 96% ומעלה.',
   // Week Warrior
   'Practise on 5 separate days within a single 7-day window.':
-    'תרגל ב-5 ימים נפרדים בתוך חלון של 7 ימים.',
+    'תרגל ב־5 ימים שונים בתוך תקופה של 7 ימים.',
   '6 separate days within a single 7-day window.':
-    '6 ימים נפרדים בתוך חלון של 7 ימים.',
+    'תרגל ב־6 ימים שונים בתוך תקופה של 7 ימים.',
   'All 7 days within a single 7-day window — a perfect week.':
-    'כל 7 הימים בתוך חלון של 7 ימים — שבוע מושלם.',
+    'תרגל בכל 7 הימים בתוך תקופה של 7 ימים — שבוע מושלם.',
   // Dedicated
-  'Build a run of 7 consecutive practice days.': 'בנה רצף של 7 ימי תרגול רצופים.',
+  'Build a run of 7 consecutive practice days.': 'צור רצף של 7 ימי תרגול רצופים.',
   '14 consecutive practice days.': '14 ימי תרגול רצופים.',
   '30 consecutive practice days.': '30 ימי תרגול רצופים.',
   '60 consecutive practice days.': '60 ימי תרגול רצופים.',
@@ -410,33 +410,33 @@ const he: Record<string, string> = {
   '10,000 questions all-time.': '10,000 שאלות בסך הכול.',
   // Sharpshooter
   'Hold 85% accuracy over at least 200 questions, across every instrument.':
-    'שמור על דיוק של 85% לאורך לפחות 200 שאלות, בכל הכלים.',
+    'שמור על דיוק של 85% לפחות לאורך 200 שאלות לפחות, בכל הכלים.',
   '88% accuracy over at least 500 questions.':
-    'דיוק של 88% לאורך לפחות 500 שאלות.',
+    'דיוק של 88% לפחות לאורך 500 שאלות לפחות.',
   '92% accuracy over at least 1,000 questions.':
-    'דיוק של 92% לאורך לפחות 1,000 שאלות.',
+    'דיוק של 92% לפחות לאורך 1,000 שאלות לפחות.',
   // Quick Read
   'Hold an average answer time under 2.0s over 200+ questions.':
-    'שמור על זמן מענה ממוצע מתחת ל-2.0 שנ׳ לאורך 200+ שאלות.',
-  'Under 1.6s over 500+ questions.': 'מתחת ל-1.6 שנ׳ לאורך 500+ שאלות.',
-  'Under 1.3s over 1,000+ questions.': 'מתחת ל-1.3 שנ׳ לאורך 1,000+ שאלות.',
+    'שמור על זמן מענה ממוצע של פחות מ־2.0 שנ׳ לאורך 200+ שאלות.',
+  'Under 1.6s over 500+ questions.': 'פחות מ־1.6 שנ׳ לאורך 500+ שאלות.',
+  'Under 1.3s over 1,000+ questions.': 'פחות מ־1.3 שנ׳ לאורך 1,000+ שאלות.',
   // Most Improved
   'Over 10+ practice days, lift your accuracy by 20 points from your first days to your latest.':
-    'לאורך 10+ ימי תרגול, שפר את הדיוק שלך ב-20 נקודות מהימים הראשונים ועד האחרונים.',
+    'לאורך 10+ ימי תרגול, שפר את הדיוק שלך ב־20 נקודות אחוז מהימים הראשונים ועד האחרונים.',
   'Over 15+ practice days, lift your accuracy by 30 points.':
-    'לאורך 15+ ימי תרגול, שפר את הדיוק שלך ב-30 נקודות.',
+    'לאורך 15+ ימי תרגול, שפר את הדיוק שלך ב־30 נקודות אחוז.',
   'Over 20+ practice days, lift your accuracy by 40 points.':
-    'לאורך 20+ ימי תרגול, שפר את הדיוק שלך ב-40 נקודות.',
+    'לאורך 20+ ימי תרגול, שפר את הדיוק שלך ב־40 נקודות אחוז.',
   // Doubling Up
   'Earn String Master on every string of both guitar and bass.':
-    'השג שליטה במיתר בכל מיתר, גם בגיטרה וגם בבס.',
+    'השג שליטה במיתר בכל המיתרים, גם בגיטרה וגם בבס.',
   'Earn Full String Master — Silver on both guitar and bass.':
-    'השג שליטה מלאה במיתרים — כסף, גם בגיטרה וגם בבס.',
+    'השג שליטה מלאה במיתרים בדרגת כסף, גם בגיטרה וגם בבס.',
   'Earn Full String Master — Gold and Neck Runner — Gold on both guitar and bass.':
-    'השג שליטה מלאה במיתרים — זהב ורץ הצוואר — זהב, גם בגיטרה וגם בבס.',
+    'השג שליטה מלאה במיתרים בדרגת זהב ורץ הצוואר בדרגת זהב, גם בגיטרה וגם בבס.',
   // Admin (role)
   'Granted to app administrators — read every Feedback board post, not just your own.':
-    'ניתן למנהלי האפליקציה — קריאת כל הפוסטים בלוח המשוב, לא רק שלך.',
+    'מוענק למנהלי האפליקציה — מאפשר לקרוא את כל הפוסטים בלוח המשוב, לא רק את הפוסטים שלך.',
 };
 
 const dictionaries: Record<Lang, Record<string, string>> = { en: {}, he };
