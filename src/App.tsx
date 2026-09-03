@@ -1354,6 +1354,16 @@ export default function App() {
             </header>
             <div className="settings-page-body">{activeSection.body}</div>
           </div>
+          {/* This full-screen settings sub-page is its own return path, so the
+              reveal fired by an admin Grant on the Badges wall must be mounted
+              here too — the copy in the main return never renders from here. */}
+          {revealBadges.length > 0 && (
+            <BadgeRevealOverlay
+              badges={revealBadges}
+              instrument={instrument}
+              onClose={() => setRevealBadges([])}
+            />
+          )}
         </div>
       );
     }
