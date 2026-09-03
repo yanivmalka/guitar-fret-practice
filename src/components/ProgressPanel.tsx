@@ -8,6 +8,7 @@ import {
 import { loadBest, saveBest } from '../utils/personalBest';
 import type { InstrumentConfig } from '../utils/instruments';
 import { playClickSound, haptic } from '../utils/feedback';
+import { useTranslation } from '../i18n/useTranslation';
 
 interface Props {
   allHistory: Record<string, HistoryEntry[]>;
@@ -35,12 +36,12 @@ type Scope = 'setup' | 'all';
 function pct(n: number) { return `${Math.round(n * 100)}%`; }
 
 // "6|0-12|byFret|dots" or "bass|6|0-12|byFret|dots" -> a short human caption.
-function describeKey(key: string): string {
+function describeKey(key: string, t: (s: string) => string): string {
   const parts = key.split('|');
   let inst = '';
   if (parts.length === 5) { inst = parts.shift() === 'bass' ? '🎵 ' : '🎸 '; }
   const [strings, fret, mode, diff] = parts;
-  const modeText = mode === 'byNote' ? 'by note' : 'by fret';
+  const modeText = mode === 'byNote' ? t('by note') : t('by fret');
   return `${inst}str ${strings} · fr ${fret} · ${modeText} · ${diff}`;
 }
 
@@ -86,7 +87,8 @@ function HeroTiles({ tiles }: { tiles: Array<{ v: ReactNode; l: string; gold?: b
 }
 
 function BarRows({ rows }: { rows: Array<{ label: string; value: number; cat: 'mastered' | 'solid' | 'growing'; detail?: string }> }) {
-  if (rows.length === 0) return <p className="encouragement">Not enough data yet.</p>;
+  const { t } = useTranslation();
+  if (rows.length === 0) return <p className="encouragement">{t('Not enough data yet.')}</p>;
   return (
     <div className="string-bars">
       {rows.map(r => (
@@ -106,10 +108,11 @@ function BarRows({ rows }: { rows: Array<{ label: string; value: number; cat: 'm
 // The "haven't practiced this yet" tail shown under a By-* breakdown: the
 // notes / strings / frets in range that have no recorded answers at all.
 function UnplayedChips({ items }: { items: string[] }) {
+  const { t } = useTranslation();
   if (items.length === 0) return null;
   return (
     <div className="sp2-unplayed">
-      <p className="sp2-unplayed-title">Not practiced yet</p>
+      <p className="sp2-unplayed-title">{t('Not practiced yet')}</p>
       <div className="note-stats">
         {items.map(x => (
           <span key={x} className="note-stat note-stat-muted">{x}</span>
@@ -144,6 +147,7 @@ function shortStringLabel(label: string | undefined, n: number): string {
 }
 
 function FretHeatmap({ history, instrument }: { history: HistoryEntry[]; instrument: InstrumentConfig }) {
+  const { t } = useTranslation();
   const frets = Array.from({ length: instrument.maxFret + 1 }, (_, f) => f);
   return (
     <div className="sp2-heat-scroll">
@@ -158,8 +162,8 @@ function FretHeatmap({ history, instrument }: { history: HistoryEntry[]; instrum
                 const stat = map[fret];
                 const level = stat?.level ?? 'unplayed';
                 const title = stat && stat.level !== 'unplayed'
-                  ? `String ${stringNumber} fret ${fret} — ${pct(stat.accuracy)}`
-                  : `String ${stringNumber} fret ${fret} — not played`;
+                  ? `${t('String')} ${stringNumber} ${t('fret')} ${fret} — ${pct(stat.accuracy)}`
+                  : `${t('String')} ${stringNumber} ${t('fret')} ${fret} — ${t('not played')}`;
                 return <span key={fret} className="sp2-heat-cell" title={title} style={{ background: HEAT[level] }} />;
               })}
             </div>
@@ -173,18 +177,19 @@ function FretHeatmap({ history, instrument }: { history: HistoryEntry[]; instrum
         </div>
       </div>
       <div className="sp2-heat-legend">
-        <span><i style={{ background: HEAT.known }} /> known</span>
-        <span><i style={{ background: HEAT.needsWork }} /> needs work</span>
-        <span><i style={{ background: HEAT.unplayed }} /> unplayed</span>
+        <span><i style={{ background: HEAT.known }} /> {t('known')}</span>
+        <span><i style={{ background: HEAT.needsWork }} /> {t('needs work')}</span>
+        <span><i style={{ background: HEAT.unplayed }} /> {t('unplayed')}</span>
       </div>
     </div>
   );
 }
 
 function Timeline({ history }: { history: HistoryEntry[] }) {
+  const { t } = useTranslation();
   const days = dailyStats(history).slice(-14);
   if (days.length === 0) {
-    return <p className="encouragement">Older sessions have no date stamp, so the timeline is empty. New sessions fill it in.</p>;
+    return <p className="encouragement">{t('Older sessions have no date stamp, so the timeline is empty. New sessions fill it in.')}</p>;
   }
   const maxCount = Math.max(...days.map(d => d.count), 1);
   return (
@@ -222,6 +227,7 @@ function ScopeView({
   setupFretFrom: number;
   setupFretTo: number;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState<string | null>(null);
   const toggle = (id: string) => () => { playClickSound(); haptic.tap(); setOpen(o => (o === id ? null : id)); };
 
@@ -307,8 +313,8 @@ function ScopeView({
     return (
       <p className="encouragement">
         {scope === 'setup'
-          ? 'No rounds recorded for this setup yet. Play a round and its stats show up here.'
-          : 'Play a few rounds and your all-time progress shows up here.'}
+          ? t('No rounds recorded for this setup yet. Play a round and its stats show up here.')
+          : t('Play a few rounds and your all-time progress shows up here.')}
       </p>
     );
   }
@@ -317,14 +323,14 @@ function ScopeView({
 
   const heroTiles = scope === 'setup'
     ? [
-        { v: pct(totals.accuracy), l: 'accuracy', gold: true },
-        { v: <>🔥 {bestStreak}</>, l: 'best streak' },
-        { v: <>⚡ {totals.avgSeconds.toFixed(1)}s</>, l: 'avg speed' },
+        { v: pct(totals.accuracy), l: t('accuracy'), gold: true },
+        { v: <>🔥 {bestStreak}</>, l: t('best streak') },
+        { v: <>⚡ {totals.avgSeconds.toFixed(1)}s</>, l: t('avg speed') },
       ]
     : [
-        { v: pct(totals.accuracy), l: 'accuracy', gold: true },
-        { v: <>🔥 {streak.current}</>, l: 'day streak' },
-        { v: totals.totalQuestions, l: 'answered' },
+        { v: pct(totals.accuracy), l: t('accuracy'), gold: true },
+        { v: <>🔥 {streak.current}</>, l: t('day streak') },
+        { v: totals.totalQuestions, l: t('answered') },
       ];
 
   return (
@@ -334,12 +340,12 @@ function ScopeView({
       {scope === 'setup' && (sessionScore ?? 0) > 0 && (
         <div className="score-summary">
           <div className="score-summary-line">
-            <span className="score-summary-label">Last round</span>
-            <span className="score-summary-value score-gold">{sessionScore} pts</span>
+            <span className="score-summary-label">{t('Last round')}</span>
+            <span className="score-summary-value score-gold">{sessionScore} {t('pts')}</span>
           </div>
           {totals.bestSeconds > 0 && (
             <div className="score-summary-line">
-              <span className="score-summary-label">Best speed</span>
+              <span className="score-summary-label">{t('Best speed')}</span>
               <span className="score-summary-value">🏆 {totals.bestSeconds.toFixed(1)}s</span>
             </div>
           )}
@@ -347,9 +353,9 @@ function ScopeView({
       )}
 
       <div className="stat-group">
-        <p className="stat-group-title improving">🎯 Weakest notes</p>
+        <p className="stat-group-title improving">🎯 {t('Weakest notes')}</p>
         <div className="note-stats">
-          {weak.length === 0 && <span className="note-stat">Nothing below 70% — nice.</span>}
+          {weak.length === 0 && <span className="note-stat">{t('Nothing below 70% — nice.')}</span>}
           {weak.map(w => (
             <span key={w.label} className="note-stat note-stat-split">
               <span className="note-stat-label">{displayNote(w.label, accidental, notation)}</span>
@@ -359,32 +365,32 @@ function ScopeView({
         </div>
       </div>
 
-      <Expander label="By note" open={open === 'note'} onToggle={toggle('note')}>
+      <Expander label={t('By note')} open={open === 'note'} onToggle={toggle('note')}>
         {noteRows.length > 0 && <BarRows rows={noteRows} />}
         <UnplayedChips items={unplayedNotes} />
       </Expander>
-      <Expander label="By string" open={open === 'string'} onToggle={toggle('string')}>
+      <Expander label={t('By string')} open={open === 'string'} onToggle={toggle('string')}>
         {stringRows.length > 0 && <BarRows rows={stringRows} />}
         <UnplayedChips items={unplayedStrings} />
       </Expander>
-      <Expander label="By fret" open={open === 'byfret'} onToggle={toggle('byfret')}>
+      <Expander label={t('By fret')} open={open === 'byfret'} onToggle={toggle('byfret')}>
         {fretRows.length > 0 && <BarRows rows={fretRows} />}
         <UnplayedChips items={unplayedFrets} />
       </Expander>
-      <Expander label="Fretboard heatmap" open={open === 'fret'} onToggle={toggle('fret')}>
+      <Expander label={t('Fretboard heatmap')} open={open === 'fret'} onToggle={toggle('fret')}>
         <FretHeatmap history={history} instrument={instrument} />
       </Expander>
-      <Expander label="Daily timeline" open={open === 'time'} onToggle={toggle('time')}>
+      <Expander label={t('Daily timeline')} open={open === 'time'} onToggle={toggle('time')}>
         <Timeline history={history} />
       </Expander>
       {scope === 'all' && (
-        <Expander label="Personal bests" open={open === 'bests'} onToggle={toggle('bests')}>
+        <Expander label={t('Personal bests')} open={open === 'bests'} onToggle={toggle('bests')}>
           <div className="string-bars">
-            {bests.length === 0 && <p className="encouragement">No personal bests recorded yet.</p>}
+            {bests.length === 0 && <p className="encouragement">{t('No personal bests recorded yet.')}</p>}
             {bests.slice(0, 8).map(b => (
               <div key={b.key} className="string-bar-row">
                 <span className="string-bar-label" style={{ minWidth: 0, flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'left' }}>
-                  {describeKey(b.key)}
+                  {describeKey(b.key, t)}
                 </span>
                 <span className="string-bar-pct score-gold">{b.best.score}</span>
                 <span className="string-bar-counts">🔥{b.best.streak} · {b.best.accuracy}%</span>
@@ -402,6 +408,7 @@ export default function ProgressPanel({
   currentHistory, sessionScore, longestStreak, currentHistoryKey,
   setupStrings, setupFretFrom, setupFretTo, onClearCurrent, onClearAll,
 }: Props) {
+  const { t, lang } = useTranslation();
   const [scope, setScope] = useState<Scope>('setup');
   const [confirm, setConfirm] = useState<null | Scope>(null);
   const click = (fn: () => void) => () => { playClickSound(); haptic.tap(); fn(); };
@@ -430,24 +437,24 @@ export default function ProgressPanel({
   return (
     <div className="stats-panel sp2">
       <div className="sp2-head">
-        <button className="sp2-back" onClick={click(onClose)}>‹ Back</button>
-        <span className="sp2-title">Stats &amp; progress</span>
+        <button className="sp2-back" onClick={click(onClose)}>‹ {t('Back')}</button>
+        <span className="sp2-title">{t('Stats & progress')}</span>
       </div>
 
       <div className="sp2-scope">
         <button
           className={`sp2-scope-btn${scope === 'setup' ? ' sp2-scope-active' : ''}`}
           onClick={click(() => setScope('setup'))}
-        >This setup</button>
+        >{t('This setup')}</button>
         <button
           className={`sp2-scope-btn${scope === 'all' ? ' sp2-scope-active' : ''}`}
           onClick={click(() => setScope('all'))}
-        >All time</button>
+        >{t('All time')}</button>
       </div>
       <p className="sp2-scope-cap">
         {scope === 'setup'
-          ? (currentHistoryKey ? describeKey(currentHistoryKey) : 'the current settings')
-          : `across every ${instrument.label.toLowerCase()} settings combination`}
+          ? (currentHistoryKey ? describeKey(currentHistoryKey, t) : t('the current settings'))
+          : `${t('across every')} ${lang === 'he' ? t(instrument.label) : instrument.label.toLowerCase()} ${t('settings combination')}`}
       </p>
 
       <ScopeView
@@ -468,7 +475,7 @@ export default function ProgressPanel({
 
       {history.length > 0 && (
         <button className="sp2-danger" onClick={click(() => setConfirm(scope))}>
-          {scope === 'setup' ? 'Clear history for this setup' : 'Clear all history'}
+          {scope === 'setup' ? t('Clear history for this setup') : t('Clear all history')}
         </button>
       )}
 
@@ -476,13 +483,13 @@ export default function ProgressPanel({
         <div className="mic-overlay" onClick={click(() => setConfirm(null))}>
           <div className="mic-card" onClick={e => e.stopPropagation()}>
             <div className="mic-card-title">
-              {confirm === 'setup' ? 'Clear this setup’s history?' : 'Clear all stats?'}
+              {confirm === 'setup' ? t('Clear this setup’s history?') : t('Clear all stats?')}
             </div>
             <p className="mic-card-body">
               {confirm === 'setup'
-                ? 'This erases the practice history for the current settings combination only. Other combinations and your personal bests are kept.'
-                : 'This permanently erases your entire practice history and resets the all-time mastery for every note, string and settings combination. Your personal bests are kept.'}
-              {' '}<strong>This can&rsquo;t be undone.</strong>
+                ? t('This erases the practice history for the current settings combination only. Other combinations and your personal bests are kept.')
+                : t('This permanently erases your entire practice history and resets the all-time mastery for every note, string and settings combination. Your personal bests are kept.')}
+              {' '}<strong>{t("This can't be undone.")}</strong>
             </p>
             <div className="mic-card-actions">
               <button
@@ -494,10 +501,10 @@ export default function ProgressPanel({
                   else onClearAll?.();
                 })}
               >
-                Delete anyway
+                {t('Delete anyway')}
               </button>
               <button className="mic-btn mic-btn-ghost" onClick={click(() => setConfirm(null))}>
-                Cancel
+                {t('Cancel')}
               </button>
             </div>
           </div>

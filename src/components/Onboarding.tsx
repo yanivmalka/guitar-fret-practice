@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { saveSetting } from '../utils/settings';
 import type { Difficulty } from '../hooks/useSelector';
+import { useTranslation } from '../i18n/useTranslation';
 
 interface Props {
   onDone: () => void;
@@ -34,6 +35,7 @@ function scoreToDifficulty(score: number): Difficulty {
 }
 
 export default function Onboarding({ onDone, onInstrument, onPlacement }: Props) {
+  const { t } = useTranslation();
   const [step, setStep] = useState<Step>('instrument');
   const [instrument, setInstrument] = useState<'guitar' | 'bass'>('guitar');
   const [testIdx, setTestIdx]     = useState(0);
@@ -78,18 +80,18 @@ export default function Onboarding({ onDone, onInstrument, onPlacement }: Props)
     <div className="onboarding">
       <div className="onboarding-card">
         <div className="onboarding-logo">🎸</div>
-        <h2 className="onboarding-title">Guitar Fret Practice</h2>
-        <p className="onboarding-sub">Master the fretboard with the clock method — one string at a time.</p>
-        <p className="onboarding-question">What do you play?</p>
+        <h2 className="onboarding-title">{t('Guitar Fret Practice')}</h2>
+        <p className="onboarding-sub">{t('Master the fretboard with the clock method — one string at a time.')}</p>
+        <p className="onboarding-question">{t('What do you play?')}</p>
         <div className="onboarding-options">
           <button className="onboarding-btn" onClick={() => pickInstrument('guitar')}>
-            🎸 Guitar
+            🎸 {t('Guitar')}
           </button>
           <button className="onboarding-btn" onClick={() => pickInstrument('bass')}>
-            🎵 Bass
+            🎵 {t('Bass')}
           </button>
         </div>
-        <button className="onboarding-skip" onClick={finish}>Skip setup →</button>
+        <button className="onboarding-skip" onClick={finish}>{t('Skip setup →')}</button>
       </div>
     </div>
   );
@@ -98,22 +100,22 @@ export default function Onboarding({ onDone, onInstrument, onPlacement }: Props)
     <div className="onboarding">
       <div className="onboarding-card">
         <div className="onboarding-logo">🎸</div>
-        <p className="onboarding-question">How well do you know the fretboard?</p>
+        <p className="onboarding-question">{t('How well do you know the fretboard?')}</p>
         <div className="onboarding-options">
           <button className="onboarding-btn" onClick={() => finishWithDifficulty('dots')}>
-            🌱 I'm just starting
-            <span className="onboarding-hint">Start with dot frets on String 6</span>
+            🌱 {t("I'm just starting")}
+            <span className="onboarding-hint">{t('Start with dot frets on String 6')}</span>
           </button>
           <button className="onboarding-btn" onClick={() => setStep('test')}>
-            🎯 I play but want to improve
-            <span className="onboarding-hint">Quick 3-question test</span>
+            🎯 {t('I play but want to improve')}
+            <span className="onboarding-hint">{t('Quick 3-question test')}</span>
           </button>
           <button className="onboarding-btn" onClick={() => finishWithDifficulty('full')}>
-            🏆 I know the full neck
-            <span className="onboarding-hint">Jump right in</span>
+            🏆 {t('I know the full neck')}
+            <span className="onboarding-hint">{t('Jump right in')}</span>
           </button>
         </div>
-        <button className="onboarding-skip" onClick={finish}>Skip →</button>
+        <button className="onboarding-skip" onClick={finish}>{t('Skip →')}</button>
       </div>
     </div>
   );
@@ -124,7 +126,7 @@ export default function Onboarding({ onDone, onInstrument, onPlacement }: Props)
       <div className="onboarding">
         <div className="onboarding-card">
           <p className="onboarding-progress">{testIdx + 1} / {PLACEMENT_QUESTIONS.length}</p>
-          <p className="onboarding-question">String {testString} — what note is fret <strong>{q.fret}</strong>?</p>
+          <p className="onboarding-question">{t('String')} {testString} — {t('what note is fret')} <strong>{q.fret}</strong>?</p>
           <div className="onboarding-note-grid">
             {NOTE_OPTIONS.map(n => (
               <button
@@ -139,7 +141,7 @@ export default function Onboarding({ onDone, onInstrument, onPlacement }: Props)
               </button>
             ))}
           </div>
-          <button className="onboarding-skip" onClick={finish}>Skip test →</button>
+          <button className="onboarding-skip" onClick={finish}>{t('Skip test →')}</button>
         </div>
       </div>
     );
@@ -147,12 +149,12 @@ export default function Onboarding({ onDone, onInstrument, onPlacement }: Props)
 
   // result step
   const score = correct;
-  const msgs = ['Keep going!', 'Good start!', 'Nice work!', 'Impressive!'];
+  const msgs = [t('Keep going!'), t('Good start!'), t('Nice work!'), t('Impressive!')];
   const suggested = scoreToDifficulty(score);
   const DIFF_LABEL: Record<Difficulty, string> = {
-    dots: 'Dot Frets',
-    naturals: 'Natural notes',
-    full: 'the full chromatic neck',
+    dots: t('Dot Frets'),
+    naturals: t('Natural notes'),
+    full: t('the full chromatic neck'),
   };
   return (
     <div className="onboarding">
@@ -160,10 +162,10 @@ export default function Onboarding({ onDone, onInstrument, onPlacement }: Props)
         <div className="onboarding-logo">{score >= 3 ? '🏆' : score >= 2 ? '🎯' : '🌱'}</div>
         <p className="onboarding-question">{msgs[score]}</p>
         <p className="onboarding-sub">
-          {score}/3 correct — we've set you up on {DIFF_LABEL[suggested]}. Change it anytime in the selector panel.
+          {score}/3 {t("correct — we've set you up on")} {DIFF_LABEL[suggested]}. {t('Change it anytime in the selector panel.')}
         </p>
         <button className="onboarding-btn" onClick={() => finishWithDifficulty(suggested)}>
-          Let's go →
+          {t("Let's go →")}
         </button>
       </div>
     </div>

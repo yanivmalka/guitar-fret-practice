@@ -10,7 +10,7 @@ import SpeedBar from './components/SpeedBar';
 import AnimatedScore from './components/AnimatedScore';
 import { displayNote, setActiveInstrument } from './utils/music';
 import type { HistoryEntry, AccidentalMode, OrderMode, NotationMode } from './utils/music';
-import { getInstrument, type InstrumentId } from './utils/instruments';
+import { getInstrument, COMING_SOON_INSTRUMENTS, type InstrumentId } from './utils/instruments';
 import { preloadAllSamples, unlockAudio, setAudioInstrument } from './utils/audio';
 import { App as CapacitorApp } from '@capacitor/app';
 import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3, celebrateTier2 } from './utils/feedback';
@@ -889,25 +889,41 @@ export default function App() {
       title: `🎸 ${t('Instrument')}`,
       blurb: '',
       body: (
-        <SettingCard
-          label={t('Instrument')}
-          help={t('Switches tuning, string count and fret range, then reloads the note samples.')}
-        >
-          <SegmentedControl
-            ariaLabel={t('Instrument')}
-            value={instrumentId}
-            options={[
-              { value: 'guitar', label: <>🎸 {t('Guitar')}</> },
-              { value: 'bass', label: <>🎵 {t('Bass')}</> },
-            ]}
-            onChange={(id) => {
-              if (id === instrumentId) return;
-              if (running || paused) stop();
-              applyInstrument(id);
-              setPreloaded(false);
-            }}
-          />
-        </SettingCard>
+        <>
+          <SettingCard
+            label={t('Instrument')}
+            help={t('Switches tuning, string count and fret range, then reloads the note samples.')}
+          >
+            <SegmentedControl
+              ariaLabel={t('Instrument')}
+              value={instrumentId}
+              options={[
+                { value: 'guitar', label: <>🎸 {t('Guitar')}</> },
+                { value: 'bass', label: <>🎵 {t('Bass')}</> },
+              ]}
+              onChange={(id) => {
+                if (id === instrumentId) return;
+                if (running || paused) stop();
+                applyInstrument(id);
+                setPreloaded(false);
+              }}
+            />
+          </SettingCard>
+          {auth.admin && (
+            <div className="instr-soon" role="group" aria-label={t('Coming soon')}>
+              <span className="instr-soon-k">{t('Coming soon')}</span>
+              <div className="instr-soon-grid">
+                {COMING_SOON_INSTRUMENTS.map((ci) => (
+                  <div key={ci.label} className="instr-soon-tile" aria-disabled="true">
+                    <span className="instr-soon-emoji">{ci.emoji}</span>
+                    <span className="instr-soon-name">{t(ci.label)}</span>
+                    <span className="instr-soon-tuning">{ci.tuning}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       ),
     },
     {
@@ -951,7 +967,6 @@ export default function App() {
       title: `🎯 ${t('Score')}`,
       blurb: '',
       body: (
-        <>
         <SettingCard
           label={t('Score & celebrations')}
           help={<>{t('Live score, streak multiplier and celebrations are shown.')} <em>{t('Every answer is still recorded to your stats and personal bests either way.')}</em></>}
@@ -966,6 +981,15 @@ export default function App() {
             onChange={(v) => { const on = v === 'on'; setShowScore(on); saveSetting('pref_showScore', on); }}
           />
         </SettingCard>
+      ),
+    },
+    {
+      // Lives next to "Stats & progress", not under "Score" — it only governs
+      // whether the tracked accuracy is *drawn on the fretboard*, nothing scoring.
+      id: 'fretboard-mastery',
+      title: `📈 ${t('Mastery on the fretboard')}`,
+      blurb: '',
+      body: (
         <SettingCard
           label={t('Mastery on the fretboard')}
           help={<>{t('The per-note / per-fret accuracy bars drawn over the circle and grid while stopped or paused.')} <em>{t('Mastery keeps being tracked and shows on the Stats screen either way.')}</em></>}
@@ -980,7 +1004,6 @@ export default function App() {
             onChange={(v) => { const on = v === 'on'; setShowMastery(on); saveSetting('pref_showMastery', on); }}
           />
         </SettingCard>
-        </>
       ),
     },
     ...(hasAnyHistory ? [{
