@@ -314,9 +314,17 @@ export class TemplateSpeechEngine implements SpeechEngine {
     myTurn: number,
     opts: SpeechListenOptions,
   ): Promise<void> {
-    const segFrames = segmentUtterance(captured.pcm, captured.sampleRate)
+    const rawSegs = segmentUtterance(captured.pcm, captured.sampleRate);
+    const segFrames = rawSegs
       .map((s) => computeMfcc(s, captured.sampleRate).frames)
       .filter((f) => f.length);
+    const ms = (n: number) => Math.round((n / captured.sampleRate) * 1000);
+    // How the utterance was cut up, in ms, next to the whole capture. The
+    // segmenter is the dominant failure mode: a fluent "C sharp" can come
+    // back as one segment (then matched whole against single-letter
+    // templates, which cannot fit), and a drawn-out single letter can come
+    // back as two (the phantom second one matching an accidental).
+    const segMs = rawSegs.map((s) => ms(s.length));
     if (myTurn !== this.turn) return;
     if (!segFrames.length) { opts.onEnd?.(); return; }
 
@@ -371,9 +379,10 @@ export class TemplateSpeechEngine implements SpeechEngine {
     const letter = gate(lRanked, 'letter');
     let note: string | null = letter;
     let accLabel: string | null = null;
+    let aRanked: { label: string; distance: number }[] = [];
 
     if (letter && segFrames.length >= 2) {
-      const aRanked = matchTemplates(segFrames[1], accidentals);
+      aRanked = matchTemplates(segFrames[1], accidentals);
       accLabel = gate(aRanked, 'accidental');
       if (!accLabel) {
         // A second word was spoken but "#" vs "b" is unclear — ask again
@@ -390,8 +399,11 @@ export class TemplateSpeechEngine implements SpeechEngine {
       engine: this.kind, segments: segFrames.length,
       pool: { letters: letters.length, accidentals: accidentals.length },
       ms: +(performance.now() - t0).toFixed(1),
-      letter: lRanked[0] && { label: lRanked[0].label, d: +lRanked[0].distance.toFixed(2) },
-      letter2: lRanked[1] && { label: lRanked[1].label, d: +lRanked[1].distance.toFixed(2) },
+      capturedMs: ms(captured.pcm.length), segMs,
+      // Every letter, not just the top two: when the wrong one wins it
+      // matters whether the right one was second or last.
+      letters: lRanked.map((r) => `${r.label}:${r.distance.toFixed(1)}`).join(' '),
+      accidentals: aRanked.map((r) => `${r.label}:${r.distance.toFixed(1)}`).join(' '),
       accidental: accLabel, note, confident: !!note,
     });
 
