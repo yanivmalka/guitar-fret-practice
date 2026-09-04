@@ -22,6 +22,7 @@ import { preloadAllSamples, unlockAudio, setAudioInstrument, setSilent as setAud
 import { App as CapacitorApp } from '@capacitor/app';
 import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3, setSilent as setFeedbackSilent } from './utils/feedback';
 import { loadSetting, saveSetting } from './utils/settings';
+import { THEME_BG, THEME_COLOR_SCHEME, type Theme } from './utils/theme';
 import { loadBest, saveBest, loadAllBests, writeAllBests } from './utils/personalBest';
 import { historyForInstrument, flattenHistory, fretMasteryMap, noteMasteryMap, applyMasteryWindow, DEFAULT_MASTERY_WINDOW, FREE_MASTERY_WINDOW, PRO_MASTERY_LASTN_CHOICES, type MasteryStat, type MasteryWindow } from './utils/mastery';
 import { useAuth } from './hooks/useAuth';
@@ -181,6 +182,22 @@ export default function App() {
     setAudioSilent(silentMode);
     setFeedbackSilent(silentMode);
   }, [silentMode]);
+
+  // Theme: 'dark' (default, original look) / 'night' (warm, dimmer) / 'day'
+  // (light). Applied on <html> (not just inside .app) so modals/portals that
+  // render outside the normal tree still pick up the right token block.
+  const [theme, setThemeState] = useState<Theme>(() => loadSetting<Theme>('pref_theme', 'dark'));
+  const setTheme = useCallback((t: Theme) => {
+    setThemeState(t);
+    saveSetting('pref_theme', t);
+  }, []);
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    const colorScheme = document.querySelector('meta[name="color-scheme"]');
+    if (colorScheme) colorScheme.setAttribute('content', THEME_COLOR_SCHEME[theme]);
+    const themeColor = document.querySelector('meta[name="theme-color"]');
+    if (themeColor) themeColor.setAttribute('content', THEME_BG[theme]);
+  }, [theme]);
 
   const historyOps = useHistory();
   const histKey = selector.historyKey();
@@ -1249,6 +1266,21 @@ export default function App() {
                 { value: 'off', label: t('Off') },
               ]}
               onChange={(v) => { const on = v === 'on'; setSilentMode(on); saveSetting('pref_silentMode', on); }}
+            />
+          </SettingCard>
+          <SettingCard
+            label={t('Theme')}
+            help={t('Night is a warmer, dimmer palette for a dark room. Day is a light palette.')}
+          >
+            <PickRow
+              ariaLabel={t('Theme')}
+              value={theme}
+              options={[
+                { value: 'dark', label: t('Dark') },
+                { value: 'night', label: t('Night') },
+                { value: 'day', label: t('Day') },
+              ]}
+              onChange={(v) => setTheme(v)}
             />
           </SettingCard>
           <SettingCard label={t('Language')}>

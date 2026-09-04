@@ -5,9 +5,12 @@
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#1a1a2e" />
-    <!-- The app ships a single dark palette. Declare it so mobile browsers'
-         "auto dark theme" doesn't re-tint low-saturation colours (e.g. the
-         fretboard-heatmap "unplayed" cells rendered near-white on Android). -->
+    <!-- Initial values for the default ('dark') theme; App.tsx keeps both of
+         these in sync with the active theme (src/utils/theme.ts) once it
+         mounts. Declaring color-scheme up front stops mobile browsers' "auto
+         dark theme" from re-tinting low-saturation colours (e.g. the
+         fretboard-heatmap "unplayed" cells rendered near-white on Android)
+         before the app's own theme attribute takes over. -->
     <meta name="color-scheme" content="dark" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
