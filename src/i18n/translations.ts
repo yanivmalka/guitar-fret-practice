@@ -49,6 +49,12 @@ const he: Record<string, string> = {
     'פסי הדיוק לכל תו ולכל סריג, המוצגים על גבי הגלגל והרשת בזמן עצירה או השהיה.',
   'Mastery keeps being tracked and shows on the Stats screen either way.':
     'מדד השליטה ממשיך להיאסף ויוצג במסך הסטטיסטיקות בכל מקרה.',
+  'Questions counted': 'כמות שאלות בספירה',
+  'How many of your most recent questions the mastery bars are computed from. Free accounts use the last 250.':
+    'מכמה מהשאלות האחרונות שלך מחושבים פסי השליטה. חשבונות חינמיים משתמשים ב־250 האחרונות.',
+  'Choose how many recent questions the mastery bars are counted from':
+    'בחירת כמות השאלות האחרונות שמהן נספרים פסי השליטה',
+  'All': 'הכל',
   'Stats & progress': 'סטטיסטיקות והתקדמות',
   'Answer mode': 'מצב מענה',
   'How you answer': 'איך עונים',

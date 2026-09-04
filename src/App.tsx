@@ -23,7 +23,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3, setSilent as setFeedbackSilent } from './utils/feedback';
 import { loadSetting, saveSetting } from './utils/settings';
 import { loadBest, saveBest, loadAllBests, writeAllBests } from './utils/personalBest';
-import { historyForInstrument, flattenHistory, fretMasteryMap, noteMasteryMap, type MasteryStat } from './utils/mastery';
+import { historyForInstrument, flattenHistory, fretMasteryMap, noteMasteryMap, applyMasteryWindow, DEFAULT_MASTERY_WINDOW, FREE_MASTERY_WINDOW, PRO_MASTERY_LASTN_CHOICES, type MasteryStat, type MasteryWindow } from './utils/mastery';
 import { useAuth } from './hooks/useAuth';
 import { bootstrapUser, reconcileUser, syncedUser, clearSyncedUser, cloudCaptureOrphans, restoreOnly } from './utils/sync';
 import { bootstrapSettings, syncedSettingsUser, clearSyncedSettingsUser, cloudPushSettings } from './utils/settingsSync';
@@ -160,6 +160,13 @@ export default function App() {
   // circle/grid while stopped or paused. Off = a clean fretboard at rest; every
   // answer is still recorded and mastery keeps accumulating either way.
   const [showMastery, setShowMastery] = useState(() => loadSetting('pref_showMastery', true));
+  // How much recent history the mastery bars are computed from. Free users are
+  // pinned to FREE_MASTERY_WINDOW (last 250); Pro users pick the count via the
+  // "questions counted" control in Settings. Persisted as a MasteryWindow object
+  // so the future date-range / specific-day variants slot in without a migration.
+  const [masteryWindow, setMasteryWindow] = useState<MasteryWindow>(
+    () => loadSetting('pref_masteryWindow', DEFAULT_MASTERY_WINDOW),
+  );
   // Silent mode: mute the drill's content audio (question note + correct chime
   // + celebration tones) while keeping UI clicks, haptics and every on-screen
   // celebration. For practising with headphones off or a real guitar in hand.
@@ -410,16 +417,21 @@ export default function App() {
     () => flattenHistory(historyOps.allHistory),
     [historyOps.allHistory],
   );
-  // Mastery maps are Pro-only (spec free-pro-tiering §5.2). For a free user
-  // they are never built — the overlay is forced off below regardless of the
-  // stored toggle, and the Stats-screen toggle is shown in a locked state.
+  // The overlay is free for everyone (spec free-pro-tiering §5.2). Free users
+  // see it computed from FREE_MASTERY_WINDOW (last 250 questions); Pro users
+  // pick the window via the "questions counted" control in Settings.
+  const effectiveMasteryWindow = auth.isPro ? masteryWindow : FREE_MASTERY_WINDOW;
+  const windowedMasteryEntries = useMemo(
+    () => applyMasteryWindow(allHistoryEntries, effectiveMasteryWindow),
+    [allHistoryEntries, effectiveMasteryWindow],
+  );
   const fretMastery = useMemo<Record<number, MasteryStat>>(
-    () => (auth.isPro ? fretMasteryMap(allHistoryEntries, safeGuitarString) : {}),
-    [auth.isPro, allHistoryEntries, safeGuitarString],
+    () => fretMasteryMap(windowedMasteryEntries, safeGuitarString),
+    [windowedMasteryEntries, safeGuitarString],
   );
   const noteMastery = useMemo<Record<string, MasteryStat>>(
-    () => (auth.isPro ? noteMasteryMap(allHistoryEntries, cofList) : {}),
-    [auth.isPro, allHistoryEntries, cofList],
+    () => noteMasteryMap(windowedMasteryEntries, cofList),
+    [windowedMasteryEntries, cofList],
   );
 
   // Auto Advance: when the current stage/selection is actually completed
@@ -1319,23 +1331,41 @@ export default function App() {
               )}
             </>
           )}
+          <SettingCard
+            label={t('Mastery on the fretboard')}
+            help={<>{t('The per-note / per-fret accuracy bars drawn over the circle and grid while stopped or paused.')} <em>{t('Mastery keeps being tracked and shows on the Stats screen either way.')}</em></>}
+          >
+            <SegmentedControl
+              ariaLabel={t('Mastery on the fretboard')}
+              value={showMastery ? 'on' : 'off'}
+              options={[
+                { value: 'on', label: t('On') },
+                { value: 'off', label: t('Off') },
+              ]}
+              onChange={(v) => { const on = v === 'on'; setShowMastery(on); saveSetting('pref_showMastery', on); }}
+            />
+          </SettingCard>
           <ProGate
             feature="masteryMaps"
             variant="replace"
-            pitch={t('Mastery maps — per-note and per-fret accuracy overlays on the circle and grid')}
+            pitch={t('Choose how many recent questions the mastery bars are counted from')}
           >
             <SettingCard
-              label={t('Mastery on the fretboard')}
-              help={<>{t('The per-note / per-fret accuracy bars drawn over the circle and grid while stopped or paused.')} <em>{t('Mastery keeps being tracked and shows on the Stats screen either way.')}</em></>}
+              label={t('Questions counted')}
+              help={t('How many of your most recent questions the mastery bars are computed from. Free accounts use the last 250.')}
             >
-              <SegmentedControl
-                ariaLabel={t('Mastery on the fretboard')}
-                value={showMastery ? 'on' : 'off'}
-                options={[
-                  { value: 'on', label: t('On') },
-                  { value: 'off', label: t('Off') },
-                ]}
-                onChange={(v) => { const on = v === 'on'; setShowMastery(on); saveSetting('pref_showMastery', on); }}
+              <PickRow
+                ariaLabel={t('Questions counted')}
+                value={masteryWindow.kind === 'lastN' ? String(masteryWindow.n) : '250'}
+                options={PRO_MASTERY_LASTN_CHOICES.map((n) => ({
+                  value: String(n),
+                  label: n === 0 ? t('All') : String(n),
+                }))}
+                onChange={(v) => {
+                  const next: MasteryWindow = { kind: 'lastN', n: Number(v) };
+                  setMasteryWindow(next);
+                  saveSetting('pref_masteryWindow', next);
+                }}
               />
             </SettingCard>
           </ProGate>
@@ -1974,7 +2004,7 @@ export default function App() {
               foundFrets={gameActive ? foundFrets : []}
               onSelect={selectFret}
               masteryByFret={fretMastery}
-              showMastery={!boardLive && showMastery && auth.isPro}
+              showMastery={!boardLive && showMastery}
             />
           ) : (
             <NoteCircle
@@ -1993,7 +2023,7 @@ export default function App() {
               accidental={accidental}
               notation={notation}
               masteryByNote={noteMastery}
-              showMastery={!boardLive && showMastery && auth.isPro}
+              showMastery={!boardLive && showMastery}
             />
           )
         )}

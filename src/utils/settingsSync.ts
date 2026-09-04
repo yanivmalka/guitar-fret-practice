@@ -28,7 +28,8 @@ import { getSyncUserId } from './sync';
 const SYNCED_KEYS = new Set([
   'sel_mode', 'sel_lower', 'sel_upper', 'sel_difficulty', 'sel_autoAdvance',
   'pref_accidental', 'pref_order', 'pref_notation', 'pref_byString',
-  'pref_answerMode', 'pref_showScore', 'pref_showMastery', 'pref_instrument', 'pref_voiceEngine',
+  'pref_answerMode', 'pref_showScore', 'pref_showMastery', 'pref_masteryWindow',
+  'pref_instrument', 'pref_voiceEngine',
   'pref_language', 'pref_pinnedBadges',
   'onboardingDone', 'infoBubbleSeen',
 ]);

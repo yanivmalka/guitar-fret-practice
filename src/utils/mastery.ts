@@ -26,6 +26,49 @@ export function flattenHistory(allHistory: Record<string, HistoryEntry[]>): Hist
   return Object.values(allHistory).flat();
 }
 
+// ── Mastery window ────────────────────────────────────────────────────
+//
+// Which slice of history the fretboard/note-circle overlay is computed
+// from. Free users are pinned to the last 250 questions; Pro users pick
+// the count (see PRO_MASTERY_LASTN_CHOICES). The `dateRange` / `onDay`
+// variants are the foundation for a future Pro "how was I on that day"
+// view — `applyMasteryWindow` already honours them, but nothing in the
+// UI produces them yet.
+export type MasteryWindow =
+  | { kind: 'lastN'; n: number }                          // n <= 0 => all-time
+  | { kind: 'dateRange'; fromISO: string; toISO: string } // future UI
+  | { kind: 'onDay'; dayISO: string };                    // future UI ("that day")
+
+export const FREE_MASTERY_WINDOW: MasteryWindow = { kind: 'lastN', n: 250 };
+export const DEFAULT_MASTERY_WINDOW: MasteryWindow = { kind: 'lastN', n: 250 };
+// Options offered to Pro in the "questions counted" control. 0 = all-time.
+export const PRO_MASTERY_LASTN_CHOICES = [100, 250, 500, 1000, 0] as const;
+
+// Chronological sort by `createdAt`. Rows without one (localStorage entries
+// that predate id/timestamp stamping) sort oldest, matching how
+// `utils/progress.ts` treats timestamp-less rows — so they are the first
+// dropped once a `lastN` cap is exceeded.
+function byCreatedAtAsc(entries: HistoryEntry[]): HistoryEntry[] {
+  return [...entries].sort((a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? ''));
+}
+
+// Local-calendar-day bounds [start, nextDayStart) as ISO strings.
+function dayBoundsISO(dayISO: string): { fromISO: string; toISO: string } {
+  const d = new Date(dayISO);
+  const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  return { fromISO: start.toISOString(), toISO: end.toISOString() };
+}
+
+export function applyMasteryWindow(entries: HistoryEntry[], window: MasteryWindow): HistoryEntry[] {
+  if (window.kind === 'lastN') {
+    if (window.n <= 0) return entries;
+    return byCreatedAtAsc(entries).slice(-window.n);
+  }
+  const { fromISO, toISO } = window.kind === 'onDay' ? dayBoundsISO(window.dayISO) : window;
+  return entries.filter(e => e.createdAt != null && e.createdAt >= fromISO && e.createdAt < toISO);
+}
+
 // The instrument a stored `historyKey` belongs to. Guitar keys are unprefixed
 // and start with their comma-joined string list ("3,4|0-12|byFret|dots"); any
 // other leading `|`-segment is an explicit instrument id ("bass|3,4|…",

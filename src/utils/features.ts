@@ -7,7 +7,7 @@ import type { Tier } from './entitlement';
 
 export type Feature =
   | 'historyBeyond7Days'   // the Stats & Progress screen's "All time" scope + trends
-  | 'masteryMaps'          // fret/note "equalizer" overlays + their toggle
+  | 'masteryMaps'          // "questions counted" window control for the mastery overlay
   | 'allPersonalBests'     // browse bests across every settings combination
   | 'fretRange'            // the precise "fret N–M" window control in SelectorPanel
   | 'multiStringFull'      // multi-string drilling on more than FREE_MULTI_STRING_LIMIT strings
