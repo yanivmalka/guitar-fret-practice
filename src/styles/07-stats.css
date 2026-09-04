@@ -207,3 +207,9 @@
   font-size: 10px; color: #444; margin-top: 16px; font-family: monospace;
 }
 
+/* In the Account tab it sits at the very bottom of the section, so give it
+   a little breathing room and center it like a footer. */
+.account-build-info {
+  margin-top: 24px; text-align: center;
+}
+
