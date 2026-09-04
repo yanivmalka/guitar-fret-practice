@@ -19,8 +19,10 @@ Decisions locked in for this pass (from the product owner):
    client never talks to a payment SDK in this design.
 3. **Free history window: last 7 days, in the Stats & Progress screen only.** The app keeps
    recording, syncing *and restoring* the complete history for every signed-in user regardless of
-   tier. The 7-day limit is a **view filter over one screen** (`ProgressPanel` + the mastery
-   overlays), never a data cut and never a sync/restore limit. Rationale: the full history is
+   tier. The 7-day limit is a **view filter over one screen** (`ProgressPanel`), never a data cut
+   and never a sync/restore limit. (The in-game mastery overlays are **not** subject to this
+   window — see §5.2: free users get them over the last 250 questions, Pro picks the size.)
+   Rationale: the full history is
    already present the moment a user upgrades, the complete dataset is wanted for analytics, and
    XP / badges / the leaderboard must keep reading the whole set.
 4. **Cloud sync and multi-device restore stay free.** The full pull/merge/push in `utils/sync.ts`
@@ -73,7 +75,7 @@ free user. Everything here already exists in the codebase; this is gating work, 
 |---|---|---|
 | By-fret and by-note modes | `useGameEngine.ts` | unchanged |
 | Guitar and bass | `utils/instruments.ts` (`InstrumentId`) | unchanged — bass is **not** a Pro hook |
-| Single-string and multi-string selection, difficulty, Auto Advance | `useSelector.ts` | unchanged — multi-string is free on every tier |
+| Single-string selection, up to 2-string multi, difficulty, Auto Advance | `useSelector.ts` | Single-string is unchanged. Multi-string is **capped at 2 strings** (`FREE_MULTI_STRING_LIMIT`); reaching for a third opens the upgrade drawer. Drilling 3+ strings at once is `multiStringFull` (Pro). |
 | Fret-range half picker (0–12 / 12–max neck SVG) | `useSelector.ts`, `SelectorPanel.tsx` | unchanged — free for everyone. A future **precise** "fret N–M" range selector is the Pro feature (`fretRange`), not this. |
 | Scoring, streak, fire multiplier, celebrations, score-off "serious" mode | `useScoring.ts`, `utils/feedback.ts` | unchanged |
 | Notation A-B-C / Do-Re-Mi, circle / alphabetical order | `SelectorPanel.tsx`, `utils/music.ts` | unchanged |
@@ -92,9 +94,10 @@ free user. Everything here already exists in the codebase; this is gating work, 
 | Capability | Code today | What Pro unlocks |
 |---|---|---|
 | **Full practice history** | `ProgressPanel.tsx` | Removes the 7-day view filter — all-time history and trends across every settings combination. |
-| **Mastery maps** (fret / note "equalizer" overlays) | `utils/mastery.ts`, `App.tsx` `fretMasteryMap` / `noteMasteryMap`, the "Mastery on the fretboard" toggle in the Stats screen | The overlay + its toggle are Pro-only. A free user sees the toggle in a locked state with an upsell. |
+| **Mastery-map window size** | `utils/mastery.ts` `applyMasteryWindow` / `PRO_MASTERY_LASTN_CHOICES`, the "Questions counted" control in Settings | The overlay + its on/off toggle are **free** (last 250 questions). Pro unlocks the "Questions counted" control (100 / 250 / 500 / 1000 / All); a free user sees it locked with an upsell. |
 | **Browse personal bests across every combination** | `utils/personalBest.ts`, `ProgressPanel.tsx` "All bests" expander (`allBestsSummary`) | The current-combination best is free (see §2.1); the all-combinations list is Pro. |
-| **Precise fret-range selector** *(planned, not yet in the UI)* | `utils/features.ts` (`fretRange` reserved); future work in `useSelector.ts` / `SelectorPanel.tsx` | A fine "from fret N to fret M" range picker (not the free 0–12 / 12–max half-picker) will be Pro-only. The feature key is reserved now so the gate is ready when the UI lands. (Multi-string mode was freed after the initial pass and is no longer gated.) |
+| **Precise fret-range selector** *(planned, not yet in the UI)* | `utils/features.ts` (`fretRange` reserved); future work in `useSelector.ts` / `SelectorPanel.tsx` | A fine "from fret N to fret M" range picker (not the free 0–12 / 12–max half-picker) will be Pro-only. The feature key is reserved now so the gate is ready when the UI lands. |
+| **Multi-string beyond 2 strings** | `utils/features.ts` (`multiStringFull`), `useSelector.ts`, `SelectorPanel.tsx` | Free drills at most `FREE_MULTI_STRING_LIMIT` (2) strings at once; Pro lifts the cap to the instrument's full string count. `useSelector` clamps a Free user's pick at render time and opens the upgrade drawer when they tap a third string. |
 | **Personal voice profile + calibration** | `utils/voiceProfile.ts`, `VoiceCalibration.tsx`, `voiceSync.ts` | Creating/using a personal voice profile is Pro. Free keeps the generic engine. |
 | **No ads** | *(no ad code exists yet)* | If ads are ever added to Free, Pro removes them. Not built; listed so the tier promise is complete. |
 
@@ -104,8 +107,9 @@ Called out to prevent scope creep, all free on every tier:
 
 - bass, score-off mode, notation options, circle/alphabetical order, Auto Advance, onboarding /
   placement, offline / PWA, the Feedback Board;
-- **multi-string drilling mode** and **the 0–12 / 12–max fret-range half-picker** — both free on
-  every tier (a *precise* fret-range selector is a separate, unbuilt Pro feature; see §5.3);
+- **multi-string drilling up to 2 strings** and **the 0–12 / 12–max fret-range half-picker** — free
+  on every tier. Drilling 3+ strings at once is Pro (`multiStringFull`); a *precise* fret-range
+  selector is a separate, unbuilt Pro feature (see §5.3);
 - **cloud sync and full multi-device restore** of history, personal bests, settings and voice data;
 - **the leaderboard** — XP / questions / accuracy computed from the complete history and
   accumulated for all time, synced for every signed-in user;
@@ -276,7 +280,7 @@ import type { Tier } from './entitlement';
 
 export type Feature =
   | 'historyBeyond7Days'   // the Stats & Progress screen's "All time" scope + trends
-  | 'masteryMaps'          // fret/note "equalizer" overlays + their toggle
+  | 'masteryMaps'          // "questions counted" window control for the mastery overlay
   | 'allPersonalBests'     // browse bests across every settings combination
   | 'fretRange'            // planned: precise "fret N–M" range selector (not yet in the UI)
   | 'voiceProfile'         // personal voice profile + calibration
@@ -353,9 +357,9 @@ How each gate is actually applied, in the code that exists today.
 
 ### 5.1 7-day history view (`historyBeyond7Days`)
 
-- **Where:** `ProgressPanel.tsx` and the mastery aggregation in `App.tsx` **only**. Nothing else
-  applies the window — not `useHistory`, not `utils/sync.ts`, not `utils/leaderboard.ts`, not
-  `utils/badges.ts`.
+- **Where:** `ProgressPanel.tsx` **only**. Nothing else applies this window — not `useHistory`,
+  not `utils/sync.ts`, not `utils/leaderboard.ts`, not `utils/badges.ts`, and not the in-game
+  mastery overlays (those use their own `MasteryWindow`, §5.2).
 - **How:** a single helper in `src/utils/progress.ts`:
   ```ts
   export function withinFreeWindow(entries: HistoryEntry[]): HistoryEntry[] {
@@ -366,20 +370,29 @@ How each gate is actually applied, in the code that exists today.
   `ProgressPanel` applies it to the `history` prop it derives stats from **unless `isPro`**. The
   "All time" scope for a free user is relabelled "Last 7 days" and either hidden or shown behind a
   `<ProGate variant="overlay">`. The "This setup" scope also clips to 7 days for free.
-- **Mastery overlays:** see §5.2 — for free they are hidden entirely, so the window question is
-  moot there; when a Pro user is present the aggregation reads the full set as today.
+- **Mastery overlays:** see §5.2 — they are free and use their own last-N `MasteryWindow`, not
+  this 7-day filter.
 - **Legacy rows without `createdAt`:** excluded from the free window (same as `dailyStats`
-  already does). They stay in storage and appear on upgrade.
+  already does). They stay in storage and appear on upgrade. `applyMasteryWindow` likewise sorts
+  them oldest, so they drop out first once a `lastN` cap is reached.
 - **Data:** untouched. `useHistory.addEntry`, the full `bootstrapUser` / `reconcileUser` restore,
   and every `utils/sync.ts` path keep writing, syncing and restoring every row on every tier.
 
-### 5.2 Mastery maps (`masteryMaps`)
+### 5.2 Mastery maps (`masteryMaps`) — overlay freed, window-size control is Pro
 
 - **Where:** `App.tsx` builds `fretMasteryMap` / `noteMasteryMap` from
-  `historyForInstrument(...)`; the "Mastery on the fretboard" toggle lives in the Stats screen.
-- **How:** when `!isPro`, force the overlay off and wrap the toggle in
-  `<ProGate variant="overlay" feature="masteryMaps">`. The maps are still *computed* lazily only
-  when shown, so gating is just "don't render, show upsell".
+  `applyMasteryWindow(historyForInstrument(...), window)`; the "Mastery on the fretboard" on/off
+  toggle and the new "Questions counted" control both live in the Settings screen.
+- **Free:** the overlay itself and its on/off toggle are **not gated** (revised from the initial
+  pass). Free users always see it computed from `FREE_MASTERY_WINDOW` — the last 250 questions for
+  the current instrument, across every settings combination.
+- **Pro:** the "Questions counted" control (`<ProGate feature="masteryMaps" variant="replace">`)
+  picks the window from `PRO_MASTERY_LASTN_CHOICES` — 100 / 250 / 500 / 1000 / All. The choice is
+  stored as a `MasteryWindow` object under `pref_masteryWindow` (synced key). `MasteryWindow` also
+  defines `dateRange` / `onDay` variants that `applyMasteryWindow` already honours, reserved for a
+  future Pro "how was I on that day" picker (no UI yet).
+- **How:** `App.tsx` computes `effectiveMasteryWindow = isPro ? masteryWindow : FREE_MASTERY_WINDOW`
+  and the maps are still built lazily via `useMemo`.
 
 ### 5.3 Fret-range selection (`fretRange`) — reserved, UI not built
 
@@ -475,15 +488,15 @@ The crux of decision #3. Restating the contract precisely:
 | Server retains the complete history indefinitely | **yes** | n/a | yes |
 | New device restores the **full** history from cloud | **yes** | n/a | yes |
 | History drawn in the Stats & Progress screen | last 7 days | last 7 days | all-time |
-| Mastery maps | no | no | yes |
+| In-game mastery overlay | last 250 questions | last 250 questions | configurable (100–All) |
 | XP / leaderboard / badges read | full history | full history | full history |
 | Personal best for the current combination | yes | yes | yes |
 | Browse bests across all combinations | no | no | yes |
 
 So: a signed-in free user's data is **completely preserved and fully restored** on every device.
-The single limitation is that one screen (Stats & Progress) and the mastery overlays render a
-7-day slice. Upgrading to Pro makes the already-present full history and maps visible immediately
-with no backfill step.
+The single limitation is that one screen (Stats & Progress) renders a 7-day slice for free users.
+Upgrading to Pro makes the already-present full history visible immediately with no backfill step,
+and unlocks the mastery-overlay window-size control (the overlay itself is free, last 250).
 
 A guest (never signed in) is the only case with no server copy — unavoidable, and an incentive to
 sign in, which is itself free.
@@ -613,8 +626,9 @@ user base there is no comms decision blocking it.
   backfill, no transition comms. (§8)
 - *Does `admin` imply Pro?* → **no.** `admin` and `tier` stay independent; a dev-only "simulate
   Pro" toggle in the debug panel covers testing. (§9)
-- *Free history window* → last 7 days, **Stats & Progress screen + mastery overlays only**. Sync,
-  restore, XP, badges, current-combo best all read the full history on every tier.
+- *Free history window* → last 7 days, **Stats & Progress screen only**. Sync, restore, XP,
+  badges, current-combo best, and the in-game mastery overlays all read outside that window on
+  every tier (the overlays use their own last-250 `MasteryWindow` for free users).
 - *Multi-device restore* → **not gated.** Full restore for every signed-in user; "restore" is no
   longer a Pro differentiator.
 - *Guest → account merge* → **explicit prompt** ("Merge my progress" / "Use account only"),
