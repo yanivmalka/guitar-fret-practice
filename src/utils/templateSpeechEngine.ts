@@ -417,7 +417,13 @@ export class TemplateSpeechEngine implements SpeechEngine {
     let usedSplit = false;
 
     {
-      const forcedSegs = segmentUtterance(captured.pcm, captured.sampleRate, { split: 'always' });
+      // Split *segment 0*, not the whole capture. Passing the capture back to
+      // `segmentUtterance` only re-runs the same analysis: when it already
+      // found two voiced runs it returns those two again, so the "alternative"
+      // was identical to the reading it was meant to challenge — visible in
+      // the log as `forcedMs` matching `segMs` exactly on every two-segment
+      // turn. Segment 0 is the run that may hold a merged "F sharp".
+      const forcedSegs = segmentUtterance(rawSegs[0], captured.sampleRate, { split: 'always' });
       const forced = forcedSegs
         .map((s) => computeMfcc(s, captured.sampleRate).frames)
         .filter((f) => f.length);
