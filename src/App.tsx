@@ -18,9 +18,9 @@ import AnimatedScore from './components/AnimatedScore';
 import { displayNote, setActiveInstrument } from './utils/music';
 import type { HistoryEntry, AccidentalMode, OrderMode, NotationMode } from './utils/music';
 import { getInstrument, COMING_SOON_INSTRUMENTS, type InstrumentId } from './utils/instruments';
-import { preloadAllSamples, unlockAudio, setAudioInstrument } from './utils/audio';
+import { preloadAllSamples, unlockAudio, setAudioInstrument, setSilent as setAudioSilent } from './utils/audio';
 import { App as CapacitorApp } from '@capacitor/app';
-import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3 } from './utils/feedback';
+import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3, setSilent as setFeedbackSilent } from './utils/feedback';
 import { loadSetting, saveSetting } from './utils/settings';
 import { loadBest, saveBest, loadAllBests, writeAllBests } from './utils/personalBest';
 import { historyForInstrument, flattenHistory, fretMasteryMap, noteMasteryMap, type MasteryStat } from './utils/mastery';
@@ -160,11 +160,20 @@ export default function App() {
   // circle/grid while stopped or paused. Off = a clean fretboard at rest; every
   // answer is still recorded and mastery keeps accumulating either way.
   const [showMastery, setShowMastery] = useState(() => loadSetting('pref_showMastery', true));
+  // Silent mode: mute the drill's content audio (question note + correct chime
+  // + celebration tones) while keeping UI clicks, haptics and every on-screen
+  // celebration. For practising with headphones off or a real guitar in hand.
+  const [silentMode, setSilentMode] = useState(() => loadSetting('pref_silentMode', false));
   // Whether the signed-in user has hidden themselves from the public
   // leaderboard. Default false = a signed-in player is listed automatically.
   const [leaderboardOptOut, setLeaderboardOptOut] = useState(() =>
     loadSetting('pref_leaderboardOptOut', false),
   );
+
+  useEffect(() => {
+    setAudioSilent(silentMode);
+    setFeedbackSilent(silentMode);
+  }, [silentMode]);
 
   const historyOps = useHistory();
   const histKey = selector.historyKey();
@@ -1177,6 +1186,20 @@ export default function App() {
                 { value: 'off', label: t('Off') },
               ]}
               onChange={(v) => { const on = v === 'on'; setShowScore(on); saveSetting('pref_showScore', on); }}
+            />
+          </SettingCard>
+          <SettingCard
+            label={t('Silent mode')}
+            help={t('Visual-only questions — no note playback or chime. Haptics and on-screen celebrations stay on. Great for practising with headphones off or a guitar in hand.')}
+          >
+            <SegmentedControl
+              ariaLabel={t('Silent mode')}
+              value={silentMode ? 'on' : 'off'}
+              options={[
+                { value: 'on', label: t('On') },
+                { value: 'off', label: t('Off') },
+              ]}
+              onChange={(v) => { const on = v === 'on'; setSilentMode(on); saveSetting('pref_silentMode', on); }}
             />
           </SettingCard>
           <SettingCard label={t('Language')}>

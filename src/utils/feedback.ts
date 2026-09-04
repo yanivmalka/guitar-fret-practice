@@ -11,6 +11,14 @@ export const haptic = {
   tap:         () => vibrate(10),
 };
 
+// Silent mode: mutes the drill's *content* audio — the correct-answer chime,
+// the badge fanfare and the ascending tone inside the tier-3 celebration. UI
+// sounds (click / toggle / stick click), haptics and every on-screen
+// celebration keep working. Toggled from App.tsx; audio.ts carries its own
+// copy of this flag for the question note.
+let _silent = false;
+export function setSilent(v: boolean) { _silent = v; }
+
 // UI click sound — tiny oscillator burst (~20ms), no audio file needed
 let _audioCtx: AudioContext | null = null;
 function getCtx(): AudioContext | null {
@@ -125,6 +133,7 @@ const CHIME_GAP = 0.1;      // extra silence held after the tail before the next
 let _chimeEndTime = 0;      // wall-clock ms when the chime has fully finished (incl. CHIME_GAP)
 
 export function playCorrectChime() {
+  if (_silent) return;
   const ctx = getCtx();
   if (!ctx) return;
   if (ctx.state === 'suspended') ctx.resume();
@@ -157,6 +166,7 @@ export function correctChimeRemainingMs(): number {
 // Used by the achievement toast and the end-of-round reveal. Reuses the shared
 // AudioContext so it stays audible on mobile like the other feedback sounds.
 export function playBadgeFanfare() {
+  if (_silent) return;
   const ctx = getCtx();
   if (!ctx) return;
   if (ctx.state === 'suspended') ctx.resume();
@@ -338,23 +348,26 @@ export function celebrateTier3(score: number, streak: number, onComplete?: () =>
   
   document.body.appendChild(card);
   
-  // Play ascending tone sequence
-  const ctx = getCtx();
-  if (ctx && ctx.state !== 'suspended') {
-    [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.value = freq;
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      const t = ctx.currentTime + i * 0.15;
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(0.1, t + 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-      osc.start(t);
-      osc.stop(t + 0.5);
-    });
+  // Play ascending tone sequence (drill content — muted in Silent mode; the
+  // card, haptic and close handler below still run).
+  if (!_silent) {
+    const ctx = getCtx();
+    if (ctx && ctx.state !== 'suspended') {
+      [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        const t = ctx.currentTime + i * 0.15;
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.1, t + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+        osc.start(t);
+        osc.stop(t + 0.5);
+      });
+    }
   }
   
   // Haptic: long pulse

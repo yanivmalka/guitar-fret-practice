@@ -17,6 +17,12 @@ export function setAudioInstrument(cfg: {
   maxFret = cfg.maxFret;
 }
 
+// Silent mode: mutes the drill's *content* audio (the question note and the
+// beep). UI clicks, haptics and on-screen celebrations are unaffected — those
+// live in feedback.ts and keep their own flag. Toggled from App.tsx.
+let _silent = false;
+export function setSilent(v: boolean) { _silent = v; }
+
 // Keyed by soundfont URL + note name: two instruments can need the same pitch
 // from different soundfonts, so the URL must be part of the key.
 const cache: Record<string, AudioBuffer> = {};
@@ -79,6 +85,7 @@ export function soundRemainingMs(): number {
 }
 
 export async function playNote(stringNum: number, fret: number, rate = 1) {
+  if (_silent) return;
   stopPlayback();
   const ctx = getCtx();
   if (ctx.state === 'suspended') await ctx.resume();
@@ -116,6 +123,7 @@ export async function playNote(stringNum: number, fret: number, rate = 1) {
 }
 
 export function beep() {
+  if (_silent) return;
   const ctx = getCtx();
   if (ctx.state === 'suspended') ctx.resume();
   const osc = ctx.createOscillator();
@@ -130,6 +138,7 @@ export function beep() {
 }
 
 export async function playNoteSingle(stringNum: number, fret: number, rate = 1) {
+  if (_silent) return;
   stopPlayback();
   const ctx = getCtx();
   if (ctx.state === 'suspended') await ctx.resume();
@@ -151,6 +160,7 @@ export async function playNoteSingle(stringNum: number, fret: number, rate = 1) 
 }
 
 export async function playNoteSequence(stringNum: number, frets: number[], totalMs: number) {
+  if (_silent) return;
   stopPlayback();
   const ctx = getCtx();
   if (ctx.state === 'suspended') await ctx.resume();
