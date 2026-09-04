@@ -12,6 +12,8 @@
 // It intentionally does NOT go through the Web Speech API or any network —
 // that is the whole point of the personal-profile path.
 
+import { vlog } from './debugLog';
+
 export interface CapturedUtterance {
   pcm: Float32Array;
   sampleRate: number;
@@ -138,6 +140,7 @@ export async function captureUtterance(
   let noiseSamples = 0;
   let silenceRun = 0;
   let speechSamples = 0;
+  let peak = 0;
 
   return await new Promise<CapturedUtterance | null>((resolve) => {
     let done = false;
@@ -202,6 +205,7 @@ export async function captureUtterance(
 
       speech.push(new Float32Array(block));
       speechSamples += block.length;
+      if (rms > peak) peak = rms;
 
       const gate = Math.max(0.010, noiseFloor * 2.5);
       if (rms < gate) {
@@ -213,6 +217,18 @@ export async function captureUtterance(
       const trailing = (cfg.trailingSilenceMs / 1000) * sampleRate;
       const cap = (cfg.maxSpeechMs / 1000) * sampleRate;
       if (silenceRun >= trailing || speechSamples >= cap) {
+        // Why the recording stopped, and the levels that decided it. Ending
+        // on 'cap' means the level never fell below `gate` for long enough —
+        // with people talking nearby it never does, and the segmenter is
+        // then handed seconds of audio instead of one spoken word.
+        vlog('[voice] vad', {
+          reason: silenceRun >= trailing ? 'silence' : 'cap',
+          ms: Math.round((speechSamples / sampleRate) * 1000),
+          noiseFloor: +noiseFloor.toFixed(4),
+          gate: +gate.toFixed(4),
+          peak: +peak.toFixed(4),
+          peakOverGate: +(peak / gate).toFixed(1),
+        });
         const pcm = new Float32Array(speechSamples);
         let off = 0;
         for (const b of speech) { pcm.set(b, off); off += b.length; }
