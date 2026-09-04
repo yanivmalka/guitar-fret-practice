@@ -432,6 +432,10 @@ export function useGameEngine(
     const correctNote = notes[qString - 1][currentFret];
     const cof = getCofNotes(accidental, order, false);
     const isCorrect = notesMatch(selectedNote, correctNote);
+    // Voice diagnosis needs to tell "the recogniser heard the wrong note"
+    // apart from "it heard the right note and the answer was wrong", and the
+    // recogniser's own log lines can't say which. Record the verdict here.
+    vlog('[voice] scored', { selectedNote, correctNote, isCorrect });
     const elapsed = (Date.now() - questionStartRef.current) / 1000;
     if (isCorrect) {
       scoreCorrect(elapsed);
