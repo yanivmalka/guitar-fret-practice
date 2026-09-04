@@ -398,23 +398,30 @@ export class TemplateSpeechEngine implements SpeechEngine {
       return best.label;
     };
 
-    // When the segmenter returned a single segment it may have merged
-    // "F sharp" into one run — duration alone cannot tell that from a single
-    // drawn-out letter (see the note in `segmentUtterance`). Rather than
-    // trust a threshold, score the split reading too and keep whichever
-    // interpretation the matcher likes better. `letterFrames` is the frames
-    // the letter stage should use; `accFrames` the accidental stage's, if any.
+    // The segmenter's own reading of the utterance is only a hypothesis, and
+    // duration cannot tell a merged "F sharp" from one drawn-out letter (see
+    // the note in `segmentUtterance`). So always score the alternative —
+    // segment 0 split in two — and keep whichever the matcher prefers.
+    //
+    // This runs whatever the segmenter returned, not only for a lone
+    // segment. A fluent "F sharp" was twice cut as [600ms, 80ms]: the whole
+    // pair in segment 0 and a trailing fragment as the "accidental", which
+    // the accidental cap then rightly rejected — costing the round, even
+    // though splitting segment 0 was the correct reading and was right
+    // there to be scored.
+    //
+    // `letterFrames` is what the letter stage should match; `accFrames` the
+    // accidental stage's, if any.
     let letterFrames = segFrames[0];
     let accFrames: Float32Array[] | null = segFrames[1] ?? null;
-    let splitTried = false;
+    let usedSplit = false;
 
-    if (segFrames.length === 1) {
+    {
       const forcedSegs = segmentUtterance(captured.pcm, captured.sampleRate, { split: 'always' });
       const forced = forcedSegs
         .map((s) => computeMfcc(s, captured.sampleRate).frames)
         .filter((f) => f.length);
       if (forced.length >= 2) {
-        splitTried = true;
         const whole = matchTemplates(segFrames[0], letters)[0];
         const half = matchTemplates(forced[0], letters)[0];
         // A genuine single letter cut in half still matches its own label,
@@ -431,6 +438,7 @@ export class TemplateSpeechEngine implements SpeechEngine {
         if (better && accPlausible) {
           letterFrames = forced[0];
           accFrames = forced[1];
+          usedSplit = true;
         }
         vlog('[voice] split hypothesis', {
           engine: this.kind,
@@ -469,7 +477,7 @@ export class TemplateSpeechEngine implements SpeechEngine {
       pool: { letters: letters.length, accidentals: accidentals.length },
       ms: +(performance.now() - t0).toFixed(1),
       capturedMs: ms(captured.pcm.length), segMs,
-      splitTried, usedSplit: segFrames.length === 1 && !!accFrames,
+      usedSplit,
       // Every letter, not just the top two: when the wrong one wins it
       // matters whether the right one was second or last.
       letters: lRanked.map((r) => `${r.label}:${r.distance.toFixed(1)}`).join(' '),

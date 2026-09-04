@@ -67,7 +67,22 @@ Bugs or behavior the product already promises but doesn't deliver.
 
   **Files touched:** `src/utils/mastery.ts` (2 new helpers), `src/App.tsx` (1 call + deps), `src/components/ProgressPanel.tsx` (1 call + caption), `src/utils/progress.ts` (`allBestsSummary` optional filter). No `HistoryEntry` field, no schema/migration.
 
-**Section status: cleared.** All four items above are now resolved (three delivered, one closed by removing the dead code rather than building the behavior — see its note).
+- **The personal voice profile never runs inside the Android app.** `getSpeechEngine()` in `src/utils/speech.ts` opens with `if (isCapacitorNative()) { cached = new NativeSpeechEngine(); }`, before the user's `pref_voiceEngine` setting is consulted at all. Inside the APK the recogniser is therefore always Google's, and the on-device template engines never load. The Settings screen still offers the **Voice engine** picker (Auto / Personal / General / Web) and **Calibrate my voice** there, so a user can complete a nine-word calibration on the platform the product is actually heading for and have it change nothing. This is squarely "behavior the product already promises but doesn't deliver".
+
+  It matters more than it did: the personal-profile path has now been measured working. After the calibration/question-time preprocessing was made symmetric (`Trim calibration takes the way question-time segments are trimmed`) and the segmenter stopped being trusted to decide word boundaries (`Score both readings of a merged utterance instead of trusting the splitter`), a controlled desktop session — three "C", three "G", three fluent "F sharp" — recognised **9 of 9**, with letter distances of 10–20 and the accidental stage clearing at 11.5–12.2 against a 25 ceiling. That is the engine the Android build cannot reach.
+
+  ### Implementation plan — let the engine preference win on native
+
+  **Goal:** a calibrated personal profile is used inside the Android app, and the engine picker means what it says on every platform.
+
+  - **`src/utils/speech.ts`, `getSpeechEngine()`:** stop short-circuiting on `isCapacitorNative()`. Fold native into the same preference ladder the web already uses: `pref === 'profile'` → the profile engine when `canProfile`; `pref === 'general'` → the template engine; `pref === 'web'` → `NativeSpeechEngine` on native (it is the platform recogniser there, the counterpart of Web Speech); `'auto'` → personal profile when one is calibrated, otherwise `NativeSpeechEngine` rather than the bundled synthetic set, which is a much weaker fallback than Google's recogniser and has no advantage on a platform where the native path exists.
+  - **Verify `getUserMedia` inside the Capacitor WebView.** The template engines need `navigator.mediaDevices.getUserMedia` and an `AudioContext`, not just the speech plugin's `RECORD_AUDIO` grant. Android WebView also requires the host activity to answer `onPermissionRequest` before the WebView is allowed the microphone. **This must be confirmed on a device, not assumed** — if it does not work, the whole item is blocked and the plan needs rethinking, so check it before touching the selection logic. `TemplateSpeechEngine.checkPermission()`/`requestPermission()` go through `navigator.permissions` and `getUserMedia`, both of which behave differently in a WebView than in Chrome.
+  - **`createDictationEngine()` keeps its native short-circuit** — free-text dictation genuinely wants the platform recogniser, not a twelve-word template matcher.
+  - **Silent fallback needs a UI signal (see the separate note below).** Choosing "Personal" on a device where the profile is not ready currently drops to another engine with nothing shown; on Android that would be indistinguishable from this bug.
+
+- **Choosing "Personal" silently falls back to another engine.** `getSpeechEngine()` demotes to the general template engine (web) whenever `isProfileReady()` is false, and `recomputeReady()` requires all nine labels at `SAMPLES_PER_LABEL` recordings each. An interrupted calibration, or takes rejected by the noise gate, therefore leave the user on a different recogniser than the one they picked, with no indication anywhere in the UI. This was hit during voice debugging: a full session was recorded, analysed and reported against the wrong engine before the `engine:` field in the debug log gave it away. The Settings screen should show which recogniser is actually active, and say when the personal profile is incomplete and why.
+
+**Section status:** the original four items are resolved (three delivered, one closed by removing the dead code rather than building the behavior — see its note). The two voice items above were added later and are open.
 
 ---
 
