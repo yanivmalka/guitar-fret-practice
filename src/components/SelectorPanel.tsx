@@ -4,7 +4,6 @@ import { displayNote } from '../utils/music';
 import type { InstrumentConfig } from '../utils/instruments';
 import { playClickSound, playToggleOnSound, playToggleOffSound } from '../utils/feedback';
 import { useTranslation } from '../i18n/useTranslation';
-import { ProGate } from './ProGate';
 
 interface SelectorPanelProps {
   selector: SelectorState;
@@ -209,9 +208,7 @@ export default function SelectorPanel({
         {strings.map(({ label, num }) => (
           <button key={num} className={`string-pill ${selector.selectedStrings.includes(num) ? 'active' : ''}`} onClick={() => { if (selector.selectedStrings.includes(num)) playToggleOffSound(); else playToggleOnSound(); onStringSelect(num); }}>{label}</button>
         ))}
-        <ProGate feature="multiString" variant="inline-badge" pitch={t('Multi-string drilling mode')}>
-          <button className={`string-pill string-pill-toggle ${selector.multiMode ? 'active' : ''}`} onClick={() => { if (selector.multiMode) playToggleOffSound(); else playToggleOnSound(); onMultiToggle(); }}>{t('Multi')}</button>
-        </ProGate>
+        <button className={`string-pill string-pill-toggle ${selector.multiMode ? 'active' : ''}`} onClick={() => { if (selector.multiMode) playToggleOffSound(); else playToggleOnSound(); onMultiToggle(); }}>{t('Multi')}</button>
       </div>
 
       {/* ── ModeToggle with order options between cards ── */}
@@ -263,6 +260,9 @@ export default function SelectorPanel({
       </div>
 
       {/* ── FretRangeNeck SVG ─────────────────────────────── */}
+      {/* This 0–12 / 12–max half-picker is free for everyone. A finer
+          "fret N to fret M" range selector is planned as a Pro feature
+          (`fretRange` in utils/features.ts) but is not surfaced yet. */}
       <div className="fret-neck">
         <svg viewBox={`${fbLeft - 5} ${FB_TOP - 3} ${NECK_RIGHT - fbLeft + 12} ${FB_HEIGHT + 16}`} aria-label={`${t(instrument.label)} ${t('neck fret range selector')}`}>
           {/* Fretboard — only covers where frets actually are */}

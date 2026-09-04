@@ -205,6 +205,14 @@ working. **Read `design.md` for the "why" and the full code sketches** — this 
 **Goal:** multi-string, mastery maps, and voice profile are Pro-gated. Self-contained, easy to
 verify.
 
+> **SUPERSEDED (later change):** multi-string was freed on every tier — the multi toggle in
+> `SelectorPanel` is no longer gated, `useSelector` derives `multiStrings` regardless of tier and
+> no longer takes an `isPro` argument, and the `multiString` feature key was renamed to
+> `fretRange`. `fretRange` is now **reserved** (`MIN_TIER.fretRange = 'pro'`) for a *future*
+> precise "fret N–M" range selector that is not built yet; the existing free 0–12 / 12–max
+> half-picker is not gated. The items below describe the original multi-string gate as it shipped
+> in `3f3da95`.
+
 ### 3.1 — Multi-string (`multiString`) — `design.md` §5.3
 
 - [x] [src/components/SelectorPanel.tsx](src/components/SelectorPanel.tsx): the multi-string

@@ -486,7 +486,6 @@ const he: Record<string, string> = {
     'מפות שליטה — שכבות דיוק לכל תו ולכל סריג על גבי הגלגל והרשת.',
   'Browse your personal bests across every settings combination':
     'עיון בשיאים האישיים שלך בכל צירוף הגדרות.',
-  'Multi-string drilling mode': 'מצב תרגול רב־מיתרי.',
   'A personal voice profile built from your own calibration recordings':
     'פרופיל קול אישי הנבנה מהקלטות הכיול שלך.',
   'Your Pro access is complimentary.': 'גישת ה־Pro שלך ניתנה ללא תשלום.',

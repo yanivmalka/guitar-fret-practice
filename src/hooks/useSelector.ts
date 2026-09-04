@@ -130,7 +130,7 @@ function runQuestions(seq: StageStep[], state: SelectorState): number {
 
 // ── Hook ─────────────────────────────────────────────────────────────────
 
-export function useSelector(instrument: InstrumentConfig, isPro: boolean) {
+export function useSelector(instrument: InstrumentConfig) {
   const [selectedStrings, setSelectedStrings] = useState<number[]>(
     () => loadStrings(instrument)
   );
@@ -292,11 +292,8 @@ export function useSelector(instrument: InstrumentConfig, isPro: boolean) {
   const safeKey = safeStrings.join(',');
   const derivedSettings: DerivedSettings = useMemo(() => {
     const guitarString = Math.max(...safeStrings);
-    // Multi-string is Pro-gated (spec free-pro-tiering §5.3). A free user with
-    // `multiMode` still persisted (set before the gate, or kept so it comes
-    // back on upgrade) drills single-string: the derivation clamps to `[]`
-    // here, and the stored `multiMode` setting is deliberately left untouched.
-    const multiStrings = (isPro && multiMode && safeStrings.length > 1)
+    // Multi-string drilling is free on every tier.
+    const multiStrings = (multiMode && safeStrings.length > 1)
       ? safeStrings
       : [];
     const fretFrom = lowerActive ? 0 : 12;
@@ -325,7 +322,7 @@ export function useSelector(instrument: InstrumentConfig, isPro: boolean) {
       order,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [safeKey, multiMode, mode, lowerActive, upperActive, difficulty, instrument, isPro]);
+  }, [safeKey, multiMode, mode, lowerActive, upperActive, difficulty, instrument]);
 
   // ── Return ─────────────────────────────────────────────────────────
 

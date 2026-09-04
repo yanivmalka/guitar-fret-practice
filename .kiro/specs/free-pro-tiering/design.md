@@ -73,7 +73,8 @@ free user. Everything here already exists in the codebase; this is gating work, 
 |---|---|---|
 | By-fret and by-note modes | `useGameEngine.ts` | unchanged |
 | Guitar and bass | `utils/instruments.ts` (`InstrumentId`) | unchanged — bass is **not** a Pro hook |
-| Single-string selection, fret-range halves, difficulty, Auto Advance | `useSelector.ts` | unchanged |
+| Single-string and multi-string selection, difficulty, Auto Advance | `useSelector.ts` | unchanged — multi-string is free on every tier |
+| Fret-range half picker (0–12 / 12–max neck SVG) | `useSelector.ts`, `SelectorPanel.tsx` | unchanged — free for everyone. A future **precise** "fret N–M" range selector is the Pro feature (`fretRange`), not this. |
 | Scoring, streak, fire multiplier, celebrations, score-off "serious" mode | `useScoring.ts`, `utils/feedback.ts` | unchanged |
 | Notation A-B-C / Do-Re-Mi, circle / alphabetical order | `SelectorPanel.tsx`, `utils/music.ts` | unchanged |
 | Badges / Achievements wall | `utils/badges.ts`, `BadgeGrid.tsx` | unchanged — earned on any tier |
@@ -93,7 +94,7 @@ free user. Everything here already exists in the codebase; this is gating work, 
 | **Full practice history** | `ProgressPanel.tsx` | Removes the 7-day view filter — all-time history and trends across every settings combination. |
 | **Mastery maps** (fret / note "equalizer" overlays) | `utils/mastery.ts`, `App.tsx` `fretMasteryMap` / `noteMasteryMap`, the "Mastery on the fretboard" toggle in the Stats screen | The overlay + its toggle are Pro-only. A free user sees the toggle in a locked state with an upsell. |
 | **Browse personal bests across every combination** | `utils/personalBest.ts`, `ProgressPanel.tsx` "All bests" expander (`allBestsSummary`) | The current-combination best is free (see §2.1); the all-combinations list is Pro. |
-| **Multi-string mode** | `useSelector.ts` (`multiMode`, `multiStrings`), `SelectorPanel.tsx` | The multi-string toggle is Pro-only; free is single-string. |
+| **Precise fret-range selector** *(planned, not yet in the UI)* | `utils/features.ts` (`fretRange` reserved); future work in `useSelector.ts` / `SelectorPanel.tsx` | A fine "from fret N to fret M" range picker (not the free 0–12 / 12–max half-picker) will be Pro-only. The feature key is reserved now so the gate is ready when the UI lands. (Multi-string mode was freed after the initial pass and is no longer gated.) |
 | **Personal voice profile + calibration** | `utils/voiceProfile.ts`, `VoiceCalibration.tsx`, `voiceSync.ts` | Creating/using a personal voice profile is Pro. Free keeps the generic engine. |
 | **No ads** | *(no ad code exists yet)* | If ads are ever added to Free, Pro removes them. Not built; listed so the tier promise is complete. |
 
@@ -103,6 +104,8 @@ Called out to prevent scope creep, all free on every tier:
 
 - bass, score-off mode, notation options, circle/alphabetical order, Auto Advance, onboarding /
   placement, offline / PWA, the Feedback Board;
+- **multi-string drilling mode** and **the 0–12 / 12–max fret-range half-picker** — both free on
+  every tier (a *precise* fret-range selector is a separate, unbuilt Pro feature; see §5.3);
 - **cloud sync and full multi-device restore** of history, personal bests, settings and voice data;
 - **the leaderboard** — XP / questions / accuracy computed from the complete history and
   accumulated for all time, synced for every signed-in user;
@@ -275,7 +278,7 @@ export type Feature =
   | 'historyBeyond7Days'   // the Stats & Progress screen's "All time" scope + trends
   | 'masteryMaps'          // fret/note "equalizer" overlays + their toggle
   | 'allPersonalBests'     // browse bests across every settings combination
-  | 'multiString'          // multi-string drilling mode
+  | 'fretRange'            // planned: precise "fret N–M" range selector (not yet in the UI)
   | 'voiceProfile'         // personal voice profile + calibration
   | 'noAds';               // future: suppress Free-tier ads
 
@@ -283,12 +286,14 @@ const MIN_TIER: Record<Feature, Tier> = {
   historyBeyond7Days: 'pro',
   masteryMaps:        'pro',
   allPersonalBests:   'pro',
-  multiString:        'pro',
+  fretRange:          'pro',
   voiceProfile:       'pro',
   noAds:              'pro',
 };
-// NOT in this map on purpose: cloud sync / multi-device restore, leaderboard
-// XP, badges, and the current-combination personal best are free on every tier.
+// `fretRange` is reserved ahead of its UI — the free 0–12 / 12–max half-picker
+// is NOT this feature. NOT in this map on purpose: cloud sync / multi-device
+// restore, leaderboard XP, badges, the current-combination personal best, the
+// half-picker, and multi-string drilling mode are free on every tier.
 
 const RANK: Record<Tier, number> = { free: 0, pro: 1 };
 
@@ -324,8 +329,8 @@ interface ProGateProps {
   history panel, the mastery toggle).
 - `replace` — render only the upsell card instead of `children` (for a whole Pro-only section).
 - `inline-badge` — render `children` fully but add a small "Pro" pill and route the control's
-  activation through the upsell (for the multi-string toggle: a free user can see it, tapping it
-  opens the upsell instead of enabling the mode).
+  activation through the upsell (a free user can see the control, tapping it opens the upsell
+  instead of activating it).
 
 All three reuse the existing `SettingCard` / drawer-page styling and the celebration/`prefers-
 reduced-motion` conventions. Copy is short and non-nagging; the app's tone (see the Hebrew
@@ -376,15 +381,21 @@ How each gate is actually applied, in the code that exists today.
   `<ProGate variant="overlay" feature="masteryMaps">`. The maps are still *computed* lazily only
   when shown, so gating is just "don't render, show upsell".
 
-### 5.3 Multi-string mode (`multiString`)
+### 5.3 Fret-range selection (`fretRange`) — reserved, UI not built
 
-- **Where:** `useSelector.ts` (`multiMode` persisted setting, `multiStrings` derived),
-  `SelectorPanel.tsx` toggle.
-- **How:** `SelectorPanel` receives `isPro`; the multi-string toggle uses
-  `<ProGate variant="inline-badge">`. If a free user already has `multiMode = true` persisted
-  (set before they were on Free, or via grandfathering), `useSelector`'s derivation clamps to
-  single-string when `!isPro` — the stored preference is kept, not overwritten, so it reactivates
-  on upgrade.
+- **Free today:** the 0–12 / 12–max half-picker (the neck SVG in `SelectorPanel.tsx`, driven by
+  `lowerActive` / `upperActive` in `useSelector.ts`) is **not gated** — every tier can pick a
+  half, both halves, or the full neck, and `useSelector`'s derivation is tier-independent.
+- **Planned Pro feature:** a *precise* range picker — choose an arbitrary "from fret N to fret M"
+  window rather than just a half. This is not surfaced to users yet.
+- **What exists now:** only the `fretRange` key in `utils/features.ts` (`MIN_TIER.fretRange =
+  'pro'`), reserved so the gate is ready. When the UI is built it wraps the new control in
+  `<ProGate feature="fretRange">` and `useSelector` clamps the derived `fretFrom` / `fretTo` (and
+  the `getTime` input) for `!isPro`, keeping the stored window so it reactivates on upgrade.
+- **Note:** multi-string mode was Pro-gated in the initial pass (`multiString` feature) and has
+  since been freed — the multi toggle in `SelectorPanel` is ungated and `multiStrings` is derived
+  on every tier. `useSelector` no longer takes `isPro`; it will be re-threaded when the precise
+  range picker lands.
 
 ### 5.4 Cloud sync, multi-device restore & the guest-merge prompt
 
@@ -564,8 +575,9 @@ Each phase is independently shippable and leaves the app working.
    `utils/features.ts`; `components/ProGate.tsx` (three variants); `<UpgradeCard>`; the
    `id: 'upgrade'` drawer section with a placeholder CTA; i18n strings. Still nothing gated.
 3. **Gate the low-risk toggles.**
-   Multi-string (`SelectorPanel` + `useSelector` clamp), mastery maps (`App.tsx` + Stats toggle),
-   voice profile (`VoiceCalibration` entry points). These are self-contained and easy to verify.
+   Mastery maps (`App.tsx` + Stats toggle) and voice profile (`VoiceCalibration` entry points).
+   These are self-contained and easy to verify. (Multi-string was gated here originally and has
+   since been freed; the `fretRange` gate is reserved for a not-yet-built precise range picker.)
 4. **Gate the history view.**
    `withinFreeWindow` in `utils/progress.ts`; apply in `ProgressPanel` (and, only while a Pro user
    is present, leave the `App.tsx` mastery aggregation full) behind `isPro`; relabel scopes; wrap
@@ -627,8 +639,8 @@ user base there is no comms decision blocking it.
 | `src/components/ProGate.tsx` | new | 2 |
 | `src/components/UpgradeCard.tsx` | new | 2 |
 | `src/App.tsx` | edit — `upgrade` section, mastery gate, guest-merge modal | 2,3,4,5 |
-| `src/components/SelectorPanel.tsx` | edit — multi-string gate | 3 |
-| `src/hooks/useSelector.ts` | edit — clamp `multiStrings` when `!isPro` | 3 |
+| `src/components/SelectorPanel.tsx` | (later) freed the multi toggle; no gate here now | 3 |
+| `src/hooks/useSelector.ts` | (later) `multiStrings` derived on every tier; `isPro` param dropped | 3 |
 | `src/components/VoiceCalibration.tsx` | edit — gate entry points | 3 |
 | `src/components/ProgressPanel.tsx` | edit — 7-day window, scope relabel | 4 |
 | `src/utils/progress.ts` | edit — `withinFreeWindow` | 4 |

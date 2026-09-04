@@ -9,7 +9,7 @@ export type Feature =
   | 'historyBeyond7Days'   // the Stats & Progress screen's "All time" scope + trends
   | 'masteryMaps'          // fret/note "equalizer" overlays + their toggle
   | 'allPersonalBests'     // browse bests across every settings combination
-  | 'multiString'          // multi-string drilling mode
+  | 'fretRange'            // planned: a fine "fret N–M" range selector (not yet surfaced)
   | 'voiceProfile'         // personal voice profile + calibration
   | 'noAds';               // future: suppress Free-tier ads
 
@@ -17,14 +17,19 @@ const MIN_TIER: Record<Feature, Tier> = {
   historyBeyond7Days: 'pro',
   masteryMaps:        'pro',
   allPersonalBests:   'pro',
-  multiString:        'pro',
+  fretRange:          'pro',
   voiceProfile:       'pro',
   noAds:              'pro',
 };
+// `fretRange` is reserved ahead of the UI: it will gate a future precise
+// "from fret N to fret M" range selector. The current 0–12 / 12–max half-picker
+// in `SelectorPanel` is NOT this feature and stays free for everyone.
+//
 // NOT in this map on purpose (free on every tier, design §2.3): cloud sync and
 // full multi-device restore, the leaderboard (XP / questions / accuracy),
-// badges / Achievements, and the personal best for the combination currently
-// being drilled.
+// badges / Achievements, the personal best for the combination currently being
+// drilled, the 0–12 / 12–max fret-range half-picker, and multi-string drilling
+// mode (freed after the initial tiering pass).
 
 const RANK: Record<Tier, number> = { free: 0, pro: 1 };
 

@@ -94,13 +94,11 @@ export default function App() {
     saveSetting('pref_instrument', id);
   };
 
-  // Auth carries the entitlement/tier. Read here — above useSelector — because
-  // multi-string gating (spec free-pro-tiering §5.3) needs `isPro` in the
-  // selector's derivation. The account-sync effect further down uses the same
-  // `auth` object.
+  // Auth carries the entitlement/tier. The account-sync effect further down
+  // uses the same `auth` object.
   const auth = useAuth();
 
-  const selector = useSelector(instrument, auth.isPro);
+  const selector = useSelector(instrument);
   const { derivedSettings } = selector;
 
   const [guitarString, setGuitarString] = useState(derivedSettings.guitarString);
