@@ -93,7 +93,29 @@ Bugs or behavior the product already promises but doesn't deliver.
   - **The general engine's quality on frets is unmeasured.** Its note-name accuracy was poor enough on real microphone input to be the reason the personal profile became the main path; the leave-one-out check on the bundled set scored 100% for `frets-1-24`, but that is synthetic-against-synthetic and says nothing about a real voice. Measure it with the debug log before assuming this mode works, exactly as was done for note names.
   - **Alternative worth considering first:** twenty-five spoken numbers is a much larger vocabulary than twelve note names, and the failure modes ("fifteen"/"fifty", "two"/"to") are unforgiving. Routing by-note mode to the platform recogniser (Web Speech / native), which handles digits well and already has `parseSpokenFret` behind it, may be a better answer than template matching.
 
-**Section status:** the original four items are resolved (three delivered, one closed by removing the dead code rather than building the behavior — see its note). The two voice items above were added later and are open.
+- **Voice answering collapses when anyone else is talking in the room.** This is a requirement, not an edge case: "אני לא יכול לצפות שאדם לא יוכל להשתמש בהקלטה רק כי מישהו מדבר לידו." A session recorded with people talking nearby scored **3 of 10** on the personal profile, against 9 of 9 for the same profile and the same speaker minutes earlier in a quiet room.
+
+  The failure is in `captureUtterance` (`src/utils/utteranceCapture.ts`), not in the matcher. It learns a noise floor from roughly the first 200ms *before* speech starts, derives one gate from it (`max(0.012, noiseFloor * 3.5)` for onset, `max(0.010, noiseFloor * 2.5)` for the trailing-silence test), and uses that for the whole utterance. With continuous speech in the room that single sample is contaminated, and the recording fails in both directions at once:
+
+  - **The end is never detected.** Three captures ran to the 3500ms `maxSpeechMs` hard cap where a quiet room produces 850–1300ms. The segmenter was then handed 1040ms and 1540ms "letters" against the 280–440ms a spoken letter actually takes, and nothing downstream can survive that.
+  - **The start is never detected.** One question produced no capture at all — the onset gate sat above the speaker's own voice, and the turn ended on the onset timeout.
+
+  Everything downstream degrades with it, which is easy to misread as a matcher problem: the *identical* profile scored its "#" template at 29–34 where it had scored 11.5–12.2 in the quiet run. The templates did not change; what was fed to them did. Note also that the browser's own `noiseSuppression: true` is already requested in `openMicSession()`, so this is not solved by asking for cleaner audio — the decision logic is what fails.
+
+  **Direction:** endpoint against the utterance's own level rather than a floor sampled before it — track the running peak during speech and treat "silence" as a fixed fraction below that peak, keeping the absolute floor as a backstop. That adapts to a quiet room and a noisy one without either threshold being guessed. `279eb6e` added the `[voice] vad` debug line (stop reason `silence`/`cap`, noise floor, gate, peak, and `peakOverGate`) specifically to supply the ratio that fix needs to be calibrated against; it has not been read yet.
+
+- **The current voice recogniser is live but not verified.** Seven commits landed on `main` (`d107cfb` … `279eb6e`) and deployed. The measured result — 9 of 9 recognition on the personal profile, up from 1 of 9 — was taken on `dae4b6c`. `c996e17` then changed which audio is handed to the forced split (segment 0 rather than the whole capture, because the old form was a no-op whenever the segmenter already returned two segments), and that also changes the single-segment path the 9-of-9 run exercised. **The shipped behaviour is therefore unmeasured.** No user impact was taken from the forced re-calibration this work required (IndexedDB v5 plus the `-v5` vocab suffix drop every stored template) because there were no users at the time.
+
+  ### Verification protocol — two runs, one sitting
+
+  Both runs are the same setup: hard-refresh, 🐞 → **Simulate Pro** → **Voice: on** → **Clear**, answer mode 🎤, "by fret" mode, engine **Personal** with a completed calibration (all nine labels at two takes — an incomplete one silently falls back to another engine, see the item above). Confirm the log's `start` line says `engine: "profile"` before trusting anything. Say the ten words regardless of what the correct answer is, then 🐞 → **Copy**:
+
+  **D, E, A, B, B♭, B♭, F#, F#, C, G**
+
+  1. **Quiet room** — clears the debt `c996e17` left. Expect the letters at distances of roughly 10–20; `usedSplit: true` on the fluent "F sharp" utterances with no second attempt; `taken: false` on every single letter (a single letter being dragged into a split would show up immediately as `taken: true` on a C or G row). "B♭" has never once been measured — watch `accidentals` for whether `b` beats `#` and by how much, and read the `note` field rather than the score, since A# and B♭ are the same note.
+  2. **With the same background noise that produced the 3-of-10 run** — this is the one that matters. Read `[voice] vad`: how many rows say `reason: "cap"`, and what `peakOverGate` is on them. A low ratio confirms the mechanism above and sets the fraction for the relative-endpoint fix.
+
+**Section status:** the original four items are resolved (three delivered, one closed by removing the dead code rather than building the behavior — see its note). The four voice items above were added later and are open.
 
 ---
 
@@ -531,7 +553,7 @@ First-pass split of the feature set into paid vs free, to frame the monetization
 > - **Entitlement data model** — `public.entitlements` (Supabase migration `0007`, RLS read-own, no client write) plus `public.orphan_practice`; grants tightened in `0009`; an admin self-toggle path added in `0010`.
 > - **One source of truth** — `src/utils/entitlement.ts` (`fetchEntitlement`/`cachedEntitlement`, fail-open on read error, fail-closed on absence) surfaced through `useAuth.ts` as `tier` / `isPro`, read everywhere via the thin `useEntitlement()` hook.
 > - **Gating layer** — `src/utils/features.ts` (`Feature` map, all `'pro'` for now, `FREE_HISTORY_DAYS = 7`), the presentational `<ProGate>` component (overlay / replace / inline-badge variants), `<UpgradeCard>` + a standalone **⭐ Pro** drawer section with an `openUpgrade` handler. CTA is still a disabled "Coming soon" placeholder — **no payment SDK, no real purchase**.
-> - **What is actually gated for Free:** multi-string mode, the fret/note mastery-map overlays, the personal voice profile + calibration, all-combinations personal bests, and history in the Stats & Progress screen older than 7 days (a **view filter only** — recording, sync and restore stay complete and free for everyone).
+> - **What is actually gated for Free:** the fret/note mastery-map overlays, the personal voice profile + calibration, all-combinations personal bests, and history in the Stats & Progress screen older than 7 days (a **view filter only** — recording, sync and restore stay complete and free for everyone). *(Multi-string mode and the 0–12 / 12–max fret-range half-picker were freed after the initial pass; the `fretRange` feature key is now reserved for a future precise "fret N–M" range selector that is not built yet.)*
 > - **Guest → account merge** is now an explicit prompt (`GuestMergePrompt.tsx`), with orphaned guest practice captured to `orphan_practice` when the user declines the merge.
 > - **Testing seams** — `scripts/grant-pro.mts` (admin grant by email), `src/utils/devSimulatePro.ts` (DEV-only simulate-Pro toggle in the debug panel), and an admin-only in-app Pro toggle for one's own account.
 > - **Deliberately NOT gated / still free:** cloud sync + multi-device restore, the leaderboard, XP, badges, guitar + bass, scoring/celebrations, notation options, onboarding, offline.
@@ -543,7 +565,7 @@ First-pass split of the feature set into paid vs free, to frame the monetization
 A complete, genuinely useful app with no payment, or there is no adoption funnel.
 - By-fret and by-note modes
 - **Guitar and bass** (bass is a free instrument, not a Pro hook)
-- Single-string selection, fret-range halves, difficulty stages, Auto Advance
+- Single-string **and multi-string** selection, the 0–12 / 12–max fret-range half-picker, difficulty stages, Auto Advance
 - Scoring, streak, fire multiplier, celebrations, "serious learning" (score-off) mode
 - Notation A-B-C / Do-Re-Mi, circle-of-fifths / alphabetical order
 - Basic voice answering (Web Speech / native), no personal profile
@@ -555,7 +577,7 @@ A complete, genuinely useful app with no payment, or there is no adoption funnel
 Core value = persistence of data over time + a wider drill surface. The gating for all of this is now **built** (phases 1–6, see the status update above); what remains is the price and the payment rail.
 - **History older than 7 days** in the Stats & Progress screen + mastery maps (fret / note equalizer overlays) — *gated via `<ProGate feature="historyBeyond7Days" | "masteryMaps">`*
 - All-combinations personal bests — *gated (`allPersonalBests`)*
-- Multi-string mode — *gated (`multiString`) in `SelectorPanel` / `useSelector`*
+- **Precise fret-range selector** (choose an arbitrary "fret N to fret M" window, not just a half) — *planned, UI not built. `fretRange` is reserved in `src/utils/features.ts` (`'pro'`) so the gate is ready; the existing 0–12 / 12–max half-picker is **free**, and multi-string mode is **free**.*
 - Personal voice profile + calibration — *gated (`voiceProfile`); free users fall back to basic Web Speech / native*
 - No ads (if the free tier ever carries them)
 - **NOT Pro:** Google account, cloud sync and multi-device restore all stay free (see the status update).
@@ -568,6 +590,9 @@ Does not exist yet; needs to be built to justify a price above Pro. Justified on
 - **Real pitch detection from the microphone** — play the note on the guitar instead of tapping / speaking
 - Instruments from other families (ukulele, mandolin, violin)
 - Daily challenge / friends — (the leaderboard itself has shipped, as a free feature — see Free tier above; only per-friend / daily-challenge framing around it remains undone)
+
+### Open / deferred work
+- **Precise fret-range selector (Pro) — build the feature.** The current 0–12 / 12–max half-picker in `SelectorPanel` is free for everyone and stays that way. The Pro feature is a *finer* control: pick an arbitrary "from fret N to fret M" window. Not built — only the gate is reserved (`fretRange` in `src/utils/features.ts`, `MIN_TIER.fretRange = 'pro'`). When built it needs: a new UI control (its own component or an extension of the neck SVG), `useSelector` to carry an explicit from/to window and re-thread `isPro` so the derived `fretFrom`/`fretTo` (and `getTime` input) clamp to a free default when `!isPro` without overwriting the stored window, `historyKey()` to include the precise window, and `<ProGate feature="fretRange">` around the control.
 
 ### Open decisions
 - **Premium shape** — a single higher-priced subscription tier, or one-time in-app purchases per game mode (a natural fit for chords / scales / intervals as separate unlocks). *Still open — the third tier is parked; only Free/Pro is modelled and built.*
