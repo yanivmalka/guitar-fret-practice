@@ -4,6 +4,7 @@ import { displayNote } from '../utils/music';
 import { historyForInstrument, fretMasteryMap, noteMasteryMap } from '../utils/mastery';
 import {
   dailyStats, practiceStreak, lifetimeTotals, weakNotes, allBestsSummary, withinFreeWindow,
+  type DayStat,
 } from '../utils/progress';
 import { loadBest, saveBest } from '../utils/personalBest';
 import type { InstrumentConfig } from '../utils/instruments';
@@ -194,6 +195,70 @@ function FretHeatmap({ history, instrument }: { history: HistoryEntry[]; instrum
   );
 }
 
+// "Am I improving?" — two stacked sparklines over the last N days: accuracy %
+// (fixed 0-100 axis) above, average response time in seconds below. They share
+// an X axis of dates. History has no session marker, so the trend is per-day
+// via `dailyStats`. Needs at least two dated days to draw a line; with fewer,
+// the caller's bar list / empty-state text carries the screen instead.
+const TREND_DAYS = 30;
+
+function TrendChart({ history }: { history: HistoryEntry[] }) {
+  const { t } = useTranslation();
+  const days = useMemo(() => dailyStats(history).slice(-TREND_DAYS), [history]);
+  if (days.length < 2) return null;
+
+  const W = 300, H = 80, padX = 4, padTop = 8, padBot = 8;
+  const innerW = W - padX * 2;
+  const innerH = H - padTop - padBot;
+  const base = padTop + innerH;
+  const n = days.length;
+  const xAt = (i: number) => padX + (i * innerW) / (n - 1);
+
+  const maxSec = Math.max(1, Math.ceil(Math.max(...days.map(d => d.avgSeconds))));
+  const yAcc = (d: DayStat) => padTop + (1 - d.accuracy) * innerH;
+  const ySec = (d: DayStat) => padTop + (1 - d.avgSeconds / maxSec) * innerH;
+
+  const points = (yOf: (d: DayStat) => number) => days.map((d, i) => ({ x: xAt(i), y: yOf(d) }));
+  const toPoly = (p: { x: number; y: number }[]) => p.map(q => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' ');
+  const toArea = (p: { x: number; y: number }[]) =>
+    `M${padX},${base} ` + p.map(q => `L${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' ') + ` L${xAt(n - 1).toFixed(1)},${base} Z`;
+
+  const chart = (label: string, topTick: string, cls: string, p: { x: number; y: number }[]) => (
+    <div className="sp2-trend-chart">
+      <div className="sp2-trend-head">
+        <span className="sp2-trend-label">{label}</span>
+        <span className="sp2-trend-tick">{topTick}</span>
+      </div>
+      <svg
+        className={`sp2-trend-svg ${cls}`}
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={label}
+      >
+        <line className="sp2-trend-axis" x1={padX} y1={base} x2={padX + innerW} y2={base} vectorEffect="non-scaling-stroke" />
+        <path className="sp2-trend-area" d={toArea(p)} />
+        <polyline
+          className="sp2-trend-line"
+          points={toPoly(p)}
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+    </div>
+  );
+
+  return (
+    <div className="sp2-trend" dir="ltr">
+      {chart(t('Accuracy %'), '100%', 'sp2-trend-acc', points(yAcc))}
+      {chart(t('Avg response time'), `${maxSec}s`, 'sp2-trend-time', points(ySec))}
+      <div className="sp2-trend-ticks">
+        <span>{days[0].date.slice(5)}</span>
+        <span>{days[n - 1].date.slice(5)}</span>
+      </div>
+    </div>
+  );
+}
+
 function Timeline({ history }: { history: HistoryEntry[] }) {
   const { t } = useTranslation();
   const days = dailyStats(history).slice(-14);
@@ -202,8 +267,10 @@ function Timeline({ history }: { history: HistoryEntry[] }) {
   }
   const maxCount = Math.max(...days.map(d => d.count), 1);
   return (
-    <div className="string-bars">
-      {days.map(d => (
+    <>
+      <TrendChart history={history} />
+      <div className="string-bars">
+        {days.map(d => (
         <div key={d.date} className="string-bar-row">
           <span className="string-bar-label">{d.date.slice(5)}</span>
           <div className="string-bar-track">
@@ -212,8 +279,9 @@ function Timeline({ history }: { history: HistoryEntry[] }) {
           <span className="string-bar-pct">{pct(d.accuracy)}</span>
           <span className="string-bar-counts">{d.count}q · ⚡{d.avgSeconds.toFixed(1)}s</span>
         </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </>
   );
 }
 

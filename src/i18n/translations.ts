@@ -263,6 +263,8 @@ const he: Record<string, string> = {
   'By fret': 'לפי סריג',
   'Fretboard heatmap': 'מפת חום של צוואר הגיטרה',
   'Daily timeline': 'ציר זמן יומי',
+  'Accuracy %': 'אחוז דיוק',
+  'Avg response time': 'זמן תגובה ממוצע',
   'Personal bests': 'שיאים אישיים',
   'No personal bests recorded yet.': 'עדיין לא נרשמו שיאים אישיים.',
   'No practice in the last 7 days.': 'אין תרגול ב-7 הימים האחרונים.',
