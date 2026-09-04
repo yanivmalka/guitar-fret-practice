@@ -1509,8 +1509,9 @@ export default function App() {
   // page, not an overlay pinned on top of the (blurred) game screen.
   if (showStats) {
     return (
-      <div className="app stats-page">
+      <div className="app settings-page stats-page">
         <ProgressPanel
+          headerIcon={menuIconStats}
           allHistory={historyOps.allHistory}
           noteNames={cofList}
           accidental={accidental}

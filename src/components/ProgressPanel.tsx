@@ -18,6 +18,8 @@ interface Props {
   accidental: AccidentalMode;
   notation?: NotationMode;
   instrument: InstrumentConfig;
+  // The metal 3D tab icon, so this page's hero matches every settings sub-page.
+  headerIcon?: string;
   onClose: () => void;
   // "This setup" scope: the history + session score for the current settings combination.
   currentHistory: HistoryEntry[];
@@ -422,7 +424,7 @@ function ScopeView({
 }
 
 export default function ProgressPanel({
-  allHistory, noteNames, accidental, notation, instrument, onClose,
+  allHistory, noteNames, accidental, notation, instrument, headerIcon, onClose,
   currentHistory, sessionScore, longestStreak, currentHistoryKey,
   setupStrings, setupFretFrom, setupFretTo, onClearCurrent, onClearAll,
   isPro,
@@ -463,11 +465,17 @@ export default function ProgressPanel({
   );
 
   return (
-    <div className="stats-panel sp2" dir={lang === 'he' ? 'rtl' : undefined}>
-      <div className="sp2-head">
+    <div className="stats-panel sp2 settings-page-inner" dir={lang === 'he' ? 'rtl' : undefined}>
+      <div className="sp2-head settings-page-head">
         <button className="sp2-back" onClick={click(onClose)}><Chevron dir="back" /> {t('Back')}</button>
-        <span className="sp2-title">{t('Stats & progress')}</span>
       </div>
+      <header className="settings-page-hero">
+        {headerIcon
+          ? <img src={headerIcon} alt="" className="settings-page-icon-img" />
+          : <span className="settings-page-emoji" aria-hidden="true">📊</span>}
+        <h2 className="settings-page-name">{t('Stats & progress')}</h2>
+      </header>
+      <div className="settings-page-body">
 
       <div className="sp2-scope">
         <button
@@ -508,6 +516,7 @@ export default function ProgressPanel({
           {scope === 'setup' ? t('Clear history for this setup') : t('Clear all history')}
         </button>
       )}
+      </div>
 
       {confirm && (
         <div className="mic-overlay" onClick={click(() => setConfirm(null))}>

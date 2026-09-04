@@ -12,9 +12,17 @@
   overflow: hidden;
 }
 
-/* Unified "Stats & progress" screen: its own page, replacing the game. */
+/* Unified "Stats & progress" screen: its own page, replacing the game. It now
+   wears the same head/hero/body chrome as every settings sub-page (.settings-page
+   + .settings-page-inner), so drop the standalone-card look .stats-panel gives —
+   the page itself is the surface, exactly like the other tabs. */
 .stats-page {
-  padding-top: 18px;
+  padding-top: 22px;
+}
+.stats-page .stats-panel {
+  background: none;
+  border-radius: 0;
+  padding: 0;
 }
 
 /* ── Stats & progress — redesigned single-page layout (sp2) ─── */
