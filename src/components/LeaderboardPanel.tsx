@@ -29,8 +29,11 @@ import {
  * either without leaving the drill they're set up for.
  */
 
+// Rank 1 reuses the app's gold token; 2nd/3rd keep their fixed silver/bronze
+// medal-metal colors (like BadgeMedal's tiers) so the podium always reads as
+// silver/bronze regardless of theme.
 const medalColor = (rank: number): string =>
-  rank === 1 ? '#ffd700' : rank === 2 ? '#c8d0e0' : rank === 3 ? '#cd7f32' : '#6f6f8c';
+  rank === 1 ? 'var(--gold)' : rank === 2 ? '#c8d0e0' : rank === 3 ? '#cd7f32' : 'var(--text-3)';
 
 function initialOf(name: string): string {
   const c = name.trim()[0];

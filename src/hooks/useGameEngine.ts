@@ -162,7 +162,7 @@ export function useGameEngine(
       const scoreEl = document.getElementById('live-score');
       if (scoreEl) {
         const rect = scoreEl.getBoundingClientRect();
-        showFloatingText(`+${result.points}`, '#0ff', 800, rect.left + rect.width / 2, rect.top);
+        showFloatingText(`+${result.points}`, 'var(--accent)', 800, rect.left + rect.width / 2, rect.top);
       }
     }
 

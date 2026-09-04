@@ -13,7 +13,7 @@
 }
 .voice-status.voice-listening { color: #4ad2ff; }
 .voice-status.voice-heard { color: #0f0; }
-.voice-status.voice-error { color: #f90; }
+.voice-status.voice-error { color: var(--amber); }
 .voice-retry { padding: 2px 10px; font-size: 0.85rem; }
 
 /* Live microphone level meter (Voice answer mode) */
@@ -51,11 +51,11 @@
   border-radius: 4px;
   transition: width 60ms linear, background-color 200ms ease;
 }
-.mic-level-fill.is-low { background: #f90; }
+.mic-level-fill.is-low { background: var(--amber); }
 .mic-level-fill.is-good { background: #0f0; }
 .mic-level-hint {
   font-size: 0.78rem;
   line-height: 1;
 }
-.mic-level-hint.is-low { color: #f90; }
+.mic-level-hint.is-low { color: var(--amber); }
 .mic-level-hint.is-good { color: #6f6; }

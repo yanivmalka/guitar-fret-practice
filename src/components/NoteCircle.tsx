@@ -112,7 +112,7 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
       if (notesMatch(n, note)) { totalFrets = frets.length; break; }
     }
     const dotStr = dotFrets.includes(12) ? '●●' : '●';
-    const color = totalFrets === 1 ? '#ff0' : totalFrets === 2 ? '#f90' : '#f44';
+    const color = totalFrets === 1 ? 'var(--gold)' : totalFrets === 2 ? 'var(--amber)' : 'var(--danger)';
     return { dots: dotStr, color };
   };
 
@@ -173,8 +173,10 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
           // approach drew inconsistently across browsers, e.g. Samsung
           // Internet.)
           const restDim = inRange && !active;
-          let bg = restDim ? 'rgba(42, 42, 74, 0.7)' : '#2a2a4a';
-          let border = restDim ? 'rgba(85, 85, 85, 0.7)' : '#555';
+          let bg = restDim ? 'color-mix(in srgb, var(--surface-border) 70%, transparent)' : 'var(--surface-border)';
+          let border = restDim ? 'color-mix(in srgb, var(--border-soft) 70%, transparent)' : 'var(--border-soft)';
+          // Deliberately kept as fixed saturated red/green (not the softer
+          // --success/--danger tokens) for maximum-contrast instant feedback.
           if (isCorrect) { bg = '#0a0'; border = '#0f0'; }
           else if (isWrong) { bg = '#a00'; border = '#f00'; }
 

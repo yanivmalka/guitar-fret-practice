@@ -21,7 +21,7 @@
   padding: 14px 16px;
   border-radius: 14px;
   background: linear-gradient(180deg, #1a1a34, #131328);
-  border: 1px solid #2a2a4a;
+  border: 1px solid var(--surface-border);
 }
 .badge-collection-top {
   display: flex;
@@ -32,7 +32,7 @@
   font-size: 1.7rem;
   font-weight: 900;
   line-height: 1;
-  color: #ffd700;
+  color: var(--gold);
   font-variant-numeric: tabular-nums;
 }
 .badge-collection-total {
@@ -46,7 +46,7 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.09em;
-  color: #9a9ab8;
+  color: var(--text-2);
 }
 .badge-collection-meter {
   position: relative;
@@ -61,7 +61,7 @@
   inset-block: 0;
   inset-inline-start: 0;
   border-radius: 999px;
-  background: linear-gradient(90deg, #00b4d8, #00e5ff);
+  background: linear-gradient(90deg, #00b4d8, var(--accent));
   box-shadow: 0 0 10px rgba(0, 229, 255, 0.45);
   transition: width 0.4s ease;
 }
@@ -88,7 +88,7 @@
   border-radius: 14px;
   text-align: center;
   background: linear-gradient(180deg, #17172e, #121226);
-  border: 1px solid #2a2a4a;
+  border: 1px solid var(--surface-border);
   overflow: hidden;
 }
 /* Earned: a tier-tinted wash bleeding down from the top edge — it deepens as
@@ -242,7 +242,7 @@
   font-weight: 800;
   line-height: 1.24;
   letter-spacing: -0.005em;
-  color: #f0f0f8;
+  color: var(--text-0);
   /* Long family names (the per-string "String Master · String 1 · high E",
      and Hebrew, which runs wider here) wrap to two balanced lines and then
      ellipsize; the full string stays reachable via the tile's title tooltip.
@@ -349,7 +349,7 @@
 .badge-blurb {
   font-size: 0.66rem;
   line-height: 1.4;
-  color: #9a9ab8;
+  color: var(--text-2);
   overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -389,13 +389,13 @@
   inset-block: 0;
   inset-inline-start: 0;
   border-radius: 999px;
-  background: linear-gradient(90deg, #00b4d8, #00e5ff);
+  background: linear-gradient(90deg, #00b4d8, var(--accent));
 }
 .badge-progress-txt {
   flex: none;
   font-size: 0.6rem;
   font-weight: 800;
-  color: #c8c8de;
+  color: var(--text-1);
   font-variant-numeric: tabular-nums;
 }
 .badge-earned {
@@ -406,7 +406,7 @@
   margin-top: 2px;
   font-size: 0.62rem;
   font-weight: 800;
-  color: #34e07a;
+  color: var(--success);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -460,7 +460,7 @@
 .badge-progress--next .badge-progress-txt {
   font-size: 0.55rem;
   font-weight: 700;
-  color: #9a9ab8;
+  color: var(--text-2);
 }
 
 /* ── Admin test controls (admins only) ───────────────────────────────────────
@@ -472,7 +472,7 @@
   padding: 9px 11px;
   font-size: 0.68rem;
   line-height: 1.45;
-  color: #9a9ab8;
+  color: var(--text-2);
   background: rgba(0, 0, 0, 0.2);
   border: 1px dashed #3a3a5c;
   border-radius: 10px;
@@ -492,13 +492,13 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #c8c8de;
+  color: var(--text-1);
   background: #1d1d38;
   border: 1px solid #3a3a5c;
   border-radius: 7px;
   cursor: pointer;
 }
-.badge-admin-btn:hover:not(:disabled) { border-color: #00e5ff; color: #fff; }
+.badge-admin-btn:hover:not(:disabled) { border-color: var(--accent); color: #fff; }
 .badge-admin-btn--reset:hover:not(:disabled) { border-color: #ff6b6b; color: #ffd7d7; }
 .badge-admin-btn:disabled { opacity: 0.38; cursor: default; }
 
@@ -515,7 +515,7 @@
   font: inherit;
   color: #e8e8ff;
   background: linear-gradient(180deg, #1a1a34, #131328);
-  border: 1px solid #2a2a4a;
+  border: 1px solid var(--surface-border);
   border-radius: 14px;
   cursor: pointer;
   text-align: start;
@@ -579,7 +579,7 @@
   gap: 10px;
 }
 .pinned-picker-title { font-size: 0.92rem; font-weight: 800; color: #f0f0ff; }
-.pinned-picker-counter { font-size: 0.8rem; font-weight: 800; color: #9a9ab8; }
+.pinned-picker-counter { font-size: 0.8rem; font-weight: 800; color: var(--text-2); }
 
 .pinned-picker-grid {
   display: grid;
@@ -636,7 +636,7 @@
 
 .pinned-picker-foot {
   margin: 0;
-  border: 1px solid #2a2a4a;
+  border: 1px solid var(--surface-border);
   border-radius: 12px;
   background: #17172e;
 }

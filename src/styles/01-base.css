@@ -8,9 +8,9 @@
    flip for Hebrew, the app's layout itself must not. */
 *, *::before, *::after { unicode-bidi: plaintext; }
 
-/* Single dark palette — opt out of mobile browsers' automatic dark-mode
-   re-tinting (see the matching <meta name="color-scheme"> in index.html). */
-:root { color-scheme: dark; }
+/* color-scheme is set per-theme in 00-tokens.css (opts out of mobile
+   browsers' automatic dark-mode re-tinting; see the matching
+   <meta name="color-scheme">, kept in sync from App.tsx). */
 
 html, body {
   overflow: hidden;
@@ -22,8 +22,8 @@ html, body {
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: #1a1a2e;
-  color: #eee;
+  background: var(--bg-0);
+  color: var(--text-0);
   height: 100dvh;
   -webkit-tap-highlight-color: transparent;
   touch-action: pan-x pan-y;
@@ -51,7 +51,7 @@ body {
    redesigns, so it can never clip or need its own scrollbar. */
 @media (min-width: 601px) {
   body {
-    background: #0c0c18;
+    background: var(--bg-letterbox);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -65,7 +65,9 @@ body {
     flex-shrink: 0;
     transform: scale(var(--phone-scale, 1));
     border-radius: 36px;
-    box-shadow: 0 0 0 8px #111122, 0 0 0 10.5px rgba(255, 215, 0, 0.9), 0 0 28px rgba(255, 215, 0, 0.3), 0 20px 60px rgba(0, 0, 0, 0.6);
+    /* The gold trace + drop shadow are fixed brand chrome around the
+       desktop phone mock, not app content — left un-themed on purpose. */
+    box-shadow: 0 0 0 8px var(--bg-1), 0 0 0 10.5px rgba(var(--gold-rgb), 0.9), 0 0 28px rgba(var(--gold-rgb), 0.3), 0 20px 60px rgba(0, 0, 0, 0.6);
     overflow: hidden;
   }
 
@@ -102,8 +104,8 @@ body {
     position: fixed;
     inset: 0;
     pointer-events: none;
-    border: 1px solid rgba(255, 215, 0, 0.18);
-    box-shadow: inset 0 0 12px rgba(255, 215, 0, 0.06);
+    border: 1px solid rgba(var(--gold-rgb), 0.18);
+    box-shadow: inset 0 0 12px rgba(var(--gold-rgb), 0.06);
   }
 }
 

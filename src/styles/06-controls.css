@@ -4,18 +4,18 @@
 
 .icon-btn {
   width: 56px; height: 56px; border-radius: 50%;
-  border: 2px solid #0ff; background: transparent;
-  color: #0ff; cursor: pointer;
+  border: 2px solid var(--accent); background: transparent;
+  color: var(--accent); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 0 18px 3px rgba(0, 255, 255, 0.4);
+  box-shadow: 0 0 18px 3px rgba(var(--accent-rgb), 0.4);
   transition: all 0.2s;
 }
 .icon-btn:active { transform: scale(0.9); }
-.play-btn:hover { background: rgba(0, 255, 255, 0.1); }
-.pause-btn { border-color: #0ff; color: #0ff; }
-.pause-btn:hover { background: rgba(0, 255, 255, 0.1); }
-.stop-btn-icon { border-color: #0ff; color: #0ff; }
-.stop-btn-icon:hover { background: rgba(0, 255, 255, 0.1); }
+.play-btn:hover { background: rgba(var(--accent-rgb), 0.1); }
+.pause-btn { border-color: var(--accent); color: var(--accent); }
+.pause-btn:hover { background: rgba(var(--accent-rgb), 0.1); }
+.stop-btn-icon { border-color: var(--accent); color: var(--accent); }
+.stop-btn-icon:hover { background: rgba(var(--accent-rgb), 0.1); }
 
 .morph-icon { position: relative; width: 24px; height: 24px; display: inline-block; }
 .morph-icon svg {
@@ -30,10 +30,10 @@
 /* Floating stop button — removed, using inline stop */
 
 .clear-btn {
-  padding: 10px 18px; border: 1px solid #555; border-radius: 10px;
-  background: none; color: #aaa; font-size: 0.85rem; cursor: pointer;
+  padding: 10px 18px; border: 1px solid var(--border-soft); border-radius: 10px;
+  background: none; color: var(--text-2); font-size: 0.85rem; cursor: pointer;
 }
-.clear-btn:hover { border-color: #0ff; color: #0ff; }
+.clear-btn:hover { border-color: var(--accent); color: var(--accent); }
 
 /* Stats button group */
 .stats-btn-group {
@@ -41,7 +41,7 @@
   gap: 0;
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid #555;
+  border: 1px solid var(--border-soft);
 }
 .stats-btn-group .clear-btn {
   border: none;
@@ -50,12 +50,12 @@
 }
 .stats-toggle-on {
   background: #1a2a3a;
-  color: #0ff;
+  color: var(--accent);
 }
 .stats-clear-x {
-  border-left: 1px solid #555 !important;
+  border-left: 1px solid var(--border-soft) !important;
   padding: 10px 10px !important;
-  color: #f55 !important;
+  color: var(--danger) !important;
 }
 .stats-clear-x:hover { background: #3a0a0a; }
 
@@ -68,14 +68,14 @@
 .note-btn:active { transform: scale(0.92); }
 
 .note-glow {
-  box-shadow: 0 0 16px 6px rgba(0, 255, 255, 0.7) !important;
-  border-color: #0ff !important;
+  box-shadow: 0 0 16px 6px rgba(var(--accent-rgb), 0.7) !important;
+  border-color: var(--accent) !important;
   animation: glow-fade 0.6s ease-out forwards;
 }
 
 @keyframes glow-fade {
-  0% { box-shadow: 0 0 16px 6px rgba(0, 255, 255, 0.7); }
-  100% { box-shadow: 0 0 0 0 rgba(0, 255, 255, 0); }
+  0% { box-shadow: 0 0 16px 6px rgba(var(--accent-rgb), 0.7); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0); }
 }
 
 .fret-dot {

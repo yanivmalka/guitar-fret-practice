@@ -10,17 +10,17 @@
 .stats-tab {
   padding: 6px 14px;
   border-radius: 16px;
-  border: 1px solid #444;
-  background: #1a1a2e;
-  color: #aaa;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-0);
+  color: var(--text-2);
   font-size: 13px;
   cursor: pointer;
   transition: all 0.15s;
 }
 .stats-tab-active {
-  background: #0aa;
-  border-color: #0ff;
-  color: #1a1a2e;
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--bg-0);
   font-weight: bold;
 }
 
@@ -36,7 +36,7 @@
 }
 .string-bar-label {
   font-size: 11px;
-  color: #aaa;
+  color: var(--text-2);
   width: 38px;
   text-align: right;
   flex-shrink: 0;
@@ -44,7 +44,7 @@
 .string-bar-track {
   flex: 1;
   height: 10px;
-  background: #2a2a4a;
+  background: var(--surface-border);
   border-radius: 5px;
   overflow: hidden;
 }
@@ -55,10 +55,10 @@
 }
 .bar-mastered { background: #0f0; }
 .bar-solid    { background: #7bf; }
-.bar-growing  { background: #f90; }
+.bar-growing  { background: var(--amber); }
 .string-bar-pct {
   font-size: 11px;
-  color: #eee;
+  color: var(--text-0);
   width: 30px;
   flex-shrink: 0;
 }
@@ -75,7 +75,7 @@
   align-items: center;
   gap: 6px;
   padding: 20px 16px;
-  color: #555;
+  color: var(--border-soft);
   font-size: 14px;
   background: #0d0d1a;
   border-radius: 10px;
@@ -83,5 +83,5 @@
 }
 .stats-empty-hint {
   font-size: 12px;
-  color: #444;
+  color: var(--border-soft);
 }

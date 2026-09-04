@@ -2,6 +2,7 @@
    The @imports below are inlined in order at build time, so the
    resulting cascade (source order + specificity) is identical to the
    previous single-file index.css. Keep this list in load order. */
+@import './styles/00-tokens.css';
 @import './styles/01-base.css';
 @import './styles/02-settings.css';
 @import './styles/03-game.css';

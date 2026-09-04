@@ -12,8 +12,8 @@
 .countdown-num {
   font-size: 6rem;
   font-weight: 900;
-  color: #0ff;
-  text-shadow: 0 0 26px rgba(0, 255, 255, 0.55);
+  color: var(--accent);
+  text-shadow: 0 0 26px rgba(var(--accent-rgb), 0.55);
   animation: countdown-pop 0.6s ease-out;
 }
 @keyframes countdown-pop {
@@ -40,8 +40,8 @@
 }
 .mic-card {
   width: min(340px, 92vw);
-  background: #111122;
-  border: 1px solid #2a2a4a;
+  background: var(--bg-1);
+  border: 1px solid var(--surface-border);
   border-radius: 18px;
   padding: 22px 20px 18px;
   text-align: center;
@@ -57,14 +57,14 @@
   justify-content: center;
   font-size: 26px;
   border-radius: 50%;
-  background: rgba(0, 255, 255, 0.1);
-  border: 1px solid rgba(0, 255, 255, 0.35);
-  box-shadow: 0 0 22px rgba(0, 255, 255, 0.25);
+  background: rgba(var(--accent-rgb), 0.1);
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+  box-shadow: 0 0 22px rgba(var(--accent-rgb), 0.25);
 }
 .mic-card-title {
   font-size: 17px;
   font-weight: 800;
-  color: #0ff;
+  color: var(--accent);
   margin-bottom: 8px;
 }
 .mic-card-body {
@@ -73,7 +73,7 @@
   color: #b9b9d4;
   margin: 0 0 16px;
 }
-.mic-card-body strong { color: #eee; }
+.mic-card-body strong { color: var(--text-0); }
 .mic-card-actions {
   display: flex;
   flex-direction: column;
@@ -88,7 +88,7 @@
   -webkit-tap-highlight-color: transparent;
 }
 .mic-btn-primary {
-  background: #0aa;
+  background: var(--accent-dim);
   border: none;
   color: #08121a;
 }
@@ -96,9 +96,9 @@
 .mic-btn-ghost {
   background: none;
   border: 1px solid #333355;
-  color: #9a9ab8;
+  color: var(--text-2);
 }
-.mic-btn-ghost:hover { color: #ccc; border-color: #444; }
+.mic-btn-ghost:hover { color: var(--text-1); border-color: var(--border-soft); }
 .mic-btn-danger {
   background: #b3261e;
   border: none;
@@ -138,20 +138,20 @@
   font-weight: bold;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #888;
+  color: var(--text-3);
 }
 .stage-transition-name {
   font-size: 2.4rem;
   font-weight: 900;
   letter-spacing: 1px;
   line-height: 1;
-  color: #0ff;
-  text-shadow: 0 0 16px rgba(0, 255, 255, 0.5);
+  color: var(--accent);
+  text-shadow: 0 0 16px rgba(var(--accent-rgb), 0.5);
 }
 .stage-transition-progress {
   font-size: 0.8rem;
   letter-spacing: 1px;
-  color: #888;
+  color: var(--text-3);
 }
 @keyframes stage-transition {
   0%   { opacity: 0; transform: scale(0.97); }
@@ -178,7 +178,7 @@
   align-items: center;
   gap: 10px;
   font-size: 0.8rem;
-  color: #888;
+  color: var(--text-3);
   margin: 2px 0;
 }
 .game-timer {
@@ -202,9 +202,9 @@
   align-items: center;
   gap: 8px;
   padding: 16px;
-  border: 1.5px solid rgba(255, 215, 0, 0.55);
+  border: 1.5px solid rgba(var(--gold-rgb), 0.55);
   border-radius: 12px;
-  box-shadow: 0 0 20px rgba(255, 215, 0, 0.28);
+  box-shadow: 0 0 20px rgba(var(--gold-rgb), 0.28);
   animation: end-slide-in 0.5s ease-out;
 }
 @keyframes end-slide-in {
@@ -214,12 +214,12 @@
 .game-end-title {
   font-size: 1.2rem;
   font-weight: bold;
-  color: #ffd700;
+  color: var(--gold);
 }
 .game-end-score {
   font-size: 1.8rem;
   font-weight: 900;
-  color: #ffd700;
+  color: var(--gold);
   font-family: 'Georgia', serif;
   display: flex;
   align-items: baseline;
@@ -229,7 +229,7 @@
   display: flex;
   gap: 12px;
   font-size: 0.85rem;
-  color: #aaa;
+  color: var(--text-2);
 }
 .game-end-badges {
   display: flex;
@@ -244,9 +244,9 @@
   gap: 8px;
   padding: 7px 14px;
   border-radius: 999px;
-  background: rgba(255, 215, 0, 0.12);
-  border: 1px solid rgba(255, 215, 0, 0.5);
-  color: #ffd700;
+  background: rgba(var(--gold-rgb), 0.12);
+  border: 1px solid rgba(var(--gold-rgb), 0.5);
+  color: var(--gold);
   font-size: 0.82rem;
   font-weight: 700;
   animation: end-slide-in 0.5s ease-out;

@@ -7,7 +7,7 @@
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  border: 1px solid #444;
+  border: 1px solid var(--border-soft);
   background: none;
   color: #666;
   cursor: pointer;
@@ -15,8 +15,8 @@
   flex-shrink: 0;
   margin-left: 4px;
 }
-.stats-icon-btn:hover { border-color: #0ff; color: #0ff; }
-.stats-icon-on { border-color: #0ff; color: #0ff; background: #1a2a3a; }
+.stats-icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+.stats-icon-on { border-color: var(--accent); color: var(--accent); background: #1a2a3a; }
 
 /* Stats header row with clear */
 .stats-header-row {
@@ -27,31 +27,31 @@
 }
 .score-detail {
   font-size: 0.7rem;
-  color: #888;
+  color: var(--text-3);
   font-weight: normal;
 }
 .stats-clear-history {
   background: none;
-  border: 1px solid #555;
+  border: 1px solid var(--border-soft);
   border-radius: 8px;
-  color: #f55;
+  color: var(--danger);
   font-size: 0.7rem;
   padding: 4px 8px;
   cursor: pointer;
 }
-.stats-clear-history:hover { background: #3a0a0a; border-color: #f55; }
+.stats-clear-history:hover { background: #3a0a0a; border-color: var(--danger); }
 
 /* ── Celebration Animations (v1.1) ─────────────────────────── */
 @keyframes radial-pulse-cyan {
   0% {
     transform: translate(-50%, -50%) scale(1);
     opacity: 1;
-    box-shadow: 0 0 0 0 rgba(0, 255, 255, 0.7);
+    box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.7);
   }
   100% {
     transform: translate(-50%, -50%) scale(3);
     opacity: 0;
-    box-shadow: 0 0 40px 20px rgba(0, 255, 255, 0);
+    box-shadow: 0 0 40px 20px rgba(var(--accent-rgb), 0);
   }
 }
 
@@ -59,12 +59,12 @@
   0% {
     transform: translate(-50%, -50%) scale(1);
     opacity: 1;
-    box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.6);
+    box-shadow: 0 0 0 0 rgba(var(--gold-rgb), 0.6);
   }
   100% {
     transform: translate(-50%, -50%) scale(3);
     opacity: 0;
-    box-shadow: 0 0 60px 30px rgba(255, 215, 0, 0);
+    box-shadow: 0 0 60px 30px rgba(var(--gold-rgb), 0);
   }
 }
 
@@ -84,7 +84,7 @@
   position: absolute;
   width: 96px;
   height: 96px;
-  border: 3px solid #ffd700;
+  border: 3px solid var(--gold);
   border-radius: 50%;
   pointer-events: none;
   animation: radial-pulse-gold 700ms ease-out forwards;
@@ -96,15 +96,15 @@
   top: 34%;
   transform: translateX(-50%);
   padding: 10px 22px;
-  border: 2px solid #ffd700;
+  border: 2px solid var(--gold);
   border-radius: 12px;
   background: rgba(30, 24, 0, 0.94);
-  color: #ffd700;
+  color: var(--gold);
   font-size: 1.25rem;
   font-weight: 900;
   letter-spacing: 1.5px;
-  text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
-  box-shadow: 0 0 24px rgba(255, 215, 0, 0.35);
+  text-shadow: 0 0 10px rgba(var(--gold-rgb), 0.7);
+  box-shadow: 0 0 24px rgba(var(--gold-rgb), 0.35);
   animation: milestone-drop 300ms ease-out forwards;
   pointer-events: none;
   white-space: nowrap;
@@ -137,9 +137,9 @@
   max-width: min(92vw, 420px);
   padding: 10px 18px 10px 12px;
   border-radius: 999px;
-  border: 1.5px solid rgba(255, 215, 0, 0.55);
+  border: 1.5px solid rgba(var(--gold-rgb), 0.55);
   background: rgba(18, 16, 30, 0.98);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 22px rgba(255, 215, 0, 0.25);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 22px rgba(var(--gold-rgb), 0.25);
   backdrop-filter: blur(8px);
   color: #f4f4fb;
   font: inherit;
@@ -179,7 +179,7 @@
   font-weight: 800;
   letter-spacing: 1.4px;
   text-transform: uppercase;
-  color: #ffd700;
+  color: var(--gold);
 }
 .badge-toast-card.tier-silver .badge-toast-kicker { color: #dbe6f0; }
 .badge-toast-card.tier-bronze .badge-toast-kicker { color: #e0a878; }
@@ -262,7 +262,7 @@
   transform: translate(-50%, -50%);
   z-index: 1;
   border-radius: 50%;
-  background: repeating-conic-gradient(from 0deg, rgba(255, 215, 0, 0.16) 0deg 8deg, transparent 8deg 22deg);
+  background: repeating-conic-gradient(from 0deg, rgba(var(--gold-rgb), 0.16) 0deg 8deg, transparent 8deg 22deg);
   -webkit-mask-image: radial-gradient(circle, #000 22%, transparent 66%);
   mask-image: radial-gradient(circle, #000 22%, transparent 66%);
   opacity: 0;
@@ -280,7 +280,7 @@
   margin: -64px 0 0 -64px;
   z-index: 2;
   border-radius: 50%;
-  border: 3px solid rgba(255, 215, 0, 0.75);
+  border: 3px solid rgba(var(--gold-rgb), 0.75);
   opacity: 0;
   animation: badge-reveal-wave 0.9s ease-out 0.72s 1;
 }
@@ -331,7 +331,7 @@
   font-weight: 800;
   letter-spacing: 2.4px;
   text-transform: uppercase;
-  color: #ffd700;
+  color: var(--gold);
 }
 .badge-reveal-name {
   font-size: 1.5rem;
@@ -345,12 +345,12 @@
 }
 .badge-reveal-tier.tier-bronze { color: #e0a878; }
 .badge-reveal-tier.tier-silver { color: #dbe6f0; }
-.badge-reveal-tier.tier-gold { color: #ffd700; }
+.badge-reveal-tier.tier-gold { color: var(--gold); }
 .badge-reveal-tier.tier-platinum { color: #cfe6f7; }
 .badge-reveal-count {
   font-size: 0.75rem;
   font-weight: 700;
-  color: #9a9ab8;
+  color: var(--text-2);
   letter-spacing: 1px;
 }
 .badge-reveal-btn {

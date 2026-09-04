@@ -1,6 +1,6 @@
 
 /* By Note mode */
-.note-display { font-size: 4rem; color: #0ff; line-height: 1; text-shadow: 0 0 16px rgba(0, 255, 255, 0.5); }
+.note-display { font-size: 4rem; color: var(--accent); line-height: 1; text-shadow: 0 0 16px rgba(var(--accent-rgb), 0.5); }
 
 .fret-grid {
   display: grid;
@@ -14,8 +14,8 @@
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   position: relative;
   height: 56px; border-radius: 10px;
-  background: #2a2a4a; border: 2px solid #555;
-  color: #eee; cursor: pointer;
+  background: var(--surface-border); border: 2px solid var(--border-soft);
+  color: var(--text-0); cursor: pointer;
   transition: all 0.2s, box-shadow 0.6s;
   outline: none;
   -webkit-tap-highlight-color: transparent;
@@ -23,9 +23,9 @@
   user-select: none;
   touch-action: manipulation;
 }
-.fret-btn:focus { outline: none; box-shadow: none; border-color: #555; background: #2a2a4a; }
+.fret-btn:focus { outline: none; box-shadow: none; border-color: var(--border-soft); background: var(--surface-border); }
 .fret-btn:focus-visible { outline: none; }
-.fret-btn:active:not(:disabled) { transform: scale(0.93); background: #2a2a4a; border-color: #555; }
+.fret-btn:active:not(:disabled) { transform: scale(0.93); background: var(--surface-border); border-color: var(--border-soft); }
 .fret-btn:disabled { opacity: 0.4; cursor: default; }
 .fret-btn.fret-disabled { opacity: 0.2; cursor: not-allowed; }
 
@@ -64,10 +64,10 @@
 .note-mastery-fill.mastery-known { background: #2ecc71; box-shadow: 0 0 4px rgba(46, 204, 113, 0.7); }
 .note-mastery-fill.mastery-needsWork { background: #f5a623; box-shadow: 0 0 4px rgba(245, 166, 35, 0.7); }
 .fret-glow {
-  box-shadow: 0 0 14px 5px rgba(0, 255, 255, 0.7) !important;
+  box-shadow: 0 0 14px 5px rgba(var(--accent-rgb), 0.7) !important;
   animation: fret-glow-fade 0.4s ease-out forwards;
 }
 @keyframes fret-glow-fade {
-  0%   { box-shadow: 0 0 14px 5px rgba(0, 255, 255, 0.7); }
-  100% { box-shadow: 0 0 0 0 rgba(0, 255, 255, 0); }
+  0%   { box-shadow: 0 0 14px 5px rgba(var(--accent-rgb), 0.7); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0); }
 }

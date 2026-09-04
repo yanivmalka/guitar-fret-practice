@@ -148,9 +148,9 @@ function Expander({ label, open, onToggle, children }: { label: string; open: bo
 }
 
 const HEAT: Record<string, string> = {
-  unplayed: '#24244a',
-  needsWork: '#ff9d2e',
-  known: '#34e07a',
+  unplayed: 'var(--heat-unplayed)',
+  needsWork: 'var(--amber)',
+  known: 'var(--success)',
 };
 
 // Short open-note label ("String 1 · high E" -> "E") for the heatmap rows.

@@ -41,7 +41,7 @@
   border: none;
   border-radius: 12px;
   background: rgba(11, 11, 24, 0.35);
-  color: #f0f0f8;
+  color: var(--text-0);
   font: inherit;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;

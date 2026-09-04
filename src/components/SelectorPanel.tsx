@@ -204,10 +204,10 @@ export default function SelectorPanel({
               return <line key={`str${i}`} x1={fbLeft} y1={y} x2={NECK_RIGHT} y2={y} stroke="#cba" strokeWidth={thickness} opacity="0.5" />;
             })}
             {activeString != null && (
-              <line key={activeString} className="mini-neck-active-string" x1={fbLeft} y1={stringY(activeString)} x2={NECK_RIGHT} y2={stringY(activeString)} stroke="#0ff" strokeWidth="1.8" opacity="0.9" />
+              <line key={activeString} className="mini-neck-active-string" x1={fbLeft} y1={stringY(activeString)} x2={NECK_RIGHT} y2={stringY(activeString)} stroke="var(--accent)" strokeWidth="1.8" opacity="0.9" />
             )}
             {Array.from({ length: maxFret }, (_, i) => i + 1).map((f) => (
-              <line key={f} x1={fretX(f)} y1={FB_TOP} x2={fretX(f)} y2={FB_BOTTOM} stroke="#999" strokeWidth="1" />
+              <line key={f} x1={fretX(f)} y1={FB_TOP} x2={fretX(f)} y2={FB_BOTTOM} stroke="var(--text-3)" strokeWidth="1" />
             ))}
             {dotFrets.map((f) => {
               const cx = (fretX(f - 1) + fretX(f)) / 2;
@@ -216,7 +216,7 @@ export default function SelectorPanel({
               return <circle key={f} cx={cx} cy={midY} r="2.5" fill="#ddd" opacity="0.8" />;
             })}
             {activeFret != null && activeFret >= 0 && activeFret <= maxFret && (
-              <circle cx={activeFret === 0 ? NECK_RIGHT + 1 : (fretX(activeFret - 1) + fretX(activeFret)) / 2} cy={activeString ? stringY(activeString) : FB_TOP + FB_HEIGHT / 2} r="4" fill="#0ff" opacity="0.85" />
+              <circle cx={activeFret === 0 ? NECK_RIGHT + 1 : (fretX(activeFret - 1) + fretX(activeFret)) / 2} cy={activeString ? stringY(activeString) : FB_TOP + FB_HEIGHT / 2} r="4" fill="var(--accent)" opacity="0.85" />
             )}
             <line x1={NECK_RIGHT} y1={FB_TOP} x2={NECK_RIGHT} y2={FB_BOTTOM} stroke="#f5f0e8" strokeWidth="3.5" />
           </svg>
@@ -329,7 +329,7 @@ export default function SelectorPanel({
               y1={stringY(activeString)}
               x2={NECK_RIGHT}
               y2={stringY(activeString)}
-              stroke="#0ff" strokeWidth="1.8" opacity="0.9"
+              stroke="var(--accent)" strokeWidth="1.8" opacity="0.9"
             />
           ) : (
             selector.selectedStrings.map((sn) => (
@@ -339,14 +339,14 @@ export default function SelectorPanel({
                 y1={stringY(sn)}
                 x2={NECK_RIGHT}
                 y2={stringY(sn)}
-                stroke="#0ff" strokeWidth="1.8" opacity="0.9"
+                stroke="var(--accent)" strokeWidth="1.8" opacity="0.9"
               />
             ))
           )}
 
           {/* Fret lines */}
           {Array.from({ length: maxFret }, (_, i) => i + 1).map((f) => (
-            <line key={f} x1={fretX(f)} y1={FB_TOP} x2={fretX(f)} y2={FB_BOTTOM} stroke="#999" strokeWidth="1" />
+            <line key={f} x1={fretX(f)} y1={FB_TOP} x2={fretX(f)} y2={FB_BOTTOM} stroke="var(--text-3)" strokeWidth="1" />
           ))}
 
           {/* Dot markers */}
@@ -362,7 +362,7 @@ export default function SelectorPanel({
             <circle
               cx={activeFret === 0 ? NECK_RIGHT + 1 : (fretX(activeFret - 1) + fretX(activeFret)) / 2}
               cy={activeString ? stringY(activeString) : FB_TOP + FB_HEIGHT / 2}
-              r="4" fill="#0ff" opacity="0.85"
+              r="4" fill="var(--accent)" opacity="0.85"
             />
           )}
 
@@ -396,14 +396,14 @@ export default function SelectorPanel({
                 width={Math.max(0, fretX(clampFret(selector.fretLo)) - fretX(clampFret(selector.fretHi)))}
                 height="3"
                 rx="1.5"
-                fill="#0ff"
+                fill="var(--accent)"
               />
             </>
           )}
 
           {/* Labels — highlighted when active; muted while the precise window overrides them */}
-          <text x={(splitX + NECK_RIGHT) / 2} y={FB_BOTTOM + 11} textAnchor="middle" fontSize="8" fill={preciseActive ? '#444' : selector.lowerActive ? '#0ff' : '#555'} fontWeight={!preciseActive && selector.lowerActive ? 'bold' : 'normal'}>0–12</text>
-          <text x={(fbLeft + splitX) / 2} y={FB_BOTTOM + 11} textAnchor="middle" fontSize="8" fill={preciseActive ? '#444' : selector.upperActive ? '#0ff' : '#555'} fontWeight={!preciseActive && selector.upperActive ? 'bold' : 'normal'}>12–{maxFret}</text>
+          <text x={(splitX + NECK_RIGHT) / 2} y={FB_BOTTOM + 11} textAnchor="middle" fontSize="8" fill={preciseActive ? 'var(--border-soft)' : selector.lowerActive ? 'var(--accent)' : 'var(--border-soft)'} fontWeight={!preciseActive && selector.lowerActive ? 'bold' : 'normal'}>0–12</text>
+          <text x={(fbLeft + splitX) / 2} y={FB_BOTTOM + 11} textAnchor="middle" fontSize="8" fill={preciseActive ? 'var(--border-soft)' : selector.upperActive ? 'var(--accent)' : 'var(--border-soft)'} fontWeight={!preciseActive && selector.upperActive ? 'bold' : 'normal'}>12–{maxFret}</text>
         </svg>
       </div>
 

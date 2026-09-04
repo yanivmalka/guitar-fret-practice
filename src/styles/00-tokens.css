@@ -1,0 +1,119 @@
+/* ────────────────────────────────────────────────────────────────
+   Theme tokens.
+   'dark' (the :root defaults) reproduces the app's original,
+   hand-tuned dark palette exactly — no visual change for existing
+   users. 'night' and 'day' are override blocks selected by
+   `data-theme` on <html> (set in App.tsx from the `pref_theme`
+   setting; see src/utils/theme.ts).
+
+   Naming follows src/design-preview/design-preview.css so the two
+   token systems stay easy to cross-reference, though the actual
+   values here are the production app's real colors, not the
+   design-lab's.
+──────────────────────────────────────────────────────────────── */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces, darkest to lightest/most-elevated. */
+  --bg-0: #1a1a2e;   /* app/body background */
+  --bg-1: #111122;   /* deep panel (settings drawer, letterbox ring) */
+  --bg-2: #15152a;   /* card surface */
+  --bg-3: #1c1c38;   /* elevated / interactive surface (segmented pill, pick buttons) */
+  --bg-letterbox: #0c0c18; /* desktop-only area outside the phone frame */
+  --surface-border: #2a2a4a;
+  --border-soft: #444;
+
+  /* Text, most to least prominent. */
+  --text-0: #f0f0f8;
+  --text-1: #c8c8de;
+  --text-2: #9a9ab8;
+  --text-3: #6f6f8c;
+
+  /* Accent + status colors. RGB triplets are provided alongside the
+     hex value so rgba(var(--accent-rgb), <alpha>) glows can stay
+     theme-aware too. */
+  --accent: #0ff;
+  --accent-rgb: 0, 255, 255;
+  --accent-dim: #0aa;
+  --accent-ink: #06222a;
+  --gold: #ffd700;
+  --gold-rgb: 255, 215, 0;
+  --amber: #f90;
+  --success: #34e07a;
+  --success-rgb: 52, 224, 122;
+  --danger: #ff5470;
+  --danger-rgb: 255, 84, 112;
+
+  /* Fretboard mastery heatmap (ProgressPanel) — functional, must stay
+     readable in every theme; needsWork/known reuse --amber/--success. */
+  --heat-unplayed: #24244a;
+}
+
+/* 'night' — warm-toned, dimmer surfaces for use in a dark room.
+   Shifts the base hue family from cool blue-purple to warm brown/
+   amber and lowers overall lightness relative to 'dark'. */
+[data-theme='night'] {
+  color-scheme: dark;
+
+  --bg-0: #14100c;
+  --bg-1: #0d0a08;
+  --bg-2: #1a1410;
+  --bg-3: #241c15;
+  --bg-letterbox: #0a0806;
+  --surface-border: #3a2e22;
+  --border-soft: #4a3b2c;
+
+  --text-0: #f0e6d8;
+  --text-1: #d6c6b0;
+  --text-2: #ab9884;
+  --text-3: #786454;
+
+  --accent: #ffb454;
+  --accent-rgb: 255, 180, 84;
+  --accent-dim: #a06a1e;
+  --accent-ink: #2a1a06;
+  --gold: #ffcc66;
+  --gold-rgb: 255, 204, 102;
+  --amber: #ff8a3d;
+  --success: #7fbf6a;
+  --success-rgb: 127, 191, 106;
+  --danger: #e05a4e;
+  --danger-rgb: 224, 90, 78;
+
+  --heat-unplayed: #2a2015;
+}
+
+/* 'day' — light background, dark text. Adapted from the light
+   palette already validated in the design-preview lab, extended to
+   this token set. */
+[data-theme='day'] {
+  color-scheme: light;
+
+  --bg-0: #f4f5fb;
+  --bg-1: #ffffff;
+  --bg-2: #eceef8;
+  --bg-3: #e2e5f4;
+  --bg-letterbox: #d8dbee;
+  --surface-border: #d8dbee;
+  --border-soft: #c3c7e0;
+
+  --text-0: #14162b;
+  --text-1: #34364f;
+  --text-2: #6b6d8a;
+  --text-3: #9799b3;
+
+  --accent: #0093ac;
+  --accent-rgb: 0, 147, 172;
+  --accent-dim: #0093ac;
+  --accent-ink: #ffffff;
+  --gold: #b8860b;
+  --gold-rgb: 184, 134, 11;
+  --amber: #c8660a;
+  --success: #189a55;
+  --success-rgb: 24, 154, 85;
+  --danger: #d6335a;
+  --danger-rgb: 214, 51, 90;
+
+  --heat-unplayed: #dfe1ee;
+}

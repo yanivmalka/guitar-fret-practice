@@ -23,7 +23,7 @@
   font-size: 0.95rem;
   border: none;
   background: #222;
-  color: #777;
+  color: var(--text-3);
   cursor: pointer;
   transition: all 0.15s;
   border-bottom: 3px solid transparent;
@@ -74,7 +74,7 @@
   border-radius: 12px;
   border: 2px solid #333;
   background: #1a1a1a;
-  color: #777;
+  color: var(--text-3);
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -127,11 +127,11 @@
   font-size: 0.8rem;
 }
 .fret-range-readout-k {
-  color: #888;
+  color: var(--text-3);
   text-transform: lowercase;
 }
 .fret-range-readout-v {
-  color: #0ff;
+  color: var(--accent);
   font-size: 1rem;
   font-weight: 800;
   letter-spacing: 0.5px;
@@ -156,7 +156,7 @@
   background: #333;
 }
 .fret-range-sel {
-  background: #0ff;
+  background: var(--accent);
 }
 .fret-range-input {
   position: absolute;
@@ -180,7 +180,7 @@
   height: 18px;
   border-radius: 50%;
   background: #f5f0e8;
-  border: 2px solid #0ff;
+  border: 2px solid var(--accent);
   cursor: pointer;
   pointer-events: auto;
 }
@@ -189,7 +189,7 @@
   height: 18px;
   border-radius: 50%;
   background: #f5f0e8;
-  border: 2px solid #0ff;
+  border: 2px solid var(--accent);
   cursor: pointer;
   pointer-events: auto;
 }
@@ -198,10 +198,10 @@
   background: none;
 }
 .fret-range-input:focus-visible::-webkit-slider-thumb {
-  box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.35);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.35);
 }
 .fret-range-input:focus-visible::-moz-range-thumb {
-  box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.35);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.35);
 }
 
 /* Difficulty road */
@@ -225,7 +225,7 @@
   border-radius: 10px;
   border: 2px solid #333;
   background: #1a1a1a;
-  color: #777;
+  color: var(--text-3);
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -250,7 +250,7 @@
   height: 0.8rem;
 }
 .diff-arrow {
-  color: #555;
+  color: var(--border-soft);
   font-size: 1rem;
   padding: 0 6px;
   flex-shrink: 0;
