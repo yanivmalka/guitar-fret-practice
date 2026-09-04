@@ -662,16 +662,30 @@ export default function App() {
     setSignInPromptSeen(true);
     saveSetting('pref_signInPromptSeen', true);
   };
+  // Which screen is open (Stats, the settings drawer, a settings sub-page) is
+  // stashed in sessionStorage so a page reload — the ↻ button, or the browser's
+  // own refresh — lands back where you were instead of on the home screen.
+  // sessionStorage (not localStorage) so a fresh launch still starts at home.
+  const initialView = useMemo(() => {
+    try {
+      const raw = sessionStorage.getItem('gfp_view');
+      return raw ? (JSON.parse(raw) as {
+        stats?: boolean; settingsOpen?: boolean; section?: string | null; upgradeFromAccount?: boolean;
+      }) : null;
+    } catch {
+      return null;
+    }
+  }, []);
   // The unified "Stats & progress" screen (current-setup stats + all-time progress tabs).
-  const [showStats, setShowStats] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showStats, setShowStats] = useState(() => initialView?.stats ?? false);
+  const [settingsOpen, setSettingsOpen] = useState(() => initialView?.settingsOpen ?? false);
   // Which settings sub-page is open inside the drawer; null = the list of titles.
-  const [drawerSection, setDrawerSection] = useState<string | null>(null);
+  const [drawerSection, setDrawerSection] = useState<string | null>(() => initialView?.section ?? null);
   // The `upgrade` (Pro) sub-page is reachable both from the Account tab's plan
   // tile and from any locked <ProGate> in the app (via registerUpgradeHandler,
   // which may open it without Account ever being shown). Back should return to
   // Account only in the former case, so track which way we got there.
-  const upgradeFromAccountRef = useRef(false);
+  const upgradeFromAccountRef = useRef(initialView?.upgradeFromAccount ?? false);
   // Friendly in-app microphone card shown *before* the browser's own bare
   // permission prompt: 'primer' explains why we need the mic, 'denied' is the
   // recovery card for when the browser has already refused (it won't re-ask).
@@ -795,6 +809,26 @@ export default function App() {
   // open) reads the current value without re-subscribing on every navigation.
   const drawerSectionRef = useRef<string | null>(null);
   useEffect(() => { drawerSectionRef.current = drawerSection; }, [drawerSection]);
+
+  // Persist the open screen so a reload restores it (see `initialView` above).
+  // Clear the key when we're back on the home screen so the next fresh launch
+  // starts clean even within the same tab session.
+  useEffect(() => {
+    try {
+      if (!showStats && !settingsOpen && drawerSection === null) {
+        sessionStorage.removeItem('gfp_view');
+      } else {
+        sessionStorage.setItem('gfp_view', JSON.stringify({
+          stats: showStats,
+          settingsOpen,
+          section: drawerSection,
+          upgradeFromAccount: upgradeFromAccountRef.current,
+        }));
+      }
+    } catch {
+      /* sessionStorage unavailable (private mode / disabled) — non-fatal */
+    }
+  }, [showStats, settingsOpen, drawerSection]);
 
   // A locked <ProGate> anywhere in the tree opens the `upgrade` drawer section
   // through this handler (see utils/upgradeDrawer.ts). Leave any full-screen
