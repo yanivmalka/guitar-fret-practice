@@ -16,8 +16,30 @@ export interface SelectorState {
   mode: 'byNote' | 'byFret';
   lowerActive: boolean;
   upperActive: boolean;
+  // Precise Pro fret window. Used *instead of* the free 0–12 / 12–max
+  // half-picker only when `useFretRange` is on AND the user is Pro (see the
+  // hook's `isPro` argument); otherwise it's ignored and kept for later.
+  useFretRange: boolean;
+  fretLo: number;
+  fretHi: number;
   difficulty: Difficulty;
   autoAdvance: boolean;
+}
+
+// Minimum width (in frets) of the precise Pro fret-range window, so a round
+// always has room for a handful of distinct frets to ask about.
+export const MIN_FRET_WINDOW = 3;
+
+// Clamp a precise-window [lo, hi] pair to something valid for this neck: both
+// ends inside [0, maxFret], with lo at least MIN_FRET_WINDOW below hi (a bass
+// has more frets than a guitar, so a window saved on one must survive a switch
+// to the other).
+export function clampFretWindow(lo: number, hi: number, maxFret: number): [number, number] {
+  let l = Math.round(Number.isFinite(lo) ? lo : 0);
+  let h = Math.round(Number.isFinite(hi) ? hi : maxFret);
+  l = Math.max(0, Math.min(l, maxFret - MIN_FRET_WINDOW));
+  h = Math.max(l + MIN_FRET_WINDOW, Math.min(h, maxFret));
+  return [l, h];
 }
 
 // Difficulty-only progression, kept as the fallback for when the current
@@ -48,10 +70,17 @@ export interface DerivedSettings {
 // The instrument id prefixes every key so guitar and bass stats never mix.
 // Guitar keeps its original (unprefixed) key shape for back-compat with
 // history/personal-best records saved before bass existed.
-export function historyKey(state: SelectorState, instrument: InstrumentConfig): string {
+export function historyKey(state: SelectorState, instrument: InstrumentConfig, isPro = false): string {
   const strings = [...state.selectedStrings].sort((a, b) => a - b).join(',');
   const upper = state.upperActive ? instrument.maxFret : 12;
-  const fret = `${state.lowerActive ? '0' : '12'}-${upper}`;
+  // A precise Pro window gets its own `p<lo>-<hi>` fret segment so its stats
+  // never mix with the half-picker's `0-12` / `12-max` shape. The non-precise
+  // shape is unchanged byte-for-byte, so existing history / best_<key> records
+  // keep resolving.
+  const [winLo, winHi] = clampFretWindow(state.fretLo, state.fretHi, instrument.maxFret);
+  const fret = (state.useFretRange && isPro)
+    ? `p${winLo}-${winHi}`
+    : `${state.lowerActive ? '0' : '12'}-${upper}`;
   const mode = state.mode;
   const diff = state.difficulty;
   const base = `${strings}|${fret}|${mode}|${diff}`;
@@ -130,12 +159,23 @@ function runQuestions(seq: StageStep[], state: SelectorState): number {
 
 // ── Hook ─────────────────────────────────────────────────────────────────
 
-export function useSelector(instrument: InstrumentConfig) {
+export function useSelector(instrument: InstrumentConfig, isPro = false) {
   const [selectedStrings, setSelectedStrings] = useState<number[]>(
     () => loadStrings(instrument)
   );
   const [multiMode, setMultiMode] = useState<boolean>(
     () => loadMulti(instrument)
+  );
+  // Precise Pro fret window — global (not per-instrument), clamped to the
+  // active neck on read and on instrument switch.
+  const [useFretRange, setUseFretRange] = useState<boolean>(
+    () => loadSetting('sel_useFretRange', false)
+  );
+  const [fretLo, setFretLo] = useState<number>(
+    () => loadSetting('sel_fretLo', 0)
+  );
+  const [fretHi, setFretHi] = useState<number>(
+    () => loadSetting('sel_fretHi', instrument.maxFret)
   );
 
   // On instrument switch: reload that instrument's own string picks. The
@@ -148,12 +188,27 @@ export function useSelector(instrument: InstrumentConfig) {
     prevInstrumentRef.current = instrument.id;
     setSelectedStrings(loadStrings(instrument));
     setMultiMode(loadMulti(instrument));
+    // The precise window is global; re-clamp it (and re-persist) to the new
+    // neck's fret count so a guitar window doesn't overhang a switch to bass
+    // or vice-versa.
+    const [lo, hi] = clampFretWindow(
+      loadSetting('sel_fretLo', 0),
+      loadSetting('sel_fretHi', instrument.maxFret),
+      instrument.maxFret,
+    );
+    setFretLo(lo);
+    setFretHi(hi);
+    saveSetting('sel_fretLo', lo);
+    saveSetting('sel_fretHi', hi);
   }, [instrument]);
 
   const safeStrings = (() => {
     const valid = selectedStrings.filter(s => s >= 1 && s <= instrument.stringCount);
     return valid.length > 0 ? valid : [instrument.stringCount];
   })();
+  // Render-safe precise window: the stored values re-clamped every render, the
+  // same way `safeStrings` guards the string picks during an instrument switch.
+  const [safeFretLo, safeFretHi] = clampFretWindow(fretLo, fretHi, instrument.maxFret);
   const [mode, setMode] = useState<'byNote' | 'byFret'>(
     () => loadSetting('sel_mode', 'byFret')
   );
@@ -237,6 +292,24 @@ export function useSelector(instrument: InstrumentConfig) {
     }
   };
 
+  // Precise Pro window: move one or both handles. Clamped (and min-width
+  // enforced) here as well as on read, so a bad pair never reaches storage.
+  const onFretRangeWindow = (lo: number, hi: number) => {
+    const [l, h] = clampFretWindow(lo, hi, instrument.maxFret);
+    setFretLo(l);
+    saveSetting('sel_fretLo', l);
+    setFretHi(h);
+    saveSetting('sel_fretHi', h);
+  };
+
+  const onFretRangePreciseToggle = () => {
+    setUseFretRange(prev => {
+      const next = !prev;
+      saveSetting('sel_useFretRange', next);
+      return next;
+    });
+  };
+
   const onDifficultySelect = (diff: Difficulty) => {
     setDifficulty(diff);
     saveSetting('sel_difficulty', diff);
@@ -264,6 +337,10 @@ export function useSelector(instrument: InstrumentConfig) {
     saveSetting('sel_lower', step.lowerActive);
     setUpperActive(step.upperActive);
     saveSetting('sel_upper', step.upperActive);
+    // Every curriculum stage is half-based; Auto Advance always runs on the
+    // standard half-picker, so a precise window is switched off for the run.
+    setUseFretRange(false);
+    saveSetting('sel_useFretRange', false);
     setDifficulty(step.difficulty);
     saveSetting('sel_difficulty', step.difficulty);
   };
@@ -276,6 +353,9 @@ export function useSelector(instrument: InstrumentConfig) {
     mode,
     lowerActive,
     upperActive,
+    useFretRange,
+    fretLo: safeFretLo,
+    fretHi: safeFretHi,
     difficulty,
     autoAdvance,
   };
@@ -296,12 +376,21 @@ export function useSelector(instrument: InstrumentConfig) {
     const multiStrings = (multiMode && safeStrings.length > 1)
       ? safeStrings
       : [];
-    const fretFrom = lowerActive ? 0 : 12;
-    const fretTo = upperActive ? instrument.maxFret : 12;
+    // The precise Pro window overrides the half-picker, but only for a Pro
+    // user. A free user who set one while on Pro keeps it in storage; it just
+    // isn't applied — the derivation falls back to the halves.
+    const precise = useFretRange && isPro;
+    const fretFrom = precise ? safeFretLo : (lowerActive ? 0 : 12);
+    const fretTo = precise ? safeFretHi : (upperActive ? instrument.maxFret : 12);
     const byNote = mode === 'byNote';
     const dotsOnly = difficulty === 'dots';
     const wholeToneOnly = difficulty === 'naturals';
-    const time = getTime(difficulty, lowerActive, upperActive);
+    // Time limit keys off the halves the window effectively covers: a window
+    // that reaches past fret 12 counts as the upper half, one below it as the
+    // lower half (the reasonable approximation — see commit message).
+    const lowerEff = precise ? fretFrom < 12 : lowerActive;
+    const upperEff = precise ? fretTo > 12 : upperActive;
+    const time = getTime(difficulty, lowerEff, upperEff);
     const maxQuestions = getMaxQuestions(difficulty);
 
     // Preserve existing user preferences for accidental and order
@@ -322,7 +411,7 @@ export function useSelector(instrument: InstrumentConfig) {
       order,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [safeKey, multiMode, mode, lowerActive, upperActive, difficulty, instrument]);
+  }, [safeKey, multiMode, mode, lowerActive, upperActive, useFretRange, isPro, safeFretLo, safeFretHi, difficulty, instrument]);
 
   // ── Return ─────────────────────────────────────────────────────────
 
@@ -332,12 +421,14 @@ export function useSelector(instrument: InstrumentConfig) {
     onMultiToggle,
     onModeSelect,
     onFretRangeToggle,
+    onFretRangeWindow,
+    onFretRangePreciseToggle,
     onDifficultySelect,
     onAutoAdvanceToggle,
     applyStage,
     nextStage,
     runQuestionCount,
     derivedSettings,
-    historyKey: () => historyKey(state, instrument),
+    historyKey: () => historyKey(state, instrument, isPro),
   };
 }

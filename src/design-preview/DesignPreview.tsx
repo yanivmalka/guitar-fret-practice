@@ -86,6 +86,9 @@ export default function DesignPreview() {
     mode: 'byFret',
     lowerActive: true,
     upperActive: false,
+    useFretRange: false,
+    fretLo: 0,
+    fretHi: 21,
     difficulty: 'dots',
     autoAdvance: false,
   });

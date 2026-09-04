@@ -46,13 +46,16 @@ type Scope = 'setup' | 'all';
 function pct(n: number) { return `${Math.round(n * 100)}%`; }
 
 // "6|0-12|byFret|dots" or "bass|6|0-12|byFret|dots" -> a short human caption.
+// The fret segment is either the half-picker's "0-12" / "12-max" or, for a
+// precise Pro window, "p<lo>-<hi>" — shown here as a plain "lo-hi" span.
 function describeKey(key: string, t: (s: string) => string): string {
   const parts = key.split('|');
   let inst = '';
   if (parts.length === 5) { inst = parts.shift() === 'bass' ? '🎵 ' : '🎸 '; }
   const [strings, fret, mode, diff] = parts;
   const modeText = mode === 'byNote' ? t('by note') : t('by fret');
-  return `${inst}str ${strings} · fr ${fret} · ${modeText} · ${diff}`;
+  const fretText = fret?.startsWith('p') ? fret.slice(1) : fret;
+  return `${inst}str ${strings} · fr ${fretText} · ${modeText} · ${diff}`;
 }
 
 // ── shared analytics ────────────────────────────────────────────

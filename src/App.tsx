@@ -98,7 +98,7 @@ export default function App() {
   // uses the same `auth` object.
   const auth = useAuth();
 
-  const selector = useSelector(instrument);
+  const selector = useSelector(instrument, auth.isPro);
   const { derivedSettings } = selector;
 
   const [guitarString, setGuitarString] = useState(derivedSettings.guitarString);
@@ -1095,6 +1095,9 @@ export default function App() {
       onMultiToggle={selector.onMultiToggle}
       onModeSelect={selector.onModeSelect}
       onFretRangeToggle={selector.onFretRangeToggle}
+      isPro={auth.isPro}
+      onFretRangeWindow={!panelPlaying && !notationOnly ? selector.onFretRangeWindow : undefined}
+      onFretRangePreciseToggle={!panelPlaying && !notationOnly ? selector.onFretRangePreciseToggle : undefined}
       onDifficultySelect={selector.onDifficultySelect}
       onAutoAdvanceToggle={() => {
         if (selector.state.autoAdvance) playToggleOffSound(); else playToggleOnSound();

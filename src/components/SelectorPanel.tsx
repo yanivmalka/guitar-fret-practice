@@ -4,6 +4,9 @@ import { displayNote } from '../utils/music';
 import type { InstrumentConfig } from '../utils/instruments';
 import { playClickSound, playToggleOnSound, playToggleOffSound } from '../utils/feedback';
 import { useTranslation } from '../i18n/useTranslation';
+import { ProGate } from './ProGate';
+import { SettingCard, SegmentedControl } from './SettingCard';
+import FretRangeControl from './FretRangeControl';
 
 interface SelectorPanelProps {
   selector: SelectorState;
@@ -12,6 +15,14 @@ interface SelectorPanelProps {
   onMultiToggle: () => void;
   onModeSelect: (mode: 'byNote' | 'byFret') => void;
   onFretRangeToggle: (half: 'lower' | 'upper') => void;
+  /** Precise Pro fret window — omitted where the panel is read-only (mini/play,
+   *  notation-only). When set, the ProGate-wrapped control renders under the
+   *  half-picker neck. */
+  onFretRangeWindow?: (lo: number, hi: number) => void;
+  onFretRangePreciseToggle?: () => void;
+  /** Whether the current user is Pro — decides if the stored precise window is
+   *  actually in effect (it stays saved but unused for a free user). */
+  isPro?: boolean;
   onDifficultySelect: (diff: Difficulty) => void;
   onAutoAdvanceToggle?: () => void;
   isPlaying: boolean;
@@ -60,7 +71,8 @@ const FB_BOTTOM = FB_TOP + FB_HEIGHT;
 
 export default function SelectorPanel({
   selector, instrument, onStringSelect, onMultiToggle, onModeSelect,
-  onFretRangeToggle, onDifficultySelect, onAutoAdvanceToggle, isPlaying, activeString, activeFret,
+  onFretRangeToggle, onFretRangeWindow, onFretRangePreciseToggle, isPro,
+  onDifficultySelect, onAutoAdvanceToggle, isPlaying, activeString, activeFret,
   byString, order, onByStringToggle, onOrderChange, accidental, notation, onNotationChange,
   notationOnly, onInfo, showInfo,
 }: SelectorPanelProps) {
@@ -89,6 +101,12 @@ export default function SelectorPanel({
   const splitX = fretX(12);
   const fbLeft = FB_LEFT_MARGIN - 3;
 
+  // The precise Pro window is actually driving the round (Pro + toggle on): the
+  // half-picker is then just a dimmed backdrop with a cyan bar marking the live
+  // window, and every fret label reads from it.
+  const preciseActive = !!isPro && selector.useFretRange;
+  const clampFret = (f: number) => Math.max(0, Math.min(f, maxFret));
+
   // Plain-language summary of everything the current selection means, shown at
   // the top of the "?" bubble so the player can read what this round will drill
   // before starting it. Reads from the same SelectorState the pills/cards set.
@@ -101,9 +119,11 @@ export default function SelectorPanel({
     : selectedStringLabels.length === 1
       ? (lang === 'he' ? `מיתר ${selectedStringLabels[0]}` : `the ${selectedStringLabels[0]} string`)
       : `${t('strings')} ${selectedStringLabels.join(', ')}`;
-  const fretsPhrase = selector.lowerActive && selector.upperActive
-    ? `${t('frets')} 0–${maxFret}`
-    : selector.lowerActive ? `${t('frets')} 0–12` : `${t('frets')} 12–${maxFret}`;
+  const fretsPhrase = preciseActive
+    ? `${t('frets')} ${selector.fretLo}–${selector.fretHi}`
+    : selector.lowerActive && selector.upperActive
+      ? `${t('frets')} 0–${maxFret}`
+      : selector.lowerActive ? `${t('frets')} 0–12` : `${t('frets')} 12–${maxFret}`;
   const difficultyPhrase = selector.difficulty === 'dots'
     ? t('only the dot-marker frets')
     : selector.difficulty === 'naturals'
@@ -157,7 +177,9 @@ export default function SelectorPanel({
   // During gameplay: show minimized panel with just info + fret neck
   if (isPlaying) {
     const strLabels = selector.selectedStrings.map(n => strings.find(s => s.num === n)?.label ?? '').join(' ');
-    const fretLabel = selector.lowerActive && selector.upperActive ? `0-${maxFret}` : selector.lowerActive ? '0-12' : `12-${maxFret}`;
+    const fretLabel = preciseActive
+      ? `${selector.fretLo}-${selector.fretHi}`
+      : selector.lowerActive && selector.upperActive ? `0-${maxFret}` : selector.lowerActive ? '0-12' : `12-${maxFret}`;
     const modeLabel = selector.mode === 'byFret' ? 'N→F' : 'F→N';
     const diffLabel = selector.difficulty === 'dots' ? '●' : selector.difficulty === 'naturals' ? '♮' : '♯♭';
     return (
@@ -341,11 +363,59 @@ export default function SelectorPanel({
             playClickSound(); onFretRangeToggle('upper');
           }} />
 
-          {/* Labels — highlighted when active */}
-          <text x={(splitX + NECK_RIGHT) / 2} y={FB_BOTTOM + 11} textAnchor="middle" fontSize="8" fill={selector.lowerActive ? '#0ff' : '#555'} fontWeight={selector.lowerActive ? 'bold' : 'normal'}>0–12</text>
-          <text x={(fbLeft + splitX) / 2} y={FB_BOTTOM + 11} textAnchor="middle" fontSize="8" fill={selector.upperActive ? '#0ff' : '#555'} fontWeight={selector.upperActive ? 'bold' : 'normal'}>12–{maxFret}</text>
+          {/* Precise Pro window in effect: fade the half-picker back and mark
+              the exact drilled span with a cyan bar under the neck. */}
+          {preciseActive && (
+            <>
+              <rect x={fbLeft} y={FB_TOP} width={NECK_RIGHT - fbLeft} height={FB_HEIGHT} fill="rgba(0,0,0,0.45)" rx="2" />
+              <rect
+                x={fretX(clampFret(selector.fretHi))}
+                y={FB_BOTTOM + 2}
+                width={Math.max(0, fretX(clampFret(selector.fretLo)) - fretX(clampFret(selector.fretHi)))}
+                height="3"
+                rx="1.5"
+                fill="#0ff"
+              />
+            </>
+          )}
+
+          {/* Labels — highlighted when active; muted while the precise window overrides them */}
+          <text x={(splitX + NECK_RIGHT) / 2} y={FB_BOTTOM + 11} textAnchor="middle" fontSize="8" fill={preciseActive ? '#444' : selector.lowerActive ? '#0ff' : '#555'} fontWeight={!preciseActive && selector.lowerActive ? 'bold' : 'normal'}>0–12</text>
+          <text x={(fbLeft + splitX) / 2} y={FB_BOTTOM + 11} textAnchor="middle" fontSize="8" fill={preciseActive ? '#444' : selector.upperActive ? '#0ff' : '#555'} fontWeight={!preciseActive && selector.upperActive ? 'bold' : 'normal'}>12–{maxFret}</text>
         </svg>
       </div>
+
+      {/* ── Precise fret-range window (Pro) ───────────────────
+          An extra layer on top of the free half-picker above: pick an exact
+          "fret N–M" span. Gated by `fretRange` in utils/features.ts. */}
+      {onFretRangeWindow && onFretRangePreciseToggle && (
+        <ProGate
+          feature="fretRange"
+          variant="overlay"
+          pitch={t('Pick an exact fret N–M window to drill')}
+        >
+          <div className="fret-range-block">
+            <SettingCard label={t('Precise fret range')}>
+              <SegmentedControl
+                ariaLabel={t('Precise fret range')}
+                value={selector.useFretRange ? 'on' : 'off'}
+                options={[
+                  { value: 'on', label: t('On') },
+                  { value: 'off', label: t('Off') },
+                ]}
+                onChange={() => onFretRangePreciseToggle()}
+              />
+            </SettingCard>
+            <FretRangeControl
+              maxFret={maxFret}
+              lo={selector.fretLo}
+              hi={selector.fretHi}
+              onChange={onFretRangeWindow}
+              disabled={!selector.useFretRange}
+            />
+          </div>
+        </ProGate>
+      )}
 
       {/* ── DifficultyRoad ────────────────────────────────── */}
       <div className="difficulty-road">

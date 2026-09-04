@@ -9,7 +9,7 @@ export type Feature =
   | 'historyBeyond7Days'   // the Stats & Progress screen's "All time" scope + trends
   | 'masteryMaps'          // fret/note "equalizer" overlays + their toggle
   | 'allPersonalBests'     // browse bests across every settings combination
-  | 'fretRange'            // planned: a fine "fret N–M" range selector (not yet surfaced)
+  | 'fretRange'            // the precise "fret N–M" window control in SelectorPanel
   | 'voiceProfile'         // personal voice profile + calibration
   | 'noAds';               // future: suppress Free-tier ads
 
@@ -21,9 +21,10 @@ const MIN_TIER: Record<Feature, Tier> = {
   voiceProfile:       'pro',
   noAds:              'pro',
 };
-// `fretRange` is reserved ahead of the UI: it will gate a future precise
-// "from fret N to fret M" range selector. The current 0–12 / 12–max half-picker
-// in `SelectorPanel` is NOT this feature and stays free for everyone.
+// `fretRange` gates the precise "from fret N to fret M" window control that
+// sits under the neck in `SelectorPanel` (its "Precise fret range" toggle +
+// two-handle slider). The 0–12 / 12–max half-picker above it is NOT this
+// feature and stays free for everyone; the precise window is an extra layer.
 //
 // NOT in this map on purpose (free on every tier, design §2.3): cloud sync and
 // full multi-device restore, the leaderboard (XP / questions / accuracy),
