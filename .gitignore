@@ -4,6 +4,9 @@ android
 .env
 .env.local
 
+# Local Claude Code tooling config (per-machine permissions, scratch paths)
+.claude/
+
 # Generated TTS WAVs for the General voice engine (regenerate with
 # scripts/synth-extra-voice.ps1); only the derived .ts file is committed.
 scripts/extra-wav
