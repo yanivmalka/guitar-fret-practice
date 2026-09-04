@@ -44,6 +44,12 @@ const he: Record<string, string> = {
   'Silent mode': 'מצב שקט',
   'Visual-only questions — no note playback or chime. Haptics and on-screen celebrations stay on. Great for practising with headphones off or a guitar in hand.':
     'שאלות חזותיות בלבד — ללא השמעת התו וללא צליל "נכון". הרטט והחגיגות על המסך נשארים פעילים. מצוין לתרגול בלי אוזניות או עם גיטרה אמיתית ביד.',
+  'Theme': 'ערכת נושא',
+  'Dark': 'כהה',
+  'Night': 'לילה',
+  'Day': 'יום',
+  'Night is a warmer, dimmer palette for a dark room. Day is a light palette.':
+    'לילה היא ערכת צבעים חמה ועמומה יותר לחדר חשוך. יום היא ערכת צבעים בהירה.',
   'Mastery on the fretboard': 'שליטה בצוואר',
   'The per-note / per-fret accuracy bars drawn over the circle and grid while stopped or paused.':
     'פסי הדיוק לכל תו ולכל סריג, המוצגים על גבי הגלגל והרשת בזמן עצירה או השהיה.',
