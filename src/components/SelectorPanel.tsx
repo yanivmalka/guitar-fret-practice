@@ -5,6 +5,8 @@ import type { InstrumentConfig } from '../utils/instruments';
 import { playClickSound, playToggleOnSound, playToggleOffSound } from '../utils/feedback';
 import { useTranslation } from '../i18n/useTranslation';
 import { ProGate } from './ProGate';
+import { openUpgrade } from '../utils/upgradeDrawer';
+import { FREE_MULTI_STRING_LIMIT } from '../utils/features';
 import { SettingCard, SegmentedControl } from './SettingCard';
 import FretRangeControl from './FretRangeControl';
 
@@ -226,11 +228,31 @@ export default function SelectorPanel({
   return (
     <div className="selector-panel">
       {/* ── StringRow ─────────────────────────────────────── */}
+      {/* Free tier drills at most FREE_MULTI_STRING_LIMIT strings at once; once
+          that many are picked, the remaining pills read as locked and a tap on
+          one opens the Pro upsell instead of selecting it (the same guard lives
+          in useSelector, this is just the visual cue). */}
       <div className="selector-strings">
-        {strings.map(({ label, num }) => (
-          <button key={num} className={`string-pill ${selector.selectedStrings.includes(num) ? 'active' : ''}`} onClick={() => { if (selector.selectedStrings.includes(num)) playToggleOffSound(); else playToggleOnSound(); onStringSelect(num); }}>{label}</button>
-        ))}
-        <button className={`string-pill string-pill-toggle ${selector.multiMode ? 'active' : ''}`} onClick={() => { if (selector.multiMode) playToggleOffSound(); else playToggleOnSound(); onMultiToggle(); }}>{t('Multi')}</button>
+        {strings.map(({ label, num }) => {
+          const selected = selector.selectedStrings.includes(num);
+          const capped = !isPro && selector.multiMode && !selected
+            && selector.selectedStrings.length >= FREE_MULTI_STRING_LIMIT;
+          return (
+            <button
+              key={num}
+              className={`string-pill ${selected ? 'active' : ''} ${capped ? 'string-pill-locked' : ''}`}
+              aria-disabled={capped || undefined}
+              onClick={() => {
+                if (capped) { playClickSound(); openUpgrade(); return; }
+                if (selected) playToggleOffSound(); else playToggleOnSound();
+                onStringSelect(num);
+              }}
+            >{label}</button>
+          );
+        })}
+        <button className={`string-pill string-pill-toggle ${selector.multiMode ? 'active' : ''}`} onClick={() => { if (selector.multiMode) playToggleOffSound(); else playToggleOnSound(); onMultiToggle(); }}>
+          {t('Multi')}{!isPro && <span className="string-pill-pro-tag">Pro 1–{stringCount}</span>}
+        </button>
       </div>
 
       {/* ── ModeToggle with order options between cards ── */}

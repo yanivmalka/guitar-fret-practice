@@ -33,6 +33,26 @@
   background: #333;
   border-bottom-color: #4af;
 }
+/* Free tier: string pills past the 2-string multi cap read as locked. Still
+   tappable — the tap opens the Pro upsell (see SelectorPanel / useSelector). */
+.string-pill-locked {
+  opacity: 0.4;
+}
+.string-pill-locked::after {
+  content: " 🔒";
+  font-size: 0.7em;
+}
+.string-pill-pro-tag {
+  margin-inline-start: 6px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  background: #4af;
+  color: #04121f;
+  vertical-align: middle;
+}
 
 /* Mode cards */
 .mode-cards {

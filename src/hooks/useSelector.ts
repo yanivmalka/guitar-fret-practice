@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { loadSetting, saveSetting } from '../utils/settings';
+import { FREE_MULTI_STRING_LIMIT } from '../utils/features';
+import { openUpgrade } from '../utils/upgradeDrawer';
 import type { AccidentalMode, OrderMode } from '../utils/music';
 import type { InstrumentConfig } from '../utils/instruments';
 import {
@@ -204,7 +206,15 @@ export function useSelector(instrument: InstrumentConfig, isPro = false) {
 
   const safeStrings = (() => {
     const valid = selectedStrings.filter(s => s >= 1 && s <= instrument.stringCount);
-    return valid.length > 0 ? valid : [instrument.stringCount];
+    const base = valid.length > 0 ? valid : [instrument.stringCount];
+    // Free tier caps multi-string drilling at FREE_MULTI_STRING_LIMIT. Storage
+    // keeps whatever was picked while on Pro; this render-time clamp is what the
+    // drill and stats actually see, so dropping Pro (or a Pro-sim toggle) takes
+    // effect immediately and a later upgrade restores the full pick.
+    if (!isPro && multiMode && base.length > FREE_MULTI_STRING_LIMIT) {
+      return base.slice(0, FREE_MULTI_STRING_LIMIT);
+    }
+    return base;
   })();
   // Render-safe precise window: the stored values re-clamped every render, the
   // same way `safeStrings` guards the string picks during an instrument switch.
@@ -245,6 +255,13 @@ export function useSelector(instrument: InstrumentConfig, isPro = false) {
           // If removing would empty the array, keep it
           if (next.length === 0) next = [stringNum];
         } else {
+          // Free tier can drill at most FREE_MULTI_STRING_LIMIT strings at
+          // once; reaching for one more opens the upgrade drawer and leaves
+          // the selection untouched.
+          if (!isPro && prev.length >= FREE_MULTI_STRING_LIMIT) {
+            openUpgrade();
+            return prev;
+          }
           next = [...prev, stringNum];
         }
         saveSetting(sKey, next);
@@ -258,10 +275,22 @@ export function useSelector(instrument: InstrumentConfig, isPro = false) {
       const next = !prev;
       saveSetting(mKey, next);
       if (next) {
-        // Turning on multi: select ALL of this instrument's strings
+        // Turning on multi: Pro gets ALL of this instrument's strings. A Free
+        // user gets an adjacent pair (FREE_MULTI_STRING_LIMIT strings) anchored
+        // on the string that was already selected, so the pick stays where they
+        // were working.
         const all = Array.from({ length: instrument.stringCount }, (_, i) => i + 1);
-        setSelectedStrings(all);
-        saveSetting(sKey, all);
+        let picked = all;
+        if (!isPro) {
+          const anchor = selectedStrings[selectedStrings.length - 1] ?? instrument.stringCount;
+          const partner = anchor > 1 ? anchor - 1 : anchor + 1;
+          picked = [anchor, partner]
+            .filter(s => s >= 1 && s <= instrument.stringCount)
+            .slice(0, FREE_MULTI_STRING_LIMIT)
+            .sort((a, b) => a - b);
+        }
+        setSelectedStrings(picked);
+        saveSetting(sKey, picked);
       } else {
         // Turning off multi: keep only the last-selected string
         const last = selectedStrings[selectedStrings.length - 1];
@@ -372,7 +401,8 @@ export function useSelector(instrument: InstrumentConfig, isPro = false) {
   const safeKey = safeStrings.join(',');
   const derivedSettings: DerivedSettings = useMemo(() => {
     const guitarString = Math.max(...safeStrings);
-    // Multi-string drilling is free on every tier.
+    // Multi-string drilling is free up to FREE_MULTI_STRING_LIMIT strings;
+    // `safeStrings` is already clamped for a Free user, so this just reads it.
     const multiStrings = (multiMode && safeStrings.length > 1)
       ? safeStrings
       : [];

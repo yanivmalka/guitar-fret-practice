@@ -10,6 +10,7 @@ export type Feature =
   | 'masteryMaps'          // fret/note "equalizer" overlays + their toggle
   | 'allPersonalBests'     // browse bests across every settings combination
   | 'fretRange'            // the precise "fret N–M" window control in SelectorPanel
+  | 'multiStringFull'      // multi-string drilling on more than FREE_MULTI_STRING_LIMIT strings
   | 'voiceProfile'         // personal voice profile + calibration
   | 'noAds';               // future: suppress Free-tier ads
 
@@ -18,6 +19,7 @@ const MIN_TIER: Record<Feature, Tier> = {
   masteryMaps:        'pro',
   allPersonalBests:   'pro',
   fretRange:          'pro',
+  multiStringFull:    'pro',
   voiceProfile:       'pro',
   noAds:              'pro',
 };
@@ -29,14 +31,22 @@ const MIN_TIER: Record<Feature, Tier> = {
 // NOT in this map on purpose (free on every tier, design §2.3): cloud sync and
 // full multi-device restore, the leaderboard (XP / questions / accuracy),
 // badges / Achievements, the personal best for the combination currently being
-// drilled, the 0–12 / 12–max fret-range half-picker, and multi-string drilling
-// mode (freed after the initial tiering pass).
+// drilled, and the 0–12 / 12–max fret-range half-picker.
+//
+// Multi-string drilling is partly free: every tier can drill up to
+// FREE_MULTI_STRING_LIMIT strings at once; going beyond that needs
+// `multiStringFull` (Pro). `useSelector` caps a Free user's selection and
+// opens the upgrade drawer when they reach for a third string.
 
 const RANK: Record<Tier, number> = { free: 0, pro: 1 };
 
 export function can(feature: Feature, tier: Tier): boolean {
   return RANK[tier] >= RANK[MIN_TIER[feature]];
 }
+
+/** How many strings a Free user may drill at once in multi-string mode. Pro
+ *  lifts this to the full string count of the instrument. */
+export const FREE_MULTI_STRING_LIMIT = 2;
 
 /** Free users still see this many days of their own history in the Stats &
  *  Progress screen. The full history is still recorded, synced and restored —
