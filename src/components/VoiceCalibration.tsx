@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { displayNote, type AccidentalMode, type NotationMode } from '../utils/music';
-import { captureUtterance } from '../utils/utteranceCapture';
+import { captureUtterance, isolateWord } from '../utils/utteranceCapture';
 import { computeMfcc, framesToJson, framesFromJson } from '../utils/mfcc';
 import { dtwDistance } from '../utils/dtw';
 import {
@@ -155,7 +155,14 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
       setHasLast(true);
       setRec('thinking');
       try {
-        const { frames } = computeMfcc(captured.pcm, captured.sampleRate);
+        // Trim to the spoken word exactly as `templateSpeechEngine` trims a
+        // question-time segment. Storing the untrimmed capture instead left
+        // several hundred ms of trailing silence in every template, which DTW
+        // then charged against every comparison — see `isolateWord`.
+        const { frames } = computeMfcc(
+          isolateWord(captured.pcm, captured.sampleRate),
+          captured.sampleRate,
+        );
         if (!frames.length) {
           setErr(t('Recording too short — try again'));
           autoMissRef.current++;

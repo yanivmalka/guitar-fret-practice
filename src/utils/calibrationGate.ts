@@ -24,7 +24,7 @@
 
 import { framesFromJson } from './mfcc';
 import { matchTemplates, type Template } from './dtw';
-import { isLetterLabel, isAccidentalLabel } from './voiceProfileVocab';
+import { isLetterLabel, isAccidentalLabel, baseVocabId } from './voiceProfileVocab';
 import { vlog } from './debugLog';
 
 // Length-normalised DTW distance (see `dtw.ts`) to the nearest reference
@@ -80,7 +80,7 @@ export async function resemblesSpokenNote(
 ): Promise<boolean> {
   if (!frames.length) return false;
 
-  const notation = vocabId === 'notes-solfege' ? 'solfege' : 'alpha';
+  const notation = baseVocabId(vocabId) === 'notes-solfege' ? 'solfege' : 'alpha';
   let key: SetKey | null = null;
   if (isLetterLabel(label)) key = `notes-${notation}`;
   else if (isAccidentalLabel(label)) key = `accidentals-${notation}`;

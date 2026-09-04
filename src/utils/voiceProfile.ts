@@ -24,7 +24,14 @@ const DB_NAME = 'voiceProfiles';
 //     silently and produce meaningless distances rather than being ignored.
 //     So skip straight to v4 to drop those and force one clean
 //     re-calibration at the current layout.
-const DB_VERSION = 4;
+// v5: calibration takes are now trimmed to the spoken word (`isolateWord`)
+//     the same way a question-time segment is. Templates recorded before
+//     this still hold the untrimmed capture — the word plus its trailing
+//     silence — and comparing those against a trimmed query costs a large
+//     distance penalty that has nothing to do with the label. The stored
+//     side is MFCC frames, not PCM, so they cannot be trimmed after the
+//     fact; drop them and re-calibrate once.
+const DB_VERSION = 5;
 const STORE = 'templates';
 const ACTIVE_KEY = 'voice.profile.active';
 const READY_KEY = 'voice.profile.ready';

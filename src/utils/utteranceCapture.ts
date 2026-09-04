@@ -250,6 +250,7 @@ const SEG_PAD_MS = 30;
 export function segmentUtterance(
   pcm: Float32Array,
   sampleRate: number,
+  opts: { forceSplit?: boolean } = {},
 ): Float32Array[] {
   const frame = Math.max(1, Math.round((SEG_FRAME_MS / 1000) * sampleRate));
   const nFrames = Math.floor(pcm.length / frame);
@@ -298,7 +299,7 @@ export function segmentUtterance(
   } else {
     const [s, e] = merged[0];
     segFrames = [[s, e]];
-    if (e - s > longWord) {
+    if (e - s > longWord && opts.forceSplit !== false) {
       // Force-split at the quietest interior frame (middle 60%) — but only
       // when that frame is genuinely near the noise floor. A single spoken
       // letter drawn out ("Eeee") is long without any internal gap; splitting
@@ -319,4 +320,32 @@ export function segmentUtterance(
     const b = Math.min(pcm.length, e * frame + pad);
     return pcm.slice(a, b);
   });
+}
+
+/**
+ * The single spoken word inside a calibration take, trimmed the same way a
+ * question-time segment is.
+ *
+ * A stored template and the live utterance it is compared against must go
+ * through identical preprocessing, or DTW pays a distance penalty that has
+ * nothing to do with which word was spoken. Calibration used to store the
+ * MFCC of the whole capture — the word plus the trailing silence that ends
+ * it — while `templateSpeechEngine` matches against energy-trimmed
+ * segments. Every stored template therefore carried several hundred
+ * milliseconds of silence the query did not, adding a large label-independent
+ * cost to all of them: in a captured session, matching a speaker against
+ * their own recordings scored 21-30, the same range as matching against
+ * synthetic templates of a different voice entirely, and one label won
+ * almost every turn regardless of what was said.
+ *
+ * Force-splitting is disabled here: at question time a long voiced run is
+ * split because it may be "C sharp", but a calibration take is one word by
+ * construction and splitting it would store half a word.
+ */
+export function isolateWord(pcm: Float32Array, sampleRate: number): Float32Array {
+  const segments = segmentUtterance(pcm, sampleRate, { forceSplit: false });
+  if (!segments.length) return pcm;
+  // Normally exactly one; a stray noise burst can add another, so keep the
+  // longest, which is the word.
+  return segments.reduce((best, s) => (s.length > best.length ? s : best));
 }

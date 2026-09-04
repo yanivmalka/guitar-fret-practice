@@ -20,8 +20,8 @@ import { speechVocabulary } from './speechVocab';
 import { loadSetting } from './settings';
 import {
   getActiveProfile, isProfileReady, loadTemplates as loadProfileTemplates,
-  ADAPTIVE_PROFILE,
 } from './voiceProfile';
+import { baseVocabId } from './voiceProfileVocab';
 import { TemplateSpeechEngine } from './templateSpeechEngine';
 import { vlog } from './debugLog';
 
@@ -110,8 +110,15 @@ export interface SpeechEngine {
   destroy(): void;
   /**
    * Optional: fold the most recent utterance into a self-learning store
-   * under `label`, e.g. after the game scored a voice answer correct. Only
-   * the on-device "general" template engine implements this.
+   * under `label`, e.g. after the game scored a voice answer correct.
+   *
+   * No engine implements this at present, so `useVoiceAnswer`'s `learn()` is
+   * a no-op. Both former implementations were removed because learning is
+   * keyed on the *game* scoring the answer right, which is not the same as
+   * the recogniser having heard it right, and the two do come apart: a
+   * captured session had "F sharp" heard as "F"+"b" = E, which happened to
+   * be the correct note for that fret, so the profile learnt "F" and "b"
+   * from an utterance that was neither.
    */
   learn?(label: string): Promise<void>;
   /**
@@ -625,12 +632,15 @@ function makeGeneralEngine(): TemplateSpeechEngine {
     absMaxKey: 'voiceGeneralAbsMax',
     absMaxDefault: 60,
     loadTemplates: async (vocabId) => {
-      // Bundled synthetic-TTS set (lazy chunk) + anything the engine has
-      // self-learned from correct in-game answers.
+      // The bundled synthetic-TTS set only (lazy chunk). Self-learned
+      // templates used to be merged in here; they are not any more. A
+      // template recorded through a real microphone sits about twice as
+      // close as any synthetic one — in a captured session the nearest
+      // distance halved, from ~20-28 to ~10.5, the moment one was added —
+      // so a single learned template out-competed all 120 bundled ones for
+      // every later utterance and locked the engine onto its label.
       const mod = await import('./generalVoiceTemplates');
-      const bundled = mod.default[vocabId] ?? [];
-      const learned = await loadProfileTemplates(ADAPTIVE_PROFILE, vocabId);
-      return [...bundled, ...learned];
+      return mod.default[baseVocabId(vocabId)] ?? [];
     },
   });
 }

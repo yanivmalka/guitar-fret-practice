@@ -17,6 +17,7 @@
 
 import { supabase } from './supabase';
 import { getSyncUserId } from './sync';
+import { isCurrentVocabId } from './voiceProfileVocab';
 import {
   listAllTemplates, putTemplates, type StoredTemplate,
 } from './voiceProfile';
@@ -106,7 +107,13 @@ async function pullAll(userId: string): Promise<StoredTemplate[]> {
     .select('key, profile, vocab_id, label, frames, source, created_at')
     .eq('user_id', userId);
   if (error) throw error;
-  return (data ?? []).map((r) => fromRow(r as Row));
+  // Rows written by an older template layout are left in the cloud but never
+  // restored: their MFCC frames are not comparable with what the current
+  // capture path produces, and writing them back into the freshly emptied
+  // IndexedDB store would undo the version bump that dropped them.
+  return (data ?? [])
+    .map((r) => fromRow(r as Row))
+    .filter((t) => isCurrentVocabId(t.vocabId));
 }
 
 async function pushAll(userId: string, rows: StoredTemplate[]): Promise<void> {

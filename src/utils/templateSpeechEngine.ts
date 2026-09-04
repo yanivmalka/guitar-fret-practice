@@ -20,18 +20,11 @@ import type {
   MicPermissionState,
 } from './speech';
 import { captureUtterance, segmentUtterance } from './utteranceCapture';
-import { computeMfcc, framesFromJson, framesToJson } from './mfcc';
+import { computeMfcc, framesFromJson } from './mfcc';
 import { knnVote, matchTemplates, type Template } from './dtw';
-import {
-  addTemplate, pruneTemplates, pruneLearnedTemplates, getActiveProfile,
-  ADAPTIVE_PROFILE,
-} from './voiceProfile';
 import { isLetterLabel, isAccidentalLabel } from './voiceProfileVocab';
 import { SHARP_WRAP, FLAT_TO_SHARP } from './speechVocab';
 import { verror, vlog } from './debugLog';
-
-// How many self-learned templates the "General" engine keeps per label.
-const MAX_LEARNED_PER_LABEL = 6;
 
 // A match is only emitted when the best template is clearly closer than the
 // runner-up; otherwise the turn ends with no result and the caller's
@@ -145,16 +138,6 @@ export class TemplateSpeechEngine implements SpeechEngine {
   private turn = 0;
   private abort: AbortController | null = null;
   private cache: { vocabId: string; templates: Template[] } | null = null;
-  // The MFCC frames of the most recent utterance, kept so a correct in-game
-  // answer can be added to the self-learning store (see `learn`).
-  private lastFrames: Float32Array[] | null = null;
-  private lastVocabId = 'notes-alpha';
-  // The segment frames + labels of the most recent segmented profile match,
-  // so a correct in-game answer can reinforce the personal profile.
-  private lastSegmented: {
-    letter: { label: string; frames: Float32Array[] } | null;
-    accidental: { label: string; frames: Float32Array[] } | null;
-  } | null = null;
 
   constructor(cfg: TemplateEngineConfig) {
     this.cfg = cfg;
@@ -206,7 +189,6 @@ export class TemplateSpeechEngine implements SpeechEngine {
   async start(opts: SpeechListenOptions): Promise<void> {
     if (!hasGetUserMedia()) { opts.onError('not-supported'); return; }
     const vocabId = opts.profileVocabId ?? 'notes-alpha';
-    this.lastVocabId = vocabId;
 
     this.stop();
     const myTurn = ++this.turn;
@@ -243,9 +225,6 @@ export class TemplateSpeechEngine implements SpeechEngine {
 
     const { frames } = computeMfcc(captured.pcm, captured.sampleRate);
     if (!frames.length) { opts.onEnd?.(); return; }
-    this.lastFrames = frames;
-    this.lastVocabId = vocabId;
-
     if (myTurn !== this.turn) return;
 
     let firstLabel: string | undefined;
@@ -335,11 +314,6 @@ export class TemplateSpeechEngine implements SpeechEngine {
     myTurn: number,
     opts: SpeechListenOptions,
   ): Promise<void> {
-    // The whole-utterance `lastFrames` learn path is for the general engine
-    // only; the segmented profile reinforces itself via `lastSegmented`.
-    this.lastFrames = null;
-    this.lastSegmented = null;
-
     const segFrames = segmentUtterance(captured.pcm, captured.sampleRate)
       .map((s) => computeMfcc(s, captured.sampleRate).frames)
       .filter((f) => f.length);
@@ -421,17 +395,6 @@ export class TemplateSpeechEngine implements SpeechEngine {
       accidental: accLabel, note, confident: !!note,
     });
 
-    if (note && this.kind === 'profile') {
-      // Both segments already cleared the confidence gate above; keep them so
-      // a correct in-game answer can reinforce the profile (see `learn`).
-      this.lastSegmented = {
-        letter: letter ? { label: letter, frames: segFrames[0] } : null,
-        accidental: accLabel && segFrames[1]
-          ? { label: accLabel, frames: segFrames[1] }
-          : null,
-      };
-    }
-
     if (myTurn !== this.turn) return;
     if (note) {
       opts.onResult({ transcript: note, alternatives: [note], isFinal: true });
@@ -451,54 +414,6 @@ export class TemplateSpeechEngine implements SpeechEngine {
    */
   async warmUp(vocabId = 'notes-alpha'): Promise<void> {
     try { await this.getTemplates(vocabId); } catch { /* best effort */ }
-  }
-
-  /**
-   * Reinforce the recogniser from an answer the game just scored correct.
-   * The general engine folds the whole utterance into its adaptive store;
-   * the personal profile adds the matched segments back to itself, capped
-   * per label and never touching the user's own calibration takes.
-   */
-  async learn(label: string): Promise<void> {
-    if (this.kind === 'general') { await this.learnGeneral(label); return; }
-    if (this.kind === 'profile') { await this.learnProfile(); return; }
-  }
-
-  private async learnGeneral(label: string): Promise<void> {
-    if (!this.lastFrames) return;
-    const vocabId = this.lastVocabId;
-    const frames = this.lastFrames;
-    this.lastFrames = null; // consume so one answer is learned once
-    try {
-      await addTemplate(ADAPTIVE_PROFILE, vocabId, label, framesToJson(frames), 'learned');
-      await pruneTemplates(ADAPTIVE_PROFILE, vocabId, label, MAX_LEARNED_PER_LABEL);
-      this.cache = null; // next match picks up the new template
-      vlog('[voice] general learned', { label, vocabId });
-    } catch (e) {
-      verror('[voice] general learn failed', String(e));
-    }
-  }
-
-  private async learnProfile(): Promise<void> {
-    const seg = this.lastSegmented;
-    this.lastSegmented = null; // consume so one answer is learned once
-    if (!seg) return;
-    const profile = getActiveProfile();
-    if (!profile) return;
-    const vocabId = this.lastVocabId;
-    try {
-      for (const part of [seg.letter, seg.accidental]) {
-        if (!part) continue;
-        await addTemplate(profile, vocabId, part.label, framesToJson(part.frames), 'learned');
-        await pruneLearnedTemplates(profile, vocabId, part.label, MAX_LEARNED_PER_LABEL);
-      }
-      this.cache = null; // next match picks up the new templates
-      vlog('[voice] profile learned', {
-        vocabId, letter: seg.letter?.label, accidental: seg.accidental?.label,
-      });
-    } catch (e) {
-      verror('[voice] profile learn failed', String(e));
-    }
   }
 
   stop(): void {
