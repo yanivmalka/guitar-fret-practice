@@ -57,6 +57,25 @@ function absMax(key: string): number {
   return Infinity;
 }
 
+// Absolute ceiling for the accidental stage of a segmented profile match.
+//
+// Unlike the letter stage this one is on by default, because it is the only
+// thing standing between a stray fragment of audio and a confidently wrong
+// note. A 63ms burst of noise was once taken as a second word: its nearest
+// accidental sat at 41.9 while the runner-up sat at 49.2, so the *ratio*
+// gate happily passed it and turned a spoken "C" into "B". A genuine spoken
+// "sharp" in the same session scored 8.9. This sits between the two with
+// room on both sides, and is what makes the split-hypothesis search safe —
+// half of a wrongly-split letter cannot clear it.
+//   localStorage.voiceAccidentalAbsMax = '30'
+function accidentalAbsMax(): number {
+  try {
+    const v = parseFloat(localStorage.getItem('voiceAccidentalAbsMax') ?? '');
+    if (!Number.isNaN(v) && v > 0) return v;
+  } catch { /* ignore */ }
+  return 25;
+}
+
 function hasGetUserMedia(): boolean {
   return typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
 }
@@ -334,7 +353,11 @@ export class TemplateSpeechEngine implements SpeechEngine {
     const ratioCap = relMax(this.cfg.relMaxKey, this.cfg.relMaxDefault);
     const absCap = absMax(this.cfg.absMaxKey);
 
-    const gate = (ranked: { label: string; distance: number }[], part: string): string | null => {
+    const gate = (
+      ranked: { label: string; distance: number }[],
+      part: string,
+      cap = absCap,
+    ): string | null => {
       const [best, second] = ranked;
       if (!best || !Number.isFinite(best.distance)) {
         vlog('[voice] segmented reject', { engine: this.kind, part, reason: 'no-match' });
@@ -358,10 +381,10 @@ export class TemplateSpeechEngine implements SpeechEngine {
         });
         return zb.label;
       }
-      if (best.distance > absCap) {
+      if (best.distance > cap) {
         vlog('[voice] segmented reject', {
           engine: this.kind, part, reason: 'abs-cap',
-          d: +best.distance.toFixed(2), absCap,
+          d: +best.distance.toFixed(2), absCap: cap,
         });
         return null;
       }
@@ -375,15 +398,61 @@ export class TemplateSpeechEngine implements SpeechEngine {
       return best.label;
     };
 
-    const lRanked = matchTemplates(segFrames[0], letters);
+    // When the segmenter returned a single segment it may have merged
+    // "F sharp" into one run — duration alone cannot tell that from a single
+    // drawn-out letter (see the note in `segmentUtterance`). Rather than
+    // trust a threshold, score the split reading too and keep whichever
+    // interpretation the matcher likes better. `letterFrames` is the frames
+    // the letter stage should use; `accFrames` the accidental stage's, if any.
+    let letterFrames = segFrames[0];
+    let accFrames: Float32Array[] | null = segFrames[1] ?? null;
+    let splitTried = false;
+
+    if (segFrames.length === 1) {
+      const forcedSegs = segmentUtterance(captured.pcm, captured.sampleRate, { split: 'always' });
+      const forced = forcedSegs
+        .map((s) => computeMfcc(s, captured.sampleRate).frames)
+        .filter((f) => f.length);
+      if (forced.length >= 2) {
+        splitTried = true;
+        const whole = matchTemplates(segFrames[0], letters)[0];
+        const half = matchTemplates(forced[0], letters)[0];
+        // A genuine single letter cut in half still matches its own label,
+        // so a better letter distance alone would not be safe to act on —
+        // the accidental stage is what tells the readings apart. Half a
+        // letter looks nothing like "sharp" or "flat", and the accidental
+        // gate's absolute cap rejects it; a real accidental clears it
+        // easily (a measured session: 8.9 for a spoken "sharp", 41.9 for a
+        // 63ms fragment of noise).
+        const halfAcc = matchTemplates(forced[1], accidentals)[0];
+        const better = !!half && !!whole && half.distance < whole.distance;
+        const accPlausible = !!halfAcc && Number.isFinite(halfAcc.distance)
+          && halfAcc.distance <= accidentalAbsMax();
+        if (better && accPlausible) {
+          letterFrames = forced[0];
+          accFrames = forced[1];
+        }
+        vlog('[voice] split hypothesis', {
+          engine: this.kind,
+          forcedMs: forcedSegs.map((s) => ms(s.length)),
+          whole: whole && { label: whole.label, d: +whole.distance.toFixed(2) },
+          half: half && { label: half.label, d: +half.distance.toFixed(2) },
+          acc: halfAcc && { label: halfAcc.label, d: +halfAcc.distance.toFixed(2) },
+          accCap: accidentalAbsMax(),
+          taken: better && accPlausible,
+        });
+      }
+    }
+
+    const lRanked = matchTemplates(letterFrames, letters);
     const letter = gate(lRanked, 'letter');
     let note: string | null = letter;
     let accLabel: string | null = null;
     let aRanked: { label: string; distance: number }[] = [];
 
-    if (letter && segFrames.length >= 2) {
-      aRanked = matchTemplates(segFrames[1], accidentals);
-      accLabel = gate(aRanked, 'accidental');
+    if (letter && accFrames) {
+      aRanked = matchTemplates(accFrames, accidentals);
+      accLabel = gate(aRanked, 'accidental', accidentalAbsMax());
       if (!accLabel) {
         // A second word was spoken but "#" vs "b" is unclear — ask again
         // rather than guess a natural note.
@@ -400,6 +469,7 @@ export class TemplateSpeechEngine implements SpeechEngine {
       pool: { letters: letters.length, accidentals: accidentals.length },
       ms: +(performance.now() - t0).toFixed(1),
       capturedMs: ms(captured.pcm.length), segMs,
+      splitTried, usedSplit: segFrames.length === 1 && !!accFrames,
       // Every letter, not just the top two: when the wrong one wins it
       // matters whether the right one was second or last.
       letters: lRanked.map((r) => `${r.label}:${r.distance.toFixed(1)}`).join(' '),

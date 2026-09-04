@@ -250,7 +250,7 @@ const SEG_PAD_MS = 30;
 export function segmentUtterance(
   pcm: Float32Array,
   sampleRate: number,
-  opts: { forceSplit?: boolean } = {},
+  opts: { split?: 'auto' | 'never' | 'always' } = {},
 ): Float32Array[] {
   const frame = Math.max(1, Math.round((SEG_FRAME_MS / 1000) * sampleRate));
   const nFrames = Math.floor(pcm.length / frame);
@@ -299,18 +299,28 @@ export function segmentUtterance(
   } else {
     const [s, e] = merged[0];
     segFrames = [[s, e]];
-    if (e - s > longWord && opts.forceSplit !== false) {
-      // Force-split at the quietest interior frame (middle 60%) — but only
-      // when that frame is genuinely near the noise floor. A single spoken
-      // letter drawn out ("Eeee") is long without any internal gap; splitting
-      // it produced a phantom second word that then matched the "#"/"b"
-      // accidental templates (turning "E" into "F"+"b").
+    const mode = opts.split ?? 'auto';
+    // Split at the quietest interior frame (middle 60%).
+    //
+    // 'auto' only does so for a run longer than SEG_LONG_WORD_MS whose
+    // quietest interior frame is near the noise floor. That test cannot
+    // actually tell one word from two: a measured session had single letters
+    // running 380-400ms and a fluent "F sharp" 480-600ms, so the length
+    // threshold sits inside the overlap, and a fluent pair has no interior
+    // near-silence to find. Both fluent "F sharp" takes therefore came back
+    // whole and were matched against single-letter templates, which cannot
+    // fit — the letter scored 23-24 against 10.7 for the same words spoken
+    // with a pause.
+    //
+    // 'always' ignores both tests, so the caller can score the split reading
+    // as a hypothesis of its own rather than trusting a threshold to choose.
+    if (mode === 'always' || (mode === 'auto' && e - s > longWord)) {
       const lo = s + Math.floor((e - s) * 0.2);
       const hi = e - Math.floor((e - s) * 0.2);
       let cut = lo;
       let min = Infinity;
       for (let f = lo; f < hi; f++) if (rms[f] < min) { min = rms[f]; cut = f; }
-      if (min <= gate * 1.2) segFrames = [[s, cut], [cut, e]];
+      if (mode === 'always' || min <= gate * 1.2) segFrames = [[s, cut], [cut, e]];
     }
   }
 
@@ -343,7 +353,7 @@ export function segmentUtterance(
  * construction and splitting it would store half a word.
  */
 export function isolateWord(pcm: Float32Array, sampleRate: number): Float32Array {
-  const segments = segmentUtterance(pcm, sampleRate, { forceSplit: false });
+  const segments = segmentUtterance(pcm, sampleRate, { split: 'never' });
   if (!segments.length) return pcm;
   // Normally exactly one; a stray noise burst can add another, so keep the
   // longest, which is the word.
