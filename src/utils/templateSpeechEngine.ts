@@ -251,6 +251,9 @@ export class TemplateSpeechEngine implements SpeechEngine {
     let firstLabel: string | undefined;
     let secondLabel: string | undefined;
     let confident: boolean;
+    // Matching runs on the main thread against the whole template set, so the
+    // debug line carries its cost — see the pre-filter note in `dtw.ts`.
+    const t0 = performance.now();
 
     if (this.cfg.strategy === 'knn') {
       const { ranked, nearest } = knnVote(frames, templates, 5);
@@ -263,10 +266,12 @@ export class TemplateSpeechEngine implements SpeechEngine {
       confident = !!firstLabel && nearOk && ratioOk;
       vlog('[voice] template match', {
         engine: this.kind, vocabId, strategy: 'knn', absCap,
-        first: ranked[0] && { label: ranked[0].label, s: +ranked[0].score.toFixed(3) },
-        second: ranked[1] && { label: ranked[1].label, s: +ranked[1].score.toFixed(3) },
+        pool: templates.length,
+        first: ranked[0] && { label: ranked[0].label, s: +ranked[0].score.toFixed(3), v: ranked[0].votes },
+        second: ranked[1] && { label: ranked[1].label, s: +ranked[1].score.toFixed(3), v: ranked[1].votes },
         voteRatio: ranked[1] ? +(ranked[1].score / ranked[0].score).toFixed(3) : null,
         nearest: +nearest.toFixed(2), frames: frames.length,
+        ms: +(performance.now() - t0).toFixed(1),
         confident,
         reject: confident ? null : !firstLabel ? 'no-match' : !nearOk ? 'abs-cap' : 'ratio-cap',
       });
@@ -283,10 +288,12 @@ export class TemplateSpeechEngine implements SpeechEngine {
       confident = absOk && ratioOk;
       vlog('[voice] template match', {
         engine: this.kind, vocabId, strategy: 'best', absCap,
+        pool: templates.length,
         best: best && { label: best.label, d: +best.distance.toFixed(2) },
         second: second && { label: second.label, d: +second.distance.toFixed(2) },
         ratio: best && second ? +(best.distance / second.distance).toFixed(3) : null,
         frames: frames.length,
+        ms: +(performance.now() - t0).toFixed(1),
         confident,
         reject: confident ? null : !best ? 'no-match' : !absOk ? 'abs-cap' : 'ratio-cap',
       });
@@ -339,6 +346,7 @@ export class TemplateSpeechEngine implements SpeechEngine {
     if (myTurn !== this.turn) return;
     if (!segFrames.length) { opts.onEnd?.(); return; }
 
+    const t0 = performance.now();
     const letters = templates.filter((t) => isLetterLabel(t.label));
     const accidentals = templates.filter((t) => isAccidentalLabel(t.label));
     const ratioCap = relMax(this.cfg.relMaxKey, this.cfg.relMaxDefault);
@@ -406,6 +414,8 @@ export class TemplateSpeechEngine implements SpeechEngine {
 
     vlog('[voice] segmented match', {
       engine: this.kind, segments: segFrames.length,
+      pool: { letters: letters.length, accidentals: accidentals.length },
+      ms: +(performance.now() - t0).toFixed(1),
       letter: lRanked[0] && { label: lRanked[0].label, d: +lRanked[0].distance.toFixed(2) },
       letter2: lRanked[1] && { label: lRanked[1].label, d: +lRanked[1].distance.toFixed(2) },
       accidental: accLabel, note, confident: !!note,

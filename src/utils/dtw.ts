@@ -88,47 +88,32 @@ export interface Template {
   frames: Float32Array[];
 }
 
-// ── Coarse pre-filter ────────────────────────────────────────────────
+// ── Why there is no coarse pre-filter ────────────────────────────────
 //
 // Full DTW against every template is O(templates · n · band) on the main
-// thread. When a set is large — the bundled "general" templates plus
-// anything self-learned — most templates are nowhere near the input. Rank
-// all templates cheaply by the L2 distance between their time-averaged MFCC
-// vector and the input's, and run full DTW only on the closest few. Left
-// off for small sets so the personal profile stays exact.
-const PREFILTER_MIN_SET = 60;
-const PREFILTER_KEEP = 30;
-
-const meanCache = new WeakMap<Float32Array[], Float32Array>();
-
-function meanVec(frames: Float32Array[]): Float32Array {
-  const hit = meanCache.get(frames);
-  if (hit) return hit;
-  const dim = frames[0]?.length ?? 0;
-  const m = new Float32Array(dim);
-  for (const f of frames) for (let i = 0; i < dim; i++) m[i] += f[i];
-  if (frames.length) for (let i = 0; i < dim; i++) m[i] /= frames.length;
-  meanCache.set(frames, m);
-  return m;
-}
-
-function l2(a: Float32Array, b: Float32Array): number {
-  let acc = 0;
-  const n = Math.min(a.length, b.length);
-  for (let i = 0; i < n; i++) { const d = a[i] - b[i]; acc += d * d; }
-  return Math.sqrt(acc);
-}
-
-/** Closest `PREFILTER_KEEP` templates by mean-vector distance, or all of them. */
-function prefilter(input: Float32Array[], templates: Template[]): Template[] {
-  if (templates.length <= PREFILTER_MIN_SET || !input.length) return templates;
-  const q = meanVec(input);
-  return templates
-    .map((t) => ({ t, d: l2(q, meanVec(t.frames)) }))
-    .sort((a, b) => a.d - b.d)
-    .slice(0, PREFILTER_KEEP)
-    .map((x) => x.t);
-}
+// thread, so a cheap pre-filter that keeps only the closest few templates
+// is tempting. One used to live here: it ranked templates by the L2
+// distance between their time-averaged MFCC vector and the input's, and ran
+// DTW only on the nearest 30 of any set larger than 60.
+//
+// It could not work. `computeMfcc` ends with cepstral mean normalisation,
+// which subtracts each coefficient's mean over the utterance — so the
+// time-averaged vector of *every* sequence, input and template alike, is
+// zero by construction. Measured over the bundled general set, the mean
+// vectors' norms run 0.0008–0.0035, i.e. nothing but the residue of
+// serialising frames to two decimal places. Ranking by that is ranking by
+// rounding noise.
+//
+// The damage was not subtle: `notes-alpha` holds 120 templates, over the
+// 60-template threshold, so every in-game match on the general engine threw
+// away 90 of them at random before comparing anything. Roughly 2.5 of the
+// correct label's 10 templates survived, and often none — which left the
+// five nearest survivors sitting on five different labels, collapsed
+// `knnVote` into a one-vote-per-label tie, and made the confidence ratio
+// unreachable, so no spoken answer was ever accepted.
+//
+// If DTW cost becomes a problem again, pre-filter on something that
+// survives CMN (frame count, per-coefficient variance) — never the mean.
 
 /**
  * Match `input` against every template, then collapse to the best distance
@@ -136,7 +121,7 @@ function prefilter(input: Float32Array[], templates: Template[]): Template[] {
  */
 export function matchTemplates(input: Float32Array[], templates: Template[]): DtwMatch[] {
   const bestByLabel = new Map<string, number>();
-  for (const t of prefilter(input, templates)) {
+  for (const t of templates) {
     const d = dtwDistance(input, t.frames);
     const prev = bestByLabel.get(t.label);
     if (prev === undefined || d < prev) bestByLabel.set(t.label, d);
@@ -157,16 +142,18 @@ export function knnVote(
   input: Float32Array[],
   templates: Template[],
   k = 5,
-): { ranked: { label: string; score: number }[]; nearest: number } {
-  const dists = prefilter(input, templates)
+): { ranked: { label: string; score: number; votes: number }[]; nearest: number } {
+  const dists = templates
     .map((t) => ({ label: t.label, distance: dtwDistance(input, t.frames) }))
     .sort((a, b) => a.distance - b.distance);
   const score = new Map<string, number>();
+  const votes = new Map<string, number>();
   for (const d of dists.slice(0, k)) {
     score.set(d.label, (score.get(d.label) ?? 0) + 1 / (d.distance + 1e-6));
+    votes.set(d.label, (votes.get(d.label) ?? 0) + 1);
   }
   const ranked = [...score.entries()]
-    .map(([label, s]) => ({ label, score: s }))
+    .map(([label, s]) => ({ label, score: s, votes: votes.get(label) ?? 0 }))
     .sort((a, b) => b.score - a.score);
   return { ranked, nearest: dists.length ? dists[0].distance : Infinity };
 }
