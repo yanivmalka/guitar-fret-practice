@@ -34,7 +34,12 @@ export default function DebugLogPanel({ devSimulatePro, onToggleSimulatePro }: P
   const voiceOn = useSyncExternalStore(subscribeDebugLog, isVoiceVerbose);
 
   const preRef = useRef<HTMLPreElement | null>(null);
-  const text = open ? debugLogAsText() : '';
+  // Subscribe the body to the store too: `count` (errors only) and `voiceOn`
+  // are the only other subscriptions, so clearing a log that holds just
+  // `[voice]` info lines changes neither and would otherwise leave this text
+  // stale until the panel is closed and reopened. Equal strings are
+  // `Object.is`-equal, so this adds no spurious re-renders.
+  const text = useSyncExternalStore(subscribeDebugLog, debugLogAsText);
   useEffect(() => {
     if (open && preRef.current) preRef.current.scrollTop = preRef.current.scrollHeight;
   }, [open, text]);
