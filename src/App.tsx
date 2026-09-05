@@ -9,6 +9,8 @@ import menuIconAccount from './assets/menu-icons/account.png';
 import NoteCircle from './components/NoteCircle';
 import FretGrid from './components/FretGrid';
 import SelectorPanel from './components/SelectorPanel';
+import FretRangeControl from './components/FretRangeControl';
+import FretRangeNeck from './components/FretRangeNeck';
 import ProgressPanel from './components/ProgressPanel';
 import { SettingCard, SegmentedControl, PickRow } from './components/SettingCard';
 import Onboarding from './components/Onboarding';
@@ -1125,8 +1127,6 @@ export default function App() {
       onModeSelect={selector.onModeSelect}
       onFretRangeToggle={selector.onFretRangeToggle}
       isPro={auth.isPro}
-      onFretRangeWindow={!panelPlaying && !notationOnly ? selector.onFretRangeWindow : undefined}
-      onFretRangePreciseToggle={!panelPlaying && !notationOnly ? selector.onFretRangePreciseToggle : undefined}
       onDifficultySelect={selector.onDifficultySelect}
       onAutoAdvanceToggle={() => {
         if (selector.state.autoAdvance) playToggleOffSound(); else playToggleOnSound();
@@ -1226,6 +1226,45 @@ export default function App() {
                 </button>
               ))}
             </div>
+          </SettingCard>
+          {/* Precise fret-range window (Pro). It used to sit under the neck on
+              the home screen; it lives here now, with its own neck picture
+              whose dark silhouette tracks the slider. The home-screen neck
+              still reflects the chosen window. */}
+          <SettingCard
+            label={t('Fret range')}
+            help={t('Drill only part of the neck. Drag the handles to set the exact fret window — the shaded area is muted out, both here and on the home-screen neck.')}
+          >
+            <ProGate
+              feature="fretRange"
+              variant="overlay"
+              pitch={t('Pick an exact fret N–M window to drill')}
+            >
+              <div className="fret-range-block">
+                <SegmentedControl
+                  ariaLabel={t('Precise fret range')}
+                  value={selector.state.useFretRange ? 'on' : 'off'}
+                  options={[
+                    { value: 'on', label: t('On') },
+                    { value: 'off', label: t('Off') },
+                  ]}
+                  onChange={() => selector.onFretRangePreciseToggle()}
+                />
+                <FretRangeNeck
+                  instrument={instrument}
+                  lo={selector.state.fretLo}
+                  hi={selector.state.fretHi}
+                  disabled={!selector.state.useFretRange}
+                />
+                <FretRangeControl
+                  maxFret={instrument.maxFret}
+                  lo={selector.state.fretLo}
+                  hi={selector.state.fretHi}
+                  onChange={selector.onFretRangeWindow}
+                  disabled={!selector.state.useFretRange}
+                />
+              </div>
+            </ProGate>
           </SettingCard>
         </>
       ),

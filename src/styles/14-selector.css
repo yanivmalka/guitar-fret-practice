@@ -100,8 +100,11 @@
   height: auto;
   display: block;
 }
+.fret-neck-disabled {
+  opacity: 0.45;
+}
 
-/* Precise fret-range window (Pro) — sits under the half-picker neck */
+/* Precise fret-range window (Pro) — lives in Settings → Playing */
 .fret-range-block {
   width: 100%;
   max-width: 370px;
@@ -114,7 +117,8 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 2px 4px 4px;
+  /* No side padding: the SVG strip must line up edge-to-edge with the neck. */
+  padding: 2px 0 4px;
 }
 .fret-range-control-disabled {
   opacity: 0.45;
@@ -137,71 +141,25 @@
   letter-spacing: 0.5px;
 }
 
-/* Two native range inputs overlaid on one shared track */
-.fret-range-slot {
-  position: relative;
-  height: 28px;
-}
-.fret-range-rail,
-.fret-range-sel {
-  position: absolute;
-  top: 50%;
-  height: 4px;
-  border-radius: 2px;
-  transform: translateY(-50%);
-  pointer-events: none;
-}
-.fret-range-rail {
-  inset-inline: 0;
-  background: #333;
-}
-.fret-range-sel {
-  background: var(--accent);
-}
-.fret-range-input {
-  position: absolute;
-  inset-inline: 0;
-  top: 0;
+/* SVG slider strip — shares the neck's x-geometry so each handle sits under
+   its fret on the guitar picture above. */
+.fret-range-svg {
   width: 100%;
-  height: 28px;
-  margin: 0;
-  background: none;
-  -webkit-appearance: none;
-  appearance: none;
-  pointer-events: none;
+  height: auto;
+  display: block;
+  overflow: visible;
+  touch-action: none;   /* let a touch-drag move the handle, not scroll */
 }
-.fret-range-input:focus-visible {
+.fret-range-handle {
+  fill: #f5f0e8;
+  stroke: var(--accent);
+  stroke-width: 2;
+  cursor: pointer;
+}
+.fret-range-handle:focus-visible {
   outline: none;
-}
-.fret-range-input::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #f5f0e8;
-  border: 2px solid var(--accent);
-  cursor: pointer;
-  pointer-events: auto;
-}
-.fret-range-input::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #f5f0e8;
-  border: 2px solid var(--accent);
-  cursor: pointer;
-  pointer-events: auto;
-}
-.fret-range-input::-webkit-slider-runnable-track,
-.fret-range-input::-moz-range-track {
-  background: none;
-}
-.fret-range-input:focus-visible::-webkit-slider-thumb {
-  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.35);
-}
-.fret-range-input:focus-visible::-moz-range-thumb {
-  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.35);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 3px rgba(var(--accent-rgb), 0.6));
 }
 
 /* Difficulty road */

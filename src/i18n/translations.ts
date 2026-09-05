@@ -205,6 +205,9 @@ const he: Record<string, string> = {
   'neck fret range selector': 'בורר טווח הסריגים בצוואר',
   'Precise fret range': 'טווח סריגים מדויק',
   'Pick an exact fret N–M window to drill': 'בחירת חלון סריגים מדויק לתרגול — מסריג N עד סריג M',
+  'Fret range': 'טווח סריגים',
+  'Drill only part of the neck. Drag the handles to set the exact fret window — the shaded area is muted out, both here and on the home-screen neck.':
+    'תרגול של חלק מהצוואר בלבד. גררו את הידיות כדי לקבוע את חלון הסריגים המדויק — האזור המוצלל מושתק, גם כאן וגם בצוואר שבמסך הבית.',
   'Lowest fret': 'הסריג הנמוך',
   'Highest fret': 'הסריג הגבוה',
   'Multi': 'מרובה',

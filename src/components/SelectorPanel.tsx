@@ -4,11 +4,11 @@ import { displayNote } from '../utils/music';
 import type { InstrumentConfig } from '../utils/instruments';
 import { playClickSound, playToggleOnSound, playToggleOffSound } from '../utils/feedback';
 import { useTranslation } from '../i18n/useTranslation';
-import { ProGate } from './ProGate';
 import { openUpgrade } from '../utils/upgradeDrawer';
 import { FREE_MULTI_STRING_LIMIT } from '../utils/features';
-import { SettingCard, SegmentedControl } from './SettingCard';
-import FretRangeControl from './FretRangeControl';
+import {
+  fretXFor, NECK_RIGHT, FB_LEFT_MARGIN, FB_TOP, FB_HEIGHT, FB_BOTTOM,
+} from '../utils/neckGeometry';
 
 interface SelectorPanelProps {
   selector: SelectorState;
@@ -17,13 +17,9 @@ interface SelectorPanelProps {
   onMultiToggle: () => void;
   onModeSelect: (mode: 'byNote' | 'byFret') => void;
   onFretRangeToggle: (half: 'lower' | 'upper') => void;
-  /** Precise Pro fret window — omitted where the panel is read-only (mini/play,
-   *  notation-only). When set, the ProGate-wrapped control renders under the
-   *  half-picker neck. */
-  onFretRangeWindow?: (lo: number, hi: number) => void;
-  onFretRangePreciseToggle?: () => void;
-  /** Whether the current user is Pro — decides if the stored precise window is
-   *  actually in effect (it stays saved but unused for a free user). */
+  /** Whether the current user is Pro — decides if the stored precise fret
+   *  window (set in Settings → Playing) is actually in effect. It stays saved
+   *  but unused for a free user; here it only tints the half-picker neck. */
   isPro?: boolean;
   onDifficultySelect: (diff: Difficulty) => void;
   onAutoAdvanceToggle?: () => void;
@@ -46,34 +42,9 @@ interface SelectorPanelProps {
   showInfo?: boolean;
 }
 
-const SCALE_FACTOR = 17.817;
-// Positions are computed for the longest neck we support (bass, 24 frets); a
-// shorter neck just indexes the first N entries and rescales (see neckWidth).
-const MAX_SUPPORTED_FRET = 24;
-function computeFretPositions(): number[] {
-  const positions: number[] = [0];
-  let remaining = 1.0;
-  for (let i = 1; i <= MAX_SUPPORTED_FRET; i++) {
-    const fretDist = remaining / SCALE_FACTOR;
-    remaining -= fretDist;
-    positions.push(1.0 - remaining);
-  }
-  return positions;
-}
-
-const FRET_POSITIONS = computeFretPositions();
-
-// Layout: nut at right (fret 0), last fret near left edge.
-const NECK_RIGHT = 370;
-const FB_LEFT_MARGIN = 28;
-
-const FB_TOP = 5;
-const FB_HEIGHT = 40;
-const FB_BOTTOM = FB_TOP + FB_HEIGHT;
-
 export default function SelectorPanel({
   selector, instrument, onStringSelect, onMultiToggle, onModeSelect,
-  onFretRangeToggle, onFretRangeWindow, onFretRangePreciseToggle, isPro,
+  onFretRangeToggle, isPro,
   onDifficultySelect, onAutoAdvanceToggle, isPlaying, activeString, activeFret,
   byString, order, onByStringToggle, onOrderChange, accidental, notation, onNotationChange,
   notationOnly, onInfo, showInfo,
@@ -84,8 +55,7 @@ export default function SelectorPanel({
   const dotFrets = instrument.dotFrets;
 
   // Scale so the last fret always lands at the left margin, whatever the neck length.
-  const neckWidth = (NECK_RIGHT - FB_LEFT_MARGIN) / FRET_POSITIONS[maxFret];
-  const fretX = (fretNum: number) => NECK_RIGHT - FRET_POSITIONS[fretNum] * neckWidth;
+  const fretX = fretXFor(maxFret);
 
   // String pills — one per string, labelled by its open-string note name.
   // Ordered low-pitch → high-pitch left-to-right (lowest string, i.e. the
@@ -385,18 +355,26 @@ export default function SelectorPanel({
             playClickSound(); onFretRangeToggle('upper');
           }} />
 
-          {/* Precise Pro window in effect: fade the half-picker back and mark
-              the exact drilled span with a cyan bar under the neck. */}
+          {/* Precise Pro window (set in Settings → Playing) in effect: shade the
+              frets outside the drilled span so the dark silhouette tracks the
+              exact window — no separate bar under the neck. */}
           {preciseActive && (
             <>
-              <rect x={fbLeft} y={FB_TOP} width={NECK_RIGHT - fbLeft} height={FB_HEIGHT} fill="rgba(0,0,0,0.45)" rx="2" />
               <rect
-                x={fretX(clampFret(selector.fretHi))}
-                y={FB_BOTTOM + 2}
-                width={Math.max(0, fretX(clampFret(selector.fretLo)) - fretX(clampFret(selector.fretHi)))}
-                height="3"
-                rx="1.5"
-                fill="var(--accent)"
+                x={fbLeft}
+                y={FB_TOP}
+                width={Math.max(0, fretX(clampFret(selector.fretHi)) - fbLeft)}
+                height={FB_HEIGHT}
+                fill="rgba(0,0,0,0.6)"
+                rx="2"
+              />
+              <rect
+                x={fretX(clampFret(selector.fretLo))}
+                y={FB_TOP}
+                width={Math.max(0, NECK_RIGHT - fretX(clampFret(selector.fretLo)))}
+                height={FB_HEIGHT}
+                fill="rgba(0,0,0,0.6)"
+                rx="2"
               />
             </>
           )}
@@ -407,37 +385,8 @@ export default function SelectorPanel({
         </svg>
       </div>
 
-      {/* ── Precise fret-range window (Pro) ───────────────────
-          An extra layer on top of the free half-picker above: pick an exact
-          "fret N–M" span. Gated by `fretRange` in utils/features.ts. */}
-      {onFretRangeWindow && onFretRangePreciseToggle && (
-        <ProGate
-          feature="fretRange"
-          variant="overlay"
-          pitch={t('Pick an exact fret N–M window to drill')}
-        >
-          <div className="fret-range-block">
-            <SettingCard label={t('Precise fret range')}>
-              <SegmentedControl
-                ariaLabel={t('Precise fret range')}
-                value={selector.useFretRange ? 'on' : 'off'}
-                options={[
-                  { value: 'on', label: t('On') },
-                  { value: 'off', label: t('Off') },
-                ]}
-                onChange={() => onFretRangePreciseToggle()}
-              />
-            </SettingCard>
-            <FretRangeControl
-              maxFret={maxFret}
-              lo={selector.fretLo}
-              hi={selector.fretHi}
-              onChange={onFretRangeWindow}
-              disabled={!selector.useFretRange}
-            />
-          </div>
-        </ProGate>
-      )}
+      {/* The precise "fret N–M" window (Pro, gated by `fretRange`) now lives in
+          Settings → Playing; its neck here just reflects it via `preciseActive`. */}
 
       {/* ── DifficultyRoad ────────────────────────────────── */}
       <div className="difficulty-road">

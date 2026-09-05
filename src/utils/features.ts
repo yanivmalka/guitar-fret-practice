@@ -9,7 +9,7 @@ export type Feature =
   | 'historyBeyond7Days'   // the Stats & Progress screen's "All time" scope + trends
   | 'masteryMaps'          // "questions counted" window control for the mastery overlay
   | 'allPersonalBests'     // browse bests across every settings combination
-  | 'fretRange'            // the precise "fret N–M" window control in SelectorPanel
+  | 'fretRange'            // the precise "fret N–M" window control in Settings → Playing
   | 'multiStringFull'      // multi-string drilling on more than FREE_MULTI_STRING_LIMIT strings
   | 'voiceProfile'         // personal voice profile + calibration
   | 'noAds';               // future: suppress Free-tier ads
@@ -24,9 +24,10 @@ const MIN_TIER: Record<Feature, Tier> = {
   noAds:              'pro',
 };
 // `fretRange` gates the precise "from fret N to fret M" window control that
-// sits under the neck in `SelectorPanel` (its "Precise fret range" toggle +
-// two-handle slider). The 0–12 / 12–max half-picker above it is NOT this
-// feature and stays free for everyone; the precise window is an extra layer.
+// lives in Settings → Playing (its "Precise fret range" toggle + two-handle
+// slider + neck picture). The 0–12 / 12–max half-picker on the home-screen
+// neck is NOT this feature and stays free for everyone; the precise window is
+// an extra layer, and when it is on the home-screen neck reflects it.
 //
 // NOT in this map on purpose (free on every tier, design §2.3): cloud sync and
 // full multi-device restore, the leaderboard (XP / questions / accuracy),
