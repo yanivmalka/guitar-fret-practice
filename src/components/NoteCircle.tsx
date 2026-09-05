@@ -175,10 +175,16 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
           const restDim = inRange && !active;
           let bg = restDim ? 'color-mix(in srgb, var(--surface-border) 70%, transparent)' : 'var(--surface-border)';
           let border = restDim ? 'color-mix(in srgb, var(--border-soft) 70%, transparent)' : 'var(--border-soft)';
+          // Text follows the theme's text token so it stays readable against
+          // --surface-border in every theme (that background flips from dark
+          // to light between 'dark'/'night' and 'day'), except for the
+          // correct/wrong flash below, which gets a fixed white to match its
+          // fixed saturated background.
+          let textColor = 'var(--text-0)';
           // Deliberately kept as fixed saturated red/green (not the softer
           // --success/--danger tokens) for maximum-contrast instant feedback.
-          if (isCorrect) { bg = '#0a0'; border = '#0f0'; }
-          else if (isWrong) { bg = '#a00'; border = '#f00'; }
+          if (isCorrect) { bg = '#0a0'; border = '#0f0'; textColor = '#fff'; }
+          else if (isWrong) { bg = '#a00'; border = '#f00'; textColor = '#fff'; }
 
           // A single solid bar whose length tracks accuracy — same visual
           // language (and colour) as the by-note FretGrid equaliser, which is
@@ -204,7 +210,7 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
                 position: 'absolute', left: x, top: y,
                 width: btnSize, height: btnSize, borderRadius: '50%',
                 background: bg, border: `2px solid ${border}`,
-                color: '#fff', fontWeight: 'bold', fontSize: 15,
+                color: textColor, fontWeight: 'bold', fontSize: 15,
                 cursor: inRange ? 'pointer' : 'default',
                 opacity: inRange ? 1 : 0.25,
                 flexDirection: 'column', gap: 0,

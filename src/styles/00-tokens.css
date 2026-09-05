@@ -48,6 +48,12 @@
   /* Fretboard mastery heatmap (ProgressPanel) — functional, must stay
      readable in every theme; needsWork/known reuse --amber/--success. */
   --heat-unplayed: #24244a;
+
+  /* Selection indicator for the string/mode/difficulty pick controls
+     (SelectorPanel) — kept as its own token rather than reusing --accent
+     so 'dark' preserves its original, pre-theme sky-blue exactly; 'night'
+     and 'day' point it at their own --accent instead. */
+  --pick-accent: #4af;
 }
 
 /* 'night' — warm-toned, dimmer surfaces for use in a dark room.
@@ -82,6 +88,8 @@
   --danger-rgb: 224, 90, 78;
 
   --heat-unplayed: #2a2015;
+
+  --pick-accent: var(--accent);
 }
 
 /* 'day' — light background, dark text. Adapted from the light
@@ -116,4 +124,6 @@
   --danger-rgb: 214, 51, 90;
 
   --heat-unplayed: #dfe1ee;
+
+  --pick-accent: var(--accent);
 }

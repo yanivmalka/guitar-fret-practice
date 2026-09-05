@@ -22,16 +22,16 @@
   font-weight: 700;
   font-size: 0.95rem;
   border: none;
-  background: #222;
+  background: var(--bg-3);
   color: var(--text-3);
   cursor: pointer;
   transition: all 0.15s;
   border-bottom: 3px solid transparent;
 }
 .string-pill.active {
-  color: #fff;
-  background: #333;
-  border-bottom-color: #4af;
+  color: var(--text-0);
+  background: color-mix(in srgb, var(--pick-accent) 18%, var(--bg-3));
+  border-bottom-color: var(--pick-accent);
 }
 /* Free tier: string pills past the 2-string multi cap read as locked. Still
    tappable — the tap opens the Pro upsell (see SelectorPanel / useSelector). */
@@ -72,16 +72,16 @@
   gap: 6px;
   padding: 12px;
   border-radius: 12px;
-  border: 2px solid #333;
-  background: #1a1a1a;
+  border: 2px solid var(--border-soft);
+  background: var(--bg-3);
   color: var(--text-3);
   cursor: pointer;
   transition: all 0.15s;
 }
 .mode-card.active {
-  border-color: #4af;
-  background: #1a2a3a;
-  color: #fff;
+  border-color: var(--pick-accent);
+  background: color-mix(in srgb, var(--pick-accent) 18%, var(--bg-3));
+  color: var(--text-0);
 }
 .mode-card span {
   font-size: 0.85rem;
@@ -223,16 +223,16 @@
   flex: 1;
   padding: 8px 0;
   border-radius: 10px;
-  border: 2px solid #333;
-  background: #1a1a1a;
+  border: 2px solid var(--border-soft);
+  background: var(--bg-3);
   color: var(--text-3);
   cursor: pointer;
   transition: all 0.15s;
 }
 .diff-btn.active {
-  border-color: #4af;
-  background: #1a2a3a;
-  color: #fff;
+  border-color: var(--pick-accent);
+  background: color-mix(in srgb, var(--pick-accent) 18%, var(--bg-3));
+  color: var(--text-0);
 }
 .diff-icon {
   font-size: 1.1rem;
