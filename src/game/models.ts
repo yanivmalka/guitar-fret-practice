@@ -60,8 +60,10 @@ export interface StageTargets {
    *  matching `SessionResult.longestStreak`. */
   minLongestStreak?: number;
   /** Optional: target average answer time in seconds (lower is better),
-   *  derived from the per-question `HistoryEntry.seconds` of a run. Left
-   *  undefined for stages that are not timed for a bonus. */
+   *  compared against `SessionResult.avgSeconds` (mean seconds over the run's
+   *  correct answers). Left undefined for stages that are not timed for a
+   *  bonus; a run with no correct answer (`avgSeconds === null`) never meets
+   *  this goal. */
   maxAvgSeconds?: number;
 }
 

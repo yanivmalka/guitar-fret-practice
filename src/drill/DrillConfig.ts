@@ -67,6 +67,13 @@ export interface SessionResult {
   questionsCorrect: number;
   /** The drill's target question count (`DrillConfig.questionCount`). */
   questionCount: number;
+  /** Mean answer time, in seconds, over the run's *correct* history entries,
+   *  rounded to 0.1s. `null` when the run recorded no correct answer, so a
+   *  consumer can tell "fast" from "no timing data" (matches the correct-only
+   *  average `utils/progress.ts` already reports for the Stats screen; kept
+   *  `null` rather than `0` for the empty case so a speed target is not
+   *  silently met by a run that answered nothing). */
+  avgSeconds: number | null;
 }
 
 // Practice adapter: DerivedSettings (from useSelector) → DrillConfig. This is
@@ -121,8 +128,14 @@ export function computeSessionResult(
   questionCount: number,
 ): SessionResult {
   const total = history.length;
-  const questionsCorrect = history.filter((h) => h.correct === true).length;
+  const correctEntries = history.filter((h) => h.correct === true);
+  const questionsCorrect = correctEntries.length;
   const accuracy = total === 0 ? 0 : Math.round((questionsCorrect / total) * 100);
+  const avgSeconds = questionsCorrect === 0
+    ? null
+    : Math.round(
+        (correctEntries.reduce((sum, h) => sum + h.seconds, 0) / questionsCorrect) * 10,
+      ) / 10;
   return {
     score: session.score,
     accuracy,
@@ -130,5 +143,6 @@ export function computeSessionResult(
     questionsAnswered: session.questionsAnswered,
     questionsCorrect,
     questionCount,
+    avgSeconds,
   };
 }
