@@ -78,6 +78,9 @@ export default function SelectorPanel({
   // window, and every fret label reads from it.
   const preciseActive = !!isPro && selector.useFretRange;
   const clampFret = (f: number) => Math.max(0, Math.min(f, maxFret));
+  // While a precise window drives the round the difficulty road is pinned to
+  // Full (Dots / Naturals are locked), so the highlighted stage follows suit.
+  const activeDiff = preciseActive ? 'full' : selector.difficulty;
 
   // Plain-language summary of everything the current selection means, shown at
   // the top of the "?" bubble so the player can read what this round will drill
@@ -96,9 +99,9 @@ export default function SelectorPanel({
     : selector.lowerActive && selector.upperActive
       ? `${t('frets')} 0–${maxFret}`
       : selector.lowerActive ? `${t('frets')} 0–12` : `${t('frets')} 12–${maxFret}`;
-  const difficultyPhrase = selector.difficulty === 'dots'
+  const difficultyPhrase = activeDiff === 'dots'
     ? t('only the dot-marker frets')
-    : selector.difficulty === 'naturals'
+    : activeDiff === 'naturals'
       ? t('natural notes only (no sharps or flats)')
       : t('every note, sharps and flats included');
   const orderPhrase = order === 'alphabet' ? t('alphabetical order') : t('circle-of-fifths order');
@@ -153,7 +156,7 @@ export default function SelectorPanel({
       ? `${selector.fretLo}-${selector.fretHi}`
       : selector.lowerActive && selector.upperActive ? `0-${maxFret}` : selector.lowerActive ? '0-12' : `12-${maxFret}`;
     const modeLabel = selector.mode === 'byFret' ? 'N→F' : 'F→N';
-    const diffLabel = selector.difficulty === 'dots' ? '●' : selector.difficulty === 'naturals' ? '♮' : '♯♭';
+    const diffLabel = activeDiff === 'dots' ? '●' : activeDiff === 'naturals' ? '♮' : '♯♭';
     return (
       <div className="selector-panel selector-panel-mini">
         <div className="selector-mini">
@@ -391,12 +394,24 @@ export default function SelectorPanel({
           Settings → Playing; its neck here just reflects it via `preciseActive`. */}
 
       {/* ── DifficultyRoad ────────────────────────────────── */}
+      {/* A precise fret window runs at Full only — Dots / Naturals lock and the
+          active stage reads as Full while it's on (see useSelector). */}
       <div className="difficulty-road">
-        <button className={`diff-btn ${selector.difficulty === 'dots' ? 'active' : ''}`} onClick={() => { playClickSound(); onDifficultySelect('dots'); }}><span className="diff-icon">●</span><span className="diff-label">{t('Dots')}</span></button>
+        <button
+          className={`diff-btn ${activeDiff === 'dots' ? 'active' : ''}${preciseActive ? ' diff-btn-locked' : ''}`}
+          disabled={preciseActive}
+          title={preciseActive ? t('Full only while a precise fret window is on') : undefined}
+          onClick={() => { playClickSound(); onDifficultySelect('dots'); }}
+        ><span className="diff-icon">●</span><span className="diff-label">{t('Dots')}</span></button>
         <span className="diff-arrow">→</span>
-        <button className={`diff-btn ${selector.difficulty === 'naturals' ? 'active' : ''}`} onClick={() => { playClickSound(); onDifficultySelect('naturals'); }}><span className="diff-icon">♮</span><span className="diff-label">{t('Naturals')}</span></button>
+        <button
+          className={`diff-btn ${activeDiff === 'naturals' ? 'active' : ''}${preciseActive ? ' diff-btn-locked' : ''}`}
+          disabled={preciseActive}
+          title={preciseActive ? t('Full only while a precise fret window is on') : undefined}
+          onClick={() => { playClickSound(); onDifficultySelect('naturals'); }}
+        ><span className="diff-icon">♮</span><span className="diff-label">{t('Naturals')}</span></button>
         <span className="diff-arrow">→</span>
-        <button className={`diff-btn ${selector.difficulty === 'full' ? 'active' : ''}`} onClick={() => { playClickSound(); onDifficultySelect('full'); }}><span className="diff-icon">♯♭</span><span className="diff-label">{t('Full')}</span></button>
+        <button className={`diff-btn ${activeDiff === 'full' ? 'active' : ''}`} onClick={() => { playClickSound(); onDifficultySelect('full'); }}><span className="diff-icon">♯♭</span><span className="diff-label">{t('Full')}</span></button>
         {/* Auto Advance: continue straight into the next difficulty when the current one is completed */}
         {onAutoAdvanceToggle && (
           <button

@@ -335,11 +335,20 @@ export function useSelector(instrument: InstrumentConfig, isPro = false) {
     setUseFretRange(prev => {
       const next = !prev;
       saveSetting('sel_useFretRange', next);
+      // A precise window drills one narrow span, where "dots only" / "naturals
+      // only" would leave too few (or no) notes — so it runs at Full only.
+      // Snap the stored difficulty up when the window is switched on.
+      if (next && difficulty !== 'full') {
+        setDifficulty('full');
+        saveSetting('sel_difficulty', 'full');
+      }
       return next;
     });
   };
 
   const onDifficultySelect = (diff: Difficulty) => {
+    // Locked to Full while a precise window is in effect (see toggle above).
+    if (useFretRange && isPro && diff !== 'full') return;
     setDifficulty(diff);
     saveSetting('sel_difficulty', diff);
   };
@@ -413,15 +422,19 @@ export function useSelector(instrument: InstrumentConfig, isPro = false) {
     const fretFrom = precise ? safeFretLo : (lowerActive ? 0 : 12);
     const fretTo = precise ? safeFretHi : (upperActive ? instrument.maxFret : 12);
     const byNote = mode === 'byNote';
-    const dotsOnly = difficulty === 'dots';
-    const wholeToneOnly = difficulty === 'naturals';
+    // A precise window always runs at Full — "dots" / "naturals" would leave
+    // too few notes in one narrow span. The stored `difficulty` is snapped to
+    // 'full' on toggle-on, but coerce here too so a stale saved value obeys.
+    const effDifficulty = precise ? 'full' : difficulty;
+    const dotsOnly = effDifficulty === 'dots';
+    const wholeToneOnly = effDifficulty === 'naturals';
     // Time limit keys off the halves the window effectively covers: a window
     // that reaches past fret 12 counts as the upper half, one below it as the
     // lower half (the reasonable approximation — see commit message).
     const lowerEff = precise ? fretFrom < 12 : lowerActive;
     const upperEff = precise ? fretTo > 12 : upperActive;
-    const time = getTime(difficulty, lowerEff, upperEff);
-    const maxQuestions = getMaxQuestions(difficulty);
+    const time = getTime(effDifficulty, lowerEff, upperEff);
+    const maxQuestions = getMaxQuestions(effDifficulty);
 
     // Preserve existing user preferences for accidental and order
     const accidental: AccidentalMode = loadSetting('pref_accidental', 'sharps');

@@ -192,6 +192,15 @@
   background: color-mix(in srgb, var(--pick-accent) 18%, var(--bg-3));
   color: var(--text-0);
 }
+/* Locked while a precise fret window is on — that run is Full only. */
+.diff-btn-locked {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.diff-btn-locked .diff-label::after {
+  content: " 🔒";
+  font-size: 0.8em;
+}
 .diff-icon {
   font-size: 1.1rem;
   line-height: 1;
