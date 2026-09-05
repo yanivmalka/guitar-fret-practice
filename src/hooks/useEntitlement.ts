@@ -3,8 +3,11 @@ import type { Entitlement, Tier } from '../utils/entitlement';
 
 export interface EntitlementState {
   tier: Tier;
-  /** A signed-in user on the Pro tier. */
+  /** Tier is Pro **or better** (Premium included) — the flag to gate a
+   *  Pro-or-above feature on. */
   isPro: boolean;
+  /** Tier is Premium. For future Premium-only gates. */
+  isPremium: boolean;
   /** The full row — `source` / `expiresAt` for the Pro details in the upsell. */
   entitlement: Entitlement;
   /** True while the first entitlement lookup for the current user is in flight. */
@@ -19,6 +22,6 @@ export interface EntitlementState {
  * sites don't pull the whole auth object; the underlying state is the same.
  */
 export function useEntitlement(): EntitlementState {
-  const { tier, isPro, entitlement, entitlementLoading, refreshEntitlement } = useAuth();
-  return { tier, isPro, entitlement, loading: entitlementLoading, refresh: refreshEntitlement };
+  const { tier, isPro, isPremium, entitlement, entitlementLoading, refreshEntitlement } = useAuth();
+  return { tier, isPro, isPremium, entitlement, loading: entitlementLoading, refresh: refreshEntitlement };
 }

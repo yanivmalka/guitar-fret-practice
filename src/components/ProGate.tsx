@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useEntitlement } from '../hooks/useEntitlement';
-import { can, type Feature } from '../utils/features';
+import { can, minTier, type Feature } from '../utils/features';
 import { openUpgrade } from '../utils/upgradeDrawer';
 import { useTranslation } from '../i18n/useTranslation';
 import { playClickSound, haptic } from '../utils/feedback';
@@ -36,6 +36,13 @@ export function ProGate({ feature, children, variant = 'overlay', pitch }: ProGa
 
   if (can(feature, tier)) return <>{children}</>;
 
+  // Label the lock with the tier the feature actually needs, so a
+  // Premium-gated control reads "Premium" and a Pro-gated one still reads "Pro".
+  const tierLabel = minTier(feature) === 'premium' ? t('Premium') : t('Pro');
+  const defaultPitch = minTier(feature) === 'premium'
+    ? t('Unlock with Premium')
+    : t('Unlock with Pro');
+
   const go = () => { playClickSound(); haptic.tap(); openUpgrade(); };
 
   if (variant === 'replace') {
@@ -46,12 +53,12 @@ export function ProGate({ feature, children, variant = 'overlay', pitch }: ProGa
     return (
       <span className="progate-inline">
         {children}
-        <span className="progate-badge">{t('Pro')}</span>
+        <span className="progate-badge">{tierLabel}</span>
         <button
           type="button"
           className="progate-inline-catch"
           onClick={go}
-          aria-label={pitch ?? t('Unlock with Pro')}
+          aria-label={pitch ?? defaultPitch}
         />
       </span>
     );
@@ -62,8 +69,8 @@ export function ProGate({ feature, children, variant = 'overlay', pitch }: ProGa
       <div className="progate-dim" aria-hidden="true">{children}</div>
       <button type="button" className="progate-lock" onClick={go}>
         <span className="progate-lock-icon" aria-hidden="true">🔒</span>
-        <span className="progate-badge">{t('Pro')}</span>
-        <span className="progate-lock-text">{pitch ?? t('Unlock with Pro')}</span>
+        <span className="progate-badge">{tierLabel}</span>
+        <span className="progate-lock-text">{pitch ?? defaultPitch}</span>
       </button>
     </div>
   );

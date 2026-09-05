@@ -8,20 +8,21 @@ import {
   subscribeDebugLog,
 } from '../utils/debugLog';
 import { useTranslation } from '../i18n/useTranslation';
+import type { SimTier } from '../utils/devSimulateTier';
 
 interface Props {
-  /** Current dev "simulate Pro" state (always `false` in production). */
-  devSimulatePro?: boolean;
-  /** Toggle handler — passed only under `import.meta.env.DEV`. When omitted,
-   *  the simulate-Pro row is not rendered. */
-  onToggleSimulatePro?: (on: boolean) => void;
+  /** Current dev "simulate tier" state (always `'off'` in production). */
+  simTier?: SimTier;
+  /** Setter — passed only under `import.meta.env.DEV`. When omitted, the
+   *  simulate-tier row is not rendered. */
+  onSetSimTier?: (tier: SimTier) => void;
 }
 
 // A small on-screen viewer for the in-app debug log (see utils/debugLog.ts).
 // Always mounted so it is reachable on a device with no DevTools — most of all
 // the installed Android PWA. Collapsed to a single unobtrusive 🐞 button until
 // tapped.
-export default function DebugLogPanel({ devSimulatePro, onToggleSimulatePro }: Props = {}) {
+export default function DebugLogPanel({ simTier, onSetSimTier }: Props = {}) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -96,14 +97,17 @@ export default function DebugLogPanel({ devSimulatePro, onToggleSimulatePro }: P
           <button className="debuglog-btn" onClick={() => setOpen(false)}>{t('Close')}</button>
         </div>
       </div>
-      {import.meta.env.DEV && onToggleSimulatePro && (
+      {import.meta.env.DEV && onSetSimTier && (
         <label className="debuglog-title" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 0' }}>
-          <input
-            type="checkbox"
-            checked={!!devSimulatePro}
-            onChange={(e) => onToggleSimulatePro(e.target.checked)}
-          />
-          {t('Simulate Pro (dev only — no DB change)')}
+          {t('Simulate tier (dev only — no DB change)')}
+          <select
+            value={simTier ?? 'off'}
+            onChange={(e) => onSetSimTier(e.target.value as SimTier)}
+          >
+            <option value="off">{t('Off')}</option>
+            <option value="pro">{t('Pro')}</option>
+            <option value="premium">{t('Premium')}</option>
+          </select>
         </label>
       )}
       <pre ref={preRef} className="debuglog-body">{text || t('(no errors)')}</pre>
