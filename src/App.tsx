@@ -519,6 +519,11 @@ export default function App() {
     correctCofNote, wrongCofNote, answered, remainingFrets, foundFrets, wrongFret,
     questionTime, questionStart, questionSeq, questionNumber,
     start: engineStart, stop, pause, resume, selectFret, selectAnswer,
+    // The tidy end-of-drill snapshot (score / accuracy / streak / counts) the
+    // drill session already derives from the session score + recorded history.
+    // Practice reads it for the round-complete card and the personal-best
+    // record; a future Game will read the same shape for its own end screen.
+    result: sessionResult,
   } = session;
 
   // Voice answering (WP-4): while a question is on screen and answerMode is
@@ -909,8 +914,6 @@ export default function App() {
     activeStringRef.current = guitarString;
   }, [guitarString, gameActive, isMulti]);
 
-  const sessionHistory = historyOps.history;
-
   // Evaluate this run's session badges plus a retroactive pass over all-time
   // history, award every reached tier (idempotent), and return the families
   // that were genuinely new this call. Mid-game it drops the badges that a
@@ -991,11 +994,10 @@ export default function App() {
       let pbCardShown = false;
       if (!tier3FiredRef.current && score > 0 && score > (prevBest?.score ?? 0)) {
         tier3FiredRef.current = true;
-        const hist = historyOps.history;
-        const total = hist.length;
-        const correctCount = hist.filter(h => h.correct === true).length;
-        const accuracy = total === 0 ? 0 : Math.round((correctCount / total) * 100);
-        saveBest(histKey, { score, streak: scoring.session.longestStreak, accuracy });
+        // Accuracy for the personal-best record comes from the drill session's
+        // SessionResult (correct / recorded-answers, rounded) rather than a
+        // second inline pass over the same history.
+        saveBest(histKey, { score, streak: scoring.session.longestStreak, accuracy: sessionResult.accuracy });
         // Personal-best progress is always recorded; the celebration itself is
         // a score effect, so it is skipped in "serious learning" mode.
         if (showScore) pbCardShown = true;
@@ -1032,7 +1034,7 @@ export default function App() {
       }
     }
     wasRunningRef.current = running;
-  }, [running, paused, pendingAutoAdvance, scoring.session.questionsAnswered, scoring.session.score, scoring.session.longestStreak, histKey, historyOps.history, historyOps.allHistory, instrument, selector.state.difficulty, selector.state.autoAdvance, showScore, sweepBadges]);
+  }, [running, paused, pendingAutoAdvance, scoring.session.questionsAnswered, scoring.session.score, scoring.session.longestStreak, sessionResult, histKey, historyOps.allHistory, instrument, selector.state.difficulty, selector.state.autoAdvance, showScore, sweepBadges]);
 
   // Push the signed-in player's leaderboard row after each completed run, so
   // the public board tracks their all-time XP without them opening it. Guests
@@ -1996,7 +1998,7 @@ export default function App() {
               {showScore && <div className="game-end-score"><AnimatedScore value={scoring.session.score} /> {t('pts')}</div>}
               <div className="game-end-details">
                 {scoring.session.longestStreak >= 2 && <span>🔥 {scoring.session.longestStreak} {t('streak')}</span>}
-                <span>✓ {sessionHistory.filter(h => h.correct === true).length}/{scoring.session.questionsAnswered}</span>
+                <span>✓ {sessionResult.questionsCorrect}/{sessionResult.questionsAnswered}</span>
               </div>
               {newBadges.length > 0 && (
                 <div className="game-end-badges">
