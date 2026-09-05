@@ -339,11 +339,13 @@ export default function SelectorPanel({
           {/* Nut (right edge) */}
           <line x1={NECK_RIGHT} y1={FB_TOP} x2={NECK_RIGHT} y2={FB_BOTTOM} stroke="#f5f0e8" strokeWidth="3.5" />
 
-          {/* Dim inactive halves */}
-          {!selector.lowerActive && (
+          {/* Dim inactive halves — only while the precise Pro window isn't
+              driving the round, otherwise its own shading (below) would stack
+              on top of this one. */}
+          {!preciseActive && !selector.lowerActive && (
             <rect x={fretX(11)} y={FB_TOP} width={NECK_RIGHT - fretX(11)} height={FB_HEIGHT} fill="rgba(0,0,0,0.6)" rx="2" />
           )}
-          {!selector.upperActive && (
+          {!preciseActive && !selector.upperActive && (
             <rect x={fbLeft} y={FB_TOP} width={splitX - fbLeft} height={FB_HEIGHT} fill="rgba(0,0,0,0.6)" rx="2" />
           )}
 
