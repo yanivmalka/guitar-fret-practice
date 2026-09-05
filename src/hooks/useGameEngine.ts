@@ -6,7 +6,7 @@ import { playNote, playNoteSingle, stopPlayback, beep, isSoundPlaying, soundRema
 import { haptic, playCorrectChime, correctChimeRemainingMs, showFloatingText } from '../utils/feedback';
 import { vlog } from '../utils/debugLog';
 
-interface GameSettings {
+export interface GameSettings {
   guitarString: number;
   fretFrom: number;
   fretTo: number;
@@ -20,7 +20,7 @@ interface GameSettings {
   order: OrderMode;
 }
 
-interface GameSetters {
+export interface GameSetters {
   setGuitarString: (v: number) => void;
   setTime: (v: number) => void;
   setFretFrom: (v: number) => void;
@@ -35,14 +35,14 @@ interface GameSetters {
   setStageIndex: (v: number) => void;
 }
 
-interface HistoryOps {
+export interface HistoryOps {
   addEntry: (entry: HistoryEntry) => void;
   markPlayed: () => void;
   resetSession: () => void;
   history: HistoryEntry[];
 }
 
-interface ScoreOps {
+export interface ScoreOps {
   onCorrect: (elapsedSeconds: number, timeLimit: number) => ScoreResult;
   onWrong: () => void;
   onTimeout: () => void;
@@ -56,7 +56,7 @@ interface ScoreOps {
   showScore?: boolean;
 }
 
-interface EngineCallbacks {
+export interface EngineCallbacks {
   // Fired when the run ends because every question was actually answered
   // (the asked-question budget was reached) — never on a manual Stop, and
   // never on a Pause (which discards the current question and keeps the

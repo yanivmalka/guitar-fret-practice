@@ -33,7 +33,8 @@ import { bootstrapSettings, syncedSettingsUser, clearSyncedSettingsUser, cloudPu
 import { bootstrapBadges, syncedBadgesUser, clearSyncedBadgesUser, cloudPushBadges } from './utils/badgeSync';
 import { useSelector } from './hooks/useSelector';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
-import { useGameEngine } from './hooks/useGameEngine';
+import { useDrillSession } from './hooks/useDrillSession';
+import { deriveDrillConfig } from './drill/DrillConfig';
 import { useHistory } from './hooks/useHistory';
 import { useScoring } from './hooks/useScoring';
 import { useVoiceAnswer } from './hooks/useVoiceAnswer';
@@ -485,50 +486,40 @@ export default function App() {
     setPendingAutoAdvance(true);
   }, [selector]);
 
-  const engine = useGameEngine(
-    {
-      guitarString: safeGuitarString,
-      fretFrom: derivedSettings.fretFrom,
-      fretTo: derivedSettings.fretTo,
-      wholeToneOnly: derivedSettings.wholeToneOnly,
-      dotsOnly: derivedSettings.dotsOnly,
-      byNote: derivedSettings.byNote,
-      isMulti: derivedSettings.multiStrings.length > 0,
-      activeStrings: derivedSettings.multiStrings.length > 0 ? derivedSettings.multiStrings : [safeGuitarString],
-      time: derivedSettings.time,
-      accidental,
-      order,
-    },
-    {
-      setGuitarString,
-      setTime: () => {}, setFretFrom: () => {}, setFretTo: () => {},
-      setAccidental: () => {}, setOrder: () => {}, setWholeToneOnly: () => {},
-      setDotsOnly: () => {}, setByNote: () => {}, setMultiStrings: () => {},
-      setByString: () => {}, setStageIndex: () => {},
-    },
-    {
+  // Practice's picks, reduced to the platform-neutral shape the shared drill
+  // engine runs on (Practice → DrillSession ← Game). `accidental`/`order`/the
+  // primary string come from App state, exactly as they did when App fed
+  // useGameEngine directly.
+  const drillConfig = useMemo(
+    () => deriveDrillConfig(derivedSettings, {
+      primaryString: safeGuitarString, accidental, order,
+    }),
+    [derivedSettings, safeGuitarString, accidental, order],
+  );
+  const session = useDrillSession(drillConfig, {
+    setActiveString: setGuitarString,
+    history: {
       addEntry: addEntryWithKey,
       markPlayed: markPlayedForKey,
       resetSession: historyOps.resetSession,
       history: historyOps.history,
     },
-    {
+    scoring: {
       onCorrect: scoring.onCorrect,
       onWrong: scoring.onWrong,
       onTimeout: scoring.onTimeout,
       getQuestionTime: scoring.getQuestionTime,
       showScore,
+      session: scoring.session,
     },
-    {
-      onComplete: handleAutoComplete,
-    },
-  );
+    onComplete: handleAutoComplete,
+  });
   const {
     running, paused, currentFret, currentNote, askedFret, remaining, feedback,
     correctCofNote, wrongCofNote, answered, remainingFrets, foundFrets, wrongFret,
     questionTime, questionStart, questionSeq, questionNumber,
     start: engineStart, stop, pause, resume, selectFret, selectAnswer,
-  } = engine;
+  } = session;
 
   // Voice answering (WP-4): while a question is on screen and answerMode is
   // 'voice', listen and route the recognised note/fret through the same
