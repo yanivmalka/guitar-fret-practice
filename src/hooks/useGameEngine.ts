@@ -1,10 +1,12 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { notes, getCofNotes, getCorrectCofNote, getValidFrets, notesMatch, displayNote } from '../utils/music';
 import type { AccidentalMode, OrderMode, HistoryEntry } from '../utils/music';
 import type { ScoreResult } from './useScoring';
+import { groupCandidateFrets, candidateStringPool } from '../drill/candidates';
+import type { DrillPosition } from '../drill/candidates';
 import { playNote, playNoteSingle, stopPlayback, beep, isSoundPlaying, soundRemainingMs, pauseAudioContext, resumeAudioContext } from '../utils/audio';
 import { haptic, playCorrectChime, correctChimeRemainingMs, showFloatingText } from '../utils/feedback';
-import { vlog } from '../utils/debugLog';
+import { vlog, verror } from '../utils/debugLog';
 
 export interface GameSettings {
   guitarString: number;
@@ -18,6 +20,10 @@ export interface GameSettings {
   time: number;
   accidental: AccidentalMode;
   order: OrderMode;
+  // Optional explicit question pool. When present and non-empty, questions are
+  // drawn only from these positions and the fret-window / wholeToneOnly /
+  // dotsOnly filters no longer decide the pool. Absent → unchanged behaviour.
+  candidates?: DrillPosition[];
 }
 
 export interface GameSetters {
@@ -73,7 +79,26 @@ export function useGameEngine(
   callbacks: EngineCallbacks = {},
 ) {
   const { guitarString, fretFrom, fretTo, wholeToneOnly, dotsOnly, byNote,
-          isMulti, activeStrings, time, accidental, order } = settings;
+          isMulti, activeStrings, time, accidental, order, candidates } = settings;
+
+  // An explicit candidate set confines every question to those exact
+  // positions. Built into `string -> sorted frets` once per candidate-array
+  // identity; a malformed / all-invalid set collapses to `null` so the drill
+  // simply falls back to the filter-based pool below.
+  //
+  // Positions are validated against the note table captured here. A caller
+  // that switches instruments must hand in a fresh `candidates` array (its
+  // positions are instrument-specific anyway) for the re-validation to run.
+  const candidateFretsByString = useMemo<Map<number, number[]> | null>(() => {
+    if (!candidates || candidates.length === 0) return null;
+    const grouped = groupCandidateFrets(candidates, notes);
+    if (grouped.size === 0) {
+      verror('[drill] candidate set has no valid positions — using filters instead',
+        { count: candidates.length });
+      return null;
+    }
+    return grouped;
+  }, [candidates]);
   const { onComplete } = callbacks;
   const { addEntry, markPlayed, resetSession } = historyOps;
   const { onCorrect, onWrong, onTimeout, getQuestionTime, showScore = true } = scoreOps;
@@ -256,13 +281,24 @@ export function useGameEngine(
     setWrongFret(null);
     setFoundFrets([]);
 
-    const qString = isMulti
-      ? activeStrings[Math.floor(Math.random() * activeStrings.length)]
-      : guitarString;
+    // With an explicit candidate set: pick a string from the candidate pool
+    // and use that string's candidate frets. Without one: the original
+    // filter-based selection, unchanged.
+    const candStrings = candidateFretsByString
+      ? candidateStringPool(candidateFretsByString, isMulti, guitarString)
+      : null;
+    const qString = candStrings
+      ? candStrings[Math.floor(Math.random() * candStrings.length)]
+      : isMulti
+        ? activeStrings[Math.floor(Math.random() * activeStrings.length)]
+        : guitarString;
     currentQuestionStringRef.current = qString;
     setters.setGuitarString(qString);
 
-    const validFrets = getValidFrets(qString - 1, fretFrom, fretTo, wholeToneOnly, dotsOnly);
+    const candFrets = candidateFretsByString?.get(qString);
+    const validFrets = candFrets && candFrets.length > 0
+      ? candFrets
+      : getValidFrets(qString - 1, fretFrom, fretTo, wholeToneOnly, dotsOnly);
     const fret = pickSmartFret(validFrets, qString - 1);
     const note = notes[qString - 1][fret];
     lastNoteRef.current = note;
@@ -293,7 +329,7 @@ export function useGameEngine(
       playNoteSingle(qString, askedFretRef.current, questionPlaybackRate());
       advanceAfterSound(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
     });
-  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, advanceAfterSound, onComplete, getQuestionTime]);
+  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, wholeToneOnly, dotsOnly, candidateFretsByString, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, advanceAfterSound, onComplete, getQuestionTime]);
 
   // ── SELECT FRET (by note mode) ────────────────────────────────
   const selectFret = useCallback((selectedFret: number) => {
@@ -387,13 +423,24 @@ export function useGameEngine(
     setCorrectCofNote(null);
     setWrongCofNote(null);
 
-    const qString = isMulti
-      ? activeStrings[Math.floor(Math.random() * activeStrings.length)]
-      : guitarString;
+    // With an explicit candidate set: pick a string from the candidate pool
+    // and use that string's candidate frets. Without one: the original
+    // filter-based selection, unchanged.
+    const candStrings = candidateFretsByString
+      ? candidateStringPool(candidateFretsByString, isMulti, guitarString)
+      : null;
+    const qString = candStrings
+      ? candStrings[Math.floor(Math.random() * candStrings.length)]
+      : isMulti
+        ? activeStrings[Math.floor(Math.random() * activeStrings.length)]
+        : guitarString;
     currentQuestionStringRef.current = qString;
     setters.setGuitarString(qString);
 
-    const validFrets = getValidFrets(qString - 1, fretFrom, fretTo, wholeToneOnly, dotsOnly);
+    const candFrets = candidateFretsByString?.get(qString);
+    const validFrets = candFrets && candFrets.length > 0
+      ? candFrets
+      : getValidFrets(qString - 1, fretFrom, fretTo, wholeToneOnly, dotsOnly);
     const fret = pickSmartFret(validFrets, qString - 1);
     lastNoteRef.current = notes[qString - 1][fret];
     setCurrentFret(fret);
@@ -418,7 +465,7 @@ export function useGameEngine(
       setFeedback(`⏱ ${displayNote(correctNote, accidental)} (Fret ${fret})`);
       scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) next(); }, 1500);
     });
-  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, accidental, order, wholeToneOnly, dotsOnly, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, onComplete, getQuestionTime]);
+  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, accidental, order, wholeToneOnly, dotsOnly, candidateFretsByString, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, onComplete, getQuestionTime]);
 
   const selectAnswer = useCallback((selectedNote: string) => {
     vlog('[voice] selectAnswer', { selectedNote, running: runningRef.current, paused, answered: answeredRef.current, currentFret });

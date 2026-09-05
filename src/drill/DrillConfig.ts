@@ -17,6 +17,9 @@ import type { AccidentalMode, OrderMode, HistoryEntry } from '../utils/music';
 import type { DerivedSettings } from '../hooks/useSelector';
 import type { SessionScore } from '../hooks/useScoring';
 import type { GameSettings } from '../hooks/useGameEngine';
+import type { DrillPosition } from './candidates';
+
+export type { DrillPosition };
 
 export interface DrillConfig {
   /** Strings the drill may ask about (1-based). A single entry means a
@@ -45,6 +48,13 @@ export interface DrillConfig {
   timeLimit: number;
   accidental: AccidentalMode;
   order: OrderMode;
+  /** Optional explicit question pool. When present (and non-empty), the engine
+   *  asks *only* about these positions and ignores `fretFrom`/`fretTo`/
+   *  `wholeToneOnly`/`dotsOnly` for pool selection — `strings`/`primaryString`/
+   *  `isMulti` still decide which string a question lands on. When absent, the
+   *  engine behaves exactly as it did before candidate sets existed. Practice
+   *  never sets this; it is the seam a future Game builds a stage on. */
+  candidates?: DrillPosition[];
 }
 
 export interface SessionResult {
@@ -99,6 +109,7 @@ export function drillConfigToGameSettings(config: DrillConfig): GameSettings {
     time: config.timeLimit,
     accidental: config.accidental,
     order: config.order,
+    candidates: config.candidates,
   };
 }
 
