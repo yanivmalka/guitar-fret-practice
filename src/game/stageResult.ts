@@ -8,78 +8,66 @@
 // unlocking the next stage is GameProgress (Task 5).
 
 import type { SessionResult } from '../drill/DrillConfig';
-import type { Stage, StageTargets } from './models';
+import type { Stage, StageGoal, StageTargets } from './models';
 
-/** 0–3 stars. 0 means the run missed the stage's baseline accuracy. */
+/** 0–3 stars. 0 means the run did not meet the stage's 1★ goal. */
 export type StarRating = 0 | 1 | 2 | 3;
 
-// Which of a stage's goals a run cleared.
-//   • `accuracy`      — the 1★ baseline gate (always defined by a stage).
-//   • `longestStreak` / `avgSeconds` — the two optional "advanced" goals;
-//     `null` when the stage does not set that goal at all.
-export interface TargetChecks {
-  accuracy: boolean;
-  longestStreak: boolean | null;
-  avgSeconds: boolean | null;
-}
-
-// Compare a run against a stage's targets, goal by goal. The single place the
-// per-goal comparisons live, so `evaluateStars` and `buildStageResult` can
-// never drift apart. A goal is "met" when the run is at or beyond the bar
-// (`>=` for accuracy/streak, `<=` for the time target).
-export function checkTargets(result: SessionResult, targets: StageTargets): TargetChecks {
-  return {
-    accuracy: result.accuracy >= targets.minAccuracy,
-    longestStreak: targets.minLongestStreak === undefined
-      ? null
-      : result.longestStreak >= targets.minLongestStreak,
-    avgSeconds: targets.maxAvgSeconds === undefined
-      ? null
-      : result.avgSeconds !== null && result.avgSeconds <= targets.maxAvgSeconds,
-  };
+/**
+ * Does a finished run meet one star goal? True when the run is at or beyond
+ * every threshold the goal names (`>=` on each). A threshold the goal leaves
+ * undefined is simply not checked.
+ */
+export function meetsGoal(result: SessionResult, goal: StageGoal): boolean {
+  if (result.accuracy < goal.minAccuracy) return false;
+  if (goal.minLongestStreak !== undefined && result.longestStreak < goal.minLongestStreak) {
+    return false;
+  }
+  return true;
 }
 
 /**
- * Rate a finished drill run against a stage's targets. Pure and deterministic:
- * the same `(result, targets)` always yields the same integer.
+ * Rate a finished drill run against a stage's three target tiers. Pure and
+ * deterministic: the same `(result, targets)` always yields the same integer.
  *
- * Tiers:
- *   0★ — accuracy below `minAccuracy` (the baseline was not met).
- *   1★ — baseline met.
- *   2★ — baseline met + one of the stage's advanced goals cleared.
- *   3★ — baseline met + every advanced goal the stage sets cleared.
+ * The rating is the highest tier whose `StageGoal` the run meets, checked from
+ * the top down:
+ *   3★ — meets `targets.threeStar`
+ *   2★ — meets `targets.twoStar`
+ *   1★ — meets `targets.oneStar`
+ *   0★ — meets none
  *
- * The advanced goals are `minLongestStreak` and `maxAvgSeconds`; each one the
- * stage defines *and* the run clears adds a star (capped at 3). A stage that
- * sets neither advanced goal therefore tops out at 1★, and a stage that sets
- * one tops out at 2★ — to make the full 0–3 range reachable a stage defines
- * both (see `open-strings-2` in `stages.ts`). This keeps the rating a plain
- * count of cleared goals rather than hidden logic inside this function.
+ * Because a stage always defines all three tiers, every stage can score the
+ * full 0–3 range; the achievable maximum is not a function of which optional
+ * thresholds are set.
  */
 export function evaluateStars(result: SessionResult, targets: StageTargets): StarRating {
-  const checks = checkTargets(result, targets);
-  if (!checks.accuracy) return 0;
-  let stars = 1;
-  if (checks.longestStreak === true) stars += 1;
-  if (checks.avgSeconds === true) stars += 1;
-  return Math.min(stars, 3) as StarRating;
+  if (meetsGoal(result, targets.threeStar)) return 3;
+  if (meetsGoal(result, targets.twoStar)) return 2;
+  if (meetsGoal(result, targets.oneStar)) return 1;
+  return 0;
 }
 
 // ── StageResult ────────────────────────────────────────────────────────
 //
 // The full outcome of one stage run, ready for a UI to render without
-// recomputing anything: the star rating, the raw run snapshot, the bar it
-// was judged against, and which goals were cleared.
+// recomputing anything: the star rating, the raw run snapshot, the tiers it
+// was judged against, and which tiers it cleared.
 export interface StageResult {
   stageId: string;
   stars: StarRating;
   /** The complete drill-run snapshot this rating came from. */
   sessionResult: SessionResult;
-  /** The targets the run was rated against (copied from the stage). */
+  /** The tiers the run was rated against (copied from the stage). */
   targets: StageTargets;
-  /** Per-goal pass/fail; `longestStreak` / `avgSeconds` are `null` when the
-   *  stage does not set that goal. */
-  metTargets: TargetChecks;
+  /** Which star goals the run cleared. `threeStar` implies `twoStar` implies
+   *  `oneStar` for well-authored (increasing) tiers, but each is reported
+   *  independently so a mis-ordered stage still describes itself honestly. */
+  metTiers: {
+    oneStar: boolean;
+    twoStar: boolean;
+    threeStar: boolean;
+  };
 }
 
 /**
@@ -92,6 +80,10 @@ export function buildStageResult(stage: Stage, sessionResult: SessionResult): St
     stars: evaluateStars(sessionResult, stage.targets),
     sessionResult,
     targets: stage.targets,
-    metTargets: checkTargets(sessionResult, stage.targets),
+    metTiers: {
+      oneStar: meetsGoal(sessionResult, stage.targets.oneStar),
+      twoStar: meetsGoal(sessionResult, stage.targets.twoStar),
+      threeStar: meetsGoal(sessionResult, stage.targets.threeStar),
+    },
   };
 }

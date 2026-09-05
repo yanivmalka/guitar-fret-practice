@@ -44,27 +44,37 @@ export interface World {
   descriptionKey?: string;
 }
 
+// ── StageGoal ───────────────────────────────────────────────────────────
+//
+// The bar for one star level: a set of thresholds a finished run must all
+// meet. Every field is a metric `SessionResult` already reports, compared
+// with `>=` (higher is better). A run "meets" the goal when it is at or
+// beyond every threshold the goal names.
+export interface StageGoal {
+  /** Minimum accuracy, whole-number percent 0–100 (`SessionResult.accuracy`
+   *  = correct answers over recorded answers). Always set — accuracy is the
+   *  spine of every tier. */
+  minAccuracy: number;
+  /** Optional: minimum longest consecutive-correct streak within the run
+   *  (`SessionResult.longestStreak`). Omit when this tier is accuracy-only. */
+  minLongestStreak?: number;
+}
+
 // ── StageTargets ────────────────────────────────────────────────────────
 //
-// The reference values a completed stage run is measured against. DATA ONLY:
-// this task does not decide how these map to 1/2/3 stars — `evaluateStars()`
-// in Task 4 owns that. Every field here is something the drill session
-// already reports today (see `SessionResult` in `src/drill/DrillConfig.ts`
-// and `HistoryEntry.seconds`), so Task 4 has real numbers to compare.
+// Three explicit star levels. A stage always defines all three, so 0–3 stars
+// is always reachable and the star count is never an implicit side effect of
+// which optional fields happen to be filled in. `evaluateStars()` returns the
+// highest tier whose `StageGoal` the run meets (0 when not even `oneStar` is
+// met). Author the tiers in increasing difficulty:
+//   oneStar ≤ twoStar ≤ threeStar   (per metric).
 export interface StageTargets {
-  /** Baseline accuracy to clear the stage, as a whole-number percent
-   *  (0–100): correct answers over recorded answers, matching
-   *  `SessionResult.accuracy`. */
-  minAccuracy: number;
-  /** Optional: longest consecutive-correct streak the run should reach,
-   *  matching `SessionResult.longestStreak`. */
-  minLongestStreak?: number;
-  /** Optional: target average answer time in seconds (lower is better),
-   *  compared against `SessionResult.avgSeconds` (mean seconds over the run's
-   *  correct answers). Left undefined for stages that are not timed for a
-   *  bonus; a run with no correct answer (`avgSeconds === null`) never meets
-   *  this goal. */
-  maxAvgSeconds?: number;
+  /** 1★ — the baseline. A run below this earns 0★. */
+  oneStar: StageGoal;
+  /** 2★ — clearly better than the baseline. */
+  twoStar: StageGoal;
+  /** 3★ — mastery of the stage. */
+  threeStar: StageGoal;
 }
 
 // ── Stage ───────────────────────────────────────────────────────────────

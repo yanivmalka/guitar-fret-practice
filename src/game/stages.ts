@@ -29,8 +29,9 @@ export const STAGES: Stage[] = [
       order: 'fifths',
     },
     targets: {
-      minAccuracy: 70,
-      minLongestStreak: 5,
+      oneStar: { minAccuracy: 60 },
+      twoStar: { minAccuracy: 80 },
+      threeStar: { minAccuracy: 95, minLongestStreak: 8 },
     },
   },
   {
@@ -53,9 +54,9 @@ export const STAGES: Stage[] = [
       order: 'fifths',
     },
     targets: {
-      minAccuracy: 80,
-      minLongestStreak: 8,
-      maxAvgSeconds: 4,
+      oneStar: { minAccuracy: 70 },
+      twoStar: { minAccuracy: 85, minLongestStreak: 6 },
+      threeStar: { minAccuracy: 95, minLongestStreak: 12 },
     },
   },
 ];
