@@ -2,9 +2,11 @@
 //
 // Architectural target:  World → Stage → Drill → Stars
 //
-// These are the *data* shapes for the future Game (progression) layer. They
-// are deliberately inert:
-//   • no unlock logic, no GameProgress, no persistence  (Task 5)
+// These are the *data* shapes for the Game (progression) layer. They are
+// deliberately thin:
+//   • the GameProgress *shape* is defined here (Task 5); its persistence,
+//     the monotonic star-update rule and unlock derivation live in
+//     `src/utils/gameProgress.ts` — not in this model layer
 //   • no `evaluateStars()` and no star-tier math        (Task 4)
 //   • no UI — a World/Stage is never a React component
 //
@@ -97,4 +99,34 @@ export interface Stage {
   drill: DrillConfig;
   /** What a run of this stage is scored against (see `StageTargets`). */
   targets: StageTargets;
+}
+
+// ── GameProgress ────────────────────────────────────────────────────────
+//
+// The player's saved progression through the Game: the best star rating
+// earned per stage, and where they last played. This is the persisted
+// *shape* only — loading, saving, the monotonic update rule and the
+// stage-unlock derivation all live in `src/utils/gameProgress.ts` (Task 5),
+// never in this model layer.
+//
+// Only stars actually earned are stored: a stage id absent from `bestStars`
+// has never been cleared and counts as 0★ — 0 is never written. Unlock
+// state is likewise never stored; it is a pure function of `bestStars` plus
+// the fixed stage order.
+export interface GameProgress {
+  /** Schema version of this record. Bumped only if the persisted shape
+   *  changes; lets a later cloud layer migrate an old blob. */
+  version: 1;
+  /** Best star rating (1–3) per `Stage.id`. A stage id missing from this map
+   *  has not been cleared and is treated as 0★ — 0 is never written here. */
+  bestStars: Record<string, 1 | 2 | 3>;
+  /** The stage the player ran most recently, for "continue where you left
+   *  off". Absent until the first stage is played. */
+  lastPlayed?: {
+    worldId: string;
+    stageId: string;
+  };
+  /** ISO-8601 timestamp of the last change to this record. Empty string
+   *  until the first save. */
+  updatedAt: string;
 }
