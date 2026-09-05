@@ -24,7 +24,9 @@ const STRIP_H = 28;
 export default function FretRangeControl({ maxFret, lo, hi, onChange, disabled }: Props) {
   const { t } = useTranslation();
   const svgRef = useRef<SVGSVGElement>(null);
-  const dragRef = useRef<'lo' | 'hi' | null>(null);
+  // The one pointer currently dragging a handle. A second finger is ignored
+  // until this one lifts, so two touches can't fight over the same window.
+  const dragRef = useRef<{ which: 'lo' | 'hi'; pointerId: number } | null>(null);
 
   const fretX = fretXFor(maxFret);
   const fbLeft = FB_LEFT_MARGIN - 3;
@@ -66,19 +68,21 @@ export default function FretRangeControl({ maxFret, lo, hi, onChange, disabled }
   };
 
   const onHandleDown = (which: 'lo' | 'hi') => (e: RPointerEvent) => {
-    if (disabled) return;
+    if (disabled || dragRef.current) return; // one handle at a time
     e.preventDefault();
     (e.target as Element).setPointerCapture?.(e.pointerId);
-    dragRef.current = which;
+    dragRef.current = { which, pointerId: e.pointerId };
   };
   const onMove = (e: RPointerEvent) => {
-    if (!dragRef.current) return;
+    const drag = dragRef.current;
+    if (!drag || e.pointerId !== drag.pointerId) return;
     const f = fretAtClientX(e.clientX);
-    if (dragRef.current === 'lo') commit(f, hi);
+    if (drag.which === 'lo') commit(f, hi);
     else commit(lo, f);
   };
   const endDrag = (e: RPointerEvent) => {
-    if (!dragRef.current) return;
+    const drag = dragRef.current;
+    if (!drag || e.pointerId !== drag.pointerId) return;
     (e.target as Element).releasePointerCapture?.(e.pointerId);
     dragRef.current = null;
   };
