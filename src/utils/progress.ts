@@ -134,6 +134,40 @@ export function weakNotes(entries: HistoryEntry[], noteNames: string[], limit = 
     .map(([label, s]) => ({ label, accuracy: s.accuracy }));
 }
 
+// ── Adaptive difficulty suggestion ──────────────────────────────
+// Pure read over one settings combination's recent history: is the drill now
+// too easy or too hard for the player? The caller (App) turns a 'harder' /
+// 'easier' verdict into a concrete Selector change (a difficulty step) and
+// shows a one-off banner with an "apply" button. This is a suggestion layered
+// over the Selector model — it does NOT revive the old Stage sequence.
+
+// Look at the last N answered questions for the combination…
+export const SUGGEST_WINDOW = 20;
+// …but never suggest on fewer than this, so a handful of lucky/unlucky
+// answers can't move someone.
+export const SUGGEST_MIN_SAMPLE = 15;
+// accuracy ≥ this over the window ⇒ ready for something harder.
+export const SUGGEST_HARDER_AT = 0.9;
+// accuracy ≤ this ⇒ drop back to something easier.
+export const SUGGEST_EASIER_AT = 0.6;
+
+export type Adjustment = 'harder' | 'easier';
+
+// `entries` must already be scoped to a single `historyKey` (App passes
+// `getEntriesForKey(histKey)`). Accuracy is `correct / total` over the trailing
+// window, counting timeouts and skips against the player exactly the way
+// `mastery.ts` and `dailyStats` do — those are the "I don't know" signal that
+// should pull a suggestion toward 'easier'.
+export function suggestAdjustment(entries: HistoryEntry[]): Adjustment | null {
+  const recent = entries.slice(-SUGGEST_WINDOW);
+  if (recent.length < SUGGEST_MIN_SAMPLE) return null;
+  const correct = recent.filter(e => e.correct === true).length;
+  const accuracy = correct / recent.length;
+  if (accuracy >= SUGGEST_HARDER_AT) return 'harder';
+  if (accuracy <= SUGGEST_EASIER_AT) return 'easier';
+  return null;
+}
+
 export interface BestSummary {
   key: string; // historyKey the record is scoped to
   best: PersonalBest;

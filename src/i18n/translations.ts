@@ -632,6 +632,16 @@ const he: Record<string, string> = {
   'the author': 'הכותב',
   'It can’t be undone.': 'לא ניתן לבטל פעולה זו.',
   'Delete for everyone': 'מחק עבור כולם',
+
+  // Adaptive difficulty suggestion banner (wishlist §3)
+  'You’re cruising through this — ready for a harder level?':
+    'אתה עובר את זה בקלות — מוכן לרמה קשה יותר?',
+  'This setup is fighting back. Want to ease off a level?':
+    'ההגדרה הזו נותנת לך בראש. רוצה לרדת רמה?',
+  'Switch the difficulty to': 'החלף את דרגת הקושי ל־',
+  'Drop the difficulty to': 'הורד את דרגת הקושי ל־',
+  'Apply': 'החל',
+  'Dismiss': 'סגור',
 };
 
 const dictionaries: Record<Lang, Record<string, string>> = { en: {}, he };

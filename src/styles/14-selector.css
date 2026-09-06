@@ -222,3 +222,63 @@
   padding: 0 6px;
   flex-shrink: 0;
 }
+
+/* ── Adaptive suggestion banner ─────────────────────────────────────────
+   A one-off nudge under the Selector when recent accuracy on the current
+   settings combination says the drill is too easy ('harder') or too hard
+   ('easier'). Not part of the drill chrome — quiet card, single accent edge. */
+.adjust-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  max-width: 420px;
+  margin: 10px auto 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border-soft);
+  border-inline-start: 3px solid var(--accent);
+  border-radius: 12px;
+  background: var(--bg-2);
+}
+.adjust-suggest-easier {
+  border-inline-start-color: var(--amber);
+}
+.adjust-suggest-text {
+  flex: 1 1 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.adjust-suggest-headline {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-0);
+}
+.adjust-suggest-detail {
+  font-size: 0.8rem;
+  color: var(--text-3);
+}
+.adjust-suggest-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.adjust-suggest-apply,
+.adjust-suggest-dismiss {
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.adjust-suggest-apply {
+  border: none;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.adjust-suggest-dismiss {
+  border: 1px solid var(--border-soft);
+  background: transparent;
+  color: var(--text-3);
+}

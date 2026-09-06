@@ -53,6 +53,15 @@ export function nextDifficulty(difficulty: Difficulty): Difficulty | null {
   return null;
 }
 
+// The mirror of `nextDifficulty` — one step easier, or null if already at the
+// gentlest difficulty. Used by the adaptive suggestion banner to offer a drop
+// back when recent accuracy on a combination is low.
+export function prevDifficulty(difficulty: Difficulty): Difficulty | null {
+  if (difficulty === 'full') return 'naturals';
+  if (difficulty === 'naturals') return 'dots';
+  return null;
+}
+
 export interface DerivedSettings {
   guitarString: number;
   multiStrings: number[];

@@ -9,6 +9,7 @@ import menuIconAccount from './assets/menu-icons/account.png';
 import NoteCircle from './components/NoteCircle';
 import FretGrid from './components/FretGrid';
 import SelectorPanel from './components/SelectorPanel';
+import AdjustSuggestionBanner from './components/AdjustSuggestionBanner';
 import FretRangeControl from './components/FretRangeControl';
 import FretRangeNeck from './components/FretRangeNeck';
 import ProgressPanel from './components/ProgressPanel';
@@ -31,7 +32,8 @@ import { useAuth } from './hooks/useAuth';
 import { bootstrapUser, reconcileUser, syncedUser, clearSyncedUser, cloudCaptureOrphans, restoreOnly } from './utils/sync';
 import { bootstrapSettings, syncedSettingsUser, clearSyncedSettingsUser, cloudPushSettings } from './utils/settingsSync';
 import { bootstrapBadges, syncedBadgesUser, clearSyncedBadgesUser, cloudPushBadges } from './utils/badgeSync';
-import { useSelector } from './hooks/useSelector';
+import { useSelector, nextDifficulty, prevDifficulty, type Difficulty } from './hooks/useSelector';
+import { suggestAdjustment } from './utils/progress';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useDrillSession } from './hooks/useDrillSession';
 import { deriveDrillConfig } from './drill/DrillConfig';
@@ -801,6 +803,38 @@ export default function App() {
 
   const hasHistory = historyOps.getEntriesForKey(histKey).length > 0;
   const hasAnyHistory = hasHistory || Object.values(historyOps.allHistory).some(list => list.length > 0);
+
+  // Adaptive suggestion (wishlist §3): once enough questions have been answered
+  // on the current settings combination, offer a one-tap move to a harder or
+  // easier difficulty based on recent accuracy for that combination. It's a
+  // hint layered over the Selector — the old Stage sequence is not revived.
+  // Suppressed while Auto Advance already marches difficulty on its own, while a
+  // precise Pro fret window pins difficulty to Full, and once dismissed for this
+  // exact combination (kept per-key in localStorage so it doesn't nag again).
+  const { getEntriesForKey } = historyOps;
+  // Dismissals made this session, keyed by historyKey; the persisted copy in
+  // localStorage (`sel_suggestDismissed_<key>`) is read in the memo below so a
+  // dismissal survives a reload without an effect syncing state.
+  const [suggestDismiss, setSuggestDismiss] = useState<Record<string, 'harder' | 'easier'>>({});
+  const adjustSuggestion = useMemo<null | { direction: 'harder' | 'easier'; target: Difficulty }>(() => {
+    if (selector.state.autoAdvance) return null;
+    if (selector.state.useFretRange && auth.isPro) return null;
+    const verdict = suggestAdjustment(getEntriesForKey(histKey));
+    if (!verdict) return null;
+    const dismissed = suggestDismiss[histKey]
+      ?? loadSetting<'harder' | 'easier' | null>(`sel_suggestDismissed_${histKey}`, null);
+    if (verdict === dismissed) return null;
+    const target = verdict === 'harder'
+      ? nextDifficulty(selector.state.difficulty)
+      : prevDifficulty(selector.state.difficulty);
+    // Already at the hardest / gentlest difficulty — v1 has nothing to offer
+    // (widening the fret-range half is a documented future fallback).
+    if (!target) return null;
+    return { direction: verdict, target };
+  }, [
+    selector.state.autoAdvance, selector.state.useFretRange, selector.state.difficulty,
+    auth.isPro, getEntriesForKey, histKey, suggestDismiss,
+  ]);
 
   // First-time hint: a brand-new player (no history at all, hint never seen)
   // gets the setup-summary bubble popped open automatically the first time they
@@ -1783,6 +1817,25 @@ export default function App() {
       {/* All playing settings live inline on the page; a compact read-only HUD
           replaces the panel during play. */}
       {renderSelectorPanel(gameActive)}
+
+      {/* Adaptive difficulty nudge — only at rest, and only once the current
+          combination has enough recent history to be sure (see wishlist §3). */}
+      {isStopped && !gameEnded && onboardingDone && adjustSuggestion && (
+        <AdjustSuggestionBanner
+          direction={adjustSuggestion.direction}
+          target={adjustSuggestion.target}
+          onApply={() => {
+            // Switching difficulty changes historyKey, so this combination's
+            // banner disappears on its own — no dismissal to record. The button
+            // itself plays the click + haptic (see AdjustSuggestionBanner).
+            selector.onDifficultySelect(adjustSuggestion.target);
+          }}
+          onDismiss={() => {
+            saveSetting(`sel_suggestDismissed_${histKey}`, adjustSuggestion.direction);
+            setSuggestDismiss(m => ({ ...m, [histKey]: adjustSuggestion.direction }));
+          }}
+        />
+      )}
 
       {/* Hamburger drawer: a side sheet listing the section titles only.
           Tapping one opens that section as its own full page (handled by the
