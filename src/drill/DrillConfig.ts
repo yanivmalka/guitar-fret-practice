@@ -18,8 +18,10 @@ import type { DerivedSettings } from '../hooks/useSelector';
 import type { SessionScore } from '../hooks/useScoring';
 import type { GameSettings } from '../hooks/useGameEngine';
 import type { DrillPosition } from './candidates';
+import type { IntervalDrillSpec } from '../utils/intervals';
 
 export type { DrillPosition };
+export type { IntervalDrillSpec };
 
 export interface DrillConfig {
   /** Strings the drill may ask about (1-based). A single entry means a
@@ -55,6 +57,12 @@ export interface DrillConfig {
    *  engine behaves exactly as it did before candidate sets existed. Practice
    *  never sets this; it is the seam a future Game builds a stage on. */
   candidates?: DrillPosition[];
+  /** Optional interval question spec (P4). When present the engine asks
+   *  interval questions ("what is a 5th above G", or "tap a M6 above this
+   *  fret") on the by-fret / by-note answer surface named by `spec.form`,
+   *  instead of plain note questions. Absent ⇒ unchanged behaviour. Practice
+   *  and the notes-only Teacher never set this. */
+  interval?: IntervalDrillSpec;
 }
 
 export interface SessionResult {
@@ -110,6 +118,7 @@ export function drillConfigToGameSettings(config: DrillConfig): GameSettings {
     accidental: config.accidental,
     order: config.order,
     candidates: config.candidates,
+    interval: config.interval,
   };
 }
 

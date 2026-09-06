@@ -51,6 +51,11 @@ export interface DailyGoal {
 
 export interface InstrumentLearningState {
   srs: SrsMap;
+  /** Leitner schedule for interval *qualities* (P4). A separate map from `srs`
+   *  so the notes-only planner / weakness / path code never sees interval ids.
+   *  Keyed by `intervalItemId(semitones)` ("interval:<n>"). Absent in a pre-P4
+   *  blob ⇒ `{}`. */
+  intervalSrs: SrsMap;
   daily: DailyGoal;
   /** Learning Path progress: best star tier reached per checkpoint (P3).
    *  Added to the same blob rather than a new table — P2 already established
@@ -85,6 +90,7 @@ function freshDaily(now: number, target = DEFAULT_DAILY_TARGET): DailyGoal {
 export function emptyInstrumentState(now: number): InstrumentLearningState {
   return {
     srs: {},
+    intervalSrs: {},
     daily: freshDaily(now),
     path: emptyPathProgress(),
     lastAnswerAt: 0,
@@ -132,15 +138,19 @@ export function normalizeInstrumentState(
 ): InstrumentLearningState {
   if (raw == null || typeof raw !== 'object') return emptyInstrumentState(now);
   const r = raw as Record<string, unknown>;
-  const srs: SrsMap = {};
-  if (r.srs != null && typeof r.srs === 'object') {
-    for (const [id, v] of Object.entries(r.srs as Record<string, unknown>)) {
-      const item = normalizeSrsItem(id, v);
-      if (item) srs[id] = item;
+  const readSrsMap = (src: unknown): SrsMap => {
+    const out: SrsMap = {};
+    if (src != null && typeof src === 'object') {
+      for (const [id, v] of Object.entries(src as Record<string, unknown>)) {
+        const item = normalizeSrsItem(id, v);
+        if (item) out[id] = item;
+      }
     }
-  }
+    return out;
+  };
   return {
-    srs,
+    srs: readSrsMap(r.srs),
+    intervalSrs: readSrsMap(r.intervalSrs),
     daily: normalizeDaily(r.daily, now),
     path: normalizePathProgress(r.path),
     lastAnswerAt:
@@ -254,6 +264,7 @@ export function recordTeacherAnswer(
   const daily = rollDailyGoal(st.daily, now, st.daily.target);
   return {
     srs: { ...st.srs, [id]: nextItem },
+    intervalSrs: st.intervalSrs,
     daily: { ...daily, completed: daily.completed + 1 },
     path: st.path,
     lastAnswerAt: now,
@@ -279,8 +290,33 @@ export function recordPracticeAnswer(
   const nextItem = reviewSrsItem(srsItem, correct, now);
   return {
     srs: { ...st.srs, [id]: nextItem },
+    intervalSrs: st.intervalSrs,
     daily: rollDailyGoal(st.daily, now, st.daily.target),
     path: st.path,
+    lastAnswerAt: now,
+    updatedAt: new Date(now).toISOString(),
+  };
+}
+
+// ── Apply one interval-drill answer (Premium only, P4) ────────────────
+//
+// Updates only the interval quality's own SRS schedule (`intervalSrs`). It
+// does NOT touch the note schedule, the daily goal (that goal is the
+// prescribed *note* Teacher session) or the Learning Path. `correct` folds a
+// timeout in as incorrect. The daily record is still rolled to today so a
+// stale day never lingers. Pure.
+export function recordIntervalAnswer(
+  st: InstrumentLearningState,
+  itemId: string,
+  correct: boolean,
+  now: number,
+): InstrumentLearningState {
+  const srsItem = getOrCreate(st.intervalSrs, itemId, now);
+  const nextItem = reviewSrsItem(srsItem, correct, now);
+  return {
+    ...st,
+    intervalSrs: { ...st.intervalSrs, [itemId]: nextItem },
+    daily: rollDailyGoal(st.daily, now, st.daily.target),
     lastAnswerAt: now,
     updatedAt: new Date(now).toISOString(),
   };
@@ -327,6 +363,7 @@ export function mergeInstrumentState(
 ): InstrumentLearningState {
   return {
     srs: mergeSrsMaps(a.srs, b.srs),
+    intervalSrs: mergeSrsMaps(a.intervalSrs ?? {}, b.intervalSrs ?? {}),
     daily: mergeDailyGoal(a.daily, b.daily),
     path: mergePathProgress(a.path, b.path),
     lastAnswerAt: Math.max(a.lastAnswerAt, b.lastAnswerAt),

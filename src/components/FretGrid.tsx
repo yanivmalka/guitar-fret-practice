@@ -15,12 +15,15 @@ interface Props {
   onSelect: (fret: number) => void;
   masteryByFret?: Record<number, MasteryStat>;
   showMastery?: boolean;
+  /** Interval drill (P4): the reference fret the question is asked relative to
+   *  ("a M6 above THIS"). Marked, non-interactive, never scored. */
+  referenceFret?: number | null;
 }
 
 export default function FretGrid({
   fretFrom, fretTo, guitarString, validFrets,
   active, correctFrets, wrongFret, foundFrets, onSelect,
-  masteryByFret, showMastery,
+  masteryByFret, showMastery, referenceFret,
 }: Props) {
   const DOT_FRETS = new Set(activeDotFrets);
   const frets = Array.from({ length: fretTo - fretFrom + 1 }, (_, i) => fretFrom + i);
@@ -61,9 +64,11 @@ export default function FretGrid({
         const isWrong = wrongFret === f;
         const isCorrectReveal = correctFrets.includes(f) && !active && !isFound;
         const isFilterDisabled = isDisabledFilter(f);
+        const isReference = referenceFret != null && referenceFret === f;
 
         let cls = 'fret-btn';
-        if (isFound) cls += ' fret-found';
+        if (isReference) cls += ' fret-reference';
+        else if (isFound) cls += ' fret-found';
         else if (isWrong) cls += ' fret-wrong';
         else if (isCorrectReveal) cls += ' fret-reveal';
         else if (isFilterDisabled) cls += ' fret-disabled';
@@ -76,7 +81,7 @@ export default function FretGrid({
           <button
             key={f}
             className={cls}
-            disabled={isFilterDisabled || isFound}
+            disabled={isFilterDisabled || isFound || isReference}
             ref={el => { if (el) btnRefs.current.set(f, el); else btnRefs.current.delete(f); }}
             onClick={() => handleClick(f)}
             title={noteName}

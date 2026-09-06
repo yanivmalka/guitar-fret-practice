@@ -1,0 +1,43 @@
+-- Interval-drill SRS schedule (premium-product-plan.md P4, first slice).
+--
+-- NO DDL. The interval quality SRS map is stored inside the SAME per-user
+-- JSONB blob that 0012_user_learning_state.sql created
+-- (public.user_learning_state.data), alongside the note SRS schedule, the
+-- daily goal (0012) and the Learning Path progress (0013).
+--
+-- Why extend the blob instead of adding a table: P2 established "one
+-- learning-state blob, merged per key" and P3 (0013) followed it. The interval
+-- schedule is one more key on the same per-instrument object, merged the same
+-- item-by-item way on every reconcile (never last-writer-wins), so a review
+-- made on one device is never dropped. §12 of the plan asks that new Premium
+-- state be "syncable from day one"; reusing this row and its existing
+-- reconcile (pull -> merge -> write-back -> upsert in
+-- src/learning/learningSync.ts) achieves that with no new table, RLS policy or
+-- bootstrap path.
+--
+-- Extended shape (see src/learning/learningState.ts / intervalItem.ts):
+--
+--   { "version": 1,
+--     "instruments": {
+--       "guitar": {
+--         "srs":         { ... },                    -- 0012, unchanged
+--         "intervalSrs": {                            -- 0014, NEW (optional)
+--           "interval:4": { "bucket": 2, "dueAt": <ms>, "lastReviewedAt": <ms>,
+--                           "reps": 3, "lapses": 1 },
+--           "interval:7": { ... }
+--         },
+--         "daily": { ... },                           -- 0012, unchanged
+--         "path":  { ... },                           -- 0013, unchanged
+--         "lastAnswerAt": 0,
+--         "updatedAt": "<iso>"
+--       }
+--     } }
+--
+-- `intervalSrs` is optional: a blob written before P4 has no `intervalSrs` key
+-- and `normalizeInstrumentState` reads it back as `{}`. On sync the two
+-- devices' maps are unioned per interval id via `mergeSrsMaps` — the same
+-- non-last-writer guarantee the note `srs` map already has. Interval ids
+-- ("interval:<semitones>") never collide with note ids ("<string>:<fret>").
+--
+-- Nothing to run. This file documents the blob change so the migration
+-- sequence stays a complete record of the schema's shape over time.

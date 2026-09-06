@@ -37,11 +37,16 @@ import { useSelector, nextDifficulty, prevDifficulty, type Difficulty, type Deri
 import { suggestAdjustment } from './utils/progress';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useDrillSession } from './hooks/useDrillSession';
-import { deriveDrillConfig } from './drill/DrillConfig';
+import { deriveDrillConfig, type DrillConfig } from './drill/DrillConfig';
 import GameFlow from './game/GameFlow';
 import TodayCard from './components/TodayCard';
+import IntervalCard from './components/IntervalCard';
+import IntervalPrompt from './components/IntervalPrompt';
 import LearningPathScreen from './components/LearningPathScreen';
 import { useLearning } from './hooks/useLearning';
+import { useDrillHistorySink } from './game/useDrillHistorySink';
+import type { HistoryOps } from './hooks/useGameEngine';
+import type { IntervalForm } from './utils/intervals';
 import type { TeacherPlan } from './learning/planner';
 import {
   bootstrapLearning, syncedLearningUser, clearSyncedLearningUser, clearLocalLearningState, cloudPushLearning,
@@ -126,6 +131,18 @@ export default function App() {
   const [teacherPlan, setTeacherPlan] = useState<TeacherPlan | null>(null);
   const teacherPlanRef = useRef<TeacherPlan | null>(null);
   teacherPlanRef.current = teacherPlan;
+  // ── Interval drill (P4) ──────────────────────────────────────────────
+  // A plain DrillConfig (with an `interval` spec) set by the Interval card.
+  // While it is non-null the drill runs on it; its answers go to an in-memory
+  // sink (never `useHistory` / mastery / stats / badges / leaderboard) and feed
+  // only the interval SRS schedule. Cleared when the session ends.
+  const [intervalPlan, setIntervalPlan] = useState<DrillConfig | null>(null);
+  const intervalPlanRef = useRef<DrillConfig | null>(null);
+  intervalPlanRef.current = intervalPlan;
+  // True while the run that is currently ending was an interval session — used
+  // to skip the note-side end-of-run work (personal best, badges, leaderboard).
+  // Set in `start()`, cleared on reset (not on stop), like `wasTeacherRunRef`.
+  const wasIntervalRunRef = useRef(false);
   // A Teacher answer folds into the learning model (SRS + daily goal); an
   // ordinary by-fret Selector answer folds into the SRS schedule only, so the
   // Teacher still learns from all note practice. Both are no-ops off Premium.
@@ -139,8 +156,9 @@ export default function App() {
   // The settings the drill / board actually run on: the Selector's, unless a
   // Teacher plan is active.
   const eff = useMemo<DerivedSettings>(() => {
-    if (!teacherPlan) return derivedSettings;
-    const d = teacherPlan.drill;
+    const planDrill = intervalPlan ?? teacherPlan?.drill ?? null;
+    if (!planDrill) return derivedSettings;
+    const d = planDrill;
     return {
       ...derivedSettings,
       guitarString: d.primaryString,
@@ -153,7 +171,7 @@ export default function App() {
       time: d.timeLimit,
       maxQuestions: d.questionCount,
     };
-  }, [teacherPlan, derivedSettings]);
+  }, [teacherPlan, intervalPlan, derivedSettings]);
   // Mode the drill is actually running in, for the history sink (read inside a
   // callback, so kept in a ref per the repo convention).
   const effByNoteRef = useRef(eff.byNote);
@@ -257,6 +275,28 @@ export default function App() {
   }, [theme]);
 
   const historyOps = useHistory();
+  // Interval drill (P4): an isolated in-memory history for interval sessions,
+  // so they never touch `useHistory` / mastery / stats / badges / leaderboard.
+  // The wrapper below also routes each tagged row to the interval SRS schedule.
+  const intervalSink = useDrillHistorySink();
+  const intervalSinkRef = useRef(intervalSink);
+  intervalSinkRef.current = intervalSink;
+  const intervalRecordRef = useRef<((id: string, correct: boolean) => void) | null>(null);
+  const intervalAddEntry = useCallback((entry: HistoryEntry) => {
+    intervalSinkRef.current.addEntry(entry);
+    if (entry.intervalItemId) {
+      intervalRecordRef.current?.(entry.intervalItemId, entry.correct === true);
+    }
+  }, []);
+  const intervalHistory = useMemo<HistoryOps>(
+    () => ({
+      addEntry: intervalAddEntry,
+      markPlayed: intervalSink.markPlayed,
+      resetSession: intervalSink.resetSession,
+      history: intervalSink.history,
+    }),
+    [intervalSink, intervalAddEntry],
+  );
   const histKey = selector.historyKey();
   const { addEntry: addEntryRaw, markPlayed: markPlayedRaw } = historyOps;
   const addEntryWithKey = useCallback(
@@ -536,6 +576,7 @@ export default function App() {
   });
   teacherRecordRef.current = learning.recordAnswer;
   practiceRecordRef.current = learning.recordPracticeAnswer;
+  intervalRecordRef.current = learning.recordIntervalAnswer;
   // The overlay is free for everyone (spec free-pro-tiering §5.2). Free users
   // see it computed from FREE_MASTERY_WINDOW (last 250 questions); Pro users
   // pick the window via the "questions counted" control in Settings.
@@ -574,7 +615,7 @@ export default function App() {
   const handleAutoComplete = useCallback(() => {
     // Teacher sessions are a fixed one-off plan — never chain into the Auto
     // Advance curriculum even if the user has it switched on in the Selector.
-    if (teacherPlanRef.current) return;
+    if (teacherPlanRef.current || intervalPlanRef.current) return;
     if (!selector.state.autoAdvance) return;
     const next = selector.nextStage();
     if (!next) return; // end of the curriculum — let the run finish normally
@@ -598,17 +639,20 @@ export default function App() {
     }),
     [derivedSettings, safeGuitarString, accidental, order],
   );
-  // A Teacher plan supplies its own DrillConfig (with an explicit `candidates`
-  // set); otherwise the drill runs on the Selector-derived one.
-  const drillConfig = teacherPlan ? teacherPlan.drill : selectorDrillConfig;
+  // An interval plan (P4) or a Teacher plan supplies its own DrillConfig;
+  // otherwise the drill runs on the Selector-derived one. Interval plans take
+  // precedence and route history to the isolated in-memory sink.
+  const drillConfig = intervalPlan ?? (teacherPlan ? teacherPlan.drill : selectorDrillConfig);
   const session = useDrillSession(drillConfig, {
     setActiveString: setGuitarString,
-    history: {
-      addEntry: addEntryWithKey,
-      markPlayed: markPlayedForKey,
-      resetSession: historyOps.resetSession,
-      history: historyOps.history,
-    },
+    history: intervalPlan
+      ? intervalHistory
+      : {
+          addEntry: addEntryWithKey,
+          markPlayed: markPlayedForKey,
+          resetSession: historyOps.resetSession,
+          history: historyOps.history,
+        },
     scoring: {
       onCorrect: scoring.onCorrect,
       onWrong: scoring.onWrong,
@@ -622,7 +666,7 @@ export default function App() {
   const {
     running, paused, currentFret, currentNote, askedFret, remaining, feedback,
     correctCofNote, wrongCofNote, answered, remainingFrets, foundFrets, wrongFret,
-    questionTime, questionStart, questionSeq, questionNumber,
+    questionTime, questionStart, questionSeq, questionNumber, intervalPrompt,
     start: engineStart, stop, pause, resume, selectFret, selectAnswer,
     // The tidy end-of-drill snapshot (score / accuracy / streak / counts) the
     // drill session already derives from the session score + recorded history.
@@ -1080,10 +1124,12 @@ export default function App() {
     setShowStats(false); setGameEnded(false);
     tier3FiredRef.current = false;
     wasTeacherRunRef.current = false;
+    wasIntervalRunRef.current = false;
     badgesFiredRef.current = false; setNewBadges([]);
     midSweepCountRef.current = 0;
     setToastQueue([]); setRevealBadges([]);
     setTeacherPlan(null);
+    setIntervalPlan(null);
   }, [histKey]);
 
   // Mirror the open sub-page in a ref so the Escape handler (bound once per
@@ -1185,9 +1231,11 @@ export default function App() {
   const sweepBadges = useCallback((midGame: boolean): CelebratedBadge[] => {
     const sessionSnap: SessionSnapshot = {
       questionsAnswered: scoring.session.questionsAnswered,
-      maxQuestions: teacherPlanRef.current
-        ? teacherPlanRef.current.drill.questionCount
-        : selector.runQuestionCount(),
+      maxQuestions: intervalPlanRef.current
+        ? intervalPlanRef.current.questionCount
+        : teacherPlanRef.current
+          ? teacherPlanRef.current.drill.questionCount
+          : selector.runQuestionCount(),
       longestStreak: scoring.session.longestStreak,
       entries: historyOps.history,
       instrument,
@@ -1249,10 +1297,11 @@ export default function App() {
   useEffect(() => {
     if (wasRunningRef.current && !running && !paused && scoring.session.questionsAnswered > 0 && !pendingAutoAdvance) {
       setGameEnded(true);
-      // A Teacher session is a one-off: its per-answer feedback already went
-      // into the learning model, so once the run ends drop the plan and the
-      // app returns to the normal Selector view.
+      // A Teacher / interval session is a one-off: its per-answer feedback
+      // already went into the learning model, so once the run ends drop the
+      // plan and the app returns to the normal Selector view.
       setTeacherPlan(null);
+      setIntervalPlan(null);
 
       // Major achievement: a new personal-best score for this exact selector
       // combination — the same per-historyKey `best_<key>` record StatsPanel
@@ -1284,7 +1333,9 @@ export default function App() {
       // never gated on `showScore` — badges accrue in Silent / Score-off mode;
       // only the toast and the reveal below are score effects.
       let revealList: CelebratedBadge[] = [];
-      if (!badgesFiredRef.current) {
+      // An interval session's answers are not in the note history at all
+      // (isolated sink), so it earns no note badges — skip the sweep entirely.
+      if (!badgesFiredRef.current && !wasIntervalRunRef.current) {
         badgesFiredRef.current = true;
         const merged = mergeCelebrated(newBadgesRef.current, sweepBadges(false));
         if (merged.length > 0) {
@@ -1317,6 +1368,9 @@ export default function App() {
   // refreshes its own row whenever the panel is opened).
   useEffect(() => {
     if (!gameEnded || !auth.user || leaderboardOptOut) return;
+    // An interval session contributed nothing to `allHistoryEntries` — don't
+    // fire a redundant leaderboard upsert for it.
+    if (wasIntervalRunRef.current) return;
     const name = leaderboardName(
       auth.profile?.name ?? null,
       auth.profile?.email ?? auth.user.email ?? null,
@@ -1340,13 +1394,15 @@ export default function App() {
     // (all Auto Advance stages, or just this one).
     scoring.beginRun(
       eff.time,
-      teacherPlan ? eff.maxQuestions : selector.runQuestionCount(),
+      (teacherPlan || intervalPlan) ? eff.maxQuestions : selector.runQuestionCount(),
     );
     setGameEnded(false);
     tier3FiredRef.current = false;
-    // Remember whether this run is a Teacher session — the game-end effect uses
-    // it to skip the Selector personal-best flow (see there).
-    wasTeacherRunRef.current = teacherPlan !== null;
+    // Remember whether this run is a Teacher / interval session — the game-end
+    // effect uses these to skip the Selector personal-best / badge / leaderboard
+    // flow (see there).
+    wasTeacherRunRef.current = teacherPlan !== null || intervalPlan !== null;
+    wasIntervalRunRef.current = intervalPlan !== null;
     badgesFiredRef.current = false;
     setNewBadges([]);
     midSweepCountRef.current = 0;
@@ -1381,11 +1437,11 @@ export default function App() {
   // `eff` / `drillConfig` have re-derived from it) kick off the run exactly
   // like a manual Play — same 3-2-1, same engine, same scoring.
   useEffect(() => {
-    if (teacherPlan && !running && !paused && countdown === null && !gameEnded) {
+    if ((teacherPlan || intervalPlan) && !running && !paused && countdown === null && !gameEnded) {
       startRef.current();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teacherPlan]);
+  }, [teacherPlan, intervalPlan]);
 
   // Multiplier display tracks the streak-tier multiplier from useScoring
   // (1×, 1.25×, 1.5×, 2×, 2.5×, 3×, 4× at streaks 0, 3, 5, 7, 10, 15, 20).
@@ -1426,7 +1482,7 @@ export default function App() {
       isPlaying={panelPlaying}
       notationOnly={notationOnly}
       activeString={gameActive ? safeGuitarString : undefined}
-      activeFret={gameActive ? askedFret : undefined}
+      activeFret={gameActive && !intervalPrompt ? askedFret : undefined}
       byString={byString}
       order={order}
       onByStringToggle={() => { if (byString) playToggleOffSound(); else playToggleOnSound(); haptic.tap(); const next = !byString; setByString(next); saveSetting('pref_byString', next); }}
@@ -2149,6 +2205,20 @@ export default function App() {
         />
       )}
 
+      {/* Premium interval training (P4) — the second learning domain. Same
+          placement rules as the Teacher card; also never replaces the Selector. */}
+      {can('intervalDrill', auth.tier) && isStopped && !gameEnded && onboardingDone
+        && countdown === null && !pendingAutoAdvance && (
+        <IntervalCard
+          trackedCount={learning.intervalTrackedCount}
+          busy={gameActive || countdown !== null}
+          onStart={(form: IntervalForm) => {
+            const plan = learning.buildIntervalPlan(form);
+            if (plan) setIntervalPlan(plan);
+          }}
+        />
+      )}
+
       {/* All playing settings live inline on the page; a compact read-only HUD
           replaces the panel during play. */}
       {renderSelectorPanel(gameActive)}
@@ -2335,7 +2405,11 @@ export default function App() {
           {gameActive && (
             <>
               <div className="string-label" key={`str-${safeGuitarString}`}>{t(instrument.stringLabels[safeGuitarString])}</div>
-              {eff.byNote
+              {intervalPrompt
+                ? <div className={`note-display${stageTransition ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>
+                    <IntervalPrompt prompt={intervalPrompt} accidental={accidental} notation={notation} />
+                  </div>
+                : eff.byNote
                 ? <div className={`note-display${stageTransition ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>{currentNote ? displayNote(currentNote, accidental, notation) : '—'}</div>
                 : <div className={`fret-display${stageTransition ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>{currentFret !== null ? currentFret : '—'}</div>
               }
@@ -2431,7 +2505,7 @@ export default function App() {
                 </button>
                 <button
                   className="icon-btn stop-btn-icon"
-                  onClick={() => { stop(); setTeacherPlan(null); playClickSound(); haptic.tap(); }}
+                  onClick={() => { stop(); setTeacherPlan(null); setIntervalPlan(null); playClickSound(); haptic.tap(); }}
                   title={t('Stop')}
                   aria-label={t('Stop')}
                 >
@@ -2457,6 +2531,7 @@ export default function App() {
               onSelect={selectFret}
               masteryByFret={fretMastery}
               showMastery={!boardLive && showMastery}
+              referenceFret={intervalPrompt?.form === 'onNeck' ? intervalPrompt.refFret : null}
             />
           ) : (
             <NoteCircle
