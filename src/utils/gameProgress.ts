@@ -28,7 +28,12 @@ import type { StageResult } from '../game/stageResult';
 import { STAGES } from '../game/stages';
 import { WORLDS } from '../game/worlds';
 
-const STORAGE_KEY = 'gameProgress';
+// The single localStorage key the Game's progression lives under. Exported so
+// the cloud restore layer (`src/utils/gameSync.ts`) can read/write it directly
+// without importing this module's write path — the badgeSync / learningSync
+// pattern, which keeps the cycle out.
+export const GAME_STORAGE_KEY = 'gameProgress';
+const STORAGE_KEY = GAME_STORAGE_KEY;
 
 // The only star values that may appear in a stored `bestStars` map.
 const VALID_STARS = new Set<number>([1, 2, 3]);
@@ -42,8 +47,9 @@ function emptyProgress(): GameProgress {
 
 // Coerce an arbitrary parsed value into a well-formed `GameProgress`,
 // dropping anything that does not fit. Unknown/invalid input collapses to
-// an empty record rather than throwing.
-function normalize(value: unknown): GameProgress {
+// an empty record rather than throwing. Exported for `gameSync.ts`, which
+// runs the same coercion on a blob pulled from the cloud.
+export function normalizeGameProgress(value: unknown): GameProgress {
   if (value == null || typeof value !== 'object') return emptyProgress();
   const raw = value as Record<string, unknown>;
 
@@ -88,7 +94,7 @@ export function loadGameProgress(): GameProgress {
   }
   if (raw == null) return emptyProgress();
   try {
-    return normalize(JSON.parse(raw));
+    return normalizeGameProgress(JSON.parse(raw));
   } catch {
     return emptyProgress();
   }
@@ -104,6 +110,46 @@ export function saveGameProgress(progress: GameProgress): void {
   } catch {
     /* localStorage unavailable — best-effort only */
   }
+}
+
+/**
+ * Drop this device's Game progress. Called on sign-out so a shared device
+ * never carries one account's stars into the next account's cloud row on the
+ * following sign-in (`bestStars` merges by max, so a leak would inflate the
+ * next user's ratings). Mirrors `clearLocalLearningState`.
+ */
+export function clearLocalGameProgress(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Merge two progress records. Order-independent and idempotent on the part
+ * that matters — `bestStars` is a per-stage max, so two devices can never
+ * permanently diverge (the badgeSync merge model). `lastPlayed` / `updatedAt`
+ * are "continue where you left off" hints only, so the newer `updatedAt`
+ * wins for those, last-writer style.
+ */
+export function mergeGameProgress(a: GameProgress, b: GameProgress): GameProgress {
+  const bestStars: Record<string, 1 | 2 | 3> = { ...a.bestStars };
+  for (const [stageId, stars] of Object.entries(b.bestStars)) {
+    const cur = bestStars[stageId];
+    if (cur === undefined || stars > cur) bestStars[stageId] = stars;
+  }
+
+  const bNewer = b.updatedAt > a.updatedAt;
+  const newer = bNewer ? b : a;
+  const merged: GameProgress = {
+    version: 1,
+    bestStars,
+    updatedAt: newer.updatedAt,
+  };
+  const lastPlayed = newer.lastPlayed ?? a.lastPlayed ?? b.lastPlayed;
+  if (lastPlayed) merged.lastPlayed = lastPlayed;
+  return merged;
 }
 
 /**

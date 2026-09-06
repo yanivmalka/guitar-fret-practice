@@ -51,6 +51,10 @@ import type { TeacherPlan } from './learning/planner';
 import {
   bootstrapLearning, syncedLearningUser, clearSyncedLearningUser, clearLocalLearningState, cloudPushLearning,
 } from './learning/learningSync';
+import {
+  bootstrapGameProgress, syncedGameProgressUser, clearSyncedGameProgressUser,
+  clearLocalGameProgress, cloudPushGameProgress,
+} from './utils/gameSync';
 import { useHistory } from './hooks/useHistory';
 import { useScoring } from './hooks/useScoring';
 import { useVoiceAnswer } from './hooks/useVoiceAnswer';
@@ -470,6 +474,28 @@ export default function App() {
     })();
   }, [auth.user]);
 
+  // Game progression (World → Stage stars + "continue" pointer): pull / merge
+  // / push the `gameProgress` row on sign-in / app start, same cadence as
+  // badgeSync. The merge is a per-stage max on `bestStars` (never last-writer),
+  // so a star earned on another device is never discarded; gameSync fires a
+  // `game-progress-synced` event when the local record changes, which a
+  // mounted GameFlow re-reads on.
+  useEffect(() => {
+    const user = auth.user;
+    // Signed out: drop this device's Game progress so it cannot be merged
+    // (max-merged, so it would inflate ratings) into the next account's cloud
+    // row on a shared device.
+    if (!user) { clearSyncedGameProgressUser(); clearLocalGameProgress(); return; }
+    if (syncedGameProgressUser() === user.id) { cloudPushGameProgress(); return; }
+    void (async () => {
+      try {
+        await bootstrapGameProgress(user.id);
+      } catch {
+        /* offline or transient error — retried on next sign-in / app start */
+      }
+    })();
+  }, [auth.user]);
+
   // Same model, for the personal voice profile: pull/merge/push once per
   // sign-in on this device, then switch the app onto the restored profile.
   useEffect(() => {
@@ -535,6 +561,7 @@ export default function App() {
         cloudPushSettings();
         cloudPushBadges();
         cloudPushLearning();
+        cloudPushGameProgress();
       })();
     };
     window.addEventListener('online', onOnline);

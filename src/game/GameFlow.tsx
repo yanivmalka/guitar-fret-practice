@@ -22,9 +22,13 @@
 // per stage. Worlds are NOT separately lockable — a world with no unlocked
 // stages is still openable and just shows its stages as locked.
 //
+// A stage's `DrillConfig.candidates`, when set, now drives the board too:
+// it is handed to `useDerivedNotes` so the fret grid / note wheel show and
+// accept exactly the positions the engine draws questions from.
+//
 // Still deliberately out of scope: styled StageList / StarRating / WorldCard
-// components, i18n (titleKey is shown raw), any new persistence, and
-// DrillConfig.candidates / real instrument resolution.
+// components, i18n (titleKey is shown raw), any new persistence, and real
+// instrument resolution.
 
 import { useEffect, useRef, useState, type CSSProperties, type MutableRefObject } from 'react';
 import NoteCircle from '../components/NoteCircle';
@@ -37,6 +41,7 @@ import { STAGES } from './stages';
 import { WORLDS } from './worlds';
 import { buildStageResult, type StageResult } from './stageResult';
 import { loadGameProgress, recordStageResult, isStageUnlocked } from '../utils/gameProgress';
+import { cloudPushGameProgress } from '../utils/gameSync';
 import type { GameProgress, Stage } from './models';
 import { useDrillHistorySink } from './useDrillHistorySink';
 
@@ -66,6 +71,17 @@ export default function GameFlow({
   // the lists without a reload. `recordStageResult` returns the freshly
   // persisted record, so we never re-read localStorage after mount.
   const [progress, setProgress] = useState<GameProgress>(() => loadGameProgress());
+
+  // A cloud reconcile (sign-in bootstrap, `online` reconnect, or a
+  // write-through that pulled in stars earned on another device) writes the
+  // `gameProgress` key directly and fires this event — re-read so the world /
+  // stage lists reflect the merged progress without a reload.
+  useEffect(() => {
+    const onSynced = () => setProgress(loadGameProgress());
+    window.addEventListener('game-progress-synced', onSynced);
+    return () => window.removeEventListener('game-progress-synced', onSynced);
+  }, []);
+
   const [selectedWorldId, setSelectedWorldId] = useState<string | null>(null);
   const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
   // The most recent finished run, shown as a one-line banner on the lists.
@@ -112,6 +128,9 @@ export default function GameFlow({
         onFinish={(result) => {
           setProgress(recordStageResult(result));
           setLastResult(result);
+          // Best-effort cloud write-through for signed-in users; a no-op
+          // otherwise. localStorage is already the source of truth above.
+          cloudPushGameProgress();
         }}
         onNextStage={
           nextPlayable
@@ -323,8 +342,10 @@ function StageRunner({
   // Render data for NoteCircle / FretGrid, straight from the drill config.
   // `'guitar'` is a spike shortcut: the seed stages are guitar stages and the
   // live note table is guitar's on a fresh app. (F.2 does not resolve the
-  // real instrument, nor DrillConfig.candidates — both known, neither
-  // blocking this task.)
+  // real instrument — known, not blocking.) `drill.candidates` is passed
+  // through so that when a stage pins its questions to an explicit position
+  // set, the board shows and accepts exactly that set — the same source of
+  // truth the drill engine selects questions from.
   const derived = useDerivedNotes(
     activeString,
     drill.fretFrom,
@@ -336,6 +357,7 @@ function StageRunner({
     false,
     drill.isMulti ? drill.strings : [],
     'guitar',
+    drill.candidates,
   );
 
   // End-of-run detection. Mirrors App's approach (watch `running` fall from
