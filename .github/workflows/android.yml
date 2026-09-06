@@ -4,8 +4,9 @@ name: Build Android APK
 on:
   workflow_dispatch:
 
+# 'write' so the first run can commit the generated debug keystore back.
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -24,6 +25,27 @@ jobs:
 
       - uses: android-actions/setup-android@v3
 
+      # A stable signing key so every APK is signed identically and new builds
+      # install over the old app (data kept) instead of being rejected for a
+      # signature mismatch. The first run generates it and commits it back;
+      # later runs reuse the committed file. A debug keystore has a well-known
+      # password ("android") and is safe to keep in the repo.
+      - name: Ensure a stable debug keystore
+        run: |
+          if [ ! -f android-overrides/debug.keystore ]; then
+            keytool -genkeypair -v \
+              -keystore android-overrides/debug.keystore \
+              -storepass android -keypass android \
+              -alias androiddebugkey \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -f android-overrides/debug.keystore
+            git commit -m "Add a stable debug keystore so APK updates install in place"
+            git push
+          fi
+
       - run: npm install
 
       - run: npm run build
@@ -40,7 +62,15 @@ jobs:
       - run: npx cap add android
       # Swap in the immersive full-screen MainActivity (hides both system bars).
       - run: cp android-overrides/MainActivity.java android/app/src/main/java/com/guitarfretpractice/app/MainActivity.java
+      # Monotonic versionCode so Android always treats a new APK as an update.
+      - run: sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/" android/app/build.gradle
       - run: npx cap sync android
+
+      # Gradle's default debug signingConfig reads ~/.android/debug.keystore
+      # with password "android" / alias "androiddebugkey" — the same values the
+      # keystore above was created with — so overwriting that file is all it
+      # takes to sign every build with our stable key.
+      - run: mkdir -p ~/.android && cp android-overrides/debug.keystore ~/.android/debug.keystore
 
       - run: chmod +x android/gradlew
       - run: ./gradlew assembleDebug
