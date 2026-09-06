@@ -13,6 +13,8 @@
 // resolved to their positions, a mix of strings) is expressible here; the
 // caller does that resolution, the engine only consumes positions.
 
+import { getValidFrets } from '../utils/music';
+
 export interface DrillPosition {
   /** 1-based string number — matches `DrillConfig.strings`, the value the
    *  engine passes around as `qString`, and `HistoryEntry.string`. */
@@ -66,4 +68,28 @@ export function candidateStringPool(
   const strings = [...candidateFretsByString.keys()].sort((a, b) => a - b);
   if (isMulti) return strings;
   return candidateFretsByString.has(primaryString) ? [primaryString] : strings;
+}
+
+/**
+ * The frets the board (FretGrid / NoteCircle) should show and accept for one
+ * 1-based string. This is the *rendering* counterpart of the pool the engine
+ * draws questions from, so the two never disagree:
+ *
+ * - With a candidate map (from `groupCandidateFrets`): exactly that string's
+ *   candidate frets, and none for a string that carries no candidates. The
+ *   fret-window / `wholeToneOnly` / `dotsOnly` filters are ignored, matching
+ *   how the engine picks once a candidate set is active.
+ * - With `null` (no set, or an empty / all-invalid one): the classic
+ *   filter-based `getValidFrets`, so Practice and candidate-less stages keep
+ *   their exact previous behaviour.
+ */
+export function boardFretsForString(
+  stringNum: number,
+  candidateFretsByString: Map<number, number[]> | null,
+  filter: { fretFrom: number; fretTo: number; wholeToneOnly: boolean; dotsOnly: boolean },
+): number[] {
+  if (candidateFretsByString) return candidateFretsByString.get(stringNum) ?? [];
+  return getValidFrets(
+    stringNum - 1, filter.fretFrom, filter.fretTo, filter.wholeToneOnly, filter.dotsOnly,
+  );
 }

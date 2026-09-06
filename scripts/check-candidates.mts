@@ -16,8 +16,23 @@
 //   5. byFret and byNote position resolution both stay within the set,
 //   6. multi-string rotation stays within the set.
 
-import { groupCandidateFrets, candidateStringPool, type DrillPosition } from '../src/drill/candidates.ts';
-import { GUITAR_NOTES, notesMatch } from '../src/utils/music.ts';
+import { register } from 'node:module';
+
+// src/ modules import each other without a file extension (Vite resolves it);
+// Node needs the `.ts`. Retry extensionless relative specifiers with it.
+register(
+  'data:text/javascript,' + encodeURIComponent(
+    "export async function resolve(s,c,n){" +
+    "if((s.startsWith('./')||s.startsWith('../'))&&!/\\.(m?ts|m?js|json|node)$/i.test(s)){" +
+    "try{return await n(s+'.ts',c);}catch{}}" +
+    "return n(s,c);}",
+  ),
+  import.meta.url,
+);
+
+const { groupCandidateFrets, candidateStringPool } = await import('../src/drill/candidates.ts');
+const { GUITAR_NOTES, notesMatch } = await import('../src/utils/music.ts');
+type DrillPosition = { string: number; fret: number };
 
 let failures = 0;
 function check(name: string, ok: boolean, detail = ''): void {
