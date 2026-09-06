@@ -28,6 +28,9 @@ jobs:
 
       - run: npm run build
         env:
+          # Relative asset base so the WebView (served from https://localhost/)
+          # can load the bundle. Without this the app is a black screen.
+          CAP_BUILD: '1'
           # Same variables as the Pages deploy. Without them the app runs in
           # guest-only mode (no "Sign in with Google").
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}

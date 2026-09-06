@@ -7,7 +7,11 @@ import { resolve } from 'path'
 const commitHash = execSync('git rev-parse --short HEAD').toString().trim();
 const commitDate = execSync('git log -1 --format=%ci').toString().trim();
 
-const BASE = '/guitar-fret-practice/';
+// GitHub Pages serves from a sub-path; a Capacitor APK serves web assets from
+// the root (https://localhost/), so a sub-path base 404s every asset and the
+// app renders a black screen. The APK workflow sets CAP_BUILD=1 to opt into a
+// relative base; every other build (Pages deploy, local dev/build) is unchanged.
+const BASE = process.env.CAP_BUILD === '1' ? './' : '/guitar-fret-practice/';
 
 export default defineConfig({
   base: BASE,
