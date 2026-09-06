@@ -23,6 +23,7 @@ import type { HistoryEntry, AccidentalMode, OrderMode, NotationMode } from './ut
 import { getInstrument, COMING_SOON_INSTRUMENTS, type InstrumentId } from './utils/instruments';
 import { preloadAllSamples, unlockAudio, setAudioInstrument, setSilent as setAudioSilent } from './utils/audio';
 import { App as CapacitorApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3, setSilent as setFeedbackSilent } from './utils/feedback';
 import { loadSetting, saveSetting } from './utils/settings';
 import { THEME_BG, THEME_COLOR_SCHEME, type Theme } from './utils/theme';
@@ -821,6 +822,9 @@ export default function App() {
   // self-contained <GameFlow>. Not persisted to gfp_view yet — the spike
   // always re-enters from the home button.
   const [gameOpen, setGameOpen] = useState(false);
+  // Populated by <GameFlow> with its "step one level back" action, so the
+  // Android hardware Back button can walk the Game's own screens.
+  const gameBackRef = useRef<(() => void) | null>(null);
   // The `upgrade` (Pro) sub-page is reachable both from the Account tab's plan
   // tile and from any locked <ProGate> in the app (via registerUpgradeHandler,
   // which may open it without Account ever being shown). Back should return to
@@ -875,6 +879,109 @@ export default function App() {
   const boardLive = gameActive || countdown !== null;
 
   const click = <T,>(fn: () => T) => () => { playClickSound(); haptic.tap(); return fn(); };
+
+  // ── "Back" keeps you inside the app ─────────────────────────────────
+  // Android's hardware Back / back-gesture (via @capacitor/app) and the
+  // browser's Back button (via a History API sentinel entry) both run the same
+  // ladder — close a popup, step back through Settings, leave Stats, back out
+  // of the Game, stop a running round — instead of dropping straight out of
+  // the app. Only on the bare home screen with nothing left to undo does a
+  // second Back within 2s actually leave.
+  const [exitHint, setExitHint] = useState(false);
+  const signInPromptOpen = auth.configured && !auth.loading && !auth.user
+    && onboardingDone && !signInPromptSeen && !gameActive;
+  // Everything the Back handler reads, refreshed after each render so the
+  // listeners (bound once) always see current values without re-subscribing.
+  const backNav = useRef({
+    micPrompt, showInfo, revealBadges, signInPromptOpen, settingsOpen, drawerSection,
+    showStats, gameOpen, running, paused, stop,
+  });
+  useEffect(() => {
+    backNav.current = {
+      micPrompt, showInfo, revealBadges, signInPromptOpen, settingsOpen, drawerSection,
+      showStats, gameOpen, running, paused, stop,
+    };
+  });
+  useEffect(() => {
+    // Step the app back one level. Returns true when it consumed a level,
+    // false when already on the bare home screen.
+    const consumeBack = (): boolean => {
+      const s = backNav.current;
+      if (s.micPrompt) { setMicPrompt(null); return true; }
+      if (s.showInfo) { setShowInfo(false); return true; }
+      if (s.revealBadges.length > 0) { setRevealBadges([]); return true; }
+      if (s.signInPromptOpen) { dismissSignInPrompt(); return true; }
+      // Settings drawer and its sub-pages (mirrors the Escape ladder above).
+      if (s.settingsOpen) {
+        if (s.drawerSection !== null) {
+          const toAccount = s.drawerSection === 'badges'
+            || (s.drawerSection === 'upgrade' && upgradeFromAccountRef.current);
+          setDrawerSection(toAccount ? 'account' : null);
+        } else {
+          setSettingsOpen(false);
+        }
+        return true;
+      }
+      if (s.showStats) { setShowStats(false); return true; }
+      if (s.gameOpen) { gameBackRef.current?.(); return true; }
+      if (s.running || s.paused) { s.stop(); return true; }
+      return false;
+    };
+
+    let armed = false;
+    let armedTimer: number | null = null;
+    const disarm = () => {
+      armed = false;
+      if (armedTimer !== null) { clearTimeout(armedTimer); armedTimer = null; }
+      setExitHint(false);
+    };
+    const armExitHint = () => {
+      armed = true;
+      setExitHint(true);
+      armedTimer = window.setTimeout(disarm, 2000);
+    };
+
+    // Android hardware Back (native shell only fires this).
+    let removeNative: (() => void) | undefined;
+    CapacitorApp.addListener('backButton', () => {
+      if (consumeBack()) return;
+      if (armed) { disarm(); void CapacitorApp.exitApp(); return; }
+      armExitHint();
+    }).then((h) => { removeNative = () => h.remove(); });
+
+    // Browser Back button / gesture. A sentinel history entry sits "ahead" of
+    // the app so Back fires popstate here instead of unloading the page; we
+    // re-push it after every handled press. Skipped in the native shell, where
+    // the plugin above owns Back.
+    const isNative = Capacitor.isNativePlatform();
+    const pushSentinel = () => {
+      try { window.history.pushState({ gfpBackTrap: true }, ''); } catch { /* history unavailable */ }
+    };
+    const onPopState = () => {
+      if (consumeBack()) { pushSentinel(); return; }
+      if (armed) {
+        disarm();
+        window.removeEventListener('popstate', onPopState);
+        window.history.back(); // leave the app (or close the installed PWA)
+        return;
+      }
+      pushSentinel();
+      armExitHint();
+    };
+    if (!isNative) {
+      // Guard against a second sentinel from StrictMode / HMR remounts.
+      if (!(window.history.state as { gfpBackTrap?: boolean } | null)?.gfpBackTrap) {
+        pushSentinel();
+      }
+      window.addEventListener('popstate', onPopState);
+    }
+
+    return () => {
+      removeNative?.();
+      if (armedTimer !== null) clearTimeout(armedTimer);
+      window.removeEventListener('popstate', onPopState);
+    };
+  }, []);
 
   // Route every microphone request through our own card instead of springing
   // the browser's permission bar unannounced. Already-granted → straight
@@ -1857,7 +1964,7 @@ export default function App() {
   // F.1 spike: the Game is a full-screen takeover, mounted as its own
   // self-contained component so App gains no Game state beyond `gameOpen`.
   if (gameOpen) {
-    return <GameFlow onExit={() => setGameOpen(false)} />;
+    return <GameFlow onExit={() => setGameOpen(false)} backRef={gameBackRef} />;
   }
 
   // The unified "Stats & progress" screen replaces the game entirely — its own
@@ -1972,6 +2079,23 @@ export default function App() {
       {/* Pause: dim the entire app screen; .controls (Resume/Stop) sits
           above this via z-index so it stays sharp and clickable in place. */}
       {paused && <div className="pause-overlay" aria-hidden="true" />}
+
+      {/* Shown when Back (hardware or browser) is pressed on the home screen —
+          a second press within 2s leaves the app (see the Back handler above). */}
+      {exitHint && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed', left: '50%', bottom: 32, transform: 'translateX(-50%)',
+            background: 'rgba(0,0,0,0.82)', color: '#fff', padding: '10px 18px',
+            borderRadius: 999, fontSize: 14, zIndex: 9999, pointerEvents: 'none',
+            maxWidth: '80vw', textAlign: 'center',
+          }}
+        >
+          {t('Press back again to exit')}
+        </div>
+      )}
 
       {/* Settings hamburger + stats shortcut — hidden while actively playing so
           the game stays clean and focused. */}

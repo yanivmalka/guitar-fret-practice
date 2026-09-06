@@ -121,6 +121,7 @@ const he: Record<string, string> = {
   'Sign in to keep your history, badges and personal bests across devices. You can keep playing as a guest — everything still works, it just stays on this device.':
     'התחבר כדי לשמור את ההיסטוריה, התגים והשיאים האישיים שלך בין המכשירים. אפשר גם להמשיך לשחק כאורח — הכול ימשיך לעבוד, אבל הנתונים יישארו במכשיר הזה.',
   'Maybe later': 'אולי מאוחר יותר',
+  'Press back again to exit': 'לחץ שוב כדי לצאת',
 
   // In-game
   'STAGE COMPLETE': 'השלב הושלם',

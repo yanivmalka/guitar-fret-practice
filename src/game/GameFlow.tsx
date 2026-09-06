@@ -26,7 +26,7 @@
 // components, i18n (titleKey is shown raw), any new persistence, and
 // DrillConfig.candidates / real instrument resolution.
 
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type MutableRefObject } from 'react';
 import NoteCircle from '../components/NoteCircle';
 import FretGrid from '../components/FretGrid';
 import { useDerivedNotes } from '../hooks/useDerivedNotes';
@@ -51,7 +51,17 @@ function stagesOfWorld(worldId: string): Stage[] {
   return STAGES.filter((s) => s.worldId === worldId).sort((a, b) => a.order - b.order);
 }
 
-export default function GameFlow({ onExit }: { onExit: () => void }) {
+export default function GameFlow({
+  onExit,
+  backRef,
+}: {
+  onExit: () => void;
+  // Populated with "step one level back" for the Android hardware Back button.
+  // App owns the single `backButton` listener and calls this while the Game is
+  // open, so Back walks Drill → World → Game Home → exit Game instead of
+  // dropping straight out of the app.
+  backRef?: MutableRefObject<(() => void) | null>;
+}) {
   // Progress is loaded once and then kept in state so a finished run updates
   // the lists without a reload. `recordStageResult` returns the freshly
   // persisted record, so we never re-read localStorage after mount.
@@ -60,6 +70,19 @@ export default function GameFlow({ onExit }: { onExit: () => void }) {
   const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
   // The most recent finished run, shown as a one-line banner on the lists.
   const [lastResult, setLastResult] = useState<StageResult | null>(null);
+
+  // Back handling for the Drill screen lives in <StageRunner> (it depends on
+  // that component's own running/result state); it registers its intent here.
+  const stageBackRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    if (!backRef) return;
+    backRef.current = () => {
+      if (selectedStageId !== null) { stageBackRef.current?.(); return; }
+      if (selectedWorldId !== null) { setSelectedWorldId(null); return; }
+      onExit();
+    };
+    return () => { backRef.current = null; };
+  }, [backRef, selectedStageId, selectedWorldId, onExit]);
 
   const selectedStage = selectedStageId
     ? STAGES.find((s) => s.id === selectedStageId) ?? null
@@ -99,6 +122,7 @@ export default function GameFlow({ onExit }: { onExit: () => void }) {
             : undefined
         }
         onBackToStages={() => setSelectedStageId(null)}
+        onRegisterBack={(fn) => { stageBackRef.current = fn; }}
       />
     );
   }
@@ -255,6 +279,7 @@ function StageRunner({
   onFinish,
   onNextStage,
   onBackToStages,
+  onRegisterBack,
 }: {
   stage: Stage;
   best: number;
@@ -262,6 +287,7 @@ function StageRunner({
   onFinish: (result: StageResult) => void;
   onNextStage?: () => void;
   onBackToStages: () => void;
+  onRegisterBack: (fn: () => void) => void;
 }) {
   const drill = stage.drill;
   const isByNote = drill.mode === 'byNote';
@@ -349,6 +375,16 @@ function StageRunner({
     session.stop();
     onBackToStages();
   };
+
+  // Android hardware Back on the Drill screen: from the result card or an
+  // in-progress run it returns to the stage list (stopping the run), and from
+  // the idle "Start stage" screen it also returns to the stage list.
+  useEffect(() => {
+    onRegisterBack(() => {
+      if (session.running || session.paused) session.stop();
+      onBackToStages();
+    });
+  }, [onRegisterBack, session, onBackToStages]);
 
   if (stageResult) {
     const r = stageResult.sessionResult;
