@@ -1560,7 +1560,9 @@ export default function App() {
             onClick={click(() => { upgradeFromAccountRef.current = true; setDrawerSection('upgrade'); })}
           >
             <span className="account-plan-icon" aria-hidden="true">⭐</span>
-            <span className="account-plan-tier">{auth.isPro ? t('Pro') : t('Free')}</span>
+            <span className="account-plan-tier">
+              {auth.isPremium ? t('Premium') : auth.isPro ? t('Pro') : t('Free')}
+            </span>
           </button>
           <button
             className="set-card-danger"
@@ -1628,15 +1630,16 @@ export default function App() {
         )}
         {auth.admin && auth.user && (
           <SettingCard
-            label={t('Admin: Pro on your account')}
-            help={t('Grants or revokes Pro for your own account only. Writes to the entitlements table and syncs across your devices.')}
+            label={t('Admin: plan on your account')}
+            help={t('Sets the plan on your own account only (Free, Pro or Premium). Writes to the entitlements table and syncs across your devices.')}
           >
-            <SegmentedControl<'free' | 'pro'>
-              ariaLabel={t('Admin: Pro on your account')}
+            <SegmentedControl<'free' | 'pro' | 'premium'>
+              ariaLabel={t('Admin: plan on your account')}
               value={auth.tier}
               options={[
                 { value: 'free', label: t('Free') },
                 { value: 'pro', label: t('Pro') },
+                { value: 'premium', label: t('Premium') },
               ]}
               onChange={(next) => {
                 const userId = auth.user?.id;
@@ -1646,7 +1649,7 @@ export default function App() {
                     await setOwnEntitlement(userId, next);
                     await auth.refreshEntitlement();
                   } catch (e) {
-                    verror('[admin] Pro toggle failed', e);
+                    verror('[admin] plan toggle failed', e);
                   }
                 })();
               }}
@@ -1658,9 +1661,11 @@ export default function App() {
             className="dev-tier-readout"
             style={{ opacity: 0.6, fontSize: '0.8em', margin: '8px 0 0' }}
           >
-            {/* Dev-only readout; the "simulate Pro" toggle that drives the
-                "(+sim)" state lives in the debug panel (🐞). */}
-            tier: {auth.tier}{auth.devSimulatePro ? ' (+sim)' : ''}{auth.entitlementLoading ? ' …' : ''}
+            {/* Dev-only readout; the tri-state "simulate tier" control that
+                drives the "(sim:…)" state lives in the debug panel (🐞). */}
+            tier: {auth.tier}
+            {auth.devSimulateTier !== 'off' ? ` (sim:${auth.devSimulateTier})` : ''}
+            {auth.entitlementLoading ? ' …' : ''}
           </p>
         )}
         {/* App version — moved here from the bottom of the main screen so the
@@ -2149,7 +2154,7 @@ export default function App() {
       {(auth.admin || import.meta.env.DEV) && (
         <DebugLogPanel
           {...(import.meta.env.DEV
-            ? { devSimulatePro: auth.devSimulatePro, onToggleSimulatePro: auth.setDevSimulatePro }
+            ? { simTier: auth.devSimulateTier, onSetSimTier: auth.setDevSimulateTier }
             : {})}
         />
       )}

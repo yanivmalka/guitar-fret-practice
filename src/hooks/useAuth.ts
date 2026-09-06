@@ -4,11 +4,12 @@ import { supabase, isSupabaseConfigured, authRedirectTo } from '../utils/supabas
 import { setSyncUser } from '../utils/sync';
 import { fetchIsAdmin } from '../utils/board';
 import {
-  fetchEntitlement, cachedEntitlement, FREE, type Entitlement, type Tier,
+  fetchEntitlement, cachedEntitlement, FREE, tierAtLeast,
+  type Entitlement, type Tier,
 } from '../utils/entitlement';
 import {
-  getDevSimulatePro, subscribeDevSimulatePro, setDevSimulatePro,
-} from '../utils/devSimulatePro';
+  getDevSimulateTier, subscribeDevSimulateTier, setDevSimulateTier, type SimTier,
+} from '../utils/devSimulateTier';
 import {
   getAdminViewAsUser, subscribeAdminViewAsUser, setAdminViewAsUser,
 } from '../utils/adminViewAsUser';
@@ -35,10 +36,15 @@ export interface AuthState {
   viewingAsUser: boolean;
   /** Toggle {@link viewingAsUser} (persisted to localStorage). */
   setViewingAsUser: (on: boolean) => void;
-  /** Subscription tier. `'free'` for guests and signed-in free users. */
+  /** Effective subscription tier (`'free'` | `'pro'` | `'premium'`), already
+   *  folded with the DEV tier simulator. `'free'` for guests and signed-in
+   *  free users. */
   tier: Tier;
-  /** Convenience: a signed-in user on the Pro tier. */
+  /** Tier is Pro **or better** (Premium included). This is the flag to gate a
+   *  Pro-or-above feature on — never `tier === 'pro'`. */
   isPro: boolean;
+  /** Tier is Premium. For future Premium-only gates. */
+  isPremium: boolean;
   /** The full entitlement row (tier + `source` + `expiresAt`), `FREE` for
    *  guests. `source` / `expiresAt` back the Pro details in `<UpgradeCard>`. */
   entitlement: Entitlement;
@@ -51,13 +57,14 @@ export interface AuthState {
   /** Re-fetch the entitlement now (used by the foreground refresh and, later,
    *  the post-purchase flow). No-op for guests. */
   refreshEntitlement: () => Promise<void>;
-  /** Dev-only (`import.meta.env.DEV`): when true, `tier` / `isPro` report Pro
-   *  with no DB change, so the gated UI can be exercised against one account.
-   *  Always `false` in a production bundle. */
-  devSimulatePro: boolean;
-  /** Toggle {@link devSimulatePro} (persisted to localStorage). No-op in a
+  /** Dev-only (`import.meta.env.DEV`): a tri-state override of the effective
+   *  tier (`'off'` | `'pro'` | `'premium'`) with no DB change, so every gated
+   *  UI can be exercised against one account. Always `'off'` in a production
+   *  bundle. */
+  devSimulateTier: SimTier;
+  /** Set {@link devSimulateTier} (persisted to localStorage). No-op in a
    *  production bundle. */
-  setDevSimulatePro: (on: boolean) => void;
+  setDevSimulateTier: (tier: SimTier) => void;
 }
 
 // How stale the entitlement may get before a foreground return re-fetches it.
@@ -90,16 +97,17 @@ export function useAuth(): AuthState {
   const [entitlement, setEntitlement] = useState<Entitlement>(FREE);
   const [entitlementLoading, setEntitlementLoading] = useState(isSupabaseConfigured);
 
-  // Dev-only "simulate Pro": an external-store flag OR-ed into `isPro` below so
-  // the gated UI can be checked without touching the DB (design §6.2). Backed
-  // by a store rather than local state so every independent `useAuth()`
-  // instance updates together; `import.meta.env.DEV`-gated, so a production
-  // build folds it to `false` (verified by grepping `dist/`).
-  const devSimulatePro = useSyncExternalStore(subscribeDevSimulatePro, getDevSimulatePro);
+  // Dev-only "simulate tier": an external-store tri-state that overrides the
+  // effective tier below so every gated UI can be checked without touching the
+  // DB (design §6.2). Backed by a store rather than local state so every
+  // independent `useAuth()` instance updates together; `import.meta.env.DEV`-
+  // gated, so a production build folds it to `'off'` (verified by grepping
+  // `dist/`).
+  const devSimulateTier = useSyncExternalStore(subscribeDevSimulateTier, getDevSimulateTier);
 
   // Admin "view as a regular user": an external-store flag AND-ed out of the
   // exposed `admin` below so every `useAuth()` instance masks admin chrome
-  // together. Backed by a store for the same reason as `devSimulatePro`.
+  // together. Backed by a store for the same reason as `devSimulateTier`.
   const viewingAsUser = useSyncExternalStore(subscribeAdminViewAsUser, getAdminViewAsUser);
 
   useEffect(() => {
@@ -195,10 +203,13 @@ export function useAuth(): AuthState {
     await supabase.auth.signOut();
   };
 
-  // Dev-only override: force Pro on so both experiences are one tap apart
-  // during development (design §9). Deliberately not gated on `user` — it works
-  // on the config-less local dev server too. `false` in production builds.
-  const simPro = import.meta.env.DEV && devSimulatePro;
+  // Dev-only override: force an effective tier so every gated experience is one
+  // tap apart during development (design §9). Deliberately not gated on `user`
+  // — it works on the config-less local dev server too. `'off'` in production
+  // builds, so `effectiveTier` is just the real entitlement there.
+  const simTier: SimTier = import.meta.env.DEV ? devSimulateTier : 'off';
+  const realTier: Tier = user ? entitlement.tier : 'free';
+  const effectiveTier: Tier = simTier === 'off' ? realTier : simTier;
 
   return {
     user,
@@ -207,8 +218,9 @@ export function useAuth(): AuthState {
     adminAccount: admin && !!user,
     viewingAsUser,
     setViewingAsUser: setAdminViewAsUser,
-    tier: simPro ? 'pro' : user ? entitlement.tier : 'free',
-    isPro: simPro || (entitlement.tier === 'pro' && !!user),
+    tier: effectiveTier,
+    isPro: tierAtLeast(effectiveTier, 'pro'),
+    isPremium: tierAtLeast(effectiveTier, 'premium'),
     entitlement: user ? entitlement : FREE,
     entitlementLoading: !!user && entitlementLoading,
     loading,
@@ -216,7 +228,7 @@ export function useAuth(): AuthState {
     signInWithGoogle,
     signOut,
     refreshEntitlement,
-    devSimulatePro,
-    setDevSimulatePro,
+    devSimulateTier,
+    setDevSimulateTier,
   };
 }

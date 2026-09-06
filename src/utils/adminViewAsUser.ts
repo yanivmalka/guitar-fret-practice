@@ -12,7 +12,7 @@
 //
 // Backed by a tiny external store (not per-hook state) so every independent
 // `useAuth()` instance re-renders together the moment it flips, with no reload
-// — same rationale as `devSimulatePro`. Unlike that flag this one ships in
+// — same rationale as `devSimulateTier`. Unlike that flag this one ships in
 // production, so it is not `import.meta.env.DEV`-gated.
 
 const KEY = 'adminViewAsUser';

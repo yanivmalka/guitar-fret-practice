@@ -1,9 +1,9 @@
-// The capability map: the single place that says which features are Pro-only
+// The capability map: the single place that says which tier a feature needs
 // (design .kiro/specs/free-pro-tiering §4.1). Nothing else in the app should
-// compare tiers directly — call `can(feature, tier)` instead, so "what is Pro"
-// stays greppable and a future third tier is a one-line rank change.
+// compare tiers directly — call `can(feature, tier)` instead, so "what needs
+// which tier" stays greppable and adding a tier is a `MIN_TIER` edit.
 
-import type { Tier } from './entitlement';
+import { TIER_RANK, type Tier } from './entitlement';
 
 export type Feature =
   | 'historyBeyond7Days'   // the Stats & Progress screen's "All time" scope + trends
@@ -12,7 +12,11 @@ export type Feature =
   | 'fretRange'            // the precise "fret N–M" window control in Settings → Playing
   | 'multiStringFull'      // multi-string drilling on more than FREE_MULTI_STRING_LIMIT strings
   | 'voiceProfile'         // personal voice profile + calibration
-  | 'noAds';               // future: suppress Free-tier ads
+  | 'noAds'                // future: suppress Free-tier ads
+  | 'premiumTeacher';      // P2+ PLACEHOLDER — the adaptive "teacher" surface
+                           // (weak-spots / SRS / daily session / Learning Path).
+                           // Nothing renders this gate yet; it exists so the
+                           // premium rank is reachable and testable in P0.
 
 const MIN_TIER: Record<Feature, Tier> = {
   historyBeyond7Days: 'pro',
@@ -22,6 +26,7 @@ const MIN_TIER: Record<Feature, Tier> = {
   multiStringFull:    'pro',
   voiceProfile:       'pro',
   noAds:              'pro',
+  premiumTeacher:     'premium',
 };
 // `fretRange` gates the precise "from fret N to fret M" window control that
 // lives in Settings → Playing (its "Precise fret range" toggle + two-handle
@@ -39,10 +44,14 @@ const MIN_TIER: Record<Feature, Tier> = {
 // `multiStringFull` (Pro). `useSelector` caps a Free user's selection and
 // opens the upgrade drawer when they reach for a third string.
 
-const RANK: Record<Tier, number> = { free: 0, pro: 1 };
-
 export function can(feature: Feature, tier: Tier): boolean {
-  return RANK[tier] >= RANK[MIN_TIER[feature]];
+  return TIER_RANK[tier] >= TIER_RANK[MIN_TIER[feature]];
+}
+
+/** The minimum tier a feature needs. Lets a gate label itself ("Pro" vs
+ *  "Premium") without duplicating the capability map. */
+export function minTier(feature: Feature): Tier {
+  return MIN_TIER[feature];
 }
 
 /** How many strings a Free user may drill at once in multi-string mode. Pro

@@ -1,5 +1,6 @@
-// Grant or revoke a Pro entitlement for one user, out of band — comps, promos,
-// and manual testing. Run by hand; never part of `npm run build`.
+// Grant or revoke a paid entitlement (Pro or Premium) for one user, out of
+// band — comps, promos, and manual testing. Run by hand; never part of
+// `npm run build`.
 //
 // Writes `public.entitlements` with the SERVICE-ROLE key, which bypasses RLS
 // (the table has no client write policy — see 0007_entitlements.sql). That key
@@ -14,11 +15,15 @@
 // Usage:
 //   node --experimental-strip-types scripts/grant-pro.mts --email you@example.com --months 1
 //   node --experimental-strip-types scripts/grant-pro.mts --email you@example.com --lifetime
+//   node --experimental-strip-types scripts/grant-pro.mts --email you@example.com --tier premium --lifetime
 //   node --experimental-strip-types scripts/grant-pro.mts --email you@example.com --revoke
 //
-//   --months N   Pro expires N calendar months from now (default: 1)
-//   --lifetime   Pro never expires (expires_at = null); mutually exclusive with --months
-//   --revoke     set tier back to 'free' (the row is kept for history)
+//   --tier T     'pro' (default) or 'premium' — which paid tier to grant.
+//                Ignored with --revoke.
+//   --months N   access expires N calendar months from now (default: 1)
+//   --lifetime   access never expires (expires_at = null); mutually exclusive with --months
+//   --revoke     set tier back to 'free' (the row is kept for history);
+//                equivalent to --tier free
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -76,6 +81,13 @@ if (lifetime && monthsArg) die('--lifetime and --months are mutually exclusive')
 const months = monthsArg === undefined ? 1 : Number(monthsArg);
 if (!Number.isFinite(months) || months <= 0) die('--months must be a positive number');
 
+// Which paid tier to grant. --revoke always wins and writes 'free'.
+const tierArg = (argValue('tier') ?? 'pro').toLowerCase();
+if (!['free', 'pro', 'premium'].includes(tierArg)) {
+  die("--tier must be 'pro' or 'premium' (or 'free' / use --revoke to remove)");
+}
+const targetTier = revoke ? 'free' : tierArg;
+
 const admin = createClient(url, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
@@ -97,11 +109,11 @@ const userId = await findUserId(email);
 if (!userId) die(`no auth user with email ${email}`);
 
 const nowIso = new Date().toISOString();
-const row = revoke
+const row = targetTier === 'free'
   ? { user_id: userId, tier: 'free', source: 'comp', expires_at: null, updated_at: nowIso }
   : {
       user_id: userId,
-      tier: 'pro',
+      tier: targetTier,
       source: 'comp',
       expires_at: lifetime ? null : monthsFromNow(months),
       updated_at: nowIso,
@@ -114,5 +126,7 @@ const { data, error } = await admin
   .single();
 if (error) die(`upsert failed: ${error.message}`);
 
-console.log(revoke ? `revoked Pro for ${email}:` : `granted Pro to ${email}:`);
+console.log(targetTier === 'free'
+  ? `revoked paid access for ${email}:`
+  : `granted ${targetTier} to ${email}:`);
 console.log(data);

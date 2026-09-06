@@ -483,8 +483,10 @@ const he: Record<string, string> = {
   'Granted to app administrators — read every Feedback board post, not just your own.':
     'מוענק למנהלי האפליקציה — מאפשר לקרוא את כל הפוסטים בלוח המשוב, לא רק את הפוסטים שלך.',
 
-  // Free vs Pro tiering — ProGate lock states + the Upgrade card
+  // Free / Pro / Premium tiering — ProGate lock states + the Upgrade card
+  'Premium': 'פרימיום',
   'Unlock with Pro': 'זמין במסלול Pro',
+  'Unlock with Premium': 'זמין במסלול Premium',
   'You have Pro': 'יש לך Pro',
   "You're on Free": 'אתה במסלול החינמי',
   'Your plan': 'המסלול שלך',
@@ -523,9 +525,12 @@ const he: Record<string, string> = {
   'Pro isn’t on sale yet — everything above stays free to try in the meantime.':
     'מסלול Pro עדיין אינו נמכר — עד אז כל מה שלמעלה זמין לניסיון בחינם.',
   // Admin-only account tools (settings ▸ Account)
-  'Admin: Pro on your account': 'מנהל: Pro בחשבון שלך',
-  'Grants or revokes Pro for your own account only. Writes to the entitlements table and syncs across your devices.':
-    'מעניק או מבטל Pro עבור החשבון שלך בלבד. נכתב לטבלת ההרשאות ומסונכרן בין המכשירים שלך.',
+  'Admin: plan on your account': 'מנהל: המסלול בחשבון שלך',
+  'Sets the plan on your own account only (Free, Pro or Premium). Writes to the entitlements table and syncs across your devices.':
+    'קובע את המסלול בחשבון שלך בלבד (חינמי, Pro או Premium). נכתב לטבלת ההרשאות ומסונכרן בין המכשירים שלך.',
+  // Debug panel (dev only)
+  'Simulate tier (dev only — no DB change)':
+    'הדמיית מסלול (למפתחים בלבד — ללא שינוי במסד הנתונים)',
   'Admin: view the app as': 'מנהל: הצג את האפליקציה בתור',
   'Hides every admin-only control so you see exactly what a regular user sees. Switch back here any time — this is a local view change only and does not change what your account can do.':
     'מסתיר כל פקד שמיועד למנהלים בלבד כדי שתראה בדיוק מה שמשתמש רגיל רואה. אפשר לחזור למצב מנהל כאן בכל רגע — זהו שינוי תצוגה מקומי בלבד ואינו משנה את מה שהחשבון שלך יכול לעשות.',
