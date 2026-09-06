@@ -37,6 +37,13 @@ export interface WeaknessConfig {
   mistakeLookback: number;
   /** That many wrong/timeout answers within the lookback ⇒ weak. */
   mistakeThreshold: number;
+  /** History rows older than this many days are ignored entirely, so a rough
+   *  patch from months ago cannot stay a "current" weakness for ever. A
+   *  position with only stale history (and no live SRS row) drops off the
+   *  list; a genuinely due SRS item still surfaces via its schedule. Rows
+   *  with no `createdAt` (pre-timestamp localStorage) count as too old, the
+   *  same way `progress.ts` already skips them. */
+  maxAgeDays: number;
 }
 
 export const DEFAULT_WEAKNESS_CONFIG: WeaknessConfig = {
@@ -46,6 +53,7 @@ export const DEFAULT_WEAKNESS_CONFIG: WeaknessConfig = {
   slowSeconds: 4,
   mistakeLookback: 4,
   mistakeThreshold: 2,
+  maxAgeDays: 45,
 };
 
 export type WeaknessReason =
@@ -109,10 +117,14 @@ export function analyzeWeakness(
   now: number,
   cfg: WeaknessConfig = DEFAULT_WEAKNESS_CONFIG,
 ): WeaknessSignal[] {
-  // Group rows by position.
+  // Group rows by position, ignoring anything older than the recency horizon
+  // (and anything with no usable timestamp — treated as too old).
+  const cutoff = now - cfg.maxAgeDays * DAY_MS;
   const byItem = new Map<string, HistoryEntry[]>();
   for (const e of entries) {
     if (!Number.isInteger(e.string) || !Number.isInteger(e.fret)) continue;
+    const ts = e.createdAt ? Date.parse(e.createdAt) : NaN;
+    if (!Number.isFinite(ts) || ts < cutoff) continue;
     const id = noteItemId(e.string, e.fret);
     const list = byItem.get(id);
     if (list) list.push(e);

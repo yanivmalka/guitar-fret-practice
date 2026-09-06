@@ -42,7 +42,7 @@ import TodayCard from './components/TodayCard';
 import { useLearning } from './hooks/useLearning';
 import type { TeacherPlan } from './learning/planner';
 import {
-  bootstrapLearning, syncedLearningUser, clearSyncedLearningUser, cloudPushLearning,
+  bootstrapLearning, syncedLearningUser, clearSyncedLearningUser, clearLocalLearningState, cloudPushLearning,
 } from './learning/learningSync';
 import { useHistory } from './hooks/useHistory';
 import { useScoring } from './hooks/useScoring';
@@ -124,7 +124,15 @@ export default function App() {
   const [teacherPlan, setTeacherPlan] = useState<TeacherPlan | null>(null);
   const teacherPlanRef = useRef<TeacherPlan | null>(null);
   teacherPlanRef.current = teacherPlan;
+  // A Teacher answer folds into the learning model (SRS + daily goal); an
+  // ordinary by-fret Selector answer folds into the SRS schedule only, so the
+  // Teacher still learns from all note practice. Both are no-ops off Premium.
   const teacherRecordRef = useRef<((e: HistoryEntry) => void) | null>(null);
+  const practiceRecordRef = useRef<((e: HistoryEntry) => void) | null>(null);
+  // True while the run that is currently ending was launched from the Today
+  // card. Set in `start()`, read by the game-end effect, cleared on reset —
+  // NOT on stop, so a manually-stopped Teacher run is still recognised.
+  const wasTeacherRunRef = useRef(false);
 
   // The settings the drill / board actually run on: the Selector's, unless a
   // Teacher plan is active.
@@ -144,6 +152,10 @@ export default function App() {
       maxQuestions: d.questionCount,
     };
   }, [teacherPlan, derivedSettings]);
+  // Mode the drill is actually running in, for the history sink (read inside a
+  // callback, so kept in a ref per the repo convention).
+  const effByNoteRef = useRef(eff.byNote);
+  effByNoteRef.current = eff.byNote;
 
   const [guitarString, setGuitarString] = useState(derivedSettings.guitarString);
   // `guitarString` is state synced from derivedSettings via an effect, so for
@@ -248,9 +260,14 @@ export default function App() {
   const addEntryWithKey = useCallback(
     (entry: HistoryEntry) => {
       addEntryRaw(histKey, entry);
-      // A Teacher session's answers also flow into the Premium learning model
-      // (SRS schedule + daily goal). Ordinary Selector play never does.
+      // Feed the Premium learning model. A Teacher session's answers update the
+      // SRS schedule *and* the daily goal. Ordinary Selector play updates the
+      // SRS schedule only (no daily-goal tick) and only in by-fret mode, where
+      // each entry is exactly the asked (string, fret) — by-note's wrong-tap
+      // entries are the wrong fret, so they must not touch the schedule. Both
+      // recorders are inert off Premium.
       if (teacherPlanRef.current) teacherRecordRef.current?.(entry);
+      else if (!effByNoteRef.current) practiceRecordRef.current?.(entry);
     },
     [histKey, addEntryRaw],
   );
@@ -397,7 +414,10 @@ export default function App() {
   // the cheap write-through to carry up anything answered offline.
   useEffect(() => {
     const user = auth.user;
-    if (!user) { clearSyncedLearningUser(); return; }
+    // Signed out: drop this device's learning blob so it can't be merged into
+    // the next account's cloud row on a shared device. A Free user's Teacher
+    // is inert, so there is nothing live to lose.
+    if (!user) { clearSyncedLearningUser(); clearLocalLearningState(); return; }
     if (syncedLearningUser() === user.id) { cloudPushLearning(); return; }
     void (async () => {
       try {
@@ -513,6 +533,7 @@ export default function App() {
     order,
   });
   teacherRecordRef.current = learning.recordAnswer;
+  practiceRecordRef.current = learning.recordPracticeAnswer;
   // The overlay is free for everyone (spec free-pro-tiering §5.2). Free users
   // see it computed from FREE_MASTERY_WINDOW (last 250 questions); Pro users
   // pick the window via the "questions counted" control in Settings.
@@ -945,6 +966,7 @@ export default function App() {
   useEffect(() => {
     setShowStats(false); setGameEnded(false);
     tier3FiredRef.current = false;
+    wasTeacherRunRef.current = false;
     badgesFiredRef.current = false; setNewBadges([]);
     midSweepCountRef.current = 0;
     setToastQueue([]); setRevealBadges([]);
@@ -1114,10 +1136,16 @@ export default function App() {
       // combination — the same per-historyKey `best_<key>` record StatsPanel
       // maintains. Persist it here and fire the Tier 3 celebration once per run
       // (tier3FiredRef also blocks a repeat if this effect re-runs).
+      //
+      // A Teacher session runs on the plan's own fret window / string / count,
+      // not the Selector combo `histKey` still points at, so its score is not
+      // comparable to that combo's best — recording it (or flashing "NEW BEST!"
+      // for it) would be misleading. Its answers are still in the shared
+      // history; only this Selector-combo record is skipped.
       const score = scoring.session.score;
       const prevBest = loadBest(histKey);
       let pbCardShown = false;
-      if (!tier3FiredRef.current && score > 0 && score > (prevBest?.score ?? 0)) {
+      if (!wasTeacherRunRef.current && !tier3FiredRef.current && score > 0 && score > (prevBest?.score ?? 0)) {
         tier3FiredRef.current = true;
         // Accuracy for the personal-best record comes from the drill session's
         // SessionResult (correct / recorded-answers, rounded) rather than a
@@ -1194,6 +1222,9 @@ export default function App() {
     );
     setGameEnded(false);
     tier3FiredRef.current = false;
+    // Remember whether this run is a Teacher session — the game-end effect uses
+    // it to skip the Selector personal-best flow (see there).
+    wasTeacherRunRef.current = teacherPlan !== null;
     badgesFiredRef.current = false;
     setNewBadges([]);
     midSweepCountRef.current = 0;

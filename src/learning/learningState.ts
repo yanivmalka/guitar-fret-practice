@@ -170,6 +170,21 @@ export function saveLearningStateLocal(state: LearningState): void {
   }
 }
 
+/**
+ * Drop the on-device learning blob entirely. Called on sign-out so one
+ * account's SRS schedule can never be merged into the next account's cloud
+ * row on a shared device (the sync reconcile always merges local ∪ cloud).
+ * A signed-out user is always Free, and the Teacher never reads this key
+ * while Free, so there is nothing live to lose.
+ */
+export function clearLocalLearningState(): void {
+  try {
+    localStorage.removeItem(LEARNING_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function getInstrumentState(
   state: LearningState,
   instrumentId: string,
@@ -225,6 +240,30 @@ export function recordTeacherAnswer(
   return {
     srs: { ...st.srs, [id]: nextItem },
     daily: { ...daily, completed: daily.completed + 1 },
+    lastAnswerAt: now,
+    updatedAt: new Date(now).toISOString(),
+  };
+}
+
+// ── Apply one ordinary Selector answer (Premium only) ─────────────────
+//
+// Same SRS transition as a Teacher answer so the schedule learns from *all*
+// note practice, not only Teacher sessions — but it does NOT touch the daily
+// goal: that goal is the prescribed Teacher session, and free-drilling the
+// Selector must not tick it off. The daily record is still rolled to today so
+// a stale day never lingers. Pure.
+export function recordPracticeAnswer(
+  st: InstrumentLearningState,
+  pos: { string: number; fret: number },
+  correct: boolean,
+  now: number,
+): InstrumentLearningState {
+  const id = noteItemId(pos.string, pos.fret);
+  const srsItem = getOrCreate(st.srs, id, now);
+  const nextItem = reviewSrsItem(srsItem, correct, now);
+  return {
+    srs: { ...st.srs, [id]: nextItem },
+    daily: rollDailyGoal(st.daily, now, st.daily.target),
     lastAnswerAt: now,
     updatedAt: new Date(now).toISOString(),
   };

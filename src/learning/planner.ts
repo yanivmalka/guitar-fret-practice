@@ -126,16 +126,19 @@ function build(opts: PlannerOptions, kind: 'daily' | 'weakSpots'): TeacherPlan {
 
   const picked: PlannedItem[] = [];
   const seen = new Set<string>();
+  // Returns true only when the item was actually added, so callers that keep
+  // their own tally (consolidation / coverage) count real picks, not attempts.
   const add = (
     itemId: string,
     bucket: PlanBucket,
     reasons: WeaknessReason[],
-  ): void => {
-    if (seen.has(itemId) || picked.length >= sessionSize) return;
+  ): boolean => {
+    if (seen.has(itemId) || picked.length >= sessionSize) return false;
     const pos = parseNoteItemId(itemId);
-    if (!pos || pos.string > Math.max(...allStrings) || pos.fret > maxFret) return;
+    if (!pos || pos.string > Math.max(...allStrings) || pos.fret > maxFret) return false;
     seen.add(itemId);
     picked.push({ itemId, string: pos.string, fret: pos.fret, bucket, reasons });
+    return true;
   };
 
   const signals = analyzeWeakness(entries, srs, now, weaknessCfg);
@@ -170,8 +173,7 @@ function build(opts: PlannerOptions, kind: 'daily' | 'weakSpots'): TeacherPlan {
       );
     for (const it of strong) {
       if (picked.length >= sessionSize) break;
-      add(it.itemId, 'consolidation', []);
-      consolidation++;
+      if (add(it.itemId, 'consolidation', [])) consolidation++;
     }
 
     // Still short (new Premium user, little history) — fill from the
@@ -180,8 +182,7 @@ function build(opts: PlannerOptions, kind: 'daily' | 'weakSpots'): TeacherPlan {
       const span = coverageSpan(allStrings, maxFret);
       for (const cp of leastPractisedPositions(entries, span)) {
         if (picked.length >= sessionSize) break;
-        add(cp.itemId, 'coverage', []);
-        coverage++;
+        if (add(cp.itemId, 'coverage', [])) coverage++;
       }
     }
   }

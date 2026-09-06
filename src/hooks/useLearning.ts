@@ -23,9 +23,11 @@ import {
   getInstrumentState,
   withInstrumentState,
   recordTeacherAnswer,
+  recordPracticeAnswer as recordPracticeAnswerModel,
   rollDailyGoal,
   isDailyGoalComplete,
   type LearningState,
+  type InstrumentLearningState,
   type DailyGoal,
 } from '../learning/learningState';
 import { cloudPushLearning } from '../learning/learningSync';
@@ -49,6 +51,10 @@ export interface UseLearningResult {
   /** Feed one answered Teacher question back into the model. Safe to call
    *  from inside the drill's history sink. Stable identity. */
   recordAnswer: (entry: HistoryEntry) => void;
+  /** Feed one ordinary Selector (by-fret) answer into the SRS schedule only —
+   *  no daily-goal tick. Lets the Teacher learn from all note practice, not
+   *  just Teacher sessions. No-op for non-Premium users. Stable identity. */
+  recordPracticeAnswer: (entry: HistoryEntry) => void;
 }
 
 export interface UseLearningOptions {
@@ -115,15 +121,26 @@ export function useLearning(opts: UseLearningOptions): UseLearningResult {
     [instState, now],
   );
 
-  const recordAnswer = useCallback(
-    (entry: HistoryEntry) => {
+  // One code path for "fold this answer into the model"; `apply` is the pure
+  // transition — `recordTeacherAnswer` (SRS + daily goal) for a Teacher
+  // session, `recordPracticeAnswer` (SRS only) for ordinary Selector play.
+  const foldAnswer = useCallback(
+    (
+      entry: HistoryEntry,
+      apply: (
+        st: InstrumentLearningState,
+        pos: { string: number; fret: number },
+        correct: boolean,
+        now: number,
+      ) => InstrumentLearningState,
+    ) => {
       if (!isPremium) return;
       if (!Number.isInteger(entry.string) || !Number.isInteger(entry.fret)) return;
       const ts = Date.now();
       setNow(ts);
       setState((prev) => {
         const st = getInstrumentState(prev, instrumentId, ts);
-        const nextSt = recordTeacherAnswer(
+        const nextSt = apply(
           st,
           { string: entry.string, fret: entry.fret },
           entry.correct === true,
@@ -136,6 +153,15 @@ export function useLearning(opts: UseLearningOptions): UseLearningResult {
       });
     },
     [isPremium, instrumentId],
+  );
+
+  const recordAnswer = useCallback(
+    (entry: HistoryEntry) => foldAnswer(entry, recordTeacherAnswer),
+    [foldAnswer],
+  );
+  const recordPracticeAnswer = useCallback(
+    (entry: HistoryEntry) => foldAnswer(entry, recordPracticeAnswerModel),
+    [foldAnswer],
   );
 
   // ── Plans ────────────────────────────────────────────────────────────
@@ -169,5 +195,6 @@ export function useLearning(opts: UseLearningOptions): UseLearningResult {
     weakSpotsPlan,
     trackedCount: Object.keys(instState.srs).length,
     recordAnswer,
+    recordPracticeAnswer,
   };
 }

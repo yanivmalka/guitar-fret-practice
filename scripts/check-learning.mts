@@ -56,7 +56,8 @@ const { analyzeWeakness, leastPractisedPositions } =
 const { buildDailyPlan, buildWeakSpotsPlan } = await import('../src/learning/planner.ts');
 const {
   loadLearningState, saveLearningStateLocal, getInstrumentState, withInstrumentState,
-  recordTeacherAnswer, rollDailyGoal, mergeLearningState, emptyInstrumentState,
+  recordTeacherAnswer, recordPracticeAnswer, rollDailyGoal, mergeLearningState,
+  emptyInstrumentState,
 } = await import('../src/learning/learningState.ts');
 
 let failures = 0;
@@ -168,6 +169,32 @@ function row(
     withSrs.length === 1 && withSrs[0].itemId === '2:9' && withSrs[0].overdue);
 }
 
+// ── Weakness recency: stale rows don't stay a current weakness ─────────
+{
+  // 6 clearly-bad answers, but all ~100 days ago.
+  const oldRow = (i: number) => ({
+    note: 'X', string: 6, fret: 3, seconds: 2, skipped: false, correct: i % 2 === 0,
+    createdAt: new Date(T0 - 100 * DAY + i * 1000).toISOString(),
+  });
+  const stale = Array.from({ length: 6 }, (_, i) => oldRow(i));
+  check('months-old bad performance is NOT a current weakness',
+    analyzeWeakness(stale, {}, T0).length === 0);
+
+  // The same pattern, but recent, still is.
+  const fresh = Array.from({ length: 6 }, (_, i) => ({
+    ...oldRow(i), createdAt: new Date(T0 - DAY + i * 1000).toISOString(),
+  }));
+  check('recent bad performance still surfaces as weak',
+    analyzeWeakness(fresh, {}, T0).some((s) => s.itemId === '6:3'));
+
+  // A stale row must not block a genuinely due SRS item from surfacing.
+  const staleButDue = analyzeWeakness(
+    stale, { '6:3': { ...newSrsItem('6:3', T0), dueAt: T0 - 2 * DAY } }, T0,
+  );
+  check('overdue SRS still surfaces even with only stale history',
+    staleButDue.some((s) => s.itemId === '6:3' && s.overdue));
+}
+
 // ── leastPractisedPositions ──────────────────────────────────────────
 {
   const entries = [row(6, 0, true, 1, 0), row(6, 0, true, 1, 1), row(6, 1, true, 1, 2)];
@@ -212,10 +239,20 @@ function row(
   check('planner is deterministic',
     JSON.stringify(buildDailyPlan(base)) === JSON.stringify(plan));
 
+  // rationale counts reflect positions actually added, not add() attempts.
+  check('rationale counts match the picked buckets exactly',
+    plan.rationale.overdue === plan.items.filter((p) => p.bucket === 'overdue').length &&
+    plan.rationale.weak === plan.items.filter((p) => p.bucket === 'weak').length &&
+    plan.rationale.consolidation === plan.items.filter((p) => p.bucket === 'consolidation').length &&
+    plan.rationale.coverage === plan.items.filter((p) => p.bucket === 'coverage').length);
+
   // Brand-new user: no history, no SRS → still a usable coverage plan.
   const cold = buildDailyPlan({ ...base, entries: [], srs: {} });
   check('cold-start plan falls back to coverage',
     cold.items.length > 0 && cold.items.every((p) => p.bucket === 'coverage'));
+  check('cold-start rationale.coverage equals the coverage picks',
+    cold.rationale.coverage === cold.items.length &&
+    cold.rationale.consolidation === 0);
   check('cold-start weak-spots plan is null (nothing weak yet)',
     buildWeakSpotsPlan({ ...base, entries: [], srs: {} }) === null);
 
@@ -246,6 +283,20 @@ function row(
     rg.srs['6:3'].bucket === 1 && rg.srs['6:3'].reps === 2 && rg.srs['6:3'].lapses === 1);
   check('daily goal counted every Teacher answer', rg.daily.completed === 3);
   check('daily goal has today\'s date', rg.daily.dateISO === '2026-09-06');
+
+  // A normal Selector (practice) answer updates the SRS schedule the same way,
+  // but must NOT tick the prescribed daily goal.
+  let p = getInstrumentState(reloaded, 'guitar', T0 + 4000);
+  const beforeCompleted = p.daily.completed;
+  p = recordPracticeAnswer(p, { string: 4, fret: 7 }, true, T0 + 4000);
+  p = recordPracticeAnswer(p, { string: 6, fret: 3 }, false, T0 + 5000);
+  check('practice answer creates/updates the SRS item',
+    p.srs['4:7'].reps === 1 && p.srs['4:7'].bucket === 1);
+  check('practice answer applies a lapse like any review',
+    p.srs['6:3'].bucket === 0 && p.srs['6:3'].lapses === 2 && p.srs['6:3'].reps === 3);
+  check('practice answer does NOT advance the daily goal',
+    p.daily.completed === beforeCompleted);
+  check('practice answer still bumps lastAnswerAt', p.lastAnswerAt === T0 + 5000);
 }
 
 // ── Daily goal roll-over ─────────────────────────────────────────────

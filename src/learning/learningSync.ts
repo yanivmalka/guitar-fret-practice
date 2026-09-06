@@ -24,8 +24,11 @@ import {
   LEARNING_STORAGE_KEY,
   normalizeLearningState,
   mergeLearningState,
+  clearLocalLearningState,
   type LearningState,
 } from './learningState';
+
+export { clearLocalLearningState };
 
 const TABLE = 'user_learning_state';
 const SYNCED_FLAG = 'cloudSyncedLearningUser';
@@ -134,8 +137,15 @@ export function cloudPushLearning(): void {
 // ── Bootstrap on sign-in ─────────────────────────────────────────────
 // Pull / merge / push once per sign-in on this device. Throws on failure so
 // the caller leaves local data untouched and retries on the next app start.
+//
+// Shared-device guard: if the on-device blob was last reconciled for a
+// *different* account, drop it before the merge so account A's SRS schedule
+// is never carried into account B's cloud row. (Sign-out already clears the
+// blob; this also covers a stale flag / an interrupted sign-out.)
 export async function bootstrapLearning(userId: string): Promise<{ changed: boolean }> {
   if (!supabase) return { changed: false };
+  const prevUser = syncedLearningUser();
+  if (prevUser && prevUser !== userId) clearLocalLearningState();
   const changed = await reconcile(userId);
   setSyncedLearningUser(userId);
   return { changed };
