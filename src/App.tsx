@@ -37,6 +37,7 @@ import { suggestAdjustment } from './utils/progress';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useDrillSession } from './hooks/useDrillSession';
 import { deriveDrillConfig } from './drill/DrillConfig';
+import GameFlow from './game/GameFlow';
 import TodayCard from './components/TodayCard';
 import { useLearning } from './hooks/useLearning';
 import type { TeacherPlan } from './learning/planner';
@@ -789,6 +790,10 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(() => initialView?.settingsOpen ?? false);
   // Which settings sub-page is open inside the drawer; null = the list of titles.
   const [drawerSection, setDrawerSection] = useState<string | null>(() => initialView?.section ?? null);
+  // F.1 Game wiring spike: a single flag that swaps the whole screen for the
+  // self-contained <GameFlow>. Not persisted to gfp_view yet — the spike
+  // always re-enters from the home button.
+  const [gameOpen, setGameOpen] = useState(false);
   // The `upgrade` (Pro) sub-page is reachable both from the Account tab's plan
   // tile and from any locked <ProGate> in the app (via registerUpgradeHandler,
   // which may open it without Account ever being shown). Back should return to
@@ -1803,6 +1808,12 @@ export default function App() {
     },
   ];
 
+  // F.1 spike: the Game is a full-screen takeover, mounted as its own
+  // self-contained component so App gains no Game state beyond `gameOpen`.
+  if (gameOpen) {
+    return <GameFlow onExit={() => setGameOpen(false)} />;
+  }
+
   // The unified "Stats & progress" screen replaces the game entirely — its own
   // page, not an overlay pinned on top of the (blurred) game screen.
   if (showStats) {
@@ -1919,6 +1930,17 @@ export default function App() {
       )}
 
       <h1>{instrument.emoji} {t(instrument.label)} {t('Fret Practice')}</h1>
+
+      {/* F.1 Game wiring spike — dev/admin-only entry point. */}
+      {(import.meta.env.DEV || auth.admin) && !gameActive && countdown === null && (
+        <button
+          className="clear-btn"
+          style={{ margin: '8px auto', display: 'block' }}
+          onClick={() => setGameOpen(true)}
+        >
+          🎮 Game (spike)
+        </button>
+      )}
 
       {/* Premium "Today / Teacher" entry point — sits above the Selector, only
           for Premium users and only at rest. It never replaces the Selector:
