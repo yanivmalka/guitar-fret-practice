@@ -26,6 +26,13 @@ import {
   type SrsMap,
 } from './srs';
 import { noteItemId } from './noteItem';
+import {
+  emptyPathProgress,
+  normalizePathProgress,
+  mergePathProgress,
+  foldCheckpointStars,
+  type PathProgress,
+} from './pathProgress';
 
 export const LEARNING_STORAGE_KEY = 'learningState';
 
@@ -45,6 +52,12 @@ export interface DailyGoal {
 export interface InstrumentLearningState {
   srs: SrsMap;
   daily: DailyGoal;
+  /** Learning Path progress: best star tier reached per checkpoint (P3).
+   *  Added to the same blob rather than a new table — P2 already established
+   *  "one learning-state blob, merged per key" (SRS + daily goal together),
+   *  and Path progress follows that precedent. Absent in a pre-P3 blob ⇒ an
+   *  empty record. */
+  path: PathProgress;
   /** Epoch ms of the last Teacher answer, for merge tie-breaking. */
   lastAnswerAt: number;
   /** ISO timestamp of the last change. */
@@ -73,6 +86,7 @@ export function emptyInstrumentState(now: number): InstrumentLearningState {
   return {
     srs: {},
     daily: freshDaily(now),
+    path: emptyPathProgress(),
     lastAnswerAt: 0,
     updatedAt: new Date(now).toISOString(),
   };
@@ -128,6 +142,7 @@ export function normalizeInstrumentState(
   return {
     srs,
     daily: normalizeDaily(r.daily, now),
+    path: normalizePathProgress(r.path),
     lastAnswerAt:
       typeof r.lastAnswerAt === 'number' && Number.isFinite(r.lastAnswerAt)
         ? r.lastAnswerAt
@@ -240,6 +255,7 @@ export function recordTeacherAnswer(
   return {
     srs: { ...st.srs, [id]: nextItem },
     daily: { ...daily, completed: daily.completed + 1 },
+    path: st.path,
     lastAnswerAt: now,
     updatedAt: new Date(now).toISOString(),
   };
@@ -264,9 +280,27 @@ export function recordPracticeAnswer(
   return {
     srs: { ...st.srs, [id]: nextItem },
     daily: rollDailyGoal(st.daily, now, st.daily.target),
+    path: st.path,
     lastAnswerAt: now,
     updatedAt: new Date(now).toISOString(),
   };
+}
+
+// ── Fold Learning Path checkpoint stars (Premium only) ────────────────
+//
+// Monotonic per checkpoint (see `pathProgress.foldCheckpointStars`). Returns
+// the same state reference when nothing rose, so a caller can skip a save.
+export function recordCheckpointStars(
+  st: InstrumentLearningState,
+  checkpointId: string,
+  stars: 0 | 1 | 2 | 3,
+  now: number,
+): InstrumentLearningState {
+  const nextPath = foldCheckpointStars(
+    st.path, checkpointId, stars, new Date(now).toISOString(),
+  );
+  if (nextPath === st.path) return st;
+  return { ...st, path: nextPath, updatedAt: new Date(now).toISOString() };
 }
 
 // ── Merge (per-instrument, per-item) for sync ─────────────────────────
@@ -294,6 +328,7 @@ export function mergeInstrumentState(
   return {
     srs: mergeSrsMaps(a.srs, b.srs),
     daily: mergeDailyGoal(a.daily, b.daily),
+    path: mergePathProgress(a.path, b.path),
     lastAnswerAt: Math.max(a.lastAnswerAt, b.lastAnswerAt),
     updatedAt: a.updatedAt >= b.updatedAt ? a.updatedAt : b.updatedAt,
   };

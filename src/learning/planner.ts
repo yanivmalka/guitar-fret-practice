@@ -20,7 +20,7 @@
 
 import type { DrillConfig, DrillPosition } from '../drill/DrillConfig';
 import type { AccidentalMode, OrderMode, HistoryEntry } from '../utils/music';
-import { compareNoteItemId, parseNoteItemId } from './noteItem';
+import { compareNoteItemId, parseNoteItemId, noteItemId } from './noteItem';
 import {
   analyzeWeakness,
   leastPractisedPositions,
@@ -30,7 +30,7 @@ import {
 } from './weakness';
 import { dueItems, type SrsMap } from './srs';
 
-export type PlanBucket = 'overdue' | 'weak' | 'consolidation' | 'coverage';
+export type PlanBucket = 'overdue' | 'weak' | 'path' | 'consolidation' | 'coverage';
 
 export interface PlannedItem {
   itemId: string;
@@ -51,6 +51,10 @@ export interface TeacherPlan {
   rationale: {
     overdue: number;
     weak: number;
+    /** Positions pulled in because they belong to the current Learning Path
+     *  checkpoint and are not mastered yet (P3). 0 when no Path position was
+     *  supplied, so a Path-unaware caller's rationale is unchanged. */
+    path: number;
     consolidation: number;
     coverage: number;
     strings: number[];
@@ -74,6 +78,14 @@ export interface PlannerOptions {
   allStrings: number[];
   accidental: AccidentalMode;
   order: OrderMode;
+  /** Positions belonging to the learner's current Learning Path checkpoint
+   *  that are not mastered yet, most useful first (P3, premium-product-plan.md
+   *  §9 P3: "the planner now respects Path position"). The daily plan folds
+   *  these in after overdue + weak and before consolidation / coverage, so the
+   *  session is steered along the Path without displacing what is actually due
+   *  or weak. Omitted / empty ⇒ the planner behaves exactly as it did in P2.
+   *  The "weak spots" plan ignores this entirely. */
+  pathItems?: DrillPosition[];
   /** Distinct positions to aim for. Default 8. */
   sessionSize?: number;
   /** Questions the drill asks. Default 12 (some positions recur). */
@@ -119,6 +131,7 @@ function build(opts: PlannerOptions, kind: 'daily' | 'weakSpots'): TeacherPlan {
     allStrings,
     accidental,
     order,
+    pathItems = [],
     sessionSize = DEFAULT_SESSION_SIZE,
     questionCount = DEFAULT_QUESTION_COUNT,
     weaknessCfg = DEFAULT_WEAKNESS_CONFIG,
@@ -154,6 +167,18 @@ function build(opts: PlannerOptions, kind: 'daily' | 'weakSpots'): TeacherPlan {
   for (const sig of signals) {
     if (sig.overdue) continue; // already handled above
     add(sig.itemId, 'weak', sig.reasons);
+  }
+
+  // 3 — Learning Path: unmastered positions from the current checkpoint. Daily
+  // plan only (the "weak spots" plan is overdue + weak by definition). Folded
+  // in priority order after the standing plan and genuine weaknesses, so the
+  // session is nudged along the Path without crowding out what is due.
+  let path = 0;
+  if (kind === 'daily') {
+    for (const pos of pathItems) {
+      if (picked.length >= sessionSize) break;
+      if (add(noteItemId(pos.string, pos.fret), 'path', [])) path++;
+    }
   }
 
   const overdue = picked.filter((p) => p.bucket === 'overdue').length;
@@ -237,6 +262,7 @@ function build(opts: PlannerOptions, kind: 'daily' | 'weakSpots'): TeacherPlan {
     rationale: {
       overdue,
       weak,
+      path,
       consolidation,
       coverage,
       strings,

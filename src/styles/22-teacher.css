@@ -122,6 +122,21 @@
   text-decoration: underline;
 }
 
+/* P3: link from the Today card to the full Learning Path screen. */
+.teacher-path-link {
+  align-self: flex-start;
+  padding: 2px 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .teacher-why-list {
   list-style: none;
   margin: 0;

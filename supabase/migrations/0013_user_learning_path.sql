@@ -1,0 +1,40 @@
+-- Learning Path progress (premium-product-plan.md P3).
+--
+-- NO DDL. The Path's per-checkpoint star record is stored inside the SAME
+-- per-user JSONB blob that 0012_user_learning_state.sql already created
+-- (public.user_learning_state.data), not in a new table.
+--
+-- Why extend the blob instead of adding a table: P2 already established the
+-- pattern of "one learning-state blob, merged per key" — the SRS schedule and
+-- the daily goal live together in that one row, merged item-by-item on every
+-- reconcile rather than last-writer-wins. Path progress follows the same
+-- precedent. §12 of the plan asks that new Premium state be "syncable from
+-- day one"; reusing this row and its existing reconcile
+-- (pull -> merge -> write-back -> upsert in src/learning/learningSync.ts)
+-- achieves that with no new table, RLS policy, or bootstrap path.
+--
+-- Extended shape (see src/learning/learningState.ts / pathProgress.ts):
+--
+--   { "version": 1,
+--     "instruments": {
+--       "guitar": {
+--         "srs":   { ... },                       -- 0012, unchanged
+--         "daily": { ... },                       -- 0012, unchanged
+--         "path":  {                              -- 0013, NEW (optional)
+--           "bestStars": { "open-naturals": 3, "first-five-naturals": 1 },
+--           "updatedAt": "<iso>"
+--         },
+--         "lastAnswerAt": 0,
+--         "updatedAt": "<iso>"
+--       }
+--     } }
+--
+-- `path` is optional: a blob written before P3 has no `path` key and
+-- `normalizePathProgress` reads it back as an empty record. On sync the two
+-- devices' `path.bestStars` maps are unioned keeping the HIGHER star tier per
+-- checkpoint (mergePathProgress), so a checkpoint cleared on one device is
+-- never lost because the other device wrote the blob more recently — the same
+-- non-last-writer guarantee the SRS map already has.
+--
+-- Nothing to run. This file documents the blob change so the migration
+-- sequence stays a complete record of the schema's shape over time.

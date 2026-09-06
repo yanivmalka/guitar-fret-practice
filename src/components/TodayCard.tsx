@@ -31,6 +31,8 @@ interface Props {
   /** Disable the actions while a session is starting / running. */
   busy?: boolean;
   onStart: (plan: TeacherPlan) => void;
+  /** Open the full Learning Path screen (P3). Omitted ⇒ the link is hidden. */
+  onOpenPath?: () => void;
 }
 
 function reasonLabel(t: (s: string) => string, r: WeaknessReason): string {
@@ -65,6 +67,7 @@ export default function TodayCard({
   instrument,
   busy,
   onStart,
+  onOpenPath,
 }: Props) {
   const { t, lang } = useTranslation();
   const [showWhy, setShowWhy] = useState(false);
@@ -165,6 +168,20 @@ export default function TodayCard({
       >
         {showWhy ? t('Hide why') : t('Why these?')}
       </button>
+
+      {onOpenPath && (
+        <button
+          type="button"
+          className="teacher-path-link"
+          onClick={() => {
+            playClickSound();
+            haptic.tap();
+            onOpenPath();
+          }}
+        >
+          🧭 {t('View your Learning Path')}
+        </button>
+      )}
 
       {showWhy && (
         <ul className="teacher-why-list">

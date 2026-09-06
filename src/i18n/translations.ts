@@ -673,6 +673,18 @@ const he: Record<string, string> = {
   'reinforcement': 'חיזוק',
   'not practised much': 'לא תורגל הרבה',
   'review': 'חזרה',
+
+  // Premium Learning Path — the Path screen (premium-product-plan.md §9 P3)
+  'Learning Path': 'מסלול הלמידה',
+  'View your Learning Path': 'הצג את מסלול הלמידה שלך',
+  'Follow a guided path from single notes onward': 'עקוב אחר מסלול מודרך, החל מתווים בודדים',
+  'A guided journey through the fretboard. Practise from the Selector whenever you like — your answers still move you along this path.':
+    'מסע מודרך על פני הצוואר. אפשר לתרגל מלוח הבחירה מתי שרוצים — התשובות שלך עדיין מקדמות אותך במסלול הזה.',
+  'Practise toward this checkpoint': 'תרגל לקראת נקודת הציון הזו',
+  'This is your next step.': 'זה הצעד הבא שלך.',
+  'Every checkpoint mastered — keep it sharp.': 'כל נקודות הציון נשלטו — שמור על החדות.',
+  'mastered': 'בשליטה',
+  'Locked': 'נעול',
 };
 
 const dictionaries: Record<Lang, Record<string, string>> = { en: {}, he };

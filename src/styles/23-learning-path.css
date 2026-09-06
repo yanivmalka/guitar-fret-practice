@@ -1,0 +1,164 @@
+/* ── Learning Path screen (P3) ───────────────────────────────────────────
+   A full page, same page-replacing chrome as the settings sub-pages /
+   Stats (.settings-page / .sp2). Borrows the Premium gold accent used by
+   the Today card and ProGate. Theme-token driven — follows dark / night /
+   day with no per-theme block. RTL flips via the `dir` attribute the
+   component sets on `.settings-page-inner`. No motion. */
+
+.lp-page .settings-page-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.lp-intro {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--text-1);
+}
+
+.lp-current-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid #cf9a2c;
+  border-radius: 14px;
+  background: var(--bg-2);
+  box-shadow: 0 0 0 1px rgba(207, 154, 44, 0.12) inset;
+}
+.lp-current-badge {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #cf9a2c, #f5d270);
+  color: #2a1c00;
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.lp-current-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-0);
+}
+.lp-current-line {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-1);
+}
+.lp-start-btn {
+  margin-top: 2px;
+  padding: 10px 14px;
+  border: 1px solid #cf9a2c;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #cf9a2c, #f5d270);
+  color: #2a1c00;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 800;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.lp-start-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lp-cp {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  background: var(--bg-2);
+}
+.lp-cp-current {
+  border-color: #cf9a2c;
+  box-shadow: 0 0 0 1px rgba(207, 154, 44, 0.2) inset;
+}
+.lp-cp-locked {
+  opacity: 0.55;
+}
+.lp-cp-mastered .lp-cp-fill {
+  background: linear-gradient(90deg, #3fae6b, #7ad79b);
+}
+
+.lp-cp-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lp-cp-index {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--bg-3);
+  color: var(--text-2);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+.lp-cp-title {
+  flex: 1;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--text-0);
+}
+.lp-stars {
+  flex: none;
+  color: #f5d270;
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+}
+.lp-cp-lock {
+  flex: none;
+  font-size: 0.8rem;
+}
+.lp-cp-blurb {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--text-2);
+}
+.lp-cp-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-3);
+  overflow: hidden;
+}
+.lp-cp-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #cf9a2c, #f5d270);
+}
+.lp-cp-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.lp-cp-next {
+  margin: 2px 0 0;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #cf9a2c;
+}

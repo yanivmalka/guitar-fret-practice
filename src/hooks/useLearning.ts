@@ -14,8 +14,8 @@
 // For a non-Premium user the hook is inert: it does no work and returns
 // empty/null so a caller can mount it unconditionally.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { HistoryEntry, AccidentalMode, OrderMode } from '../utils/music';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { notes, type HistoryEntry, type AccidentalMode, type OrderMode } from '../utils/music';
 import type { InstrumentConfig } from '../utils/instruments';
 import {
   loadLearningState,
@@ -24,6 +24,7 @@ import {
   withInstrumentState,
   recordTeacherAnswer,
   recordPracticeAnswer as recordPracticeAnswerModel,
+  recordCheckpointStars,
   rollDailyGoal,
   isDailyGoalComplete,
   type LearningState,
@@ -37,6 +38,8 @@ import {
   type TeacherPlan,
   type PlannerOptions,
 } from '../learning/planner';
+import type { DrillPosition } from '../drill/DrillConfig';
+import { evaluatePath, type PathView } from '../learning/pathProgress';
 
 export interface UseLearningResult {
   /** Today's goal, rolled to the current calendar day. */
@@ -48,6 +51,9 @@ export interface UseLearningResult {
   weakSpotsPlan: TeacherPlan | null;
   /** How many distinct positions the SRS schedule is currently tracking. */
   trackedCount: number;
+  /** The Learning Path: every checkpoint's mastered %, star rating, unlock
+   *  state, and which one is current. `null` for a non-Premium user. */
+  pathView: PathView | null;
   /** Feed one answered Teacher question back into the model. Safe to call
    *  from inside the drill's history sink. Stable identity. */
   recordAnswer: (entry: HistoryEntry) => void;
@@ -164,6 +170,62 @@ export function useLearning(opts: UseLearningOptions): UseLearningResult {
     [foldAnswer],
   );
 
+  // ── Learning Path (P3) ───────────────────────────────────────────────
+  // Every checkpoint's mastered %, star rating and unlock state, derived from
+  // the SAME history + SRS the Teacher already reads. Pure; `now` injected.
+  const pathView = useMemo<PathView | null>(() => {
+    if (!isPremium) return null;
+    return evaluatePath({
+      entries,
+      srs: instState.srs,
+      instrument: { stringCount: instrument.stringCount, maxFret: instrument.maxFret },
+      noteTable: notes,
+      progress: instState.path,
+      now,
+    });
+  }, [isPremium, entries, instState.srs, instState.path, instrument.stringCount, instrument.maxFret, now]);
+
+  // Persist a checkpoint's stars the moment its live rating first passes the
+  // stored best (monotonic — see `pathProgress.foldCheckpointStars`). Keeps
+  // "finishing a checkpoint visibly advances them" true across a reload even
+  // if later accuracy dips. Guarded by a signature so it runs only on a real
+  // rise, never in a loop.
+  const lastFoldSigRef = useRef('');
+  useEffect(() => {
+    if (!isPremium || !pathView) return;
+    const risen = pathView.checkpoints.filter(
+      (c) => c.liveStars > (instState.path.bestStars[c.checkpoint.id] ?? 0),
+    );
+    if (risen.length === 0) return;
+    const sig = risen.map((c) => `${c.checkpoint.id}:${c.liveStars}`).join(',');
+    if (sig === lastFoldSigRef.current) return;
+    lastFoldSigRef.current = sig;
+    const ts = Date.now();
+    setState((prev) => {
+      let st = getInstrumentState(prev, instrumentId, ts);
+      for (const c of risen) {
+        st = recordCheckpointStars(st, c.checkpoint.id, c.liveStars, ts);
+      }
+      const next = withInstrumentState(prev, instrumentId, st);
+      saveLearningStateLocal(next);
+      cloudPushLearning();
+      return next;
+    });
+  }, [isPremium, pathView, instState.path, instrumentId]);
+
+  // Positions from the current checkpoint that are not mastered yet — the
+  // planner folds these in after overdue + weak (P3: "the planner now respects
+  // Path position"). Capped so the Path never dominates a session.
+  const pathItems = useMemo<DrillPosition[]>(() => {
+    if (!pathView) return [];
+    const cur = pathView.checkpoints[pathView.currentIndex];
+    if (!cur || !cur.unlocked) return [];
+    return cur.items
+      .filter((it) => !it.mastered)
+      .slice(0, 6)
+      .map((it) => ({ string: it.string, fret: it.fret }));
+  }, [pathView]);
+
   // ── Plans ────────────────────────────────────────────────────────────
   // Rebuilt when history, the SRS map, or the day changes. `now` is read
   // once here; the planner/weakness functions themselves take it explicitly
@@ -177,8 +239,9 @@ export function useLearning(opts: UseLearningOptions): UseLearningResult {
       allStrings: Array.from({ length: instrument.stringCount }, (_, i) => i + 1),
       accidental,
       order,
+      pathItems,
     };
-  }, [isPremium, entries, instState.srs, instrument.maxFret, instrument.stringCount, accidental, order]);
+  }, [isPremium, entries, instState.srs, instrument.maxFret, instrument.stringCount, accidental, order, pathItems]);
 
   const { todayPlan, weakSpotsPlan } = useMemo(() => {
     if (!plannerBase) return { todayPlan: null, weakSpotsPlan: null };
@@ -194,6 +257,7 @@ export function useLearning(opts: UseLearningOptions): UseLearningResult {
     todayPlan,
     weakSpotsPlan,
     trackedCount: Object.keys(instState.srs).length,
+    pathView,
     recordAnswer,
     recordPracticeAnswer,
   };

@@ -13,10 +13,15 @@ export type Feature =
   | 'multiStringFull'      // multi-string drilling on more than FREE_MULTI_STRING_LIMIT strings
   | 'voiceProfile'         // personal voice profile + calibration
   | 'noAds'                // future: suppress Free-tier ads
-  | 'premiumTeacher';      // The adaptive "Teacher" surface: the Today card
+  | 'premiumTeacher'       // The adaptive "Teacher" surface: the Today card
                            // beside the Selector, weak-spot targeting, Leitner
                            // SRS review and the daily practice goal (P2, notes
-                           // only). The Learning Path (P3) is not built yet.
+                           // only).
+  | 'learningPath';        // The Learning Path screen: a visible, ordered
+                           // multi-checkpoint journey shown alongside the
+                           // Selector, with per-checkpoint % mastered and the
+                           // planner steering sessions toward the current
+                           // checkpoint (P3, notes only).
 
 const MIN_TIER: Record<Feature, Tier> = {
   historyBeyond7Days: 'pro',
@@ -27,6 +32,7 @@ const MIN_TIER: Record<Feature, Tier> = {
   voiceProfile:       'pro',
   noAds:              'pro',
   premiumTeacher:     'premium',
+  learningPath:       'premium',
 };
 // `fretRange` gates the precise "from fret N to fret M" window control that
 // lives in Settings → Playing (its "Precise fret range" toggle + two-handle

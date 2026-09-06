@@ -39,6 +39,7 @@ import { useDrillSession } from './hooks/useDrillSession';
 import { deriveDrillConfig } from './drill/DrillConfig';
 import GameFlow from './game/GameFlow';
 import TodayCard from './components/TodayCard';
+import LearningPathScreen from './components/LearningPathScreen';
 import { useLearning } from './hooks/useLearning';
 import type { TeacherPlan } from './learning/planner';
 import {
@@ -800,7 +801,8 @@ export default function App() {
     try {
       const raw = sessionStorage.getItem('gfp_view');
       return raw ? (JSON.parse(raw) as {
-        stats?: boolean; settingsOpen?: boolean; section?: string | null; upgradeFromAccount?: boolean;
+        stats?: boolean; settingsOpen?: boolean; section?: string | null;
+        upgradeFromAccount?: boolean; path?: boolean;
       }) : null;
     } catch {
       return null;
@@ -808,6 +810,10 @@ export default function App() {
   }, []);
   // The unified "Stats & progress" screen (current-setup stats + all-time progress tabs).
   const [showStats, setShowStats] = useState(() => initialView?.stats ?? false);
+  // The Premium Learning Path screen (P3) — a full page shown alongside the
+  // Selector, opened from the Today card. Persisted to `gfp_view` like the
+  // other full-screen views so a reload lands back on it.
+  const [showPath, setShowPath] = useState(() => initialView?.path ?? false);
   const [settingsOpen, setSettingsOpen] = useState(() => initialView?.settingsOpen ?? false);
   // Which settings sub-page is open inside the drawer; null = the list of titles.
   const [drawerSection, setDrawerSection] = useState<string | null>(() => initialView?.section ?? null);
@@ -983,7 +989,7 @@ export default function App() {
   // starts clean even within the same tab session.
   useEffect(() => {
     try {
-      if (!showStats && !settingsOpen && drawerSection === null) {
+      if (!showStats && !settingsOpen && drawerSection === null && !showPath) {
         sessionStorage.removeItem('gfp_view');
       } else {
         sessionStorage.setItem('gfp_view', JSON.stringify({
@@ -991,12 +997,13 @@ export default function App() {
           settingsOpen,
           section: drawerSection,
           upgradeFromAccount: upgradeFromAccountRef.current,
+          path: showPath,
         }));
       }
     } catch {
       /* sessionStorage unavailable (private mode / disabled) — non-fatal */
     }
-  }, [showStats, settingsOpen, drawerSection]);
+  }, [showStats, settingsOpen, drawerSection, showPath]);
 
   // A locked <ProGate> anywhere in the tree opens the `upgrade` drawer section
   // through this handler (see utils/upgradeDrawer.ts). Leave any full-screen
@@ -1035,6 +1042,14 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [micPrompt]);
+
+  // Close the Learning Path screen with Escape, back to the home screen.
+  useEffect(() => {
+    if (!showPath) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowPath(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showPath]);
 
   // Guests can dismiss the sign-in nudge with Escape ("Maybe later").
   useEffect(() => {
@@ -1873,6 +1888,22 @@ export default function App() {
     );
   }
 
+  // The Premium Learning Path (P3): a full page shown alongside the Selector,
+  // never in place of it. Gated on `learningPath` (premium) — a tier drop
+  // while it is open falls straight through to the home screen. It is not
+  // shown while a round is running.
+  if (showPath && can('learningPath', auth.tier) && !gameActive && countdown === null) {
+    return (
+      <LearningPathScreen
+        pathView={learning.pathView ?? { checkpoints: [], currentIndex: 0 }}
+        todayPlan={learning.todayPlan}
+        busy={gameActive || countdown !== null}
+        onStart={(plan) => { setShowPath(false); setTeacherPlan(plan); }}
+        onClose={() => setShowPath(false)}
+      />
+    );
+  }
+
   // The hamburger stays a side drawer that only lists the section titles.
   // Tapping a title opens that one section as its own full page (same
   // page-replacing treatment as "Stats & progress"), styled to match it.
@@ -1988,6 +2019,9 @@ export default function App() {
           instrument={instrument}
           busy={gameActive || countdown !== null}
           onStart={(plan) => setTeacherPlan(plan)}
+          onOpenPath={can('learningPath', auth.tier)
+            ? () => { setShowStats(false); setSettingsOpen(false); setShowPath(true); }
+            : undefined}
         />
       )}
 
