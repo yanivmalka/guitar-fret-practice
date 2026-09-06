@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { supabase, isSupabaseConfigured, authRedirectTo } from '../utils/supabase';
+import { App as CapacitorApp } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
+import { Capacitor } from '@capacitor/core';
+import {
+  supabase, isSupabaseConfigured, authRedirectTo, NATIVE_AUTH_REDIRECT,
+} from '../utils/supabase';
 import { setSyncUser } from '../utils/sync';
 import { fetchIsAdmin } from '../utils/board';
 import {
@@ -128,6 +133,37 @@ export function useAuth(): AuthState {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  // Native (Capacitor) OAuth callback. `signInWithGoogle` opens Google's
+  // consent screen in an in-app Chrome Custom Tab; when it finishes, Android
+  // routes the `com.guitarfretpractice.app://auth-callback?code=…` deep link
+  // back here via `@capacitor/app`. We exchange the `code` for a session on the
+  // same client that started the flow (its PKCE verifier is in localStorage),
+  // then close the tab. The web build never registers this — it uses the
+  // in-page `detectSessionInUrl` exchange instead.
+  useEffect(() => {
+    if (!supabase || !Capacitor.isNativePlatform()) return;
+    const client = supabase;
+    const consume = async (url: string) => {
+      if (!url.startsWith(NATIVE_AUTH_REDIRECT)) return;
+      try {
+        const params = new URL(url).searchParams;
+        const code = params.get('code');
+        const error = params.get('error_description') ?? params.get('error');
+        if (error) console.error('[auth] OAuth callback error:', error);
+        else if (code) await client.auth.exchangeCodeForSession(code);
+      } catch (e) {
+        console.error('[auth] failed to handle OAuth callback', e);
+      } finally {
+        void Browser.close().catch(() => {});
+      }
+    };
+    // Warm resume from the Custom Tab is the normal path; also cover a cold
+    // start where the deep link was the launch intent.
+    void CapacitorApp.getLaunchUrl().then((r) => { if (r?.url) void consume(r.url); });
+    const handle = CapacitorApp.addListener('appUrlOpen', ({ url }) => { void consume(url); });
+    return () => { void handle.then((h) => h.remove()); };
+  }, []);
+
   // Admin flag: a row in `public.admins` (see utils/board.ts). Re-checked
   // whenever the signed-in user changes. A stale `true` after sign-out is
   // masked below by gating the exposed value on `user`.
@@ -192,6 +228,19 @@ export function useAuth(): AuthState {
 
   const signInWithGoogle = async () => {
     if (!supabase) return;
+    if (Capacitor.isNativePlatform()) {
+      // Don't let supabase-js navigate the WebView to accounts.google.com —
+      // Google blocks OAuth in an embedded WebView and Android would punt it to
+      // the system browser with no way back. Get the URL, open it in an in-app
+      // Chrome Custom Tab, and let the `appUrlOpen` effect above finish the
+      // flow when the deep link returns.
+      const { data } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: authRedirectTo(), skipBrowserRedirect: true },
+      });
+      if (data?.url) await Browser.open({ url: data.url });
+      return;
+    }
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: authRedirectTo() },

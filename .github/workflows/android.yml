@@ -40,6 +40,8 @@ jobs:
       - run: npx cap add android
       # Swap in the immersive full-screen MainActivity (hides both system bars).
       - run: cp android-overrides/MainActivity.java android/app/src/main/java/com/guitarfretpractice/app/MainActivity.java
+      # Swap in the manifest with the OAuth-callback deep-link intent-filter.
+      - run: cp android-overrides/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
       - run: npx cap sync android
 
       - run: chmod +x android/gradlew
