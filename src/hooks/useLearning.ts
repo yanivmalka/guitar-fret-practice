@@ -24,6 +24,7 @@ import {
   withInstrumentState,
   recordTeacherAnswer,
   recordPracticeAnswer as recordPracticeAnswerModel,
+  recordIntervalAnswer as recordIntervalAnswerModel,
   recordCheckpointStars,
   rollDailyGoal,
   isDailyGoalComplete,
@@ -38,8 +39,10 @@ import {
   type TeacherPlan,
   type PlannerOptions,
 } from '../learning/planner';
-import type { DrillPosition } from '../drill/DrillConfig';
+import type { DrillPosition, DrillConfig } from '../drill/DrillConfig';
 import { evaluatePath, type PathView } from '../learning/pathProgress';
+import { buildIntervalDrill } from '../learning/intervalDrill';
+import type { IntervalForm } from '../utils/intervals';
 
 export interface UseLearningResult {
   /** Today's goal, rolled to the current calendar day. */
@@ -61,6 +64,15 @@ export interface UseLearningResult {
    *  no daily-goal tick. Lets the Teacher learn from all note practice, not
    *  just Teacher sessions. No-op for non-Premium users. Stable identity. */
   recordPracticeAnswer: (entry: HistoryEntry) => void;
+  /** Distinct interval qualities the interval SRS schedule is tracking (P4). */
+  intervalTrackedCount: number;
+  /** Fold one interval-drill answer into the interval SRS schedule (P4).
+   *  `itemId` is the `intervalItemId(...)` the engine tagged the row with.
+   *  No-op for non-Premium users. Stable identity. */
+  recordIntervalAnswer: (itemId: string, correct: boolean) => void;
+  /** Build the DrillConfig for an interval session in the given form, or
+   *  `null` for a non-Premium user (P4). */
+  buildIntervalPlan: (form: IntervalForm) => DrillConfig | null;
 }
 
 export interface UseLearningOptions {
@@ -170,6 +182,46 @@ export function useLearning(opts: UseLearningOptions): UseLearningResult {
     [foldAnswer],
   );
 
+  // ── Interval drill (P4) ──────────────────────────────────────────────
+  // Interval answers fold into their OWN SRS map (`intervalSrs`), never the
+  // note schedule or the daily goal. Same offline-first save + best-effort
+  // cloud push as every other learning write.
+  const recordIntervalAnswer = useCallback(
+    (itemId: string, correct: boolean) => {
+      if (!isPremium || !itemId) return;
+      const ts = Date.now();
+      setNow(ts);
+      setState((prev) => {
+        const st = getInstrumentState(prev, instrumentId, ts);
+        const next = withInstrumentState(
+          prev,
+          instrumentId,
+          recordIntervalAnswerModel(st, itemId, correct, ts),
+        );
+        saveLearningStateLocal(next);
+        cloudPushLearning();
+        return next;
+      });
+    },
+    [isPremium, instrumentId],
+  );
+
+  const buildIntervalPlan = useCallback(
+    (form: IntervalForm): DrillConfig | null => {
+      if (!isPremium) return null;
+      return buildIntervalDrill({
+        intervalSrs: instState.intervalSrs ?? {},
+        now: Date.now(),
+        maxFret: instrument.maxFret,
+        allStrings: Array.from({ length: instrument.stringCount }, (_, i) => i + 1),
+        accidental,
+        order,
+        form,
+      });
+    },
+    [isPremium, instState.intervalSrs, instrument.maxFret, instrument.stringCount, accidental, order],
+  );
+
   // ── Learning Path (P3) ───────────────────────────────────────────────
   // Every checkpoint's mastered %, star rating and unlock state, derived from
   // the SAME history + SRS the Teacher already reads. Pure; `now` injected.
@@ -260,5 +312,8 @@ export function useLearning(opts: UseLearningOptions): UseLearningResult {
     pathView,
     recordAnswer,
     recordPracticeAnswer,
+    intervalTrackedCount: Object.keys(instState.intervalSrs ?? {}).length,
+    recordIntervalAnswer,
+    buildIntervalPlan,
   };
 }

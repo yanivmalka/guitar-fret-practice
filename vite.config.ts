@@ -112,8 +112,17 @@ export default defineConfig({
         // SpeechRecognition working from a home-screen link.
         display: 'minimal-ui',
         orientation: 'portrait',
+        // Raster icons generated from assets/note-mark.png by
+        // `npm run gen:icons` (scripts/gen-app-icons.mts) and committed to
+        // public/. The SVG stays as a scalable fallback / favicon.
+        // Paths are RELATIVE (no leading slash) so the browser resolves them
+        // against the manifest URL — i.e. under the Pages base path. A leading
+        // slash would resolve to the domain root and 404 on GitHub Pages.
         icons: [
-          { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
     }),

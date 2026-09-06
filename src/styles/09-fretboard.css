@@ -36,6 +36,15 @@
 .fret-found { background: #0a0 !important; border-color: #0f0 !important; color: #fff !important; box-shadow: 0 0 8px 2px rgba(0, 255, 0, 0.4); }
 .fret-wrong { background: #a00 !important; border-color: #f00 !important; color: #fff !important; }
 .fret-reveal { background: #0a0 !important; border-color: #0f0 !important; color: #fff !important; box-shadow: 0 0 8px 2px rgba(0, 255, 0, 0.4); }
+/* Interval drill (P4): the reference fret the question is asked relative to. */
+.fret-reference {
+  background: var(--accent, #4af) !important;
+  border-color: var(--accent, #4af) !important;
+  color: #fff !important;
+  opacity: 1 !important;
+  cursor: default;
+  box-shadow: 0 0 8px 2px rgba(74, 170, 255, 0.5);
+}
 
 /* Mastery "equalizer" overlay: how well-known this fret/note is, all-time. */
 .mastery-bar {

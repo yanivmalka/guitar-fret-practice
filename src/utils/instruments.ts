@@ -7,7 +7,10 @@ import { GUITAR_NOTES, GUITAR_DOT_FRETS } from './music';
 
 export type InstrumentId = 'guitar' | 'bass';
 
-const CHROMATIC = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+// The 12 pitch classes, sharp-spelled — the spelling every `notes` row uses.
+// Exported so the interval layer (`src/utils/intervals.ts`) can do pitch-class
+// math against the same table the drill renders from.
+export const CHROMATIC = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 
 // Build one [fret] -> note-name row from an open-string note name.
 function buildRow(openNote: string, maxFret: number): string[] {

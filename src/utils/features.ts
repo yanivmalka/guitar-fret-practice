@@ -17,11 +17,15 @@ export type Feature =
                            // beside the Selector, weak-spot targeting, Leitner
                            // SRS review and the daily practice goal (P2, notes
                            // only).
-  | 'learningPath';        // The Learning Path screen: a visible, ordered
+  | 'learningPath'         // The Learning Path screen: a visible, ordered
                            // multi-checkpoint journey shown alongside the
                            // Selector, with per-checkpoint % mastered and the
                            // planner steering sessions toward the current
                            // checkpoint (P3, notes only).
+  | 'intervalDrill';       // The interval training drill and its entry card
+                           // (P4, first slice): "what is a 5th above G" /
+                           // "tap a M6 above this fret", with its own interval
+                           // SRS schedule. The second learning domain.
 
 const MIN_TIER: Record<Feature, Tier> = {
   historyBeyond7Days: 'pro',
@@ -33,6 +37,7 @@ const MIN_TIER: Record<Feature, Tier> = {
   noAds:              'pro',
   premiumTeacher:     'premium',
   learningPath:       'premium',
+  intervalDrill:      'premium',
 };
 // `fretRange` gates the precise "from fret N to fret M" window control that
 // lives in Settings → Playing (its "Precise fret range" toggle + two-handle

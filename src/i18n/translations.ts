@@ -686,6 +686,27 @@ const he: Record<string, string> = {
   'Every checkpoint mastered — keep it sharp.': 'כל נקודות הציון נשלטו — שמור על החדות.',
   'mastered': 'בשליטה',
   'Locked': 'נעול',
+
+  // Premium interval training — the P4 interval drill (premium-product-plan.md §9 P4)
+  'Interval training': 'תרגול אינטרוולים',
+  'Hear and find the distance between two notes.': 'להקשיב ולמצוא את המרחק בין שני תווים.',
+  'intervals tracked': 'אינטרוולים במעקב',
+  'Answer form': 'צורת תשובה',
+  'Find it on the neck': 'למצוא על הצוואר',
+  'Name the note': 'לזהות את התו',
+  'Start interval practice': 'התחל תרגול אינטרוולים',
+  'above': 'מעל',
+  'Minor 2nd': 'סקונדה קטנה',
+  'Major 2nd': 'סקונדה גדולה',
+  'Minor 3rd': 'טרצה קטנה',
+  'Major 3rd': 'טרצה גדולה',
+  'Perfect 4th': 'קוורטה מושלמת',
+  'Tritone': 'טריטון',
+  'Perfect 5th': 'קווינטה מושלמת',
+  'Minor 6th': 'סקסטה קטנה',
+  'Major 6th': 'סקסטה גדולה',
+  'Minor 7th': 'ספטימה קטנה',
+  'Major 7th': 'ספטימה גדולה',
 };
 
 const dictionaries: Record<Lang, Record<string, string>> = { en: {}, he };

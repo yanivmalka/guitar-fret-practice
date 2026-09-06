@@ -60,8 +60,14 @@ jobs:
 
       # android/ is gitignored and generated, so recreate it in the runner.
       - run: npx cap add android
+      # Generate launcher icons (adaptive + legacy, all densities) and the
+      # native splash drawables into the fresh android/ project from the
+      # committed source art in assets/ (produced by `npm run gen:icons`).
+      - run: npx capacitor-assets generate --android
       # Swap in the immersive full-screen MainActivity (hides both system bars).
       - run: cp android-overrides/MainActivity.java android/app/src/main/java/com/guitarfretpractice/app/MainActivity.java
+      # Swap in the manifest with the OAuth-callback deep-link intent-filter.
+      - run: cp android-overrides/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
       # Monotonic versionCode so Android always treats a new APK as an update.
       - run: sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/" android/app/build.gradle
       - run: npx cap sync android
