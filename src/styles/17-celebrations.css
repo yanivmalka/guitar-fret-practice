@@ -241,16 +241,33 @@
   position: relative;
   z-index: 3;
   display: block;
-  animation: badge-reveal-fly 1.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+  perspective: 1100px;
+}
+/* Two faces stacked in the same grid cell; the fly-in spins this wrapper on
+   its vertical axis (right-to-left) so a badge with a distinct back figurine
+   flashes its reverse mid-drop. */
+.badge-reveal-flip {
+  display: grid;
+  transform-style: preserve-3d;
+  animation: badge-reveal-fly 1.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.badge-reveal-flip .badge-face {
+  grid-area: 1 / 1;
+  backface-visibility: hidden;
+}
+.badge-reveal-flip .badge-face--back { transform: rotateY(180deg); }
+.badge-reveal-flip .badge-face > img {
+  display: block;
   filter: drop-shadow(0 12px 26px rgba(0, 0, 0, 0.5));
 }
 @keyframes badge-reveal-fly {
-  0%   { opacity: 0; transform: translateY(-58vh) scale(0.12) rotate(-1080deg); }
-  45%  { opacity: 1; }
-  70%  { transform: translateY(0) scale(1.3) rotate(0deg); }
-  82%  { transform: translateY(0) scale(1.12) rotate(0deg); }
-  92%  { transform: translateY(0) scale(1.3) rotate(0deg); }
-  100% { transform: translateY(0) scale(1.22) rotate(0deg); }
+  0%   { opacity: 0; transform: translateY(-58vh) scale(0.12) rotateY(-1080deg); }
+  42%  { opacity: 1; }
+  66%  { transform: translateY(0) scale(1.32) rotateY(0deg); }
+  74%  { transform: translateY(3%) scale(1.14, 0.9) rotateY(0deg); }
+  84%  { transform: translateY(0) scale(1.1) rotateY(0deg); }
+  92%  { transform: translateY(0) scale(1.3) rotateY(0deg); }
+  100% { transform: translateY(0) scale(1.22) rotateY(0deg); }
 }
 
 .badge-reveal-rays {
@@ -359,7 +376,7 @@
 }
 
 /* A tap while the medal is still flying in rushes that arrival to 2× speed. */
-.badge-reveal.rushing .badge-reveal-medal { animation-duration: 0.6s; }
+.badge-reveal.rushing .badge-reveal-flip { animation-duration: 0.6s; }
 .badge-reveal.rushing .badge-reveal-rays { animation-delay: 0s, 0.28s; }
 .badge-reveal.rushing .badge-reveal-wave { animation-delay: 0.36s; }
 .badge-reveal.rushing .badge-reveal-spark { animation-delay: 0.37s; }
@@ -371,6 +388,7 @@
   .badge-toast-card::after,
   .badge-reveal,
   .badge-reveal-medal,
+  .badge-reveal-flip,
   .badge-reveal-rays,
   .badge-reveal-wave,
   .badge-reveal-spark,
@@ -381,7 +399,8 @@
   }
   .badge-toast { transform: translateX(-50%) !important; }
   .badge-toast-medal,
-  .badge-reveal-medal { transform: none !important; }
+  .badge-reveal-medal,
+  .badge-reveal-flip { transform: none !important; }
   .badge-reveal-rays { opacity: 0.5 !important; transform: translate(-50%, -50%) !important; }
   .badge-reveal-spark,
   .badge-reveal-wave { opacity: 0 !important; }
