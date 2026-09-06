@@ -1,0 +1,148 @@
+/* ── Premium Teacher: the Today card beside the Selector ──────────────────
+   Notes-only P2 (premium-product-plan.md §6). Borrows the app's card
+   surface vocabulary (--bg-2 / --surface-border) and the gold "premium
+   lane" accent used by ProGate / UpgradeCard, so it reads as the Premium
+   surface rather than another cyan control. Theme-token driven, so it
+   follows dark / night / day with no per-theme block. RTL flips via the
+   `dir` attribute the component sets. No motion. */
+
+.teacher-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 10px auto 14px;
+  max-width: 420px;
+  padding: 14px 16px;
+  border: 1px solid #cf9a2c;
+  border-radius: 14px;
+  background: var(--bg-2);
+  box-shadow: 0 0 0 1px rgba(207, 154, 44, 0.12) inset;
+}
+
+.teacher-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.teacher-card-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #cf9a2c, #f5d270);
+  color: #2a1c00;
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.teacher-card-title {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--text-0);
+}
+
+.teacher-card-summary {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-1);
+}
+
+.teacher-goal {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.teacher-goal-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-3);
+  overflow: hidden;
+}
+.teacher-goal-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #cf9a2c, #f5d270);
+}
+.teacher-goal-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-2);
+}
+
+.teacher-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.teacher-btn {
+  padding: 10px 14px;
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  background: var(--bg-3);
+  color: var(--text-0);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 800;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.teacher-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.teacher-btn-primary {
+  border-color: #cf9a2c;
+  background: linear-gradient(90deg, #cf9a2c, #f5d270);
+  color: #2a1c00;
+}
+
+.teacher-hint,
+.teacher-why-toggle {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--text-2);
+}
+.teacher-why-toggle {
+  align-self: flex-start;
+  padding: 2px 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.teacher-why-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.teacher-why-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 0.78rem;
+  color: var(--text-1);
+}
+.teacher-why-pos { font-weight: 700; }
+.teacher-why-note { color: var(--accent); }
+.teacher-why-reason {
+  flex: none;
+  color: var(--text-2);
+  font-size: 0.72rem;
+  text-align: end;
+}

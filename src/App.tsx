@@ -32,11 +32,17 @@ import { useAuth } from './hooks/useAuth';
 import { bootstrapUser, reconcileUser, syncedUser, clearSyncedUser, cloudCaptureOrphans, restoreOnly } from './utils/sync';
 import { bootstrapSettings, syncedSettingsUser, clearSyncedSettingsUser, cloudPushSettings } from './utils/settingsSync';
 import { bootstrapBadges, syncedBadgesUser, clearSyncedBadgesUser, cloudPushBadges } from './utils/badgeSync';
-import { useSelector, nextDifficulty, prevDifficulty, type Difficulty } from './hooks/useSelector';
+import { useSelector, nextDifficulty, prevDifficulty, type Difficulty, type DerivedSettings } from './hooks/useSelector';
 import { suggestAdjustment } from './utils/progress';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useDrillSession } from './hooks/useDrillSession';
 import { deriveDrillConfig } from './drill/DrillConfig';
+import TodayCard from './components/TodayCard';
+import { useLearning } from './hooks/useLearning';
+import type { TeacherPlan } from './learning/planner';
+import {
+  bootstrapLearning, syncedLearningUser, clearSyncedLearningUser, cloudPushLearning,
+} from './learning/learningSync';
 import { useHistory } from './hooks/useHistory';
 import { useScoring } from './hooks/useScoring';
 import { useVoiceAnswer } from './hooks/useVoiceAnswer';
@@ -50,6 +56,7 @@ import { BadgeGrid } from './components/BadgeGrid';
 import { PinnedBadges } from './components/PinnedBadges';
 import { UpgradeCard } from './components/UpgradeCard';
 import { ProGate } from './components/ProGate';
+import { can } from './utils/features';
 import { setOwnEntitlement } from './utils/entitlement';
 import { GuestMergePrompt } from './components/GuestMergePrompt';
 import { registerUpgradeHandler } from './utils/upgradeDrawer';
@@ -106,6 +113,36 @@ export default function App() {
 
   const selector = useSelector(instrument, auth.isPro);
   const { derivedSettings } = selector;
+
+  // ── Premium Teacher (P2) ──────────────────────────────────────────────
+  // A planned session, set by the Today card. While it is non-null the drill
+  // runs on the plan's DrillConfig (fret window / mode / strings / count /
+  // timer) instead of the Selector's; the Selector itself and `historyKey()`
+  // are untouched, so a Teacher session records as ordinary note practice and
+  // keeps feeding history / mastery / stats. Cleared when the session ends.
+  const [teacherPlan, setTeacherPlan] = useState<TeacherPlan | null>(null);
+  const teacherPlanRef = useRef<TeacherPlan | null>(null);
+  teacherPlanRef.current = teacherPlan;
+  const teacherRecordRef = useRef<((e: HistoryEntry) => void) | null>(null);
+
+  // The settings the drill / board actually run on: the Selector's, unless a
+  // Teacher plan is active.
+  const eff = useMemo<DerivedSettings>(() => {
+    if (!teacherPlan) return derivedSettings;
+    const d = teacherPlan.drill;
+    return {
+      ...derivedSettings,
+      guitarString: d.primaryString,
+      multiStrings: d.isMulti ? d.strings : [],
+      fretFrom: d.fretFrom,
+      fretTo: d.fretTo,
+      byNote: d.mode === 'byNote',
+      dotsOnly: false,
+      wholeToneOnly: false,
+      time: d.timeLimit,
+      maxQuestions: d.questionCount,
+    };
+  }, [teacherPlan, derivedSettings]);
 
   const [guitarString, setGuitarString] = useState(derivedSettings.guitarString);
   // `guitarString` is state synced from derivedSettings via an effect, so for
@@ -208,7 +245,12 @@ export default function App() {
   const histKey = selector.historyKey();
   const { addEntry: addEntryRaw, markPlayed: markPlayedRaw } = historyOps;
   const addEntryWithKey = useCallback(
-    (entry: HistoryEntry) => addEntryRaw(histKey, entry),
+    (entry: HistoryEntry) => {
+      addEntryRaw(histKey, entry);
+      // A Teacher session's answers also flow into the Premium learning model
+      // (SRS schedule + daily goal). Ordinary Selector play never does.
+      if (teacherPlanRef.current) teacherRecordRef.current?.(entry);
+    },
     [histKey, addEntryRaw],
   );
   const markPlayedForKey = useCallback(
@@ -347,6 +389,24 @@ export default function App() {
     })();
   }, [auth.user]);
 
+  // Premium Teacher learning state (SRS schedule + daily goal): pull / merge /
+  // push the JSONB blob on sign-in / app start, same cadence as badgeSync. The
+  // merge is per-NoteItem (never last-writer), so a review made on another
+  // device is not discarded. A device that already bootstrapped still fires
+  // the cheap write-through to carry up anything answered offline.
+  useEffect(() => {
+    const user = auth.user;
+    if (!user) { clearSyncedLearningUser(); return; }
+    if (syncedLearningUser() === user.id) { cloudPushLearning(); return; }
+    void (async () => {
+      try {
+        await bootstrapLearning(user.id);
+      } catch {
+        /* offline or transient error — retried on next sign-in / app start */
+      }
+    })();
+  }, [auth.user]);
+
   // Same model, for the personal voice profile: pull/merge/push once per
   // sign-in on this device, then switch the app onto the restored profile.
   useEffect(() => {
@@ -411,6 +471,7 @@ export default function App() {
         }
         cloudPushSettings();
         cloudPushBadges();
+        cloudPushLearning();
       })();
     };
     window.addEventListener('online', onOnline);
@@ -418,9 +479,9 @@ export default function App() {
   }, [auth.user, replaceAllHistory, getAllHistory]);
 
   const derived = useDerivedNotes(
-    safeGuitarString, derivedSettings.fretFrom, derivedSettings.fretTo,
-    derivedSettings.wholeToneOnly, derivedSettings.dotsOnly,
-    accidental, order, byString, derivedSettings.multiStrings, instrumentId,
+    safeGuitarString, eff.fretFrom, eff.fretTo,
+    eff.wholeToneOnly, eff.dotsOnly,
+    accidental, order, byString, eff.multiStrings, instrumentId,
   );
   const { cofList, startIndex, activeNotes, questionActiveNotes, fretDots, noteFrets, isMulti } = derived;
   const scoring = useScoring();
@@ -439,6 +500,18 @@ export default function App() {
     () => flattenHistory(historyOps.allHistory),
     [historyOps.allHistory],
   );
+
+  // Premium Teacher: reads the same instrument-scoped history, keeps the SRS
+  // schedule + daily goal, and derives today's recommended session + a
+  // "weak spots" session. Inert (no work, null plans) for non-Premium users.
+  const learning = useLearning({
+    instrument,
+    entries: allHistoryEntries,
+    isPremium: can('premiumTeacher', auth.tier),
+    accidental,
+    order,
+  });
+  teacherRecordRef.current = learning.recordAnswer;
   // The overlay is free for everyone (spec free-pro-tiering §5.2). Free users
   // see it computed from FREE_MASTERY_WINDOW (last 250 questions); Pro users
   // pick the window via the "questions counted" control in Settings.
@@ -475,6 +548,9 @@ export default function App() {
   // Label of the stage being advanced into, captured for the transition banner.
   const autoAdvanceLabelRef = useRef('');
   const handleAutoComplete = useCallback(() => {
+    // Teacher sessions are a fixed one-off plan — never chain into the Auto
+    // Advance curriculum even if the user has it switched on in the Selector.
+    if (teacherPlanRef.current) return;
     if (!selector.state.autoAdvance) return;
     const next = selector.nextStage();
     if (!next) return; // end of the curriculum — let the run finish normally
@@ -492,12 +568,15 @@ export default function App() {
   // engine runs on (Practice → DrillSession ← Game). `accidental`/`order`/the
   // primary string come from App state, exactly as they did when App fed
   // useGameEngine directly.
-  const drillConfig = useMemo(
+  const selectorDrillConfig = useMemo(
     () => deriveDrillConfig(derivedSettings, {
       primaryString: safeGuitarString, accidental, order,
     }),
     [derivedSettings, safeGuitarString, accidental, order],
   );
+  // A Teacher plan supplies its own DrillConfig (with an explicit `candidates`
+  // set); otherwise the drill runs on the Selector-derived one.
+  const drillConfig = teacherPlan ? teacherPlan.drill : selectorDrillConfig;
   const session = useDrillSession(drillConfig, {
     setActiveString: setGuitarString,
     history: {
@@ -539,9 +618,9 @@ export default function App() {
     running,
     paused,
     answered,
-    byNote: derivedSettings.byNote,
+    byNote: eff.byNote,
     questionSeq,
-    hasActiveQuestion: derivedSettings.byNote ? currentNote !== null : currentFret !== null,
+    hasActiveQuestion: eff.byNote ? currentNote !== null : currentFret !== null,
     notation: notation as SpeechNotation,
     engineEpoch: voiceEngineEpoch,
     // A correct spoken answer is fed back to the engine so the "general"
@@ -586,7 +665,7 @@ export default function App() {
   }, [pendingAutoAdvance]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { if (!paused) setGuitarString(derivedSettings.guitarString); }, [derivedSettings.guitarString, paused]);
+  useEffect(() => { if (!paused) setGuitarString(eff.guitarString); }, [eff.guitarString, paused]);
 
   // Subtle in-place transition when the question changes. Animates the single
   // existing .note-display / .fret-display node via the Web Animations API — no
@@ -864,6 +943,7 @@ export default function App() {
     badgesFiredRef.current = false; setNewBadges([]);
     midSweepCountRef.current = 0;
     setToastQueue([]); setRevealBadges([]);
+    setTeacherPlan(null);
   }, [histKey]);
 
   // Mirror the open sub-page in a ref so the Escape handler (bound once per
@@ -956,7 +1036,9 @@ export default function App() {
   const sweepBadges = useCallback((midGame: boolean): CelebratedBadge[] => {
     const sessionSnap: SessionSnapshot = {
       questionsAnswered: scoring.session.questionsAnswered,
-      maxQuestions: selector.runQuestionCount(),
+      maxQuestions: teacherPlanRef.current
+        ? teacherPlanRef.current.drill.questionCount
+        : selector.runQuestionCount(),
       longestStreak: scoring.session.longestStreak,
       entries: historyOps.history,
       instrument,
@@ -1018,6 +1100,10 @@ export default function App() {
   useEffect(() => {
     if (wasRunningRef.current && !running && !paused && scoring.session.questionsAnswered > 0 && !pendingAutoAdvance) {
       setGameEnded(true);
+      // A Teacher session is a one-off: its per-answer feedback already went
+      // into the learning model, so once the run ends drop the plan and the
+      // app returns to the normal Selector view.
+      setTeacherPlan(null);
 
       // Major achievement: a new personal-best score for this exact selector
       // combination — the same per-historyKey `best_<key>` record StatsPanel
@@ -1098,8 +1184,8 @@ export default function App() {
     // base down to the 3s floor across every question the run will ask
     // (all Auto Advance stages, or just this one).
     scoring.beginRun(
-      derivedSettings.time,
-      selector.runQuestionCount(),
+      eff.time,
+      teacherPlan ? eff.maxQuestions : selector.runQuestionCount(),
     );
     setGameEnded(false);
     tier3FiredRef.current = false;
@@ -1122,11 +1208,26 @@ export default function App() {
       } else {
         clearInterval(interval);
         setCountdown(null);
-        engineStart(derivedSettings.maxQuestions, derivedSettings.time, derivedSettings.byNote);
+        engineStart(eff.maxQuestions, eff.time, eff.byNote);
         setTimeout(() => gameRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
       }
     }, 1000);
   };
+
+  // Fresh-closure handle on `start` so the Teacher-launch effect below always
+  // calls the version that has already seen the new `eff` (post-setTeacherPlan
+  // render), not a stale one.
+  const startRef = useRef(start);
+  startRef.current = start;
+  // The Today card just calls `setTeacherPlan(plan)`. Once the plan is set (and
+  // `eff` / `drillConfig` have re-derived from it) kick off the run exactly
+  // like a manual Play — same 3-2-1, same engine, same scoring.
+  useEffect(() => {
+    if (teacherPlan && !running && !paused && countdown === null && !gameEnded) {
+      startRef.current();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teacherPlan]);
 
   // Multiplier display tracks the streak-tier multiplier from useScoring
   // (1×, 1.25×, 1.5×, 2×, 2.5×, 3×, 4× at streaks 0, 3, 5, 7, 10, 15, 20).
@@ -1819,6 +1920,24 @@ export default function App() {
 
       <h1>{instrument.emoji} {t(instrument.label)} {t('Fret Practice')}</h1>
 
+      {/* Premium "Today / Teacher" entry point — sits above the Selector, only
+          for Premium users and only at rest. It never replaces the Selector:
+          a Premium user can ignore it entirely and free-drill below. */}
+      {can('premiumTeacher', auth.tier) && isStopped && !gameEnded && onboardingDone
+        && countdown === null && !pendingAutoAdvance && (
+        <TodayCard
+          todayPlan={learning.todayPlan}
+          weakSpotsPlan={learning.weakSpotsPlan}
+          dailyGoal={learning.dailyGoal}
+          goalComplete={learning.goalComplete}
+          accidental={accidental}
+          notation={notation}
+          instrument={instrument}
+          busy={gameActive || countdown !== null}
+          onStart={(plan) => setTeacherPlan(plan)}
+        />
+      )}
+
       {/* All playing settings live inline on the page; a compact read-only HUD
           replaces the panel during play. */}
       {renderSelectorPanel(gameActive)}
@@ -2005,14 +2124,14 @@ export default function App() {
           {gameActive && (
             <>
               <div className="string-label" key={`str-${safeGuitarString}`}>{t(instrument.stringLabels[safeGuitarString])}</div>
-              {derivedSettings.byNote
+              {eff.byNote
                 ? <div className={`note-display${stageTransition ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>{currentNote ? displayNote(currentNote, accidental, notation) : '—'}</div>
                 : <div className={`fret-display${stageTransition ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>{currentFret !== null ? currentFret : '—'}</div>
               }
               <SpeedBar key={`sb-${questionSeq}`} remaining={remaining} total={questionTime} startAt={questionStart} answered={answered} paused={paused} />
               <div className="game-info-row">
                 <span className="game-timer">{remaining}s</span>
-                <span className="game-progress-text">{questionNumber}/{derivedSettings.maxQuestions}</span>
+                <span className="game-progress-text">{questionNumber}/{eff.maxQuestions}</span>
                 {showScore && multiplierIcon && <span className="multiplier-icon">{multiplierIcon}</span>}
               </div>
               {showScore && (
@@ -2101,7 +2220,7 @@ export default function App() {
                 </button>
                 <button
                   className="icon-btn stop-btn-icon"
-                  onClick={() => { stop(); playClickSound(); haptic.tap(); }}
+                  onClick={() => { stop(); setTeacherPlan(null); playClickSound(); haptic.tap(); }}
                   title={t('Stop')}
                   aria-label={t('Stop')}
                 >
@@ -2114,10 +2233,10 @@ export default function App() {
 
         {/* Keep the grid/circle visible (frozen) while paused; hide only when fully stopped and showing stats/end summary */}
         {(gameActive || (isStopped && !gameEnded)) && (
-          derivedSettings.byNote ? (
+          eff.byNote ? (
             <FretGrid
-              fretFrom={derivedSettings.fretFrom}
-              fretTo={derivedSettings.fretTo}
+              fretFrom={eff.fretFrom}
+              fretTo={eff.fretTo}
               guitarString={safeGuitarString}
               validFrets={new Set(Object.values(noteFrets).flat())}
               active={isPlaying && !answered}
@@ -2141,7 +2260,7 @@ export default function App() {
               noteFrets={noteFrets}
               byString={byString}
               startIndex={startIndex}
-              showDots={!(isMulti && derivedSettings.multiStrings.length > 1) || boardLive}
+              showDots={!(isMulti && eff.multiStrings.length > 1) || boardLive}
               accidental={accidental}
               notation={notation}
               masteryByNote={noteMastery}

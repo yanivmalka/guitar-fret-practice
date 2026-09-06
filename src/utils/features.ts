@@ -13,10 +13,10 @@ export type Feature =
   | 'multiStringFull'      // multi-string drilling on more than FREE_MULTI_STRING_LIMIT strings
   | 'voiceProfile'         // personal voice profile + calibration
   | 'noAds'                // future: suppress Free-tier ads
-  | 'premiumTeacher';      // P2+ PLACEHOLDER — the adaptive "teacher" surface
-                           // (weak-spots / SRS / daily session / Learning Path).
-                           // Nothing renders this gate yet; it exists so the
-                           // premium rank is reachable and testable in P0.
+  | 'premiumTeacher';      // The adaptive "Teacher" surface: the Today card
+                           // beside the Selector, weak-spot targeting, Leitner
+                           // SRS review and the daily practice goal (P2, notes
+                           // only). The Learning Path (P3) is not built yet.
 
 const MIN_TIER: Record<Feature, Tier> = {
   historyBeyond7Days: 'pro',

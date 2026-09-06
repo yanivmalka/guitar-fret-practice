@@ -647,6 +647,32 @@ const he: Record<string, string> = {
   'Drop the difficulty to': 'הורד את דרגת הקושי ל־',
   'Apply': 'החל',
   'Dismiss': 'סגור',
+
+  // Premium Teacher — the Today card (premium-product-plan.md §6 P2)
+  'Teacher': 'מאמן',
+  'Today with your Teacher': 'היום עם המאמן שלך',
+  'Recommended': 'מומלץ',
+  'positions': 'עמדות',
+  "Today's goal is done": 'יעד היום הושלם',
+  'one more round?': 'עוד סבב?',
+  'Daily goal': 'יעד יומי',
+  "Start today's practice": 'התחל את התרגול של היום',
+  'Practise my weak spots': 'תרגל את הנקודות החלשות שלי',
+  'No weak spots yet — keep practising and the Teacher will find them.':
+    'עדיין אין נקודות חלשות — המשך לתרגל והמאמן ימצא אותן.',
+  'Why these?': 'למה אלה?',
+  'Hide why': 'הסתר הסבר',
+  'due for review': 'מיועד לחזרה',
+  'weak spots': 'נקודות חלשות',
+  'to reinforce': 'לחיזוק',
+  'new ground': 'תחום חדש',
+  'a fresh set to get started': 'סט חדש כדי להתחיל',
+  'often missed': 'נענה שגוי לעיתים קרובות',
+  'slow to recall': 'איטי להיזכר',
+  'recent slips': 'טעויות אחרונות',
+  'reinforcement': 'חיזוק',
+  'not practised much': 'לא תורגל הרבה',
+  'review': 'חזרה',
 };
 
 const dictionaries: Record<Lang, Record<string, string>> = { en: {}, he };
