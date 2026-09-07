@@ -440,53 +440,67 @@
 .nav-row:hover .nav-row__chev,
 .nav-row:focus-visible .nav-row__chev { color: var(--text-0); }
 
-/* ── "Learn" group — the learning-type tabs at the top of the drawer ───
-   Same `.nav-row` structure as the settings sections below, set apart by a
-   small heading and a separator. The active tab (the page you are on) keeps
-   an accent edge even at rest. */
-.learn-nav-heading {
-  padding: 4px 4px 0;
-  font-size: 0.72rem;
+/* ── Learn hub — the "Learn" drawer page: a tile per learning domain ──
+   A two-column grid inside a settings sub-page (see <LearnHub>). Tiles reuse
+   the drawer's card vocabulary; the current domain keeps an accent edge,
+   locked (Premium) tiles stay tappable (they open the upgrade page) and
+   "coming soon" tiles are inert. */
+.learn-hub {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.learn-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-height: 92px;
+  padding: 16px 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--surface-border);
+  border-radius: 14px;
+  color: var(--text-1);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.learn-tile:hover,
+.learn-tile:focus-visible {
+  border-color: var(--accent);
+  background: var(--bg-3);
+  color: var(--text-0);
+}
+.learn-tile__emoji {
+  font-size: 1.7rem;
+  line-height: 1;
+}
+.learn-tile__label {
+  font-size: 0.95rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+}
+.learn-tile__state {
+  margin-top: auto;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
   color: var(--text-2);
 }
-.nav-row--active {
+.learn-tile--current {
   border-color: var(--accent);
   color: var(--text-0);
 }
-.nav-row__lock {
-  margin-inline-start: auto;
-  font-size: 1rem;
-  line-height: 1;
-  opacity: 0.85;
-}
-.settings-menu-sep {
-  height: 1px;
-  margin: 8px 2px 2px;
-  background: var(--surface-border);
-}
-/* Learning domains not built yet — inert "coming soon" rows. */
-.nav-row--soon {
-  opacity: 0.55;
+.learn-tile--current .learn-tile__state { color: var(--accent); }
+.learn-tile--soon {
+  opacity: 0.5;
   cursor: default;
 }
-.nav-row--soon:hover {
+.learn-tile--soon:hover {
   border-color: var(--surface-border);
   background: var(--bg-2);
   color: var(--text-1);
-}
-.nav-row__soon-badge {
-  margin-inline-start: auto;
-  flex-shrink: 0;
-  padding: 2px 8px;
-  border: 1px solid var(--surface-border);
-  border-radius: 999px;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--text-2);
 }
 
 /* Account (Google sign-in / sign-out) row at the bottom of the settings panel. */

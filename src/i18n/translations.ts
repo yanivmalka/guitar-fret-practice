@@ -651,6 +651,8 @@ const he: Record<string, string> = {
 
   // Learning-type navigation — the drawer's "Learn" group and its full pages
   'Learn': 'לימוד',
+  'Choose what to practise.': 'בחר מה לתרגל.',
+  'Current': 'נוכחי',
   'Daily practice': 'תרגול יומי',
   'Intervals': 'אינטרוולים',
   'Scales': 'סולמות',

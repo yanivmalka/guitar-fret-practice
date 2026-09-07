@@ -43,6 +43,7 @@ import IntervalPrompt from './components/IntervalPrompt';
 import LearningPathScreen from './components/LearningPathScreen';
 import DailyPracticeScreen from './components/DailyPracticeScreen';
 import IntervalPracticeScreen from './components/IntervalPracticeScreen';
+import LearnHub, { type LearnDomain } from './components/LearnHub';
 import { useLearning } from './hooks/useLearning';
 import { useDrillHistorySink } from './game/useDrillHistorySink';
 import type { HistoryOps } from './hooks/useGameEngine';
@@ -68,7 +69,7 @@ import { BadgeGrid } from './components/BadgeGrid';
 import { PinnedBadges } from './components/PinnedBadges';
 import { UpgradeCard } from './components/UpgradeCard';
 import { ProGate } from './components/ProGate';
-import { can, type Feature } from './utils/features';
+import { can } from './utils/features';
 import { setOwnEntitlement } from './utils/entitlement';
 import { GuestMergePrompt } from './components/GuestMergePrompt';
 import { registerUpgradeHandler } from './utils/upgradeDrawer';
@@ -91,35 +92,12 @@ import { LANGUAGES } from './i18n/translations';
 
 type AnswerMode = 'tap' | 'voice';
 
-// The learning-type tabs listed in the drawer's "Learn" group. 'notes' is the
-// Selector — the home screen and the default on every launch; 'daily' and
-// 'intervals' are Premium full-page tabs (DailyPracticeScreen /
-// IntervalPracticeScreen). Deliberately not persisted, so a fresh launch — or
-// a page reload — always lands back on the Selector.
-type LearnDomain = 'notes' | 'daily' | 'intervals';
-
-const LEARN_TABS: ReadonlyArray<{
-  id: LearnDomain;
-  emoji: string;
-  /** English label / i18n key. */
-  label: string;
-  /** The capability the tab needs, or null when it is free (the Selector). */
-  feature: Feature | null;
-}> = [
-  { id: 'daily', emoji: '📅', label: 'Daily practice', feature: 'premiumTeacher' },
-  { id: 'notes', emoji: '🎵', label: 'Notes', feature: null },
-  { id: 'intervals', emoji: '🎸', label: 'Intervals', feature: 'intervalDrill' },
-];
-
-// Learning domains still to come (premium-product-plan.md §9 P5–P7 + the Game
-// layer). Shown in the "Learn" group as disabled "coming soon" rows so the
-// plan is visible in-app without implying anything works yet.
-const LEARN_SOON: ReadonlyArray<{ emoji: string; label: string }> = [
-  { emoji: '🎼', label: 'Scales' },
-  { emoji: '🎹', label: 'Chords' },
-  { emoji: '📖', label: 'Staff reading' },
-  { emoji: '🎮', label: 'Game' },
-];
+// The learning domains, chosen from the "Learn" drawer page (<LearnHub>).
+// 'notes' is the Selector — the home screen and the default on every launch;
+// 'daily' and 'intervals' are Premium full pages (DailyPracticeScreen /
+// IntervalPracticeScreen). Not persisted, so a fresh launch — or a page
+// reload — always lands back on the Selector. `LearnDomain` is defined by
+// <LearnHub> and re-exported through its import above.
 
 // Merge two lists of freshly-earned badges, keeping one entry per family — the
 // later one wins, so a family that reached Bronze mid-round and Silver at the
@@ -1573,6 +1551,29 @@ export default function App() {
   // used by "Stats & progress" to jump straight to its full screen like a page.
   const settingsSections: Array<{ id: string; title: string; icon?: string; blurb: string; body: ReactNode; onSelect?: () => void }> = [
     {
+      id: 'learn',
+      title: `🎓 ${t('Learn')}`,
+      blurb: t('Choose what to practise.'),
+      body: (
+        <LearnHub
+          activeDomain={activeDomain}
+          canDaily={can('premiumTeacher', auth.tier)}
+          canIntervals={can('intervalDrill', auth.tier)}
+          onPick={(d) => {
+            setActiveDomain(d);
+            setShowStats(false);
+            setShowPath(false);
+            setSettingsOpen(false);
+            setDrawerSection(null);
+          }}
+          onLocked={() => {
+            upgradeFromAccountRef.current = false;
+            setDrawerSection('upgrade');
+          }}
+        />
+      ),
+    },
+    {
       id: 'instrument',
       title: t('Playing'),
       icon: menuIconPlaying,
@@ -2348,53 +2349,6 @@ export default function App() {
                 {/* No title here on purpose: the burger menu is just the list
                     of sections. "Settings" is one of those sections now. */}
               </div>
-
-              {/* "Learn" group: the learning-type tabs. Selecting one swaps the
-                  whole screen (early returns near the top of the render);
-                  'notes' is the Selector / home screen. A tab the user's tier
-                  can't reach shows a 🔒 and opens the upgrade page instead. */}
-              <div className="learn-nav-heading">{t('Learn')}</div>
-              {LEARN_TABS.map(tab => {
-                const locked = tab.feature != null && !can(tab.feature, auth.tier);
-                const active = activeDomain === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    className={`nav-row${active ? ' nav-row--active' : ''}`}
-                    aria-current={active ? 'page' : undefined}
-                    onClick={click(() => {
-                      if (locked) {
-                        upgradeFromAccountRef.current = false;
-                        setDrawerSection('upgrade');
-                        return;
-                      }
-                      setActiveDomain(tab.id);
-                      setShowStats(false);
-                      setShowPath(false);
-                      setSettingsOpen(false);
-                    })}
-                  >
-                    <span className="nav-row__lead" aria-hidden="true">{tab.emoji}</span>
-                    <span className="nav-row__label">{t(tab.label)}</span>
-                    {locked
-                      ? <span className="nav-row__lock" aria-hidden="true">🔒</span>
-                      : <Chevron dir="forward" className="nav-row__chev" />}
-                  </button>
-                );
-              })}
-              {LEARN_SOON.map(s => (
-                <div
-                  key={s.label}
-                  className="nav-row nav-row--soon"
-                  aria-disabled="true"
-                >
-                  <span className="nav-row__lead" aria-hidden="true">{s.emoji}</span>
-                  <span className="nav-row__label">{t(s.label)}</span>
-                  <span className="nav-row__soon-badge">{t('Coming soon')}</span>
-                </div>
-              ))}
-              <div className="settings-menu-sep" role="separator" aria-hidden="true" />
-
               {settingsSections.filter(s => s.id !== 'upgrade' && s.id !== 'badges').map(s => {
                 // `upgrade` (subscription tier) and `badges` are not top-level
                 // rows — each is a tappable tile inside the Account section that
