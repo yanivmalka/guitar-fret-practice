@@ -440,6 +440,55 @@
 .nav-row:hover .nav-row__chev,
 .nav-row:focus-visible .nav-row__chev { color: var(--text-0); }
 
+/* ── "Learn" group — the learning-type tabs at the top of the drawer ───
+   Same `.nav-row` structure as the settings sections below, set apart by a
+   small heading and a separator. The active tab (the page you are on) keeps
+   an accent edge even at rest. */
+.learn-nav-heading {
+  padding: 4px 4px 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.nav-row--active {
+  border-color: var(--accent);
+  color: var(--text-0);
+}
+.nav-row__lock {
+  margin-inline-start: auto;
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.85;
+}
+.settings-menu-sep {
+  height: 1px;
+  margin: 8px 2px 2px;
+  background: var(--surface-border);
+}
+/* Learning domains not built yet — inert "coming soon" rows. */
+.nav-row--soon {
+  opacity: 0.55;
+  cursor: default;
+}
+.nav-row--soon:hover {
+  border-color: var(--surface-border);
+  background: var(--bg-2);
+  color: var(--text-1);
+}
+.nav-row__soon-badge {
+  margin-inline-start: auto;
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border: 1px solid var(--surface-border);
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-2);
+}
+
 /* Account (Google sign-in / sign-out) row at the bottom of the settings panel. */
 .account-row {
   margin-top: 14px;

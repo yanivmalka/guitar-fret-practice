@@ -649,6 +649,18 @@ const he: Record<string, string> = {
   'Apply': 'החל',
   'Dismiss': 'סגור',
 
+  // Learning-type navigation — the drawer's "Learn" group and its full pages
+  'Learn': 'לימוד',
+  'Daily practice': 'תרגול יומי',
+  'Intervals': 'אינטרוולים',
+  'Scales': 'סולמות',
+  'Chords': 'אקורדים',
+  'Staff reading': 'קריאת תווים',
+  'Game': 'משחק',
+  'Your daily plan is loading…': 'התוכנית היומית נטענת…',
+  'Let the Teacher plan your practice': 'תן למאמן לתכנן את התרגול שלך',
+  'Practise hearing and finding intervals': 'תרגול זיהוי ומציאת אינטרוולים',
+
   // Premium Teacher — the Today card (premium-product-plan.md §6 P2)
   'Teacher': 'מאמן',
   'Today with your Teacher': 'היום עם המאמן שלך',
