@@ -243,9 +243,9 @@
   display: block;
   perspective: 1100px;
 }
-/* Two faces stacked in the same grid cell; the fly-in spins this wrapper on
-   its vertical axis (right-to-left) so a badge with a distinct back figurine
-   flashes its reverse mid-drop. */
+/* Two identical faces stacked in the same grid cell; the fly-in spins this
+   wrapper on its vertical axis (right-to-left). Both faces carry the medal so
+   it never vanishes edge-on at 90°. */
 .badge-reveal-flip {
   display: grid;
   transform-style: preserve-3d;
@@ -256,8 +256,7 @@
   backface-visibility: hidden;
 }
 .badge-reveal-flip .badge-face--back { transform: rotateY(180deg); }
-.badge-reveal-flip .badge-face > img {
-  display: block;
+.badge-reveal-flip .badge-face > .badge-medal {
   filter: drop-shadow(0 12px 26px rgba(0, 0, 0, 0.5));
 }
 @keyframes badge-reveal-fly {

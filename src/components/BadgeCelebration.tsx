@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { InstrumentConfig } from '../utils/instruments';
 import { badgeDef, TIER_LABEL, type BadgeDef, type BadgeId, type Tier } from '../utils/badges';
-import { BadgeMedalDefs } from './BadgeMedal';
-import { BadgeImage } from './BadgeImage';
+import { BadgeMedal, BadgeMedalDefs } from './BadgeMedal';
 import { haptic, playBadgeFanfare } from '../utils/feedback';
 import { useTranslation } from '../i18n/useTranslation';
 
@@ -78,7 +77,7 @@ export function BadgeToast({
         onClick={() => setLeaving(true)}
       >
         <span className="badge-toast-medal">
-          <BadgeImage id={badge.id} instrumentId={instrument.id} tier={badge.tier} size={44} />
+          <BadgeMedal id={badge.id} instrumentId={instrument.id} tier={badge.tier} size={44} />
         </span>
         <span className="badge-toast-text">
           <span className="badge-toast-kicker">
@@ -174,17 +173,16 @@ export function BadgeRevealOverlay({
             <span className="badge-reveal-spark" key={i} style={sparkStyle(s)} />
           ))}
         </span>
-        {/* Two faces stacked in 3-D: the fly-in spins this on its vertical
-            axis (right-to-left), so a badge with a distinct back figurine
-            flashes its reverse mid-spin. A badge with no art renders the
-            same medal on both faces — still correct, just symmetric. */}
+        {/* Two identical faces stacked in 3-D so the medal stays visible
+            through the fly-in's vertical-axis (right-to-left) spin instead of
+            vanishing edge-on at 90°. */}
         <span className="badge-reveal-medal">
           <span className="badge-reveal-flip">
             <span className="badge-face badge-face--front">
-              <BadgeImage id={current.id} instrumentId={instrument.id} tier={current.tier} size={160} face="front" />
+              <BadgeMedal id={current.id} instrumentId={instrument.id} tier={current.tier} size={160} />
             </span>
             <span className="badge-face badge-face--back">
-              <BadgeImage id={current.id} instrumentId={instrument.id} tier={current.tier} size={160} face="back" />
+              <BadgeMedal id={current.id} instrumentId={instrument.id} tier={current.tier} size={160} />
             </span>
           </span>
         </span>

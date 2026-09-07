@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
-import { BadgeMedalDefs } from './BadgeMedal';
-import { BadgeImage } from './BadgeImage';
+import { BadgeMedal, BadgeMedalDefs } from './BadgeMedal';
 import { Chevron } from './Chevron';
 import { useTranslation } from '../i18n/useTranslation';
 import { playClickSound, haptic } from '../utils/feedback';
@@ -99,7 +98,7 @@ export function PinnedBadges({
               const e = earnedByKey.get(k)!;
               return (
                 <span className="pinned-badges-slot" key={k}>
-                  <BadgeImage
+                  <BadgeMedal
                     id={e.def.id}
                     instrumentId={e.instrumentId}
                     tier={e.tier}
@@ -183,7 +182,7 @@ function PinnedBadgePicker({
                 title={pinnedBadgeName(e.def, e.instrumentId, t)}
                 onClick={() => onToggle(e.key)}
               >
-                <BadgeImage
+                <BadgeMedal
                   id={e.def.id}
                   instrumentId={e.instrumentId}
                   tier={e.tier}

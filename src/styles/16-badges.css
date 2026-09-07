@@ -212,25 +212,6 @@
   opacity: 0.94;
   transform: scale(0.86);
 }
-
-/* Raster figurine badges (<BadgeImage>) drop into the same frames as the SVG
-   medal. Mirror the medal's shadow, hover lift and locked "cold relief" look
-   so a family with art behaves exactly like one without. */
-.badge-image {
-  display: block;
-  flex: none;
-  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.42)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.26));
-  transition: transform 0.18s ease, filter 0.18s ease;
-}
-.badge-tile.earned .badge-image:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.06);
-}
-.badge-tile.locked .badge-image {
-  filter: grayscale(1) brightness(0.5) sepia(0.32) hue-rotate(178deg) saturate(0.8);
-  opacity: 0.94;
-  transform: scale(0.86);
-}
 .badge-lock {
   position: absolute;
   inset-inline-end: 2px;
@@ -247,7 +228,6 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .badge-medal, .badge-tile.earned .badge-medal:hover,
-  .badge-image, .badge-tile.earned .badge-image:hover,
   .badge-collection-meter-fill { transition: none; transform: none; }
 }
 

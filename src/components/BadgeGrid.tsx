@@ -6,8 +6,7 @@ import {
   resetBadgeFamily, grantNextTier,
   TIERS, TIER_LABEL, type BadgeDef, type LifetimeSnapshot, type Tier,
 } from '../utils/badges';
-import { BadgeMedalDefs, type Metal } from './BadgeMedal';
-import { BadgeImage } from './BadgeImage';
+import { BadgeMedal, BadgeMedalDefs, type Metal } from './BadgeMedal';
 import { Chevron } from './Chevron';
 import type { CelebratedBadge } from './BadgeCelebration';
 import { playClickSound, haptic } from '../utils/feedback';
@@ -199,7 +198,7 @@ function BadgeTile({
   return (
     <div className={`badge-tile tier-${medalTier} ${earned ? 'earned' : 'locked'}${maxedOut ? ' maxed' : ''}`}>
       <span className="badge-medal-frame">
-        <BadgeImage id={def.id} instrumentId={instrument.id} tier={medalTier} size={76} />
+        <BadgeMedal id={def.id} instrumentId={instrument.id} tier={medalTier} size={76} />
         {!earned && (
           <span className="badge-lock" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="12" height="12">
