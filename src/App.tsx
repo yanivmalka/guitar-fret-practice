@@ -18,7 +18,7 @@ import Onboarding from './components/Onboarding';
 import { Chevron } from './components/Chevron';
 import SpeedBar from './components/SpeedBar';
 import AnimatedScore from './components/AnimatedScore';
-import { displayNote, setActiveInstrument } from './utils/music';
+import { displayNoteBothEnharmonics, setActiveInstrument } from './utils/music';
 import type { HistoryEntry, AccidentalMode, OrderMode, NotationMode } from './utils/music';
 import { getInstrument, COMING_SOON_INSTRUMENTS, type InstrumentId } from './utils/instruments';
 import { preloadAllSamples, unlockAudio, setAudioInstrument, setSilent as setAudioSilent } from './utils/audio';
@@ -238,7 +238,13 @@ export default function App() {
   // is only offered where a recogniser is actually available.
   const [answerMode, setAnswerMode] = useState<AnswerMode>(() => loadSetting('pref_answerMode', 'tap'));
   const [order, setOrder] = useState<OrderMode>(() => loadSetting('pref_order', 'fifths'));
-  const [accidental] = useState<AccidentalMode>(() => loadSetting('pref_accidental', 'sharps'));
+  // The engine always picks pitches from the sharp-spelled `notes` table, and
+  // there is no user-facing sharp/flat spelling choice: the question note area
+  // shows BOTH enharmonic names ("C♯ = D♭") via `displayNoteBothEnharmonics`,
+  // and every other single-spelled surface (feedback line, stats, wheel base)
+  // stays on the sharp spelling. Kept as a constant so the many call sites that
+  // still take an `accidental` prop go on compiling unchanged.
+  const accidental: AccidentalMode = 'sharps';
   // Whether the on-screen score, streak multiplier and all score celebrations
   // are shown. Off = "serious learning" mode: no score HUD or effects during
   // play, but every answer is still scored into history and personal-best
@@ -1623,10 +1629,22 @@ export default function App() {
             )}
           </SettingCard>
           {/* Note-name notation used to be its own drawer row; it's really a
-              display preference for the instrument, so it lives here now. */}
+              display preference for the instrument, so it lives here now. The
+              helper line also carries the short Natural / Sharp / Flat primer,
+              worded with the vocabulary that matches the chosen notation
+              (A-B-C → "sharp / flat"; Do-Re-Mi → "dièse / bémol", i.e. Hebrew
+              "דיאז / במול"). No standalone spelling toggle: a question shows
+              both enharmonic names side by side ("C♯ = D♭"). */}
           <SettingCard
             label={t('Notes')}
-            help={t("Display only — the drill itself doesn't change.")}
+            help={
+              <>
+                {t("Display only — the drill itself doesn't change.")}{' '}
+                {notation === 'solfege'
+                  ? t('A natural note has no sign (Do, Re, Mi…). A dièse (♯) is a half-step higher; a bémol (♭) is a half-step lower. The same pitch can be written either way — Do♯ and Re♭ are one note, and a question shows both.')
+                  : t('A natural note has no sign (C, D, E…). A sharp (♯) is a half-step higher; a flat (♭) is a half-step lower. The same pitch can be written either way — C♯ and D♭ are one note, and a question shows both.')}
+              </>
+            }
           >
             <div className="pick-row" role="group" aria-label={t('Notes')}>
               {([['alpha', 'A B C'], ['solfege', 'Do Re Mi']] as const).map(([val, label]) => (
@@ -2494,7 +2512,7 @@ export default function App() {
                     <IntervalPrompt prompt={intervalPrompt} accidental={accidental} notation={notation} />
                   </div>
                 : eff.byNote
-                ? <div className={`note-display${stageTransition ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>{currentNote ? displayNote(currentNote, accidental, notation) : '—'}</div>
+                ? <div className={`note-display${currentNote && displayNoteBothEnharmonics(currentNote, notation).includes('=') ? ' note-display-both' : ''}${stageTransition ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>{currentNote ? displayNoteBothEnharmonics(currentNote, notation) : '—'}</div>
                 : <div className={`fret-display${stageTransition ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>{currentFret !== null ? currentFret : '—'}</div>
               }
               <SpeedBar key={`sb-${questionSeq}`} remaining={remaining} total={questionTime} startAt={questionStart} answered={answered} paused={paused} />

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { saveSetting } from '../utils/settings';
 import type { Difficulty } from '../hooks/useSelector';
 import { useTranslation } from '../i18n/useTranslation';
+import { withAccidentalGlyphs } from '../utils/music';
 
 interface Props {
   onDone: () => void;
@@ -137,7 +138,7 @@ export default function Onboarding({ onDone, onInstrument, onPlacement }: Props)
                 }`}
                 onClick={() => { if (!showFeedback) { handleTestAnswer(n); } }}
               >
-                {n}
+                {withAccidentalGlyphs(n)}
               </button>
             ))}
           </div>
