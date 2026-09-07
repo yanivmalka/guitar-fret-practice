@@ -714,6 +714,13 @@ const he: Record<string, string> = {
   'Name the note': 'לזהות את התו',
   'Start interval practice': 'התחל תרגול אינטרוולים',
   'above': 'מעל',
+  // Intervals Learning — the two MVP exercises + the identify-the-interval
+  // question (intervals-learning-spec §8.1, task T5).
+  'Identify the interval': 'לזהות את האינטרוול',
+  'Find the note': 'למצוא את התו',
+  'Which interval did you hear?': 'איזה אינטרוול שמעת?',
+  'Hear it again': 'להשמיע שוב',
+  'below': 'מתחת ל־',
   'Minor 2nd': 'סקונדה קטנה',
   'Major 2nd': 'סקונדה גדולה',
   'Minor 3rd': 'טרצה קטנה',
@@ -725,6 +732,136 @@ const he: Record<string, string> = {
   'Major 6th': 'סקסטה גדולה',
   'Minor 7th': 'ספטימה קטנה',
   'Major 7th': 'ספטימה גדולה',
+
+  // Intervals Learning — curriculum group names (intervals-learning-spec §6).
+  // Shown only as "currently learning: <name>" — never as a path step.
+  'Perfect 4th & 5th': 'קוורטה וקווינטה מושלמות',
+  'Major & minor 3rds': 'טרצות גדולה וקטנה',
+  'Whole & half steps': 'צעדים שלמים וחצאים',
+  'Major & minor 6ths': 'סקסטות גדולה וקטנה',
+  'Major & minor 7ths': 'ספטימות גדולה וקטנה',
+  'The tritone': 'הטריטון',
+  'All intervals': 'כל האינטרוולים',
+
+  // Intervals Learning — per-quality educational copy (intervals-learning-spec §7).
+  // description / comparison / role for each of the 11 drilled qualities.
+  'One semitone — the smallest step, two adjacent frets; a tense, grinding sound.':
+    'חצי טון — הצעד הקטן ביותר, שני סריגים סמוכים; צליל מתוח ומחוספס.',
+  'One semitone narrower than a major 2nd — clashing and unstable where the major 2nd sounds like a plain step.':
+    'חצי טון צר מסקונדה גדולה — מתנגש ולא יציב, במקום שבו הסקונדה הגדולה נשמעת כצעד רגיל.',
+  'The pull of a leading tone up to the tonic; the clash inside a tone cluster.':
+    'המשיכה של צליל מוביל כלפי הטוניקה; ההתנגשות בתוך אשכול צלילים.',
+  'Two semitones — a whole step; the plain next note of a scale.':
+    'שני חצאי טונים — טון שלם; הצעד הרגיל אל התו הבא בסולם.',
+  'One semitone wider than a minor 2nd and one narrower than a minor 3rd — a plain step, neither harsh nor sweet.':
+    'חצי טון רחב מסקונדה קטנה וחצי טון צר מטרצה קטנה — צעד רגיל, לא צורם ולא מתוק.',
+  'The step between most neighbouring scale degrees.':
+    'הצעד בין רוב דרגות הסולם הסמוכות.',
+  'Three semitones — the minor colour; a small, slightly sad-sounding gap.':
+    'שלושה חצאי טונים — הצבע המינורי; מרווח קטן שנשמע מעט עצוב.',
+  'One semitone narrower than a major 3rd — that single semitone is what makes a chord sound minor instead of major.':
+    'חצי טון צר מטרצה גדולה — חצי הטון הזה הוא מה שגורם לאקורד להישמע מינורי במקום מז׳ורי.',
+  'The third of a minor chord.': 'הטרצה של אקורד מינורי.',
+  'Four semitones — the major colour; a bright, open, happy-sounding gap.':
+    'ארבעה חצאי טונים — הצבע המז׳ורי; מרווח בהיר, פתוח ושמח.',
+  'One semitone wider than a minor 3rd and one narrower than a perfect 4th — bright where the minor 3rd sounds sad.':
+    'חצי טון רחב מטרצה קטנה וחצי טון צר מקוורטה מושלמת — בהיר, במקום שבו הטרצה הקטנה נשמעת עצובה.',
+  'The bright third of a major chord.': 'הטרצה הבהירה של אקורד מז׳ורי.',
+  'Five semitones — a strong, stable, slightly hollow consonance.':
+    'חמישה חצאי טונים — צליל יציב וחזק, מעט חלול.',
+  'One semitone wider than a major 3rd and one narrower than a tritone — settled and resolved where the tritone is tense.':
+    'חצי טון רחב מטרצה גדולה וחצי טון צר מטריטון — מיושב ופתור, במקום שבו הטריטון מתוח.',
+  'The sound of standard guitar tuning; root to fourth of a suspended chord.':
+    'הצליל של כיוון הגיטרה הרגיל; מהיסוד אל הרביעית באקורד סַספֵּנְד.',
+  'Six semitones — exactly half an octave; a tense, restless, unresolved sound.':
+    'שישה חצאי טונים — בדיוק חצי אוקטבה; צליל מתוח, חסר מנוחה ולא פתור.',
+  'One semitone wider than a perfect 4th and one narrower than a perfect 5th — tense and unresolved where both perfects sound stable.':
+    'חצי טון רחב מקוורטה מושלמת וחצי טון צר מקווינטה מושלמת — מתוח ולא פתור, במקום ששתי המושלמות נשמעות יציבות.',
+  'The blue note; the gap inside a dominant 7th chord that wants to resolve.':
+    'התו הכחול; המרווח בתוך אקורד ספטימה דומיננטי שמבקש להיפתר.',
+  'Seven semitones — the most stable interval after the octave; the power-chord sound.':
+    'שבעה חצאי טונים — האינטרוול היציב ביותר אחרי האוקטבה; צליל אקורד הכוח.',
+  'One semitone wider than a tritone — solid and at rest where the tritone is tense.':
+    'חצי טון רחב מטריטון — מוצק ורגוע, במקום שבו הטריטון מתוח.',
+  'Root to fifth of almost every chord; the power-chord shape.':
+    'מהיסוד אל החמישית כמעט בכל אקורד; צורת אקורד הכוח.',
+  'Eight semitones — a wide, wistful interval; a major 3rd turned upside down.':
+    'שמונה חצאי טונים — אינטרוול רחב וגעגועי; טרצה גדולה הפוכה.',
+  'One semitone narrower than a major 6th — darker and more longing than the major 6th.':
+    'חצי טון צר מסקסטה גדולה — כהה ומתגעגע יותר מהסקסטה הגדולה.',
+  'The top of a first-inversion major chord; root to the minor 6th degree.':
+    'הצליל העליון של אקורד מז׳ורי בהיפוך ראשון; מהיסוד אל הדרגה השישית המינורית.',
+  'Nine semitones — a wide, warm, sweet interval; a minor 3rd turned upside down.':
+    'תשעה חצאי טונים — אינטרוול רחב, חם ומתוק; טרצה קטנה הפוכה.',
+  'One semitone wider than a minor 6th and one narrower than a minor 7th — brighter and sweeter than either.':
+    'חצי טון רחב מסקסטה קטנה וחצי טון צר מספטימה קטנה — בהיר ומתוק משתיהן.',
+  'The added note of a 6th chord; root to the sixth degree of a major scale.':
+    'התו המוסף באקורד סקסטה; מהיסוד אל הדרגה השישית בסולם מז׳ורי.',
+  'Ten semitones — a wide, bluesy interval that leans forward and wants to resolve.':
+    'עשרה חצאי טונים — אינטרוול רחב ובלוזי שנוטה קדימה ומבקש להיפתר.',
+  'One semitone narrower than a major 7th and one wider than a major 6th — restless where the major 7th sounds sharp and the major 6th sounds settled.':
+    'חצי טון צר מספטימה גדולה וחצי טון רחב מסקסטה גדולה — חסר מנוחה, במקום שבו הספטימה הגדולה נשמעת חדה והסקסטה הגדולה נשמעת מיושבת.',
+  'The interval that makes a dominant 7th chord want to resolve.':
+    'האינטרוול שגורם לאקורד ספטימה דומיננטי לרצות להיפתר.',
+  'Eleven semitones — one short of the octave; a sharp, shimmering, almost-there sound.':
+    'אחד עשר חצאי טונים — חצי טון לפני האוקטבה; צליל חד, נוצץ וכמעט־שם.',
+  'One semitone wider than a minor 7th and one narrower than the octave — it strains up toward the octave where the minor 7th sits lower and bluesier.':
+    'חצי טון רחב מספטימה קטנה וחצי טון צר מאוקטבה — נמתח כלפי מעלה אל האוקטבה, במקום שבו הספטימה הקטנה יושבת נמוך יותר ובלוזית יותר.',
+  'The bright, jazzy top of a major 7th chord.':
+    'הצליל העליון הבהיר והג׳אזי של אקורד ספטימה גדולה.',
+
+  // Intervals Learning — the flat 11-interval progress board + the "Intervals"
+  // section of Stats & progress (intervals-learning-spec §12, §15.1). Status
+  // words for the board ("mastered" already exists above); headline numbers.
+  'not started': 'טרם התחיל',
+  'learning': 'בלמידה',
+  'currently learning': 'לומד עכשיו',
+  'In the system': 'במערכת',
+  'Started': 'התחילו',
+  'Needs work': 'דורש עבודה',
+  'Accuracy': 'דיוק',
+  'Avg. time': 'זמן ממוצע',
+
+  // Intervals Learning — the guided Interval Today card (intervals-learning-spec
+  // §13 / §16.2, task T9). Mirrors the note Teacher's Today card; most copy is
+  // reused ("Recommended", "Start today's practice", "Why these?", the reason
+  // labels). No Learning-Path string — intervals has no path screen (OD-8).
+  "Today's intervals": 'האינטרוולים של היום',
+  'intervals': 'אינטרוולים',
+  'new': 'חדש',
+  'to tell apart': 'להבחין ביניהם',
+  'Practise my weak intervals': 'תרגל את האינטרוולים החלשים שלי',
+  'No weak intervals yet — keep practising and the Teacher will find them.':
+    'עדיין אין אינטרוולים חלשים — המשך לתרגל והמאמן ימצא אותם.',
+  'broadening': 'הרחבה',
+
+  // Intervals Learning — the Interval Selector controls (intervals-learning-spec
+  // §5, task T6). Segmented-control labels, the material picker, and the two
+  // "?" summary templates. Deliberately no Auto Advance string (§5.5).
+  'Exercise': 'תרגיל',
+  'Interval selection': 'בחירת אינטרוולים',
+  'Difficulty': 'רמת קושי',
+  'Direction': 'כיוון',
+  'One interval': 'אינטרוול אחד',
+  'A group': 'קבוצה',
+  'All learned': 'כל הנלמדים',
+  'All 11': 'כל ה־11',
+  'Focused': 'ממוקד',
+  'Mixed': 'מעורב',
+  'Ascending': 'עולה',
+  'Descending': 'יורד',
+  'Both': 'שניהם',
+  'Practising:': 'מתרגלים:',
+  "You'll hear two notes. Pick the interval between them.":
+    'תשמעו שני תווים. בחרו את האינטרוול שביניהם.',
+  "You'll see a note and an interval. Pick the note that far above it.":
+    'תראו תו ואינטרוול. בחרו את התו שנמצא במרחק הזה מעליו.',
+
+  // Intervals Learning — inline educational content surfaced on a missed
+  // question and in the Selector's "about this interval" disclosure
+  // (intervals-learning-spec §7, task T10).
+  'About this interval': 'על האינטרוול הזה',
+  'semitones': 'חצאי טונים',
 };
 
 const dictionaries: Record<Lang, Record<string, string>> = { en: {}, he };

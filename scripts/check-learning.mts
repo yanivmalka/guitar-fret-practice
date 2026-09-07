@@ -16,6 +16,9 @@
 //   • offline learning state round-trips through localStorage
 //   • sync merges per NoteItem (a review on device B is not discarded)
 //   • the daily goal rolls over at the day boundary
+//   • (T12) spec §22.1.4 — analyzeWeakness / buildDailyPlan only ever emit
+//     note ids, never an interval: id, and planner.ts / weakness.ts name no
+//     interval concept
 //
 // The integration points ("Teacher sessions don't bypass the engine", "history
 // still recorded", "Premium-only gating", "Free/Pro unchanged") are covered by
@@ -23,6 +26,7 @@
 // by manual play in `npm run dev`.
 
 import { register } from 'node:module';
+import { readFileSync } from 'node:fs';
 
 class MemoryStorage {
   private map = new Map<string, string>();
@@ -47,6 +51,7 @@ register(
 
 const { noteItemId, parseNoteItemId, compareNoteItemId } =
   await import('../src/learning/noteItem.ts');
+const { isIntervalItemId } = await import('../src/learning/intervalItem.ts');
 const {
   newSrsItem, reviewSrsItem, isDue, overdueByMs, dueItems, mergeSrsItem, mergeSrsMaps,
   BUCKET_INTERVALS_MS, LAPSE_DELAY_MS,
@@ -348,6 +353,58 @@ function row(
     Object.keys(sM.instruments.guitar.srs).sort().join(',') === '6:3,6:5,6:7');
   check('learning-state merge keeps the higher same-day goal progress',
     sM.instruments.guitar.daily.completed === 5);
+}
+
+// ── §22 separation invariant — the note Teacher never sees an interval id ──
+// Spec §22.1.4: `analyzeWeakness` / `buildDailyPlan` never receive or emit an
+// `interval:` id. The note callers in `useLearning` only ever pass
+// `(string,fret)` history rows and the note `srs` map; every id these
+// functions emit must parse as a note id and never as an interval id.
+{
+  const allStrings = [1, 2, 3, 4, 5, 6];
+  const base = {
+    entries: [
+      ...Array.from({ length: 6 }, (_, i) => row(6, 3, i % 2 === 0, 2, i * 1000)),
+      ...Array.from({ length: 6 }, (_, i) => row(5, 8, true, 6.4, 10_000 + i * 1000)),
+    ],
+    srs: { '2:2': { ...newSrsItem('2:2', T0), dueAt: T0 - 3 * DAY } },
+    now: T0,
+    maxFret: 21,
+    allStrings,
+    accidental: 'sharps' as const,
+    order: 'fifths' as const,
+  };
+
+  const weakIds = analyzeWeakness(base.entries, base.srs, T0).map((s) => s.itemId);
+  check('analyzeWeakness emits only note ids, never an interval: id',
+    weakIds.length > 0 &&
+    weakIds.every((id) => parseNoteItemId(id) !== null && !isIntervalItemId(id)));
+
+  const planIds = buildDailyPlan(base).items.map((p) => p.itemId);
+  check('buildDailyPlan emits only note ids, never an interval: id',
+    planIds.length > 0 &&
+    planIds.every((id) => parseNoteItemId(id) !== null && !isIntervalItemId(id)));
+  check('buildDailyPlan candidates are all note positions (no interval spec)',
+    buildDailyPlan(base).drill.interval === undefined &&
+    buildDailyPlan(base).drill.candidates!.every((c) => typeof c.string === 'number'));
+
+  // Even if a caller mistake leaked an interval id into the srs map, the note
+  // planner must not surface it as a playable note candidate.
+  const poisoned = buildDailyPlan({
+    ...base,
+    srs: { ...base.srs, 'interval:4': { ...newSrsItem('interval:4', T0), dueAt: T0 - DAY } },
+  });
+  check('an interval id accidentally in the note srs map never becomes a note candidate',
+    poisoned.items.every((p) => !isIntervalItemId(p.itemId)) &&
+    poisoned.drill.candidates!.every((c) => Number.isInteger(c.string) && Number.isInteger(c.fret)));
+
+  // Spec §22.1.4 also names `planner.ts` / `weakness.ts` as note-only in source:
+  // neither file mentions the interval domain at all.
+  const noteOnly = ['../src/learning/planner.ts', '../src/learning/weakness.ts'];
+  const leaks = noteOnly.filter((rel) =>
+    /interval/i.test(readFileSync(new URL(rel, import.meta.url), 'utf8')));
+  check('planner.ts / weakness.ts contain no reference to the interval domain',
+    leaks.length === 0, leaks.join(', '));
 }
 
 console.log(failures === 0

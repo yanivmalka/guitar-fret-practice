@@ -1,0 +1,56 @@
+-- Interval Learning: a separate daily goal + a capped answer history
+-- (intervals-learning-spec.md §14 / §15.2 / §17, decisions OD-5 and OD-6).
+--
+-- NO DDL. Both new fields live inside the SAME per-user JSONB blob that
+-- 0012_user_learning_state.sql created (public.user_learning_state.data),
+-- alongside the note SRS schedule + daily goal (0012), the Learning Path
+-- progress (0013) and the interval quality SRS map (0014).
+--
+-- Why extend the blob again instead of adding tables: P2 established "one
+-- learning-state blob, merged per key", and 0013 / 0014 followed it. These are
+-- two more keys on the same per-instrument object, reconciled by the existing
+-- pull -> merge -> write-back -> upsert path in src/learning/learningSync.ts
+-- with no new table, RLS policy or bootstrap code. `learningSync.ts` is
+-- generic over the blob and is NOT changed by this work — only the merge
+-- helpers it already calls (mergeInstrumentState) gain two cases.
+--
+-- Extended shape (see src/learning/learningState.ts):
+--
+--   { "version": 1,
+--     "instruments": {
+--       "guitar": {
+--         "srs":         { ... },                    -- 0012, unchanged
+--         "intervalSrs": { ... },                    -- 0014, unchanged
+--         "daily":       { ... },                    -- 0012, unchanged (note goal)
+--         "intervalDaily": {                          -- 0015, NEW (optional)
+--           "dateISO": "2026-09-07", "target": 10, "completed": 3
+--         },
+--         "path":  { ... },                           -- 0013, unchanged
+--         "intervalHistory": [                        -- 0015, NEW (optional)
+--           { "semitones": 4, "dir": "up", "form": "findNote",
+--             "correct": true, "seconds": 2.4, "createdAt": <ms> },
+--           ...  -- capped at ~200 rows per instrument (INTERVAL_HISTORY_CAP)
+--         ],
+--         "lastAnswerAt": 0,
+--         "updatedAt": "<iso>"
+--       }
+--     } }
+--
+-- Both keys are optional: a blob written before this change has neither, and
+-- `normalizeInstrumentState` reads `intervalDaily` back as a fresh goal
+-- (default target 10, separate from the note goal) and `intervalHistory` as
+-- `[]`. On sync:
+--   • intervalDaily merges via `mergeDailyGoal` (same helper as `daily`) —
+--     same day keeps the higher target / completed, otherwise the later date.
+--   • intervalHistory merges via `mergeIntervalHistory` — concatenate,
+--     dedupe on (createdAt, semitones, form, dir), keep the most recent ~200.
+--     A real union, never last-writer-wins.
+--
+-- Separation is absolute: interval reviews never tick `daily`, note reviews
+-- never tick `intervalDaily`, and `intervalHistory` is never mixed into note
+-- history / stats / mastery / badges / leaderboard. There is deliberately NO
+-- `intervalPath` / checkpoint record — interval progress is derived from
+-- `intervalSrs` + `intervalHistory` on every render.
+--
+-- Nothing to run. This file documents the blob change so the migration
+-- sequence stays a complete record of the schema's shape over time.

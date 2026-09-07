@@ -4,9 +4,13 @@ import type { AccidentalMode, OrderMode, HistoryEntry } from '../utils/music';
 import type { ScoreResult } from './useScoring';
 import { groupCandidateFrets, candidateStringPool } from '../drill/candidates';
 import type { DrillPosition } from '../drill/candidates';
-import { noteNameAtSemitones, type IntervalDrillSpec, type IntervalForm } from '../utils/intervals';
+import {
+  noteNameAtSemitones, intervalBySemitones,
+  buildIntervalOptionSemitones, buildTargetNoteOptions,
+  type IntervalDrillSpec, type IntervalExercise,
+} from '../utils/intervals';
 import { intervalItemId } from '../learning/intervalItem';
-import { playNote, playNoteSingle, stopPlayback, beep, isSoundPlaying, soundRemainingMs, pauseAudioContext, resumeAudioContext } from '../utils/audio';
+import { playNote, playNoteSingle, playNoteSequence, stopPlayback, beep, isSoundPlaying, soundRemainingMs, pauseAudioContext, resumeAudioContext } from '../utils/audio';
 import { haptic, playCorrectChime, correctChimeRemainingMs, showFloatingText } from '../utils/feedback';
 import { vlog, verror } from '../utils/debugLog';
 
@@ -26,22 +30,36 @@ export interface GameSettings {
   // drawn only from these positions and the fret-window / wholeToneOnly /
   // dotsOnly filters no longer decide the pool. Absent → unchanged behaviour.
   candidates?: DrillPosition[];
-  // Optional interval question spec (P4). When present, every question is "an
-  // interval above a reference position" and the on-screen prompt changes;
-  // the answer surface, countdown, scoring, history writes and advance are the
-  // plain by-fret / by-note flow. Absent → unchanged behaviour.
+  // Optional interval question spec. When present, every question runs one of
+  // the two interval exercises (§8.1): the countdown / scoring / history writes
+  // / advance are the plain by-fret flow, but the stimulus (a two-note
+  // sequence, or a note + interval) and the answer surface (a chip row) differ.
+  // Absent → unchanged behaviour.
   interval?: IntervalDrillSpec;
 }
 
-// What the interval branch exposes for the prompt renderer. Null unless an
-// interval question is currently on screen.
+// What the interval branch exposes for the prompt renderer + the chip-row
+// answer surface. Null unless an interval question is currently on screen.
 export interface IntervalPromptState {
+  exercise: IntervalExercise;
+  /** 'up' → second note is higher; 'down' → lower. Resolved per question even
+   *  when the spec says `direction: 'both'`. */
+  dir: 'up' | 'down';
   refString: number;
+  /** Fret of the first (reference) note. */
   refFret: number;
+  /** Fret of the second (target) note — `refFret ± semitones`. */
+  targetFret: number;
   /** Raw sharp-spelled note name at the reference position. */
   rootNote: string;
+  /** Sharp-spelled name of the target note (revealed in feedback for
+   *  *identify*, and the correct answer for *find the target note*). */
+  targetNote: string;
   semitones: number;
-  form: IntervalForm;
+  /** *find the target note*: the note-name answer chips (sharp-spelled). */
+  options: string[];
+  /** *identify the interval*: the interval-size answer chips. */
+  optionSemitones: number[];
 }
 
 export interface GameSetters {
@@ -287,11 +305,12 @@ export function useGameEngine(
     return pick ?? validFrets[0];
   }, []);
 
-  // ── INTERVAL QUESTION (P4) ───────────────────────────────────
-  // Build one "interval above a reference position" question. Returns the
-  // concrete asked fret + target note + the prompt to render, or null to fall
-  // back to a plain pick (only in degenerate windows). The reference sits on
-  // `qString`; the ascending target sits on the same string.
+  // ── INTERVAL QUESTION ────────────────────────────────────────
+  // Build one interval question: pick a first note on `qString` with room for
+  // the second note above or below it (per the question's direction), work out
+  // the target note, and assemble the chip-row options for the active exercise
+  // (§8.1). Returns null only for a degenerate window (the caller then falls
+  // back to a plain note pick, same as before intervals existed).
   const buildIntervalQuestion = useCallback(
     (qString: number, validFrets: number[]): {
       askedFret: number;
@@ -303,37 +322,112 @@ export function useGameEngine(
       if (!spec || validFrets.length === 0) return null;
       const semis = spec.semitones.length > 0 ? spec.semitones : [4];
       const semi = semis[Math.floor(Math.random() * semis.length)];
+      const dir: 'up' | 'down' =
+        spec.direction === 'both'
+          ? (Math.random() < 0.5 ? 'up' : 'down')
+          : spec.direction;
+      const delta = dir === 'up' ? semi : -semi;
       const row = notes[qString - 1];
       if (!row) return null;
       // Prefer a reference that leaves room for the target inside the drilled
       // window; fall back to any position whose target is still a real fret.
-      const roomy = validFrets.filter((f) => f + semi <= fretTo && f + semi < row.length);
-      const anyOk = validFrets.filter((f) => f + semi < row.length);
-      const pool = roomy.length > 0 ? roomy : anyOk;
+      const inRow = (f: number) => f >= 0 && f < row.length;
+      const roomy = validFrets.filter(
+        (f) => inRow(f + delta) && f + delta >= fretFrom && f + delta <= fretTo,
+      );
+      const anyOk = validFrets.filter((f) => inRow(f + delta));
+      let pool = roomy.length > 0 ? roomy : anyOk;
       if (pool.length === 0) return null;
+
+      // §9.1 register spread — draw the reference note from a tighter fret
+      // window on the harder-to-hear tiers (matters for *identify*'s two-note
+      // playback). Skip the narrowing if it would empty the pool.
+      const spread = spec.registerSpread ?? 'wide';
+      if (spread !== 'wide') {
+        const lo = spread === 'narrow' ? Math.max(fretFrom, 3) : Math.max(fretFrom, 2);
+        const hi = spread === 'narrow' ? Math.min(fretTo, 9) : Math.min(fretTo, 11);
+        const inRegister = pool.filter((f) => f >= lo && f <= hi);
+        if (inRegister.length > 0) pool = inRegister;
+      }
+
+      // §9.1 first-note bias — `focused` prefers a natural (no ♯/♭) first note.
+      if (spec.firstNoteBias === 'naturals') {
+        const naturals = pool.filter((f) => !/[#b]/.test(row[f]));
+        if (naturals.length > 0) pool = naturals;
+      }
+
       const refFret = pool[Math.floor(Math.random() * pool.length)];
-      const targetFret = refFret + semi;
+      const targetFret = refFret + delta;
+      const targetNote = noteNameAtSemitones(row[refFret], delta);
+      const optionCount = Math.max(2, spec.optionCount ?? 4);
+      // §9.2 option-set shaping: focused avoids near confusers, full forces the
+      // nearest neighbours in, mixed only completes the current group's
+      // in-pool confuser pairs.
+      const optionRules = {
+        avoidNear: spec.optionPolicy === 'avoidNear',
+        forceNear: spec.optionPolicy === 'allNear',
+        pairs: spec.confuserPairs,
+      };
       return {
         askedFret: targetFret,
-        targetNote: noteNameAtSemitones(row[refFret], semi),
+        targetNote,
         targetFrets: [targetFret],
-        prompt: { refString: qString, refFret, rootNote: row[refFret], semitones: semi, form: spec.form },
+        prompt: {
+          exercise: spec.exercise,
+          dir,
+          refString: qString,
+          refFret,
+          targetFret,
+          rootNote: row[refFret],
+          targetNote,
+          semitones: semi,
+          options:
+            spec.exercise === 'findTargetNote'
+              ? buildTargetNoteOptions(row[refFret], targetNote, semis, dir === 'up' ? 1 : -1, optionCount, optionRules, semi)
+              : [],
+          optionSemitones:
+            spec.exercise === 'identifyInterval'
+              ? buildIntervalOptionSemitones(semi, semis, optionCount, optionRules)
+              : [],
+        },
       };
     },
-    [interval, fretTo],
+    [interval, fretFrom, fretTo],
   );
+
+  // Play the interval question's stimulus: the two-note sequence for *identify
+  // the interval* (low→high or high→low per direction), or the single first
+  // note for *find the target note*. Used on question start and by the
+  // "hear it again" control. No-op outside an interval question.
+  const playIntervalStimulus = useCallback(() => {
+    const p = intervalPromptRef.current;
+    if (!p) return;
+    if (p.exercise === 'identifyInterval') {
+      playNoteSequence(p.refString, [p.refFret, p.targetFret], 900);
+    } else {
+      playNoteSingle(p.refString, p.refFret, questionPlaybackRate());
+    }
+  }, []);
 
   const setIntervalPromptBoth = useCallback((p: IntervalPromptState | null) => {
     intervalPromptRef.current = p;
     setIntervalPrompt(p);
   }, []);
 
-  // Tag a history row with the interval quality it exercised, so the interval
-  // drill's in-memory sink can route it to the interval SRS schedule. A no-op
-  // (returns the row unchanged) outside an interval question.
+  // Tag a history row with the interval quality it exercised (+ the exercise
+  // form and direction, for Stats), so the interval drill's in-memory sink can
+  // route it to the interval SRS schedule. A no-op (returns the row unchanged)
+  // outside an interval question.
   const tagInterval = useCallback((entry: HistoryEntry): HistoryEntry => {
     const p = intervalPromptRef.current;
-    return p ? { ...entry, intervalItemId: intervalItemId(p.semitones) } : entry;
+    return p
+      ? {
+          ...entry,
+          intervalItemId: intervalItemId(p.semitones),
+          intervalForm: p.exercise === 'identifyInterval' ? 'identify' : 'findNote',
+          intervalDir: p.dir,
+        }
+      : entry;
   }, []);
 
   // ── BY NOTE MODE ──────────────────────────────────────────────
@@ -371,32 +465,26 @@ export function useGameEngine(
     const validFrets = candFrets && candFrets.length > 0
       ? candFrets
       : getValidFrets(qString - 1, fretFrom, fretTo, wholeToneOnly, dotsOnly);
-    const iq = interval ? buildIntervalQuestion(qString, validFrets) : null;
-    setIntervalPromptBoth(iq ? iq.prompt : null);
-    const fret = iq ? iq.askedFret : pickSmartFret(validFrets, qString - 1);
-    const note = iq ? iq.targetNote : notes[qString - 1][fret];
+    // By-note is a note-only surface — interval questions always run through
+    // the by-fret flow (chip-row answer), never here.
+    const fret = pickSmartFret(validFrets, qString - 1);
+    const note = notes[qString - 1][fret];
     lastNoteRef.current = note;
     askedFretRef.current = fret;
     currentNoteRef.current = note;
 
-    const allFretsForNote = iq
-      ? iq.targetFrets
-      : validFrets.filter(f => notesMatch(notes[qString - 1][f], note));
+    const allFretsForNote = validFrets.filter(f => notesMatch(notes[qString - 1][f], note));
     setRemainingFrets(allFretsForNote);
     remainingFretsRef.current = allFretsForNote;
     setCurrentNote(note);
     setCurrentFret(null);
-    // For an interval question the "asked fret" is the (hidden) target — don't
-    // surface it; the reference is shown via the prompt / board instead.
-    setAskedFret(iq ? null : fret);
+    setAskedFret(fret);
 
     questionStartRef.current = Date.now();
 
     // BUG FIX 1: use timeRef.current so countdown uses the correct time after switchStage
     questionTimeRef.current = getQuestionTime(baseTimeRef.current);
-    // Interval on-neck: sound the *reference* note (playing the target would
-    // give the answer away). Plain by-note: sound the asked note as before.
-    playNote(qString, iq ? iq.prompt.refFret : fret, questionPlaybackRate());
+    playNote(qString, fret, questionPlaybackRate());
     beginCountdown(questionTimeRef.current, () => {
       if (answeredRef.current || sessionRef.current !== mySession) return;
       answeredRef.current = true;
@@ -409,7 +497,7 @@ export function useGameEngine(
       playNoteSingle(qString, askedFretRef.current, questionPlaybackRate());
       advanceAfterSound(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
     });
-  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, wholeToneOnly, dotsOnly, candidateFretsByString, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, advanceAfterSound, onComplete, getQuestionTime, interval, buildIntervalQuestion, setIntervalPromptBoth, tagInterval]);
+  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, wholeToneOnly, dotsOnly, candidateFretsByString, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, advanceAfterSound, onComplete, getQuestionTime, tagInterval]);
 
   // ── SELECT FRET (by note mode) ────────────────────────────────
   const selectFret = useCallback((selectedFret: number) => {
@@ -525,17 +613,23 @@ export function useGameEngine(
     setIntervalPromptBoth(iq ? iq.prompt : null);
     const fret = iq ? iq.askedFret : pickSmartFret(validFrets, qString - 1);
     lastNoteRef.current = notes[qString - 1][fret];
+    askedFretRef.current = fret;
     setCurrentFret(fret);
     setCurrentNote(null);
-    // Interval by-name: `fret` is the (hidden) target — don't surface it as the
-    // asked fret; the prompt names the reference instead.
+    // Interval question: `fret` is the (hidden) target — don't surface it; the
+    // chip row is the answer surface and the prompt carries the stimulus.
     setAskedFret(iq ? null : fret);
     currentNoteRef.current = null;
     questionStartRef.current = Date.now();
 
     questionTimeRef.current = getQuestionTime(baseTimeRef.current);
-    // Interval by-name: sound the reference note, not the target.
-    playNote(qString, iq ? iq.prompt.refFret : fret, questionPlaybackRate());
+    if (iq) {
+      // *identify the interval*: play the two-note sequence (never a note the
+      // learner has to name). *find the target note*: sound the first note.
+      playIntervalStimulus();
+    } else {
+      playNote(qString, fret, questionPlaybackRate());
+    }
     beginCountdown(questionTimeRef.current, () => {
       if (answeredRef.current || sessionRef.current !== mySession) return;
       answeredRef.current = true;
@@ -543,14 +637,21 @@ export function useGameEngine(
       beep();
       onTimeout();
       const correctNote = notes[qString - 1][fret];
-      const cof = getCofNotes(accidental, order, false);
-      setCorrectCofNote(getCorrectCofNote(correctNote, cof));
       const elapsed = (Date.now() - questionStartRef.current) / 1000;
       addEntry(tagInterval({ note: correctNote, fret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null }));
-      setFeedback(iq ? `⏱ ${displayNote(correctNote, accidental)}` : `⏱ ${displayNote(correctNote, accidental)} (Fret ${fret})`);
+      if (iq && iq.prompt.exercise === 'identifyInterval') {
+        const short = intervalBySemitones(iq.prompt.semitones)?.short ?? `+${iq.prompt.semitones}`;
+        setFeedback(`⏱ ${short}`);
+      } else if (iq) {
+        setFeedback(`⏱ ${displayNote(correctNote, accidental)}`);
+      } else {
+        const cof = getCofNotes(accidental, order, false);
+        setCorrectCofNote(getCorrectCofNote(correctNote, cof));
+        setFeedback(`⏱ ${displayNote(correctNote, accidental)} (Fret ${fret})`);
+      }
       scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) next(); }, 1500);
     });
-  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, accidental, order, wholeToneOnly, dotsOnly, candidateFretsByString, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, onComplete, getQuestionTime, interval, buildIntervalQuestion, setIntervalPromptBoth, tagInterval]);
+  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, accidental, order, wholeToneOnly, dotsOnly, candidateFretsByString, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, onComplete, getQuestionTime, interval, buildIntervalQuestion, setIntervalPromptBoth, playIntervalStimulus, tagInterval]);
 
   const selectAnswer = useCallback((selectedNote: string) => {
     vlog('[voice] selectAnswer', { selectedNote, running: runningRef.current, paused, answered: answeredRef.current, currentFret });
@@ -597,6 +698,54 @@ export function useGameEngine(
     scheduleAdvance(waitForSound, 800);
     return false;
   }, [paused, currentFret, accidental, order, addEntry, next, onWrong, scoreCorrect, scheduleAdvance, advanceAfterSound, tagInterval]);
+
+  // ── SELECT INTERVAL (identify-the-interval answer) ────────────
+  // The chip-row answer for *identify the interval*: the learner picked an
+  // interval size; grade it against the interval that was played. Mirrors
+  // `selectAnswer`'s scoring / history / advance, minus the note-circle state.
+  const selectInterval = useCallback((chosenSemitones: number) => {
+    if (!runningRef.current || paused || answeredRef.current) return undefined;
+    const p = intervalPromptRef.current;
+    if (!p) return undefined;
+    const mySession = sessionRef.current;
+    answeredRef.current = true;
+    setAnswered(true);
+    clearTimers();
+    stopPlayback();
+    const qString = currentQuestionStringRef.current;
+    const isCorrect = chosenSemitones === p.semitones;
+    const elapsed = (Date.now() - questionStartRef.current) / 1000;
+    if (isCorrect) {
+      scoreCorrect(elapsed);
+    } else {
+      onWrong();
+      haptic.wrong();
+    }
+    addEntry(tagInterval({ note: p.targetNote, fret: p.targetFret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: false, correct: isCorrect }));
+    const answerShort = intervalBySemitones(p.semitones)?.short ?? `+${p.semitones}`;
+    setFeedback(isCorrect ? '✓ Correct!' : `✗ ${answerShort}`);
+
+    if (isCorrect) {
+      advanceAfterSound(() => { if (runningRef.current && sessionRef.current === mySession) next(); });
+      return true;
+    }
+    const waitForSound = () => {
+      if (isSoundPlaying()) {
+        scheduleAdvance(waitForSound, 100);
+      } else {
+        scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) next(); }, 400);
+      }
+    };
+    scheduleAdvance(waitForSound, 800);
+    return false;
+  }, [paused, addEntry, next, onWrong, scoreCorrect, scheduleAdvance, advanceAfterSound, tagInterval]);
+
+  // "🔊 hear it again" — replay the current interval question's stimulus with
+  // no scoring effect. No-op outside an interval question.
+  const replayIntervalQuestion = useCallback(() => {
+    if (!runningRef.current || !intervalPromptRef.current) return;
+    playIntervalStimulus();
+  }, [playIntervalStimulus]);
 
   // ── CONTROLS ─────────────────────────────────────────────────
   const start = useCallback((maxQ: number, currentTime: number, isByNote: boolean) => {
@@ -703,5 +852,6 @@ export function useGameEngine(
     questionTime, questionStart, questionSeq, questionNumber, intervalPrompt,
     // actions
     start, stop, pause, resume, selectFret, selectAnswer,
+    selectInterval, replayIntervalQuestion,
   };
 }

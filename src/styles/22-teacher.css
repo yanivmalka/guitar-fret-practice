@@ -181,3 +181,123 @@
 .interval-prompt-name { font-size: 1.6rem; font-weight: 800; }
 .interval-prompt-rel { font-size: 1rem; color: var(--text-2); }
 .interval-prompt-root { color: var(--accent); font-weight: 800; }
+
+/* "🔊 hear it again" — on the identify/find prompt and in the miss feedback. */
+.interval-replay-btn {
+  margin-top: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--surface-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.interval-replay-btn:hover { color: var(--text-1); }
+
+/* Intervals Learning (§7 / T10): the inline educational note shown under the
+   feedback line after a missed interval question. */
+.interval-feedback-note {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  max-width: 30rem;
+  text-align: center;
+  line-height: 1.3;
+}
+.interval-feedback-name { font-size: 0.95rem; }
+.interval-feedback-pair { font-size: 1.05rem; font-weight: 700; color: var(--accent); }
+.interval-feedback-compare { font-size: 0.8rem; color: var(--text-2); }
+
+/* "About this interval" — the collapsible §7 copy in the Interval Selector. */
+.interval-about {
+  margin: 8px 0 2px;
+  font-size: 0.82rem;
+  color: var(--text-2);
+}
+.interval-about > summary {
+  cursor: pointer;
+  color: var(--text-1);
+  font-weight: 600;
+}
+.interval-about-line { margin: 6px 0 0; }
+.interval-about-role { color: var(--text-1); }
+
+/* ── Interval Selector (§5 / T6) — parity pass (T11) ────────────────────
+   Reuses the Teacher card surface + `.teacher-btn` segmented toggles; these
+   rules only add the per-group spacing and the section labels so the panel
+   reads like the Notes `SelectorPanel`. Theme-token driven; RTL flips via the
+   `dir` attribute the component sets. */
+.interval-selector-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* The card already spaces its groups (`.teacher-card` gap); drop the toggle's
+   own vertical margin so the rhythm stays even. */
+.interval-selector-group .interval-form-toggle {
+  margin: 0;
+}
+.interval-selector-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+/* Selection / group rows carry 4+ chips — let them wrap instead of squashing. */
+.interval-form-toggle.interval-selector-wrap {
+  flex-wrap: wrap;
+}
+.interval-form-toggle.interval-selector-wrap .teacher-btn {
+  flex: 1 1 auto;
+  min-width: 72px;
+}
+
+/* ── Interval answer / picker chip row (Exercise A + the "one interval"
+   picker) — T11 moves the layout off the inline style it shipped with. */
+.interval-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin: 8px 0 4px;
+}
+.interval-choice-btn {
+  min-width: 56px;
+  padding: 10px 14px;
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  background: var(--bg-3);
+  color: var(--text-0);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.interval-choice-btn:disabled {
+  cursor: default;
+}
+.interval-choice-btn.is-correct {
+  border-color: var(--success);
+  background: color-mix(in srgb, var(--success) 22%, var(--bg-3));
+  color: var(--text-0);
+}
+.interval-choice-btn.is-wrong {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 22%, var(--bg-3));
+  color: var(--text-0);
+}
+
+/* ── Interval progress in Stats & progress (§12 / §15.1) ───────────────── */
+.ivl-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ivl-board {
+  margin-top: 4px;
+}

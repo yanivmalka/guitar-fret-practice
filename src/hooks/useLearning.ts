@@ -25,6 +25,7 @@ import {
   recordTeacherAnswer,
   recordPracticeAnswer as recordPracticeAnswerModel,
   recordIntervalAnswer as recordIntervalAnswerModel,
+  recordIntervalTeacherAnswer as recordIntervalTeacherAnswerModel,
   recordCheckpointStars,
   rollDailyGoal,
   isDailyGoalComplete,
@@ -42,7 +43,42 @@ import {
 import type { DrillPosition, DrillConfig } from '../drill/DrillConfig';
 import { evaluatePath, type PathView } from '../learning/pathProgress';
 import { buildIntervalDrill } from '../learning/intervalDrill';
-import type { IntervalForm } from '../utils/intervals';
+import {
+  buildIntervalDailyPlan as buildIntervalDailyPlanModel,
+  buildIntervalWeakSpotsPlan as buildIntervalWeakSpotsPlanModel,
+  type IntervalTeacherPlan,
+} from '../learning/intervalPlanner';
+import { parseIntervalItemId } from '../learning/intervalItem';
+import type { IntervalExercise } from '../utils/intervals';
+import {
+  buildIntervalBoard,
+  masteredSizes,
+  INTERVAL_MASTERY_MAX_AGE_DAYS,
+  type IntervalBoardRow,
+} from '../learning/intervalMastery';
+import { INTERVAL_CURRICULUM, currentGroupIndex } from '../learning/intervalCurriculum';
+
+/** Headline interval numbers for the Stats & progress "Intervals" section
+ *  (spec §15.1). All read-only, derived every render from `intervalSrs` +
+ *  `intervalHistory` — no points / XP / streak / badge / star. */
+export interface IntervalStatsSummary {
+  /** Always 11 — the drilled qualities (m2…M7). */
+  inSystem: number;
+  /** Qualities ever answered (an `intervalSrs` schedule row exists). */
+  started: number;
+  /** Started qualities still shaky — low Leitner bucket with a recorded lapse. */
+  needsWork: number;
+  /** Qualities the §11.1 predicate currently marks mastered (out of 11). */
+  mastered: number;
+  /** Correct / answered over the recent interval-history window, or `null`
+   *  when there are no answers in it yet. */
+  accuracy: number | null;
+  /** Mean seconds of correct answers in that window, or `null`. */
+  avgSeconds: number | null;
+  /** i18n key of the current curriculum group — shown only as
+   *  "currently learning: <name>" (informational, no lock, no %). */
+  currentGroupNameKey: string;
+}
 
 export interface UseLearningResult {
   /** Today's goal, rolled to the current calendar day. */
@@ -68,11 +104,42 @@ export interface UseLearningResult {
   intervalTrackedCount: number;
   /** Fold one interval-drill answer into the interval SRS schedule (P4).
    *  `itemId` is the `intervalItemId(...)` the engine tagged the row with.
+   *  The non-guided path — SRS only, no goal tick, no history append.
    *  No-op for non-Premium users. Stable identity. */
   recordIntervalAnswer: (itemId: string, correct: boolean) => void;
-  /** Build the DrillConfig for an interval session in the given form, or
-   *  `null` for a non-Premium user (P4). */
-  buildIntervalPlan: (form: IntervalForm) => DrillConfig | null;
+  /** Fold one *guided* Interval Today answer into the model (spec §13 / T9):
+   *  the interval SRS schedule, the separate `intervalDaily` goal, and the
+   *  capped `intervalHistory`. Reads the interval tags off the drill row.
+   *  No-op for non-Premium users. Stable identity. */
+  recordIntervalTeacherAnswer: (entry: HistoryEntry) => void;
+  /** Build the DrillConfig for a manual interval session in the given
+   *  exercise, or `null` for a non-Premium user (P4). */
+  buildIntervalPlan: (exercise: IntervalExercise) => DrillConfig | null;
+  /** The recommended guided interval session (spec §13.1). Non-null for a
+   *  Premium user (falls back to current-group / coverage qualities). The
+   *  pool / rationale are exercise-independent; this value is built with the
+   *  default exercise for display — `buildIntervalTodayPlan` rebuilds it for
+   *  the exercise the learner picks on the card. */
+  intervalTodayPlan: IntervalTeacherPlan | null;
+  /** Overdue + weak interval qualities only (spec §13.2), or `null` when
+   *  nothing qualifies (the card then shows "no weak intervals yet"). */
+  intervalWeakSpotsPlan: IntervalTeacherPlan | null;
+  /** Rebuild the daily / weak-spots interval plan for a specific exercise —
+   *  called on the card's Start button. `null` for a non-Premium user, and
+   *  the weak-spots build is `null` when nothing qualifies. */
+  buildIntervalTodayPlan: (exercise: IntervalExercise) => IntervalTeacherPlan | null;
+  buildIntervalWeakSpotsPlan: (exercise: IntervalExercise) => IntervalTeacherPlan | null;
+  /** Today's *interval* goal (separate from `dailyGoal` — OD-5), rolled to
+   *  the current calendar day. */
+  intervalDailyGoal: DailyGoal;
+  intervalGoalComplete: boolean;
+  /** The flat 11-interval status board (spec §12) — one row per quality with
+   *  its `notStarted` / `learning` / `mastered` status and recent accuracy,
+   *  in curriculum order. Empty for a non-Premium user. */
+  intervalBoard: IntervalBoardRow[];
+  /** Headline interval numbers for the Stats section (spec §15.1), or `null`
+   *  for a non-Premium user. */
+  intervalStats: IntervalStatsSummary | null;
 }
 
 export interface UseLearningOptions {
@@ -112,17 +179,26 @@ export function useLearning(opts: UseLearningOptions): UseLearningResult {
     return () => window.removeEventListener('learning-synced', reread);
   }, [isPremium]);
 
-  // Roll the daily goal to today once per mount / day change, and persist it
-  // so the rolled-over goal survives a reload even before the first answer.
+  // Roll the daily goals to today once per mount / day change, and persist them
+  // so the rolled-over goals survive a reload even before the first answer. The
+  // note goal (`daily`) and the separate interval goal (`intervalDaily` — OD-5)
+  // roll together but stay independent records.
   useEffect(() => {
     if (!isPremium) return;
     const ts = Date.now();
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setState((prev) => {
       const st = getInstrumentState(prev, instrumentId, ts);
-      const rolled = rollDailyGoal(st.daily, ts, st.daily.target);
-      if (rolled === st.daily) return prev;
-      const next = withInstrumentState(prev, instrumentId, { ...st, daily: rolled });
+      const rolledDaily = rollDailyGoal(st.daily, ts, st.daily.target);
+      const rolledIntervalDaily = rollDailyGoal(
+        st.intervalDaily, ts, st.intervalDaily.target,
+      );
+      if (rolledDaily === st.daily && rolledIntervalDaily === st.intervalDaily) {
+        return prev;
+      }
+      const next = withInstrumentState(prev, instrumentId, {
+        ...st, daily: rolledDaily, intervalDaily: rolledIntervalDaily,
+      });
       saveLearningStateLocal(next);
       cloudPushLearning();
       return next;
@@ -136,6 +212,13 @@ export function useLearning(opts: UseLearningOptions): UseLearningResult {
 
   const dailyGoal = useMemo(
     () => rollDailyGoal(instState.daily, now, instState.daily.target),
+    [instState, now],
+  );
+
+  // Today's *interval* goal — a separate record from `dailyGoal` (OD-5):
+  // interval answers never tick the note goal and note answers never tick this.
+  const intervalDailyGoal = useMemo(
+    () => rollDailyGoal(instState.intervalDaily, now, instState.intervalDaily.target),
     [instState, now],
   );
 
@@ -207,7 +290,7 @@ export function useLearning(opts: UseLearningOptions): UseLearningResult {
   );
 
   const buildIntervalPlan = useCallback(
-    (form: IntervalForm): DrillConfig | null => {
+    (exercise: IntervalExercise): DrillConfig | null => {
       if (!isPremium) return null;
       return buildIntervalDrill({
         intervalSrs: instState.intervalSrs ?? {},
@@ -216,11 +299,132 @@ export function useLearning(opts: UseLearningOptions): UseLearningResult {
         allStrings: Array.from({ length: instrument.stringCount }, (_, i) => i + 1),
         accidental,
         order,
-        form,
+        exercise,
       });
     },
     [isPremium, instState.intervalSrs, instrument.maxFret, instrument.stringCount, accidental, order],
   );
+
+  // ── Guided Interval Today answer (spec §13 / §14 / T9) ────────────────
+  // The interval sibling of `recordAnswer`: folds into `intervalSrs`, ticks
+  // the SEPARATE `intervalDaily` goal, and appends to the capped
+  // `intervalHistory` — never the note schedule / goal / history. Reads the
+  // interval tags the engine stamped on the drill row.
+  const recordIntervalTeacherAnswer = useCallback(
+    (entry: HistoryEntry) => {
+      if (!isPremium || !entry.intervalItemId) return;
+      const semitones = parseIntervalItemId(entry.intervalItemId);
+      if (semitones == null) return;
+      const itemId = entry.intervalItemId;
+      const ts = Date.now();
+      setNow(ts);
+      setState((prev) => {
+        const st = getInstrumentState(prev, instrumentId, ts);
+        const next = withInstrumentState(
+          prev,
+          instrumentId,
+          recordIntervalTeacherAnswerModel(st, {
+            itemId,
+            semitones,
+            dir: entry.intervalDir ?? 'up',
+            form: entry.intervalForm ?? 'findNote',
+            correct: entry.correct === true,
+            seconds:
+              typeof entry.seconds === 'number' && entry.seconds >= 0 ? entry.seconds : 0,
+          }, ts),
+        );
+        saveLearningStateLocal(next);
+        cloudPushLearning();
+        return next;
+      });
+    },
+    [isPremium, instrumentId],
+  );
+
+  // ── Guided interval plans (spec §13.1 / §13.2) ───────────────────────
+  // The interval planner picks an ordered pool of qualities (overdue → weak →
+  // current curriculum group → confuser completion → consolidation →
+  // coverage). The pool / rationale do not depend on the exercise — only the
+  // emitted `drill.interval.exercise` does — so the memoised values below
+  // (built with the default exercise) drive the card's display, and
+  // `buildIntervalTodayPlan` / `buildIntervalWeakSpotsPlan` rebuild the drill
+  // for whichever exercise the learner picks on the card.
+  const intervalPlannerBase = useMemo(() => {
+    if (!isPremium) return null;
+    return {
+      intervalSrs: instState.intervalSrs ?? {},
+      history: instState.intervalHistory ?? [],
+      maxFret: instrument.maxFret,
+      allStrings: Array.from({ length: instrument.stringCount }, (_, i) => i + 1),
+      accidental,
+      order,
+    };
+  }, [
+    isPremium, instState.intervalSrs, instState.intervalHistory,
+    instrument.maxFret, instrument.stringCount, accidental, order,
+  ]);
+
+  const { intervalTodayPlan, intervalWeakSpotsPlan } = useMemo<{
+    intervalTodayPlan: IntervalTeacherPlan | null;
+    intervalWeakSpotsPlan: IntervalTeacherPlan | null;
+  }>(() => {
+    if (!intervalPlannerBase) {
+      return { intervalTodayPlan: null, intervalWeakSpotsPlan: null };
+    }
+    const base = { ...intervalPlannerBase, now, exercise: 'findTargetNote' as const };
+    return {
+      intervalTodayPlan: buildIntervalDailyPlanModel(base),
+      intervalWeakSpotsPlan: buildIntervalWeakSpotsPlanModel(base),
+    };
+  }, [intervalPlannerBase, now]);
+
+  const buildIntervalTodayPlan = useCallback(
+    (exercise: IntervalExercise): IntervalTeacherPlan | null => {
+      if (!intervalPlannerBase) return null;
+      return buildIntervalDailyPlanModel({ ...intervalPlannerBase, now: Date.now(), exercise });
+    },
+    [intervalPlannerBase],
+  );
+  const buildIntervalWeakSpotsPlan = useCallback(
+    (exercise: IntervalExercise): IntervalTeacherPlan | null => {
+      if (!intervalPlannerBase) return null;
+      return buildIntervalWeakSpotsPlanModel({ ...intervalPlannerBase, now: Date.now(), exercise });
+    },
+    [intervalPlannerBase],
+  );
+
+  // ── Interval progress board + Stats (spec §12 / §15.1) ───────────────
+  // Pure, read-only. Derived every render from the interval SRS map and the
+  // capped interval answer history — nothing here is stored (there is no
+  // interval path / checkpoint record). Empty / null for a non-Premium user.
+  const { intervalBoard, intervalStats } = useMemo<{
+    intervalBoard: IntervalBoardRow[];
+    intervalStats: IntervalStatsSummary | null;
+  }>(() => {
+    if (!isPremium) return { intervalBoard: [], intervalStats: null };
+    const srsMap = instState.intervalSrs ?? {};
+    const history = instState.intervalHistory ?? [];
+    const board = buildIntervalBoard({ intervalSrs: srsMap, historyRows: history, now });
+
+    const cutoff = now - INTERVAL_MASTERY_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+    const recent = history.filter((r) => r.createdAt >= cutoff);
+    const correct = recent.filter((r) => r.correct === true);
+    const timed = correct.filter((r) => r.seconds > 0);
+
+    const stats: IntervalStatsSummary = {
+      inSystem: 11,
+      started: Object.keys(srsMap).length,
+      needsWork: Object.values(srsMap).filter((it) => it.bucket < 2 && it.lapses > 0).length,
+      mastered: board.filter((r) => r.status === 'mastered').length,
+      accuracy: recent.length > 0 ? correct.length / recent.length : null,
+      avgSeconds: timed.length > 0
+        ? timed.reduce((sum, r) => sum + r.seconds, 0) / timed.length
+        : null,
+      currentGroupNameKey:
+        INTERVAL_CURRICULUM[currentGroupIndex(masteredSizes(srsMap, history, now))].name,
+    };
+    return { intervalBoard: board, intervalStats: stats };
+  }, [isPremium, instState.intervalSrs, instState.intervalHistory, now]);
 
   // ── Learning Path (P3) ───────────────────────────────────────────────
   // Every checkpoint's mastered %, star rating and unlock state, derived from
@@ -314,6 +518,15 @@ export function useLearning(opts: UseLearningOptions): UseLearningResult {
     recordPracticeAnswer,
     intervalTrackedCount: Object.keys(instState.intervalSrs ?? {}).length,
     recordIntervalAnswer,
+    recordIntervalTeacherAnswer,
     buildIntervalPlan,
+    intervalTodayPlan,
+    intervalWeakSpotsPlan,
+    buildIntervalTodayPlan,
+    buildIntervalWeakSpotsPlan,
+    intervalDailyGoal,
+    intervalGoalComplete: isDailyGoalComplete(intervalDailyGoal),
+    intervalBoard,
+    intervalStats,
   };
 }

@@ -9,9 +9,13 @@
 //
 //   { version, instruments: { guitar: {...}, bass: {...} } }
 //
-// Per instrument we keep only what P2 needs:
-//   • srs   — NoteItem id → SrsItem (the Leitner schedule; see srs.ts)
-//   • daily — today's prescribed goal: date, target, completed
+// Per instrument we keep:
+//   • srs             — NoteItem id → SrsItem (the Leitner schedule; see srs.ts)
+//   • intervalSrs     — interval-quality id → SrsItem (P4, a separate lane)
+//   • daily           — today's prescribed *note* goal: date, target, completed
+//   • intervalDaily   — today's prescribed *interval* goal (0015, separate — OD-5)
+//   • intervalHistory — a capped, synced ring buffer of interval answers (0015)
+//   • path            — Learning Path checkpoint stars (notes only)
 //   • updatedAt
 //
 // This module is pure model + persistence. It does NOT import the sync layer
@@ -40,6 +44,16 @@ export const LEARNING_STORAGE_KEY = 'learningState';
 // "do one session".
 export const DEFAULT_DAILY_TARGET = 12;
 
+// Interval sessions are shorter (only 11 items, denser questions), so their
+// own daily goal starts lower than the note goal. First draft — tune in
+// playtest (spec §14.2).
+export const DEFAULT_INTERVAL_DAILY_TARGET = 10;
+
+// The interval answer history is a small synced ring buffer per instrument —
+// enough for weakness analysis and the Stats board, never the full answer log
+// (spec §15.2 / OD-6).
+export const INTERVAL_HISTORY_CAP = 200;
+
 export interface DailyGoal {
   /** Local calendar day, `YYYY-MM-DD`. */
   dateISO: string;
@@ -47,6 +61,26 @@ export interface DailyGoal {
   target: number;
   /** Teacher items answered today so far. */
   completed: number;
+}
+
+/** One recorded interval-drill answer. A capped, synced ring buffer of these
+ *  (`InstrumentLearningState.intervalHistory`) feeds `analyzeIntervalWeakness`
+ *  and the interval Stats board. It is NEVER merged into note history / stats
+ *  / mastery / badges / leaderboard (spec §15.2, OD-6). */
+export interface IntervalHistoryRow {
+  /** Interval size in semitones, 1..11 (an `interval:<n>` quality). */
+  semitones: number;
+  /** Which way the interval was drilled for this question. Not part of the SRS
+   *  item — an ascending and a descending M3 both review `interval:4`. */
+  dir: 'up' | 'down';
+  /** Which exercise produced the answer. */
+  form: 'identify' | 'findNote';
+  /** A timeout folds in here as `false`, matching the SRS treatment. */
+  correct: boolean;
+  /** Seconds taken; `0` when unknown. */
+  seconds: number;
+  /** Epoch ms — the dedupe / cap-by-recency key on merge. */
+  createdAt: number;
 }
 
 export interface InstrumentLearningState {
@@ -57,6 +91,16 @@ export interface InstrumentLearningState {
    *  blob ⇒ `{}`. */
   intervalSrs: SrsMap;
   daily: DailyGoal;
+  /** Interval practice has its OWN daily goal, separate from `daily` (OD-5):
+   *  interval reviews never tick the note goal and note reviews never tick
+   *  this one. Same `DailyGoal` shape, rolled / merged with the same helpers.
+   *  Absent in a pre-`0015` blob ⇒ a fresh goal. */
+  intervalDaily: DailyGoal;
+  /** Capped (`INTERVAL_HISTORY_CAP`) ring buffer of interval-drill answers,
+   *  stored and synced in this same blob (OD-6). Read only by
+   *  `analyzeIntervalWeakness` and the interval Stats section — never mixed
+   *  into note history. Absent in a pre-`0015` blob ⇒ `[]`. */
+  intervalHistory: IntervalHistoryRow[];
   /** Learning Path progress: best star tier reached per checkpoint (P3).
    *  Added to the same blob rather than a new table — P2 already established
    *  "one learning-state blob, merged per key" (SRS + daily goal together),
@@ -92,6 +136,8 @@ export function emptyInstrumentState(now: number): InstrumentLearningState {
     srs: {},
     intervalSrs: {},
     daily: freshDaily(now),
+    intervalDaily: freshDaily(now, DEFAULT_INTERVAL_DAILY_TARGET),
+    intervalHistory: [],
     path: emptyPathProgress(),
     lastAnswerAt: 0,
     updatedAt: new Date(now).toISOString(),
@@ -119,17 +165,55 @@ function normalizeSrsItem(id: string, raw: unknown): SrsItem | null {
   };
 }
 
-function normalizeDaily(raw: unknown, now: number): DailyGoal {
-  if (raw == null || typeof raw !== 'object') return freshDaily(now);
+function normalizeDaily(
+  raw: unknown,
+  now: number,
+  defaultTarget: number = DEFAULT_DAILY_TARGET,
+): DailyGoal {
+  if (raw == null || typeof raw !== 'object') return freshDaily(now, defaultTarget);
   const r = raw as Record<string, unknown>;
   const dateISO = typeof r.dateISO === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.dateISO)
     ? r.dateISO
     : localDayISO(now);
   const target =
-    typeof r.target === 'number' && r.target > 0 ? Math.round(r.target) : DEFAULT_DAILY_TARGET;
+    typeof r.target === 'number' && r.target > 0 ? Math.round(r.target) : defaultTarget;
   const completed =
     typeof r.completed === 'number' && r.completed >= 0 ? Math.round(r.completed) : 0;
   return { dateISO, target, completed };
+}
+
+/** Coerce untrusted storage / cloud input into a valid `IntervalHistoryRow[]`:
+ *  drop malformed rows, then keep the most recent `INTERVAL_HISTORY_CAP` by
+ *  `createdAt`. A missing key (pre-`0015` blob) ⇒ `[]`. */
+export function normalizeIntervalHistory(raw: unknown): IntervalHistoryRow[] {
+  if (!Array.isArray(raw)) return [];
+  const rows: IntervalHistoryRow[] = [];
+  for (const v of raw) {
+    if (v == null || typeof v !== 'object') continue;
+    const r = v as Record<string, unknown>;
+    const semitones =
+      typeof r.semitones === 'number' && Number.isFinite(r.semitones)
+        ? Math.round(r.semitones)
+        : NaN;
+    if (!(semitones >= 1 && semitones <= 11)) continue;
+    const createdAt =
+      typeof r.createdAt === 'number' && Number.isFinite(r.createdAt) && r.createdAt > 0
+        ? Math.round(r.createdAt)
+        : NaN;
+    if (!Number.isFinite(createdAt)) continue;
+    const form = r.form === 'identify' || r.form === 'findNote' ? r.form : null;
+    if (form == null) continue;
+    const dir = r.dir === 'down' ? 'down' : 'up';
+    const seconds =
+      typeof r.seconds === 'number' && Number.isFinite(r.seconds) && r.seconds >= 0
+        ? r.seconds
+        : 0;
+    rows.push({ semitones, dir, form, correct: r.correct === true, seconds, createdAt });
+  }
+  rows.sort((a, b) => a.createdAt - b.createdAt);
+  return rows.length > INTERVAL_HISTORY_CAP
+    ? rows.slice(rows.length - INTERVAL_HISTORY_CAP)
+    : rows;
 }
 
 export function normalizeInstrumentState(
@@ -152,6 +236,8 @@ export function normalizeInstrumentState(
     srs: readSrsMap(r.srs),
     intervalSrs: readSrsMap(r.intervalSrs),
     daily: normalizeDaily(r.daily, now),
+    intervalDaily: normalizeDaily(r.intervalDaily, now, DEFAULT_INTERVAL_DAILY_TARGET),
+    intervalHistory: normalizeIntervalHistory(r.intervalHistory),
     path: normalizePathProgress(r.path),
     lastAnswerAt:
       typeof r.lastAnswerAt === 'number' && Number.isFinite(r.lastAnswerAt)
@@ -266,6 +352,8 @@ export function recordTeacherAnswer(
     srs: { ...st.srs, [id]: nextItem },
     intervalSrs: st.intervalSrs,
     daily: { ...daily, completed: daily.completed + 1 },
+    intervalDaily: st.intervalDaily,
+    intervalHistory: st.intervalHistory,
     path: st.path,
     lastAnswerAt: now,
     updatedAt: new Date(now).toISOString(),
@@ -292,6 +380,8 @@ export function recordPracticeAnswer(
     srs: { ...st.srs, [id]: nextItem },
     intervalSrs: st.intervalSrs,
     daily: rollDailyGoal(st.daily, now, st.daily.target),
+    intervalDaily: st.intervalDaily,
+    intervalHistory: st.intervalHistory,
     path: st.path,
     lastAnswerAt: now,
     updatedAt: new Date(now).toISOString(),
@@ -302,9 +392,14 @@ export function recordPracticeAnswer(
 //
 // Updates only the interval quality's own SRS schedule (`intervalSrs`). It
 // does NOT touch the note schedule, the daily goal (that goal is the
-// prescribed *note* Teacher session) or the Learning Path. `correct` folds a
-// timeout in as incorrect. The daily record is still rolled to today so a
-// stale day never lingers. Pure.
+// prescribed *note* Teacher session), the interval goal / history, or the
+// Learning Path. `correct` folds a timeout in as incorrect. The note daily
+// record is still rolled to today so a stale day never lingers. Pure.
+//
+// This is the *non-guided* path (kept for a future free interval Selector,
+// spec §13.7). A guided Interval Today session goes through
+// `recordIntervalTeacherAnswer` below, which additionally ticks `intervalDaily`
+// and appends to `intervalHistory`.
 export function recordIntervalAnswer(
   st: InstrumentLearningState,
   itemId: string,
@@ -316,6 +411,65 @@ export function recordIntervalAnswer(
   return {
     ...st,
     intervalSrs: { ...st.intervalSrs, [itemId]: nextItem },
+    daily: rollDailyGoal(st.daily, now, st.daily.target),
+    lastAnswerAt: now,
+    updatedAt: new Date(now).toISOString(),
+  };
+}
+
+/** One recorded answer from a guided Interval Today session — everything
+ *  `recordIntervalTeacherAnswer` needs to fold it into the model. `correct`
+ *  already has any timeout folded in as `false` by the caller. */
+export interface RecordedIntervalAnswer {
+  /** `intervalItemId(semitones)` the engine tagged the row with. */
+  itemId: string;
+  /** Interval size in semitones, 1..11. */
+  semitones: number;
+  dir: 'up' | 'down';
+  form: 'identify' | 'findNote';
+  correct: boolean;
+  /** Seconds taken; `0` when unknown. */
+  seconds: number;
+}
+
+// ── Apply one guided Interval Today answer (Premium only) ─────────────
+//
+// The interval-domain sibling of `recordTeacherAnswer` (spec §13 / §14 / T9):
+//   • folds the quality into `intervalSrs` (like `recordIntervalAnswer`);
+//   • appends a capped row to `intervalHistory` (OD-6);
+//   • ticks the SEPARATE `intervalDaily` goal — never the note `daily` (OD-5).
+// The note `srs` / `daily` / `path` are byte-identical to the input (the note
+// daily record is still rolled to today for stale-day hygiene, a no-op within
+// the same day). Pure.
+export function recordIntervalTeacherAnswer(
+  st: InstrumentLearningState,
+  answer: RecordedIntervalAnswer,
+  now: number,
+): InstrumentLearningState {
+  const srsItem = getOrCreate(st.intervalSrs, answer.itemId, now);
+  const nextItem = reviewSrsItem(srsItem, answer.correct, now);
+  const intervalDaily = rollDailyGoal(
+    st.intervalDaily,
+    now,
+    st.intervalDaily.target,
+  );
+  const row: IntervalHistoryRow = {
+    semitones: answer.semitones,
+    dir: answer.dir,
+    form: answer.form,
+    correct: answer.correct,
+    seconds: Number.isFinite(answer.seconds) && answer.seconds >= 0 ? answer.seconds : 0,
+    createdAt: now,
+  };
+  const history = [...st.intervalHistory, row];
+  return {
+    ...st,
+    intervalSrs: { ...st.intervalSrs, [answer.itemId]: nextItem },
+    intervalDaily: { ...intervalDaily, completed: intervalDaily.completed + 1 },
+    intervalHistory:
+      history.length > INTERVAL_HISTORY_CAP
+        ? history.slice(history.length - INTERVAL_HISTORY_CAP)
+        : history,
     daily: rollDailyGoal(st.daily, now, st.daily.target),
     lastAnswerAt: now,
     updatedAt: new Date(now).toISOString(),
@@ -357,6 +511,31 @@ export function mergeDailyGoal(a: DailyGoal, b: DailyGoal): DailyGoal {
   return a.dateISO >= b.dateISO ? a : b;
 }
 
+/**
+ * Merge two interval-history buffers: concatenate, drop rows that duplicate on
+ * (`createdAt`, `semitones`, `form`, `dir`), then keep the most recent
+ * `INTERVAL_HISTORY_CAP` by `createdAt`. Like the SRS maps this is a real
+ * union, never last-writer-wins (spec §17.2) — a session recorded on one
+ * device is not lost to a newer blob written on the other.
+ */
+export function mergeIntervalHistory(
+  a: IntervalHistoryRow[],
+  b: IntervalHistoryRow[],
+): IntervalHistoryRow[] {
+  const seen = new Set<string>();
+  const out: IntervalHistoryRow[] = [];
+  for (const row of [...a, ...b]) {
+    const key = `${row.createdAt}|${row.semitones}|${row.form}|${row.dir}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+  }
+  out.sort((x, y) => x.createdAt - y.createdAt);
+  return out.length > INTERVAL_HISTORY_CAP
+    ? out.slice(out.length - INTERVAL_HISTORY_CAP)
+    : out;
+}
+
 export function mergeInstrumentState(
   a: InstrumentLearningState,
   b: InstrumentLearningState,
@@ -365,6 +544,11 @@ export function mergeInstrumentState(
     srs: mergeSrsMaps(a.srs, b.srs),
     intervalSrs: mergeSrsMaps(a.intervalSrs ?? {}, b.intervalSrs ?? {}),
     daily: mergeDailyGoal(a.daily, b.daily),
+    intervalDaily: mergeDailyGoal(
+      a.intervalDaily ?? freshDaily(0, DEFAULT_INTERVAL_DAILY_TARGET),
+      b.intervalDaily ?? freshDaily(0, DEFAULT_INTERVAL_DAILY_TARGET),
+    ),
+    intervalHistory: mergeIntervalHistory(a.intervalHistory ?? [], b.intervalHistory ?? []),
     path: mergePathProgress(a.path, b.path),
     lastAnswerAt: Math.max(a.lastAnswerAt, b.lastAnswerAt),
     updatedAt: a.updatedAt >= b.updatedAt ? a.updatedAt : b.updatedAt,

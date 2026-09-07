@@ -71,12 +71,17 @@ export interface HistoryEntry {
   // rows predate these). Used to sync/merge with the cloud per account.
   id?: string;
   createdAt?: string;
-  // Set only by the P4 interval drill's engine branch, and read only by the
+  // Set only by the interval drill's engine branch, and read only by the
   // interval drill's in-memory history sink (which routes it to the interval
   // SRS schedule). No stats / mastery / leaderboard / personal-best code path
   // looks at it, so an ordinary note row never carries it. The minimal form of
   // premium-product-plan.md §5's "nullable itemId" generalisation.
   intervalItemId?: string;
+  // Which interval exercise / direction produced the row (intervals-learning
+  // spec §8.3 / §10.3). Carried for Stats and possible future per-form /
+  // per-direction tracking — neither changes which SRS item is reviewed.
+  intervalForm?: 'identify' | 'findNote';
+  intervalDir?: 'up' | 'down';
 }
 
 export function getCofNotes(accidental: AccidentalMode, order: OrderMode, wholeToneOnly: boolean): string[] {

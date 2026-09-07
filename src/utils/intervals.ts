@@ -1,13 +1,16 @@
-// ── intervals.ts — interval music theory for the P4 interval drill ───────
+// ── intervals.ts — interval music theory for the interval drill ─────────
 //
-// Pure, no React, no storage. The one place that knows how an ascending
-// interval maps to a distance in semitones, to a target note name, and to
-// target positions on the neck. `useGameEngine`'s interval branch and
-// `src/learning/intervalDrill.ts` build on this; nothing here imports either.
+// Pure, no React, no storage. The one place that knows how an interval maps
+// to a distance in semitones, to a target note name, and (for the Future neck
+// extension) to target positions on the neck. `useGameEngine`'s interval
+// branch and `src/learning/intervalDrill.ts` / `intervalPlanner.ts` build on
+// this; nothing here imports any of them.
 //
-// Deliberately notes-only and ascending-only for the first vertical slice
-// (premium-product-plan.md §9 P4). Descending intervals, compound intervals
-// and enharmonic spelling by key are later refinements.
+// The MVP drills two exercises (intervals-learning-spec §8) — *identify the
+// interval* and *find the target note* — in both directions.
+// `noteNameAtSemitones` is sign-safe, so a descending question just passes a
+// negative offset. Compound intervals and key-aware enharmonic spelling stay
+// later refinements.
 
 import { notesMatch } from './music';
 import { CHROMATIC } from './instruments';
@@ -46,23 +49,179 @@ export function intervalBySemitones(semitones: number): IntervalDef | undefined 
   return BY_SEMITONES.get(semitones);
 }
 
-/** How the two answer surfaces differ for an interval question. */
-export type IntervalForm =
-  /** "M6 above ◉" — a reference fret is shown; tap the target fret. Reuses the
-   *  by-note flow. */
-  | 'onNeck'
-  /** "Perfect 5th above G" — tap the note on the NoteCircle. Reuses the
-   *  by-fret flow. */
-  | 'byName';
+/** The three named interval difficulty tiers (intervals-learning-spec §9.2).
+ *  Defined here — the pure interval-theory leaf module — so both
+ *  `src/learning/intervalDrill.ts` (which owns the `intervalDifficulty`
+ *  function) and `src/hooks/useIntervalSelector.ts` can name it without a
+ *  learning→hooks import cycle. `focused` / `full` are Selector-only; the
+ *  guided planner always runs `mixed` (§13.1 / §13.5). */
+export type IntervalDifficulty = 'focused' | 'mixed' | 'full';
+
+/** Which of the two MVP exercises an interval question runs
+ *  (intervals-learning-spec §8.1 / §5.1). Both answer by picking from a chip
+ *  row — never on the neck. */
+export type IntervalExercise =
+  /** "Which interval did you hear?" — the app plays two notes in sequence;
+   *  the learner picks the interval quality from a chip row. */
+  | 'identifyInterval'
+  /** "M3 above G" — the app shows a first note + interval + direction; the
+   *  learner picks the target note from a chip row. */
+  | 'findTargetNote';
 
 /** The optional interval question spec a `DrillConfig` / `GameSettings` may
  *  carry. Absent ⇒ the engine behaves exactly as it did before intervals. */
 export interface IntervalDrillSpec {
   /** Interval sizes (semitones) the drill may ask, in preference order. */
   semitones: number[];
-  /** Ascending only for the first slice. */
-  direction: 'up';
-  form: IntervalForm;
+  /** Ascending, descending, or a per-question random mix (§5.3). */
+  direction: 'up' | 'down' | 'both';
+  /** Which exercise the session runs (§8.1). */
+  exercise: IntervalExercise;
+  /** How many answer chips to offer. The §9 difficulty tiers set this;
+   *  the engine falls back to a fixed 4 when it is absent. */
+  optionCount?: number;
+  /** First-note bias for the reference note (§9.1). `'naturals'` → the engine
+   *  prefers a natural (no ♯/♭) first note when the window allows; `'any'` →
+   *  no preference. Absent ⇒ `'any'`. `focused` sets `'naturals'`. */
+  firstNoteBias?: 'naturals' | 'any';
+  /** Register spread the reference note is drawn from (§9.1, matters for
+   *  *identify the interval*'s two-note playback). Absent ⇒ `'wide'`.
+   *  `focused` narrows it, `full` opens it fully. */
+  registerSpread?: 'narrow' | 'medium' | 'wide';
+  /** How the answer-chip distractors relate to the correct answer (§9.2).
+   *  `'avoidNear'` (focused) keeps every distractor ≥ 2 semitones from the
+   *  answer; `'allNear'` (full) forces the nearest neighbours in; `'default'`
+   *  (mixed) only completes `confuserPairs`. Absent ⇒ `'default'`. */
+  optionPolicy?: 'avoidNear' | 'default' | 'allNear';
+  /** Confuser pairs (semitone sizes) the answer chips must complete: when the
+   *  correct answer is one member and the other is a real interval, the other
+   *  is forced among the options (§9.2, mixed/full). Absent ⇒ none. */
+  confuserPairs?: readonly (readonly [number, number])[];
+}
+
+/** Distractor-shaping rules for the two chip-row builders below — the runtime
+ *  form of an `IntervalDrillSpec`'s `optionPolicy` + `confuserPairs` for one
+ *  question whose correct answer size is known. */
+export interface IntervalOptionRules {
+  /** Keep every distractor ≥ 2 semitones from the answer (focused, §9.2). */
+  avoidNear?: boolean;
+  /** Force the answer's nearest neighbours (answer ± 1, in 1..11) in (full). */
+  forceNear?: boolean;
+  /** When the answer is a member of one of these pairs, force the other
+   *  member in (mixed/full confuser completion). */
+  pairs?: readonly (readonly [number, number])[];
+}
+
+/** The semitone sizes forced in by `rules` for a question whose answer is
+ *  `answer` — the nearest neighbours (`forceNear`) and the other half of any
+ *  confuser pair the answer belongs to (`pairs`). In 1..11, excludes `answer`. */
+function forcedSizes(answer: number, rules?: IntervalOptionRules): number[] {
+  if (!rules) return [];
+  const out = new Set<number>();
+  if (rules.forceNear) {
+    for (const s of [answer - 1, answer + 1]) if (s >= 1 && s <= 11) out.add(s);
+  }
+  for (const [a, b] of rules.pairs ?? []) {
+    if (a === answer && b >= 1 && b <= 11) out.add(b);
+    if (b === answer && a >= 1 && a <= 11) out.add(a);
+  }
+  out.delete(answer);
+  return [...out];
+}
+
+/** Fisher–Yates copy — pure given `Math.random`, like the engine's own
+ *  question pickers. */
+function shuffled<T>(xs: readonly T[]): T[] {
+  const out = [...xs];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+/**
+ * The answer-chip semitone set for an *identify the interval* question:
+ * `answer` plus distinct distractors, `count` chips total, order randomised.
+ * Forced sizes (nearest neighbours / confuser-pair partners — §9.2) come in
+ * first, then `pool` (the drilled qualities), then all 11 so the row is always
+ * full even for a one-quality pool. With `rules.avoidNear` (focused) every
+ * *filler* distractor stays ≥ 2 semitones from the answer, but the row is
+ * still padded to `count` from the near sizes as a last resort.
+ */
+export function buildIntervalOptionSemitones(
+  answer: number,
+  pool: readonly number[],
+  count: number,
+  rules?: IntervalOptionRules,
+): number[] {
+  const want = Math.max(2, Math.round(count));
+  const chips = new Set<number>([answer]);
+  const isNear = (s: number) => Math.abs(s - answer) <= 1;
+
+  for (const s of forcedSizes(answer, rules)) {
+    if (chips.size >= want) break;
+    chips.add(s);
+  }
+  const far = (s: number) => s >= 1 && s <= 11 && !(rules?.avoidNear && isNear(s));
+  for (const s of shuffled(pool)) {
+    if (chips.size >= want) break;
+    if (far(s)) chips.add(s);
+  }
+  for (const s of shuffled(ALL_INTERVAL_SEMITONES)) {
+    if (chips.size >= want) break;
+    if (far(s)) chips.add(s);
+  }
+  // Last-resort padding (only bites near a difficulty edge, e.g. avoidNear with
+  // a huge `count`): fill from anything so the row is never short.
+  for (const s of shuffled(ALL_INTERVAL_SEMITONES)) {
+    if (chips.size >= want) break;
+    chips.add(s);
+  }
+  return shuffled([...chips]);
+}
+
+/**
+ * The answer-chip note set for a *find the target note* question: the correct
+ * `target` plus distinct distractors, `count` chips total, order randomised.
+ * Distractors are other plausible interval targets from the same first note
+ * (`first ± poolSemitones`), topped up with random pitch classes. Names are
+ * sharp-spelled; the caller formats them for display.
+ *
+ * `answerSemitones` (the size behind `target`) and `rules` apply the §9.2
+ * shaping: forced near / confuser-pair sizes are turned into their target
+ * notes and added first; with `rules.avoidNear` every *pool* distractor whose
+ * size is within 1 semitone of the answer is skipped.
+ */
+export function buildTargetNoteOptions(
+  first: string,
+  target: string,
+  poolSemitones: readonly number[],
+  direction: 1 | -1,
+  count: number,
+  rules?: IntervalOptionRules,
+  answerSemitones?: number,
+): string[] {
+  const want = Math.max(2, Math.round(count));
+  const chips = new Set<string>([target]);
+
+  if (answerSemitones != null) {
+    for (const s of forcedSizes(answerSemitones, rules)) {
+      if (chips.size >= want) break;
+      chips.add(noteNameAtSemitones(first, direction * s));
+    }
+  }
+  const skipNear = (s: number) =>
+    rules?.avoidNear && answerSemitones != null && Math.abs(s - answerSemitones) <= 1;
+  for (const s of shuffled(poolSemitones)) {
+    if (chips.size >= want) break;
+    if (!skipNear(s)) chips.add(noteNameAtSemitones(first, direction * s));
+  }
+  for (const n of shuffled(CHROMATIC)) {
+    if (chips.size >= want) break;
+    chips.add(n);
+  }
+  return shuffled([...chips]);
 }
 
 const FLAT_TO_SHARP: Record<string, string> = {

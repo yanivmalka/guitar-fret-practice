@@ -57,11 +57,12 @@ export interface DrillConfig {
    *  engine behaves exactly as it did before candidate sets existed. Practice
    *  never sets this; it is the seam a future Game builds a stage on. */
   candidates?: DrillPosition[];
-  /** Optional interval question spec (P4). When present the engine asks
-   *  interval questions ("what is a 5th above G", or "tap a M6 above this
-   *  fret") on the by-fret / by-note answer surface named by `spec.form`,
-   *  instead of plain note questions. Absent ⇒ unchanged behaviour. Practice
-   *  and the notes-only Teacher never set this. */
+  /** Optional interval question spec. When present the engine asks interval
+   *  questions — *identify the interval* (hear two notes, pick the interval) or
+   *  *find the target note* (see "M3 above G", pick the note), per
+   *  `spec.exercise` and `spec.direction` — answered on a chip row instead of
+   *  the note surfaces. Absent ⇒ unchanged behaviour. Practice and the
+   *  notes-only Teacher never set this. */
   interval?: IntervalDrillSpec;
 }
 

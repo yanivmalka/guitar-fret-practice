@@ -15,8 +15,12 @@
 //   • the planner folds Path items in after overdue + weak, and is
 //     byte-identical to before when no Path items are supplied (Free/Pro path)
 //   • the learning-state blob round-trips `path` and merges it per checkpoint
+//   • (T12) spec §22.1.5 — the Notes Learning Path is untouched by the
+//     Intervals work: path.ts / pathProgress.ts / LearningPathScreen.tsx name
+//     no interval concept, and recordCheckpointStars folds only `path`
 
 import { register } from 'node:module';
+import { readFileSync } from 'node:fs';
 
 class MemoryStorage {
   private map = new Map<string, string>();
@@ -252,6 +256,40 @@ function row(string: number, fret: number, correct: boolean | null, tOffsetMs = 
   check('learning-state merge keeps the higher checkpoint tier per key',
     merged.instruments.guitar.path.bestStars['open-naturals'] === 3 &&
     merged.instruments.guitar.path.bestStars['first-five-naturals'] === 2);
+}
+
+// ── §22 separation invariant — the Notes Learning Path is untouched ──────
+// Spec §22.1.5: `LearningPathScreen.tsx`, `path.ts`, `pathProgress.ts` and
+// `recordCheckpointStars` are completely untouched by the Intervals work —
+// the Notes Path and its stars stay byte-identical. Headless proxy: none of
+// the Path source files so much as mentions the interval domain, and
+// `recordCheckpointStars` still folds ONLY `path`, leaving every interval
+// field on the instrument state reference-identical.
+{
+  const pathFiles = [
+    '../src/learning/path.ts',
+    '../src/learning/pathProgress.ts',
+    '../src/components/LearningPathScreen.tsx',
+  ];
+  // Strip comments first: path.ts carries a "notes-only, no intervals" note
+  // that declares the boundary rather than crossing it.
+  const stripComments = (src: string): string =>
+    src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  const touched = pathFiles.filter((rel) =>
+    /interval/i.test(stripComments(readFileSync(new URL(rel, import.meta.url), 'utf8'))));
+  check('path.ts / pathProgress.ts / LearningPathScreen.tsx never reference the interval domain',
+    touched.length === 0, touched.join(', '));
+
+  const st0 = emptyInstrumentState(T0);
+  const withStars = recordCheckpointStars(st0, 'open-naturals', 2, T0 + 1000);
+  check('recordCheckpointStars folds only `path` — interval srs / daily / history reference-identical',
+    withStars.path !== st0.path &&
+    withStars.intervalSrs === st0.intervalSrs &&
+    withStars.intervalDaily === st0.intervalDaily &&
+    withStars.intervalHistory === st0.intervalHistory &&
+    withStars.srs === st0.srs && withStars.daily === st0.daily);
+  check('recordCheckpointStars returns the same reference when no tier rose (no interval field rebuilt)',
+    recordCheckpointStars(withStars, 'open-naturals', 1, T0 + 2000) === withStars);
 }
 
 console.log(failures === 0

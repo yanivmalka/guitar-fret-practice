@@ -12,6 +12,9 @@ import { playClickSound, haptic } from '../utils/feedback';
 import { useTranslation } from '../i18n/useTranslation';
 import { ProGate } from './ProGate';
 import { Chevron } from './Chevron';
+import IntervalStatsPanel from './IntervalStatsPanel';
+import type { IntervalBoardRow } from '../learning/intervalMastery';
+import type { IntervalStatsSummary } from '../hooks/useLearning';
 
 interface Props {
   allHistory: Record<string, HistoryEntry[]>;
@@ -39,6 +42,12 @@ interface Props {
   // the all-combinations personal-bests list is locked. Data is never touched —
   // this is presentation only.
   isPro?: boolean;
+  // Premium interval-learning progress (spec §12 / §15.1). Omitted / empty for
+  // a non-Premium user, in which case the "Intervals" section is hidden. This
+  // data never mixes with the note history / mastery above — it is derived
+  // from the separate `intervalSrs` + `intervalHistory` (spec §15.2).
+  intervalBoard?: IntervalBoardRow[];
+  intervalStats?: IntervalStatsSummary | null;
 }
 
 type Scope = 'setup' | 'all';
@@ -498,11 +507,12 @@ export default function ProgressPanel({
   allHistory, noteNames, accidental, notation, instrument, headerIcon, onClose,
   currentHistory, sessionScore, longestStreak, currentHistoryKey,
   setupStrings, setupFretFrom, setupFretTo, onClearCurrent, onClearAll,
-  isPro,
+  isPro, intervalBoard, intervalStats,
 }: Props) {
   const { t, lang } = useTranslation();
   const [scope, setScope] = useState<Scope>('setup');
   const [confirm, setConfirm] = useState<null | Scope>(null);
+  const [ivlOpen, setIvlOpen] = useState(false);
   const click = (fn: () => void) => () => { playClickSound(); haptic.tap(); fn(); };
 
   const all = useMemo(
@@ -581,6 +591,20 @@ export default function ProgressPanel({
         setupFretTo={setupFretTo}
         windowed={!isPro}
       />
+
+      {/* Intervals learning progress (spec §12 / §15.1) — a self-contained
+          read-only section, independent of the "This setup" / "All time"
+          scope above and of every note stat. Hidden entirely when there is
+          no interval data (non-Premium, or nothing drilled yet). */}
+      {intervalBoard && intervalBoard.length > 0 && intervalStats && (
+        <Expander
+          label={t('Intervals')}
+          open={ivlOpen}
+          onToggle={click(() => setIvlOpen(o => !o))}
+        >
+          <IntervalStatsPanel board={intervalBoard} stats={intervalStats} />
+        </Expander>
+      )}
 
       {baseHistory.length > 0 && (
         <button className="sp2-danger" onClick={click(() => setConfirm(scope))}>

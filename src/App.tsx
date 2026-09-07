@@ -8,6 +8,7 @@ import menuIconLeaderboard from './assets/menu-icons/leaderboard.png';
 import menuIconAccount from './assets/menu-icons/account.png';
 import NoteCircle from './components/NoteCircle';
 import FretGrid from './components/FretGrid';
+import IntervalChoiceRow from './components/IntervalChoiceRow';
 import SelectorPanel from './components/SelectorPanel';
 import AdjustSuggestionBanner from './components/AdjustSuggestionBanner';
 import FretRangeControl from './components/FretRangeControl';
@@ -18,7 +19,7 @@ import Onboarding from './components/Onboarding';
 import { Chevron } from './components/Chevron';
 import SpeedBar from './components/SpeedBar';
 import AnimatedScore from './components/AnimatedScore';
-import { displayNoteBothEnharmonics, setActiveInstrument } from './utils/music';
+import { displayNote, displayNoteBothEnharmonics, setActiveInstrument } from './utils/music';
 import type { HistoryEntry, AccidentalMode, OrderMode, NotationMode } from './utils/music';
 import { getInstrument, COMING_SOON_INSTRUMENTS, type InstrumentId } from './utils/instruments';
 import { preloadAllSamples, unlockAudio, setAudioInstrument, setSilent as setAudioSilent } from './utils/audio';
@@ -47,7 +48,8 @@ import LearnHub, { type LearnDomain } from './components/LearnHub';
 import { useLearning } from './hooks/useLearning';
 import { useDrillHistorySink } from './game/useDrillHistorySink';
 import type { HistoryOps } from './hooks/useGameEngine';
-import type { IntervalForm } from './utils/intervals';
+import { intervalBySemitones } from './utils/intervals';
+import { intervalContentBySemitones } from './learning/intervalContent';
 import type { TeacherPlan } from './learning/planner';
 import {
   bootstrapLearning, syncedLearningUser, clearSyncedLearningUser, clearLocalLearningState, cloudPushLearning,
@@ -299,11 +301,11 @@ export default function App() {
   const intervalSink = useDrillHistorySink();
   const intervalSinkRef = useRef(intervalSink);
   intervalSinkRef.current = intervalSink;
-  const intervalRecordRef = useRef<((id: string, correct: boolean) => void) | null>(null);
+  const intervalRecordRef = useRef<((entry: HistoryEntry) => void) | null>(null);
   const intervalAddEntry = useCallback((entry: HistoryEntry) => {
     intervalSinkRef.current.addEntry(entry);
     if (entry.intervalItemId) {
-      intervalRecordRef.current?.(entry.intervalItemId, entry.correct === true);
+      intervalRecordRef.current?.(entry);
     }
   }, []);
   const intervalHistory = useMemo<HistoryOps>(
@@ -617,7 +619,11 @@ export default function App() {
   });
   teacherRecordRef.current = learning.recordAnswer;
   practiceRecordRef.current = learning.recordPracticeAnswer;
-  intervalRecordRef.current = learning.recordIntervalAnswer;
+  // Every interval answer folds through the same path — interval SRS + the
+  // separate interval daily goal + the capped, synced interval history
+  // (spec §13 / §14 / §15.2). It never touches the note schedule / goal /
+  // history (OD-5 / OD-6).
+  intervalRecordRef.current = learning.recordIntervalTeacherAnswer;
   // The overlay is free for everyone (spec free-pro-tiering §5.2). Free users
   // see it computed from FREE_MASTERY_WINDOW (last 250 questions); Pro users
   // pick the window via the "questions counted" control in Settings.
@@ -709,6 +715,7 @@ export default function App() {
     correctCofNote, wrongCofNote, answered, remainingFrets, foundFrets, wrongFret,
     questionTime, questionStart, questionSeq, questionNumber, intervalPrompt,
     start: engineStart, stop, pause, resume, selectFret, selectAnswer,
+    selectInterval, replayIntervalQuestion,
     // The tidy end-of-drill snapshot (score / accuracy / streak / counts) the
     // drill session already derives from the session score + recorded history.
     // Practice reads it for the round-complete card and the personal-best
@@ -2137,6 +2144,8 @@ export default function App() {
           onClearAll={() => { historyOps.clearAllHistory(); }}
           onClose={() => setShowStats(false)}
           isPro={auth.isPro}
+          intervalBoard={learning.intervalBoard}
+          intervalStats={learning.intervalStats}
         />
       </div>
     );
@@ -2188,11 +2197,22 @@ export default function App() {
       && onboardingDone && !gameActive && !gameEnded && countdown === null) {
     return (
       <IntervalPracticeScreen
+        instrument={instrument}
+        intervalBoard={learning.intervalBoard}
+        accidental={accidental}
+        order={order}
         trackedCount={learning.intervalTrackedCount}
+        todayPlan={learning.intervalTodayPlan}
+        weakSpotsPlan={learning.intervalWeakSpotsPlan}
+        intervalDailyGoal={learning.intervalDailyGoal}
+        intervalGoalComplete={learning.intervalGoalComplete}
         busy={gameActive || countdown !== null}
-        onStart={(form: IntervalForm) => {
-          const plan = learning.buildIntervalPlan(form);
-          if (plan) setIntervalPlan(plan);
+        onStart={(config: DrillConfig) => setIntervalPlan(config)}
+        onStartPlan={(exercise, kind) => {
+          const plan = kind === 'weak'
+            ? learning.buildIntervalWeakSpotsPlan(exercise)
+            : learning.buildIntervalTodayPlan(exercise);
+          if (plan) setIntervalPlan(plan.drill);
         }}
         onClose={() => setActiveDomain('notes')}
       />
@@ -2509,7 +2529,7 @@ export default function App() {
               <div className="string-label" key={`str-${safeGuitarString}`}>{t(instrument.stringLabels[safeGuitarString])}</div>
               {intervalPrompt
                 ? <div className={`note-display${stageTransition ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>
-                    <IntervalPrompt prompt={intervalPrompt} accidental={accidental} notation={notation} />
+                    <IntervalPrompt prompt={intervalPrompt} accidental={accidental} notation={notation} onReplay={replayIntervalQuestion} />
                   </div>
                 : eff.byNote
                 ? <div className={`note-display${currentNote && displayNoteBothEnharmonics(currentNote, notation).includes('=') ? ' note-display-both' : ''}${stageTransition ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>{currentNote ? displayNoteBothEnharmonics(currentNote, notation) : '—'}</div>
@@ -2529,6 +2549,41 @@ export default function App() {
               <div className={`feedback ${feedback.startsWith('✓') ? 'good' : feedback.startsWith('✗') ? 'bad' : 'warn'}`}>
                 {feedback}{showScore && scoring.session.lastPoints > 0 && feedback.startsWith('✓') ? ` +${scoring.session.lastPoints}` : ''}
               </div>
+              {/* Intervals Learning (§7 / task T10): on a missed or timed-out
+                  interval question, reveal the interval name + its size, the
+                  nearest-neighbour discriminator, and — for *identify the
+                  interval* — the two notes that were played, plus a 🔊 replay.
+                  Educational content only; no theory screen. */}
+              {intervalPrompt && answered && !feedback.startsWith('✓') && (() => {
+                const def = intervalBySemitones(intervalPrompt.semitones);
+                const content = intervalContentBySemitones(intervalPrompt.semitones);
+                return (
+                  <div className="interval-feedback-note" dir={lang === 'he' ? 'rtl' : undefined}>
+                    <div className="interval-feedback-name">
+                      <strong>{def ? t(def.nameKey) : `+${intervalPrompt.semitones}`}</strong>
+                      {' · '}
+                      {intervalPrompt.semitones} {t('semitones')}
+                    </div>
+                    {intervalPrompt.exercise === 'identifyInterval' && (
+                      <div className="interval-feedback-pair" dir="ltr">
+                        {displayNote(intervalPrompt.rootNote, accidental, notation)}
+                        {' → '}
+                        {displayNote(intervalPrompt.targetNote, accidental, notation)}
+                      </div>
+                    )}
+                    {content && (
+                      <div className="interval-feedback-compare">{t(content.comparison)}</div>
+                    )}
+                    <button
+                      type="button"
+                      className="interval-replay-btn"
+                      onClick={click(replayIntervalQuestion)}
+                    >
+                      🔊 {t('Hear it again')}
+                    </button>
+                  </div>
+                );
+              })()}
               {voiceActive && (
                 <div className={`voice-status voice-${voice.status}`} role="status" aria-live="polite">
                   {voice.permission === 'denied'
@@ -2620,7 +2675,36 @@ export default function App() {
 
         {/* Keep the grid/circle visible (frozen) while paused; hide only when fully stopped and showing stats/end summary */}
         {(gameActive || (isStopped && !gameEnded)) && (
-          eff.byNote ? (
+          intervalPrompt ? (
+            <IntervalChoiceRow
+              variant={intervalPrompt.exercise === 'identifyInterval' ? 'interval' : 'note'}
+              options={
+                intervalPrompt.exercise === 'identifyInterval'
+                  ? intervalPrompt.optionSemitones.map((s) => ({
+                      value: String(s),
+                      label: intervalBySemitones(s)?.short ?? `+${s}`,
+                    }))
+                  : intervalPrompt.options.map((n) => ({
+                      value: n,
+                      label: displayNote(n, accidental, notation),
+                    }))
+              }
+              correct={
+                gameActive && answered
+                  ? intervalPrompt.exercise === 'identifyInterval'
+                    ? String(intervalPrompt.semitones)
+                    : intervalPrompt.targetNote
+                  : null
+              }
+              disabled={!(isPlaying && !answered)}
+              dir={lang === 'he' ? 'rtl' : undefined}
+              onSelect={(value) =>
+                intervalPrompt.exercise === 'identifyInterval'
+                  ? selectInterval(Number(value))
+                  : selectAnswer(value)
+              }
+            />
+          ) : eff.byNote ? (
             <FretGrid
               fretFrom={eff.fretFrom}
               fretTo={eff.fretTo}
@@ -2633,7 +2717,7 @@ export default function App() {
               onSelect={selectFret}
               masteryByFret={fretMastery}
               showMastery={!boardLive && showMastery}
-              referenceFret={intervalPrompt?.form === 'onNeck' ? intervalPrompt.refFret : null}
+              referenceFret={null}
             />
           ) : (
             <NoteCircle
