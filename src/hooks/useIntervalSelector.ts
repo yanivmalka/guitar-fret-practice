@@ -17,7 +17,7 @@
 // Not in the MVP (so deliberately absent here): Auto Advance / a stage
 // sequence (§5.5, OD-3). Interval practice is free Selector practice.
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { loadSetting, saveSetting } from '../utils/settings';
 import type { AccidentalMode, OrderMode } from '../utils/music';
 import type { InstrumentConfig } from '../utils/instruments';
@@ -149,9 +149,15 @@ export function useIntervalSelector(opts: UseIntervalSelectorOptions) {
     saveSetting('isel_sizes', next);
   };
 
+  // The last interval chip the learner actually tapped. Leaving Multi collapses
+  // the selection to this one (when it survives), so the lone remaining chip is
+  // the learner's most recent focus rather than always the lowest semitone.
+  const lastTappedSize = useRef<number>(DEFAULT_SINGLE);
+
   /** Tap a chip: replace the selection in single mode, toggle it in Multi. */
   const selectSize = (semitones: number) => {
     if (!Number.isInteger(semitones) || semitones < 1 || semitones > 11) return;
+    lastTappedSize.current = semitones;
     if (!multiMode) {
       commitSizes([semitones]);
       return;
@@ -167,14 +173,19 @@ export function useIntervalSelector(opts: UseIntervalSelectorOptions) {
     );
   };
 
-  /** Flip the Multi toggle. Leaving Multi collapses the selection to its first
-   *  chip (or M3 if it was empty), mirroring the strings selector. */
+  /** Flip the Multi toggle. Leaving Multi collapses the selection to the last
+   *  chip the learner tapped when that one is still selected, otherwise to the
+   *  lowest selected chip (or M3 if the selection was empty), mirroring the
+   *  strings selector. */
   const toggleMulti = () => {
     const nowMulti = !multiMode;
     setMultiModeState(nowMulti);
     saveSetting('isel_multi', nowMulti);
     if (!nowMulti && selectedSizes.length !== 1) {
-      commitSizes([selectedSizes[0] ?? DEFAULT_SINGLE]);
+      const keep = selectedSizes.includes(lastTappedSize.current)
+        ? lastTappedSize.current
+        : selectedSizes[0] ?? DEFAULT_SINGLE;
+      commitSizes([keep]);
     }
   };
 
