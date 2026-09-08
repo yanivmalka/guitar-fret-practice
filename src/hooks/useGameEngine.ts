@@ -501,11 +501,29 @@ export function useGameEngine(
     // *Find on the neck* interval question (§8.5): the only interval exercise
     // that answers on the neck. Mark one note on this string, name the interval
     // + direction, and accept a tap on any octave-equivalent of the target note.
-    const iq =
-      interval && interval.exercise === 'findTargetPosition'
-        ? buildIntervalQuestion(qString, validFrets)
-        : null;
+    let iq: ReturnType<typeof buildIntervalQuestion> = null;
+    let iqString = qString;
+    if (interval && interval.exercise === 'findTargetPosition') {
+      // A degenerate fret window on the chosen string can leave
+      // buildIntervalQuestion with nowhere to place the interval and it returns
+      // null. Rather than silently dropping to a plain note question with no
+      // interval context (#11), try the other candidate strings — each with its
+      // own valid frets — before giving up.
+      const iqPool = candStrings ?? (isMulti ? activeStrings : [guitarString]);
+      for (const s of [qString, ...iqPool.filter((x) => x !== qString)]) {
+        const cf = candidateFretsByString?.get(s);
+        const vf = cf && cf.length > 0
+          ? cf
+          : getValidFrets(s - 1, fretFrom, fretTo, wholeToneOnly, dotsOnly);
+        const built = buildIntervalQuestion(s, vf);
+        if (built) { iq = built; iqString = s; break; }
+      }
+    }
     if (iq) {
+      if (iqString !== qString) {
+        currentQuestionStringRef.current = iqString;
+        setters.setGuitarString(iqString);
+      }
       intervalPositionRef.current = true;
       setIntervalPromptBoth(iq.prompt);
       const targetNote = iq.targetNote;
@@ -527,9 +545,9 @@ export function useGameEngine(
         beep();
         onTimeout();
         const elapsed = (Date.now() - questionStartRef.current) / 1000;
-        addEntry(tagInterval({ note: targetNote, fret: remainingFretsRef.current[0], string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null }));
+        addEntry(tagInterval({ note: targetNote, fret: remainingFretsRef.current[0], string: iqString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null }));
         setFeedback(`⏱ ${displayNote(targetNote, accidental, interval?.notation)}`);
-        playNoteSingle(qString, remainingFretsRef.current[0], questionPlaybackRate());
+        playNoteSingle(iqString, remainingFretsRef.current[0], questionPlaybackRate());
         advanceAfterSound(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
       });
       return;

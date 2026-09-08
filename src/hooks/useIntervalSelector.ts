@@ -131,10 +131,12 @@ export function useIntervalSelector(opts: UseIntervalSelectorOptions) {
     () => loadSelectedSizes(masteredSizes),
   );
   const [difficultyStored, setDifficultyState] = useState<IntervalDifficulty>(
-    () => loadOneOf('isel_difficulty', DIFFICULTIES, 'mixed'),
+    // A fresh learner starts gentle: a narrow register (`focused`) and
+    // ascending-only (`up`). Existing users keep whatever they saved (#8).
+    () => loadOneOf('isel_difficulty', DIFFICULTIES, 'focused'),
   );
   const [direction, setDirectionState] = useState<IntervalDirection>(
-    () => loadOneOf('isel_direction', DIRECTIONS, 'both'),
+    () => loadOneOf('isel_direction', DIRECTIONS, 'up'),
   );
 
   // §5.4: a lone quality cannot be "mixed" or "full" — the tier is pinned to

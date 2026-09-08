@@ -716,6 +716,7 @@ const he: Record<string, string> = {
   'Interval training': 'תרגול אינטרוולים',
   'Hear and find the distance between two notes.': 'להקשיב ולמצוא את המרחק בין שני תווים.',
   'intervals tracked': 'אינטרוולים במעקב',
+  '1 interval tracked': 'אינטרוול אחד במעקב',
   'Answer form': 'צורת תשובה',
   'Find it on the neck': 'למצוא על הצוואר',
   'Name the note': 'לזהות את התו',
