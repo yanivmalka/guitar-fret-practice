@@ -55,6 +55,22 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Home screen: bottom-anchor the content column and clip instead of scroll.
+   The selector + drill board are a fraction taller than a short Android
+   WebView viewport once the safe-area insets are taken out, which left the
+   home screen with a few px of dead scroll. Pinning the column to the bottom
+   pushes it down into the space that was sitting empty above the nav-bar
+   inset; any remaining overflow is absorbed off the (near-empty) top — the
+   burger + title strip — rather than becoming a scroll. Only the home
+   screen's .app gets this; the Stats / Learn / settings sub-pages keep
+   their normal `overflow-y: auto` and scroll freely. */
+.app.home-page {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow-y: hidden;
+}
+
 /* On larger (desktop/tablet) screens, render the app at its native
    mobile size (--phone-w/--phone-h, set in index.html) inside #root,
    then uniformly scale that whole frame down to fit the window

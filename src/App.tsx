@@ -946,7 +946,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className="app home-page">
       {!onboardingDone && (
         <Onboarding
           onInstrument={applyInstrument}
