@@ -68,6 +68,13 @@ import { useHistory } from './hooks/useHistory';
 import { useScoring } from './hooks/useScoring';
 import { useVoiceAnswer } from './hooks/useVoiceAnswer';
 import VoiceLevelMeter from './components/VoiceLevelMeter';
+import ExitHintToast from './components/ExitHintToast';
+import MicPermissionCard from './components/MicPermissionCard';
+import SignInNudge from './components/SignInNudge';
+import CountdownOverlay from './components/drill/CountdownOverlay';
+import StageTransition from './components/drill/StageTransition';
+import VoiceStatusRow from './components/drill/VoiceStatusRow';
+import GameEndSummary from './components/drill/GameEndSummary';
 import DebugLogPanel from './components/DebugLogPanel';
 import VoiceCalibration from './components/VoiceCalibration';
 import { FeedbackBoard } from './components/FeedbackBoard';
@@ -78,10 +85,9 @@ import { UpgradeCard } from './components/UpgradeCard';
 import { can } from './utils/features';
 import { GuestMergePrompt } from './components/GuestMergePrompt';
 import { registerUpgradeHandler } from './utils/upgradeDrawer';
-import { BadgeMedal, BadgeMedalDefs } from './components/BadgeMedal';
 import { BadgeToast, BadgeRevealOverlay, type CelebratedBadge } from './components/BadgeCelebration';
 import {
-  badgeDef, evaluateSession, evaluateLifetime, awardFamilyUpTo, earnedTier, TIER_LABEL,
+  badgeDef, evaluateSession, evaluateLifetime, awardFamilyUpTo, earnedTier,
   type BadgeId, type SessionSnapshot, type LifetimeSnapshot, type Tier,
 } from './utils/badges';
 import type { SpeechNotation } from './utils/speechVocab';
@@ -1788,20 +1794,7 @@ export default function App() {
 
       {/* Shown when Back (hardware or browser) is pressed on the home screen —
           a second press within 2s leaves the app (see the Back handler above). */}
-      {exitHint && (
-        <div
-          role="status"
-          aria-live="polite"
-          style={{
-            position: 'fixed', left: '50%', bottom: 32, transform: 'translateX(-50%)',
-            background: 'rgba(0,0,0,0.82)', color: '#fff', padding: '10px 18px',
-            borderRadius: 999, fontSize: 14, zIndex: 9999, pointerEvents: 'none',
-            maxWidth: '80vw', textAlign: 'center',
-          }}
-        >
-          {t('Press back again to exit')}
-        </div>
-      )}
+      {exitHint && <ExitHintToast t={t} />}
 
       {/* Settings hamburger + stats shortcut — hidden while actively playing so
           the game stays clean and focused. */}
@@ -1867,54 +1860,13 @@ export default function App() {
       {/* Microphone permission card — our own copy + styling, shown ahead of
           (primer) or in place of (denied) the browser's native prompt. */}
       {micPrompt && (
-        <div className="mic-overlay" onClick={click(() => setMicPrompt(null))}>
-          <div
-            className="mic-card"
-            role="dialog"
-            aria-modal="true"
-            aria-label={t('Microphone access')}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mic-card-icon" aria-hidden="true">🎤</div>
-            {micPrompt === 'primer' ? (
-              <>
-                <div className="mic-card-title">{t('Answer out loud')}</div>
-                <p className="mic-card-body">
-                  {t('Voice mode listens for the note or fret you say instead of a tap.')}
-                  {' '}
-                  {t('Your browser will ask to use the microphone next — audio stays on your device and is never recorded or uploaded.')}
-                </p>
-                <div className="mic-card-actions">
-                  <button className="mic-btn mic-btn-primary" onClick={click(() => { void grantMic(); })}>
-                    {t('Allow microphone')}
-                  </button>
-                  <button className="mic-btn mic-btn-ghost" onClick={click(() => setMicPrompt(null))}>
-                    {t('Not now')}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="mic-card-title">{t('Microphone is blocked')}</div>
-                <p className="mic-card-body">
-                  {t("Your browser is refusing microphone access for this site, so voice answers can't work yet. Tap the 🔒 / 🎤 icon beside the address bar, set the microphone to")}
-                  {' '}<strong>{t('Allow')}</strong>{t(', then reload the page.')}
-                </p>
-                <div className="mic-card-actions">
-                  <button className="mic-btn mic-btn-primary" onClick={click(() => setMicPrompt(null))}>
-                    {t('Got it')}
-                  </button>
-                  <button
-                    className="mic-btn mic-btn-ghost"
-                    onClick={click(() => { setAnswerMode('tap'); saveSetting('pref_answerMode', 'tap'); setMicPrompt(null); })}
-                  >
-                    {t('Use tap instead')}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+        <MicPermissionCard
+          micPrompt={micPrompt}
+          t={t}
+          grantMic={grantMic}
+          setMicPrompt={setMicPrompt}
+          setAnswerMode={setAnswerMode}
+        />
       )}
 
       {/* One-time sign-in nudge for guests, right after onboarding. Reuses the
@@ -1922,53 +1874,18 @@ export default function App() {
           for good on this device; the account stays reachable from Settings. */}
       {auth.configured && !auth.loading && !auth.user && onboardingDone
         && !signInPromptSeen && !gameActive && (
-        <div className="mic-overlay" onClick={click(dismissSignInPrompt)}>
-          <div
-            className="mic-card"
-            role="dialog"
-            aria-modal="true"
-            aria-label={t('Sign in')}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mic-card-icon" aria-hidden="true">☁️</div>
-            <div className="mic-card-title">{t('Save your progress')}</div>
-            <p className="mic-card-body">
-              {t('Sign in to keep your history, badges and personal bests across devices. You can keep playing as a guest — everything still works, it just stays on this device.')}
-            </p>
-            <div className="mic-card-actions">
-              <button
-                className="mic-btn mic-btn-primary"
-                onClick={click(() => { void auth.signInWithGoogle(); })}
-              >
-                {t('Sign in')}
-              </button>
-              <button className="mic-btn mic-btn-ghost" onClick={click(dismissSignInPrompt)}>
-                {t('Maybe later')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <SignInNudge
+          t={t}
+          onSignIn={() => { void auth.signInWithGoogle(); }}
+          onDismiss={dismissSignInPrompt}
+        />
       )}
 
       {/* Countdown overlay */}
-      {countdown !== null && (
-        <div className="countdown-overlay">
-          <span className="countdown-num" key={countdown}>{countdown}</span>
-        </div>
-      )}
+      {countdown !== null && <CountdownOverlay countdown={countdown} />}
 
       <div className="game-row" ref={gameRowRef}>
-        {stageTransition && (
-          <div className="stage-transition" role="status" aria-live="polite">
-            <div className="stage-transition-label">{t('STAGE COMPLETE')}</div>
-            <div className="stage-transition-name">{stageTransition.name}</div>
-            {stageTransition.from !== stageTransition.to && (
-              <div className="stage-transition-progress" dir="ltr">
-                {stageTransition.from} → {stageTransition.to} {t('QUESTIONS')}
-              </div>
-            )}
-          </div>
-        )}
+        {stageTransition && <StageTransition stageTransition={stageTransition} t={t} />}
         <div className="question-col">
           {gameActive && (
             <>
@@ -2030,26 +1947,7 @@ export default function App() {
                   </div>
                 );
               })()}
-              {voiceActive && (
-                <div className={`voice-status voice-${voice.status}`} role="status" aria-live="polite">
-                  {voice.permission === 'denied'
-                    ? t('🎤 Microphone blocked — enable it or switch to tap')
-                    : voice.error === 'network'
-                      ? t('🎤 Voice needs a connection')
-                      : voice.error === 'not-supported'
-                        ? t('🎤 Voice isn’t working in this browser — try Chrome, or use tap')
-                      : voice.error
-                        ? t('🎤 Didn’t catch that')
-                        : voice.status === 'listening'
-                          ? `🎤 ${t('Listening…')}${voice.partial ? ` “${voice.partial}”` : ''}`
-                          : voice.status === 'heard'
-                            ? `🎤 “${voice.partial}”`
-                            : t('🎤 …')}
-                  {(voice.status === 'error') && (
-                    <button className="clear-btn voice-retry" onClick={click(voice.retry)}>{t('Retry')}</button>
-                  )}
-                </div>
-              )}
+              {voiceActive && <VoiceStatusRow voice={voice} t={t} />}
               {voiceActive && running && !paused && voice.permission !== 'denied' && (
                 <VoiceLevelMeter active={running && !paused} />
               )}
@@ -2058,29 +1956,17 @@ export default function App() {
 
           {/* Game ended summary */}
           {gameEnded && isStopped && (
-            <div className="game-end-summary">
-              <div className="game-end-title">🎉 {t('Round Complete!')}</div>
-              {showScore && <div className="game-end-score"><AnimatedScore value={scoring.session.score} /> {t('pts')}</div>}
-              <div className="game-end-details">
-                {scoring.session.longestStreak >= 2 && <span>🔥 {scoring.session.longestStreak} {t('streak')}</span>}
-                <span>✓ {sessionResult.questionsCorrect}/{sessionResult.questionsAnswered}</span>
-              </div>
-              {newBadges.length > 0 && (
-                <div className="game-end-badges">
-                  <BadgeMedalDefs />
-                  {newBadges.map(({ id, tier }) => {
-                    const def = badgeDef(id, instrument);
-                    return (
-                      <div className="game-end-badge" key={id}>
-                        <BadgeMedal id={id} instrumentId={instrument.id} tier={tier} size={30} />
-                        {t('New badge')} · {def ? t(def.name) : id} — {t(TIER_LABEL[tier])}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              <button className="clear-btn" onClick={click(() => { setGameEnded(false); setNewBadges([]); setToastQueue([]); setRevealBadges([]); })}>{t('OK')}</button>
-            </div>
+            <GameEndSummary
+              t={t}
+              showScore={showScore}
+              score={scoring.session.score}
+              longestStreak={scoring.session.longestStreak}
+              questionsCorrect={sessionResult.questionsCorrect}
+              questionsAnswered={sessionResult.questionsAnswered}
+              newBadges={newBadges}
+              instrument={instrument}
+              onOk={() => { setGameEnded(false); setNewBadges([]); setToastQueue([]); setRevealBadges([]); }}
+            />
           )}
 
           {/* Controls: Play (centered) → becomes a Pause/Resume toggle plus a separate Stop when playing/paused */}
