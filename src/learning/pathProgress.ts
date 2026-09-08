@@ -5,20 +5,41 @@
 // sync live in `learningState.ts` (the same blob the SRS schedule and daily
 // goal already use); this module only computes and folds.
 //
-// "% mastered" for a checkpoint is derived from the SAME data the rest of the
-// Teacher reads — the recorded `HistoryEntry` rows and the SRS map — never a
-// new history. A position counts as mastered when either:
-//   • its SRS bucket is at or above `MASTERED_BUCKET` (the Teacher has seen
-//     it answered right enough times to space it out), or
-//   • over its recent window it was answered correctly at or above
-//     `MASTERED_ACCURACY`, with at least `MASTERED_MIN_ATTEMPTS` attempts.
-// An unplayed / barely-played position is simply not mastered yet.
+// A checkpoint's "%" is derived from the SAME data the rest of the Teacher
+// reads — the recorded `HistoryEntry` rows and the SRS map — never a new
+// history. Each position gets a continuous 0..1 strength score from the shared
+// exponential time-decay engine in `./recency` (approved spec —
+// product-wishlist.md, "Recency model: exponential time-decay for the
+// practice-statistics windows"), folding pathProgress onto the same model
+// `weakness.ts` / `intervalWeakness.ts` / `intervalMastery.ts` already use:
+//
+//   • every answer inside the 180-day hard cap gets weight
+//     `w = 0.5 ** (ageMs / halfLifeMs)` (14-day half-life); the position's
+//     weighted accuracy is `Σ(w·correct) / Σ w` and its evidence weight is
+//     the effective sample size `effectiveN = Σ w`;
+//   • below `MIN_EFFECTIVE_N` (3) the weighted accuracy is discarded as noise
+//     and the score is the SRS bucket floor (`BUCKET_SCORE`), or 0 when there
+//     is no schedule row — so a barely-played position with no schedule row
+//     contributes 0, not a noisy fraction;
+//   • at or above the gate the weighted accuracy stands alone (the bucket
+//     plays no part), so a long-ago hot streak can no longer keep a
+//     checkpoint looking done and there is no "take the last N in order"
+//     window — every answer is weighted purely by age.
 //
 // The checkpoint's tiered goal is scored with the EXISTING star-tier math
 // (`evaluateStars` / `meetsGoal` from `src/game/stageResult.ts`): the metric
-// fed in is the checkpoint's mastered percentage as `accuracy`. Only that
-// threshold math is reused — not the World / Stage / GameProgress framing
-// (premium-product-plan.md §13 / §16.1).
+// fed in is the MEAN of the checkpoint's per-position scores as `accuracy`
+// (a 0–100 number), not a `mastered / total` ratio. Only that threshold math
+// is reused — not the World / Stage / GameProgress framing
+// (premium-product-plan.md §13 / §16.1). `PathProgress.bestStars` stays
+// monotonic and stored, exactly as before.
+//
+// Deferred UI follow-ups (product decision pending — NOT built here; see
+// product-wishlist.md "Recency model" → "UI follow-ups this forces"):
+// rendering the per-position green dot as an intensity gradient off the new
+// continuous `CheckpointItemView.score` instead of the on/off `mastered`
+// flag, and turning the "N / M positions" line into a "N positions ≥ 85%"
+// readout or dropping it for the single continuous bar.
 
 import type { SessionResult } from '../drill/DrillConfig';
 import type { HistoryEntry } from '../utils/music';
@@ -26,22 +47,28 @@ import { evaluateStars, meetsGoal, type StarRating } from '../game/stageResult';
 import { parseNoteItemId } from './noteItem';
 import type { SrsMap } from './srs';
 import {
+  weightedAccuracy,
+  positionScore,
+  DAY_MS,
+  DEFAULT_HALF_LIFE_DAYS,
+  HARD_CAP_DAYS,
+  MIN_EFFECTIVE_N,
+} from './recency';
+import {
   PATH_CHECKPOINTS,
   checkpointItemIds,
   type Checkpoint,
   type CheckpointItem,
 } from './path';
 
-export const MASTERED_BUCKET = 3;
+/** A position's continuous strength score at or above this reads as "mastered"
+ *  for the on/off green dot and the planner's "not mastered yet" filter. It
+ *  matches `BUCKET_SCORE[3]` in `recency.ts`, so a well-scheduled position with
+ *  little recent history still clears the line, mirroring the old
+ *  "SRS bucket >= 3 alone ⇒ mastered" behaviour. */
 export const MASTERED_ACCURACY = 0.85;
-export const MASTERED_MIN_ATTEMPTS = 3;
-/** Only the most recent this-many answers per position decide "mastered now". */
-export const MASTERY_WINDOW = 12;
-/** Rows older than this are ignored, matching `weakness.ts`'s recency horizon
- *  so a long-ago hot streak can't keep a checkpoint looking done. */
-export const MASTERY_MAX_AGE_DAYS = 45;
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+const HALF_LIFE_MS = DEFAULT_HALF_LIFE_DAYS * DAY_MS;
 
 // ── Persisted record ──────────────────────────────────────────────────
 //
@@ -120,30 +147,42 @@ function masteryResult(pctMastered: number): SessionResult {
   };
 }
 
-/** Recent-window accuracy for one position id, or null when there is not
- *  enough recent history to judge. */
-function recentAccuracy(
-  rowsById: Map<string, HistoryEntry[]>,
-  itemId: string,
-): number | null {
-  const rows = rowsById.get(itemId);
-  if (!rows || rows.length < MASTERED_MIN_ATTEMPTS) return null;
-  const window = rows.slice(-MASTERY_WINDOW);
-  const correct = window.filter((e) => e.correct === true).length;
-  return correct / window.length;
+/**
+ * One position's continuous 0..1 strength: the recency-weighted accuracy of
+ * its answers inside the 180-day cap once `effectiveN >= MIN_EFFECTIVE_N`,
+ * otherwise the SRS bucket floor (0 when there is no schedule row). Every row
+ * in `rows` already has a finite, in-cap `createdAt` (filtered while grouping).
+ */
+function strengthFor(
+  rows: HistoryEntry[] | undefined,
+  srsBucket: number | null,
+  now: number,
+): number {
+  const { accuracy, effectiveN } = weightedAccuracy(
+    (rows ?? []).map((e) => ({ correct: e.correct === true, atMs: Date.parse(e.createdAt!) })),
+    now,
+    HALF_LIFE_MS,
+  );
+  return positionScore(accuracy, effectiveN, srsBucket, MIN_EFFECTIVE_N);
 }
 
 export interface CheckpointItemView extends CheckpointItem {
+  /** Continuous 0..1 strength score from the shared decay engine. */
+  score: number;
+  /** `score >= MASTERED_ACCURACY` — the on/off flag the green dot and the
+   *  planner's "not mastered yet" filter still read. */
   mastered: boolean;
 }
 
 export interface CheckpointView {
   checkpoint: Checkpoint;
   items: CheckpointItemView[];
+  /** Positions whose `score >= MASTERED_ACCURACY`. */
   masteredCount: number;
   totalCount: number;
-  /** 0–100, whole number. 0 when the checkpoint has no positions on this
-   *  instrument (e.g. all its strings are past the string count). */
+  /** 0–100, whole number — the MEAN of the checkpoint's per-position scores,
+   *  not `masteredCount / totalCount`. 0 when the checkpoint has no positions
+   *  on this instrument (e.g. all its strings are past the string count). */
   pctMastered: number;
   /** Live star rating from the checkpoint's targets and `pctMastered`. */
   liveStars: StarRating;
@@ -193,9 +232,9 @@ export interface EvaluatePathOptions {
 }
 
 /**
- * Evaluate the whole path: every checkpoint's mastered set, percentage, live
- * and monotonic star rating, unlock state, and which one is current.
- * Deterministic for fixed inputs.
+ * Evaluate the whole path: every checkpoint's per-position score, mean
+ * percentage, live and monotonic star rating, unlock state, and which one is
+ * current. Deterministic for fixed inputs.
  */
 export function evaluatePath(opts: EvaluatePathOptions): PathView {
   const {
@@ -203,8 +242,13 @@ export function evaluatePath(opts: EvaluatePathOptions): PathView {
     checkpoints = PATH_CHECKPOINTS,
   } = opts;
 
-  // Group recent history rows by position id, once.
-  const cutoff = now - MASTERY_MAX_AGE_DAYS * DAY_MS;
+  // Group history rows by position id, once — dropping anything past the
+  // 180-day hard cap (a performance / storage bound only) and anything with no
+  // usable timestamp (treated as too old, same rule as `weakness.ts` /
+  // `utils/mastery.ts`). The exponential decay weight — not this filter — is
+  // what makes a long-ago streak stop counting; row order no longer matters,
+  // so there is no per-position sort any more.
+  const cutoff = now - HARD_CAP_DAYS * DAY_MS;
   const rowsById = new Map<string, HistoryEntry[]>();
   for (const e of entries) {
     if (!Number.isInteger(e.string) || !Number.isInteger(e.fret)) continue;
@@ -215,34 +259,28 @@ export function evaluatePath(opts: EvaluatePathOptions): PathView {
     if (list) list.push(e);
     else rowsById.set(id, [e]);
   }
-  // `entries` concatenates the rows of every `historyKey` combination, so it is
-  // NOT globally chronological even though each combination's own rows are.
-  // Sort each position's rows by `createdAt` so `recentAccuracy`'s trailing
-  // `slice(-MASTERY_WINDOW)` really is the most recent answers — matching what
-  // `weakness.ts` already does before it windows.
-  for (const list of rowsById.values()) {
-    list.sort((a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? ''));
-  }
 
-  const isMastered = (itemId: string): boolean => {
+  const scoreFor = (itemId: string): number => {
     const srsItem = srs[itemId];
-    if (srsItem && srsItem.bucket >= MASTERED_BUCKET) return true;
-    const acc = recentAccuracy(rowsById, itemId);
-    return acc != null && acc >= MASTERED_ACCURACY;
+    return strengthFor(rowsById.get(itemId), srsItem ? srsItem.bucket : null, now);
   };
 
   const currentIndex = currentCheckpointIndex(checkpoints, progress.bestStars);
 
   const views: CheckpointView[] = checkpoints.map((checkpoint, i) => {
     const rawItems = checkpointItemIds(checkpoint, instrument, noteTable);
-    const items: CheckpointItemView[] = rawItems.map((it) => ({
-      ...it,
-      mastered: parseNoteItemId(it.itemId) ? isMastered(it.itemId) : false,
-    }));
+    const items: CheckpointItemView[] = rawItems.map((it) => {
+      const score = parseNoteItemId(it.itemId) ? scoreFor(it.itemId) : 0;
+      return { ...it, score, mastered: score >= MASTERED_ACCURACY };
+    });
     const totalCount = items.length;
     const masteredCount = items.filter((it) => it.mastered).length;
+    // The checkpoint metric is the MEAN of the continuous position scores, not
+    // `masteredCount / totalCount` — a partly-known position still contributes.
     const pctMastered =
-      totalCount > 0 ? Math.round((masteredCount / totalCount) * 100) : 0;
+      totalCount > 0
+        ? Math.round((items.reduce((s, it) => s + it.score, 0) / totalCount) * 100)
+        : 0;
 
     const liveStars = evaluateStars(masteryResult(pctMastered), checkpoint.targets);
     const storedBest = progress.bestStars[checkpoint.id] ?? 0;

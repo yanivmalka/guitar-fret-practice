@@ -132,15 +132,20 @@ function row(string: number, fret: number, correct: boolean | null, tOffsetMs = 
       entries, srs: {}, instrument: GUITAR, noteTable: GUITAR_NOTES, progress, now: T0,
     })) === JSON.stringify(view));
 
-  // SRS bucket >= 3 also counts as mastered, with no history at all.
+  // SRS bucket >= 3 with no recent history: below the `effectiveN` gate the
+  // score is the bucket floor `BUCKET_SCORE[3]` = 0.85 — enough for the on/off
+  // `mastered` flag, but the checkpoint's mean % then reads 85, not 100.
   const srs = Object.fromEntries(
     openItems.map((it) => [`${it.string}:${it.fret}`, { ...newSrsItem(`${it.string}:${it.fret}`, T0), bucket: 3 }]),
   );
   const viaSrs = evaluatePath({
     entries: [], srs, instrument: GUITAR, noteTable: GUITAR_NOTES, progress, now: T0,
   });
-  check('a well-scheduled position (SRS bucket >= 3) counts as mastered',
-    viaSrs.checkpoints[0].pctMastered === 100);
+  check('a well-scheduled position (SRS bucket >= 3) reads mastered via the bucket floor',
+    viaSrs.checkpoints[0].items.every((it) => it.mastered) &&
+    viaSrs.checkpoints[0].masteredCount === viaSrs.checkpoints[0].totalCount);
+  check('the bucket floor feeds the mean: a bucket-3-only checkpoint reads 85%',
+    viaSrs.checkpoints[0].pctMastered === 85);
 
   // Unlock gating: checkpoint 2 is locked until checkpoint 1 is reached.
   const cold = evaluatePath({
@@ -152,39 +157,68 @@ function row(string: number, fret: number, correct: boolean | null, tOffsetMs = 
   check('cold start makes checkpoint 1 the current one', cold.currentIndex === 0);
 }
 
-// ── Recent-window mastery is chronological, not array order ───────────
-// `entries` concatenates the rows of every historyKey combination, so a
-// position drilled under more than one combo arrives out of order. The
-// trailing `slice(-MASTERY_WINDOW)` must still be the *most recent* answers.
-//
-// TODO(recency-decay plan): pathProgress.ts still uses this `createdAt`-sorted
-// trailing fixed window as a stopgap. The deferred follow-up folds it onto the
-// shared exponential time-decay helper in src/learning/recency.ts (weighted
-// accuracy + `effectiveN` gate + continuous `positionScore`), which weights
-// every answer by age and never "takes the last N in order" — at which point
-// this array-order test becomes redundant and this block should be replaced
-// with decay-curve assertions like check-learning.mts / check-intervals.mts.
+// ── Decay-curve scoring (recency-decay plan §1 fold-in) ──────────────
+// pathProgress.ts now scores each position on the shared exponential
+// time-decay engine (src/learning/recency.ts): every answer inside the
+// 180-day hard cap gets weight `w = 0.5 ** (ageMs / 14d)`, the position's
+// score is the weighted accuracy once `effectiveN = Σw >= MIN_EFFECTIVE_N`
+// (3) and the SRS bucket floor below that gate, and a checkpoint's % is the
+// MEAN of those continuous scores — no fixed window, no "take the last N in
+// order". Same spirit as the decay blocks in check-intervals.mts.
 {
   const progress = emptyPathProgress();
-  const openItems = checkpointItemIds(PATH_CHECKPOINTS[0], GUITAR, GUITAR_NOTES);
-  // 5 of the 6 open naturals: fully mastered (5 recent correct answers each).
-  const solid = openItems.slice(1).flatMap((it, k) =>
-    Array.from({ length: 5 }, (_, i) => row(it.string, it.fret, true, k * 10_000 + i * 500)),
-  );
-  // The 6th: 12 recent WRONG answers plus 12 CORRECT ones from ~30 days ago,
-  // pushed in newest-first — the way one history key concatenated after another
-  // can leave them. Only a chronological sort before the window lets the recent
-  // misses win, so the position must read as NOT mastered.
-  const p6 = openItems[0];
-  const recentWrong = Array.from({ length: 12 }, (_, i) => row(p6.string, p6.fret, false, i * 500));
-  const olderRight = Array.from({ length: 12 }, (_, i) => row(p6.string, p6.fret, true, -29 * DAY + i * 500));
-  const scrambled = evaluatePath({
-    entries: [...recentWrong, ...olderRight, ...solid],
-    srs: {}, instrument: GUITAR, noteTable: GUITAR_NOTES, progress, now: T0,
-  });
-  check('recent-window mastery follows createdAt, not array order (older correct rows do not mask recent misses)',
-    scrambled.checkpoints[0].masteredCount === 5 && scrambled.checkpoints[0].pctMastered === 83,
-    `masteredCount=${scrambled.checkpoints[0].masteredCount} pct=${scrambled.checkpoints[0].pctMastered}`);
+  const open = checkpointItemIds(PATH_CHECKPOINTS[0], GUITAR, GUITAR_NOTES);
+  const p = open[0]; // the one position we vary
+  // `n` answers for `it`, each `ageDays` old (spaced 1s): with `row`'s
+  // `createdAt = T0 - DAY + tOffsetMs`, an offset of `DAY - ageDays*DAY` puts
+  // the row exactly `ageDays` in the past.
+  const hist = (it: { string: number; fret: number }, n: number, correct: boolean, ageDays: number) =>
+    Array.from({ length: n }, (_, i) =>
+      row(it.string, it.fret, correct, DAY - ageDays * DAY - i * 1000));
+  const evalOne = (entries: ReturnType<typeof row>[], srs: Record<string, unknown> = {}) =>
+    evaluatePath({ entries, srs, instrument: GUITAR, noteTable: GUITAR_NOTES, progress, now: T0 });
+  const scoreOf = (view: ReturnType<typeof evalOne>, it: { string: number; fret: number }) =>
+    view.checkpoints[0].items.find((x) => x.itemId === `${it.string}:${it.fret}`)!.score;
+
+  // Fresh vs half-life-aged: the decay weight halves at 14 days, so it takes
+  // ~2x as many aged answers to clear the same `effectiveN` gate.
+  check('6 fresh correct answers → score 1',
+    Math.abs(scoreOf(evalOne(hist(p, 6, true, 0)), p) - 1) < 1e-9);
+  check('3 answers 14 days old miss the effectiveN gate (no SRS row → score 0)',
+    scoreOf(evalOne(hist(p, 3, true, 14)), p) === 0);
+  check('8 answers 14 days old clear the gate (effectiveN ≈ 4) → score 1',
+    Math.abs(scoreOf(evalOne(hist(p, 8, true, 14)), p) - 1) < 1e-9);
+
+  // Below the gate an SRS row lifts the score to its bucket floor.
+  check('below the gate, SRS bucket 3 lifts the score to the 0.85 floor',
+    Math.abs(scoreOf(
+      evalOne(hist(p, 2, true, 0),
+        { [`${p.string}:${p.fret}`]: { ...newSrsItem(`${p.string}:${p.fret}`, T0), bucket: 3 } }),
+      p,
+    ) - 0.85) < 1e-9);
+
+  // Above the gate the weighted accuracy stands alone: recent misses sink a
+  // position that had a long-ago hot streak. This is the old array-order
+  // scenario, now expressed as decay — no chronological sort is needed.
+  const recentBad = [...hist(p, 12, false, 1), ...hist(p, 12, true, 30)];
+  const sank = scoreOf(evalOne(recentBad), p);
+  check('recent misses outweigh an older streak (score well below the 0.85 line)',
+    sank < 0.4, `score=${sank}`);
+  check('a position sunk by recent misses is not counted mastered',
+    !evalOne(recentBad).checkpoints[0].items.find((x) => x.itemId === `${p.string}:${p.fret}`)!.mastered);
+
+  // Rows past the 180-day hard cap are dropped entirely.
+  check('history past the 180-day hard cap is ignored (no SRS row → score 0)',
+    scoreOf(evalOne(hist(p, 20, true, 200)), p) === 0);
+
+  // A checkpoint's % is the MEAN of the continuous scores, not mastered/total.
+  const solid = open.slice(1).flatMap((it) => hist(it, 6, true, 0));
+  const halfish = [...hist(p, 3, true, 0), ...hist(p, 3, false, 0)]; // effectiveN ≈ 6, acc 0.5
+  const mixed = evalOne([...solid, ...halfish]).checkpoints[0];
+  check('checkpoint % is the mean of continuous scores (5 solid + 1 at ~0.5 → ~92%)',
+    mixed.pctMastered === 92, `pct=${mixed.pctMastered}`);
+  check('masteredCount still counts only positions at or above the 0.85 line',
+    mixed.masteredCount === 5, `masteredCount=${mixed.masteredCount}`);
 }
 
 // ── Monotonic stars + merge ──────────────────────────────────────────
