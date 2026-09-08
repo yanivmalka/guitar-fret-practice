@@ -146,8 +146,15 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
     setTimeout(() => setGlowNote(null), totalMs);
   };
 
+  // overflow:hidden clips the rotating layer to this fixed size×size box.
+  // Without it, a non-zero wheelAngle inflates that layer's bounding box (a
+  // rotated square measures up to ~1.37× taller) and, since nothing upstream
+  // clips it, extends the .app scroll container — enough to make the home
+  // screen scroll a few px on shorter Android viewports. The wheel's drawable
+  // content (buttons at radius ≤ ~156 from centre) always stays well inside
+  // this box, so nothing meaningful is clipped.
   return (
-    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0, overflow: 'hidden' }}>
       <div style={{
         position: 'absolute', width: size, height: size,
         transform: `rotate(${wheelAngle}deg)`,
