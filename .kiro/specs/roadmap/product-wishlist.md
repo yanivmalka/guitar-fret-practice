@@ -606,6 +606,37 @@ Does not exist yet; needs to be built to justify a price above Pro. Justified on
 
 ### Open / deferred work
 - **Mastery "time-travel" view (Pro) — build the UI.** Pro should be able to see the mastery overlay as it stood for an *exact* question count, a *date range*, or a *specific day* ("how was I on that day"). The foundation exists: `MasteryWindow` in `src/utils/mastery.ts` already defines `dateRange` / `onDay` variants and `applyMasteryWindow` honours them; only the `lastN` variant is wired to UI (the "Questions counted" segmented control). What remains: a date/day picker control, `<ProGate feature="masteryMaps">` around it, and persisting the chosen `MasteryWindow` (the `pref_masteryWindow` key already stores the whole object, so no migration).
+
+  ### Implementation plan — Mastery "time-travel" view
+
+  **Goal:** a Pro user can point the fretboard / note-circle mastery overlay at (a) the last *N* questions (today's behaviour), (b) a single calendar day, or (c) an inclusive date range, and the choice persists like every other setting. Free stays pinned to the last 250.
+
+  **What is already done and must not be re-touched:**
+  - `MasteryWindow` is a discriminated union with `lastN` / `dateRange` / `onDay`; `applyMasteryWindow(entries, window)` already filters correctly for all three (`onDay` is turned into local-calendar-day bounds by `dayBoundsISO`).
+  - `pref_masteryWindow` stores the whole object; it is in `settingsSync.ts`'s synced-keys list, so a chosen day/range round-trips across devices with no migration.
+  - `useMasteryOverlay` already does `const effectiveMasteryWindow = isPro ? masteryWindow : FREE_MASTERY_WINDOW;` — a non-Pro user physically cannot leave the 250 window, so the gate is defence-in-depth only.
+  - Rows with no `createdAt` (pre-timestamp localStorage entries) are excluded by the `dateRange` / `onDay` filters. That is acceptable and expected — say so in the help text ("older history without a date is not counted for a specific day").
+
+  **UI — `src/components/settings/sections/GeneralSettingsSection.tsx`, inside the existing `<ProGate feature="masteryMaps" variant="replace">` block, below the current "Questions counted" card.** Add a second `SettingCard` labelled "Mastery time window" (or fold both into one card with a mode switch — see below). The control has three modes:
+  - **Recent** — the existing `PickRow` of `PRO_MASTERY_LASTN_CHOICES` (100 / 250 / 500 / 1000 / All). Selecting a value writes `{ kind: 'lastN', n }`.
+  - **A day** — a single `<input type="date">` (max = today, in the user's locale). Selecting a date writes `{ kind: 'onDay', dayISO: <value> }`. Show the chosen day formatted next to the input.
+  - **A range** — two `<input type="date">`s (from / to, each clamped so `from <= to <= today`). Writes `{ kind: 'dateRange', fromISO: startOfDay(from).toISOString(), toISO: startOfDay(to + 1 day).toISOString() }` so the range is inclusive of the "to" day — reuse the half-open convention `applyMasteryWindow` already expects (`>= fromISO && < toISO`).
+
+  A small segmented control (`Recent` / `Day` / `Range`) at the top of the card switches which sub-control is visible; the visible sub-control's current value is what gets persisted. On switching *to* `Recent`, restore the last `lastN` value (keep it in component state so toggling back and forth is lossless); default it to `250` if there was none.
+
+  **Persistence:** exactly the current pattern — `setMasteryWindow(next); saveSetting('pref_masteryWindow', next);`. Nothing else. `useAppPreferences` already loads it with `DEFAULT_MASTERY_WINDOW` as the fallback, and `loadSetting` will happily rehydrate a stored `dateRange` / `onDay` object.
+
+  **Overlay caption:** `useMasteryOverlay` (or the components that render the overlay — `NoteCircle` / `FretGrid` wrappers in `App.tsx`) should show a one-line note of the active window when it is not the default, e.g. "showing 12 Apr 2026" / "showing 1–30 Mar 2026" / "showing last 500", so a time-travelled overlay is never mistaken for the live one. Put the string next to the existing "Mastery on the fretboard" toggle area or as a subtitle on the overlay legend.
+
+  **i18n:** new strings — "Mastery time window", "Recent", "A day", "A range", "From", "To", "showing {range}", "older history without a date is not counted for a specific day" — each needs a Hebrew entry in `src/i18n/translations.ts`. The date inputs are locale-rendered by the browser; no custom calendar.
+
+  **Edge cases:**
+  - Empty / partially filled range → keep the previous valid window, don't write an invalid one; disable the overlay-affecting write until both dates are set and ordered.
+  - A day / range with zero dated rows → the overlay shows every position as `unplayed`. That is correct ("you didn't practise then"); the caption plus the no-date help text explain it.
+  - Instrument switch does not touch the window — it is a global pref, same as the `lastN` choice today.
+  - `applyMasteryWindow` is called once per overlay memo; no perf concern at these history sizes.
+
+  **Files touched:** `src/components/settings/sections/GeneralSettingsSection.tsx` (the new control), `src/i18n/translations.ts` (strings), optionally `src/hooks/useMasteryOverlay.ts` + the overlay render sites in `src/App.tsx` (the caption). No change to `src/utils/mastery.ts`, no schema, no migration, no new settings key.
 - **Precise fret-range selector (Pro) — DONE.** Built as an extra layer on top of the free 0–12 / 12–max half-picker (which is unchanged and stays free). A new **"Precise fret range"** on/off toggle plus a two-handle slider (`src/components/FretRangeControl.tsx`) sit under the neck SVG in `SelectorPanel`, wrapped in `<ProGate feature="fretRange" variant="overlay">`. `useSelector` now takes an `isPro` argument and carries an explicit window: `useFretRange` / `fretLo` / `fretHi` (persisted as `sel_useFretRange` / `sel_fretLo` / `sel_fretHi`, global, clamped to `[0, maxFret]` with a 3-fret minimum via `clampFretWindow`, re-clamped on instrument switch). The derivation applies the window only when `useFretRange && isPro` (`precise`), so a free user — or a Pro user with the toggle off — falls back to the halves and the stored window is kept untouched. `getTime` is fed effective halves derived from the window (`fretFrom < 12` / `fretTo > 12`). `historyKey(state, instrument, isPro)` emits a `p<lo>-<hi>` fret segment for a precise window so its stats never mix with the half-picker's `0-12` / `12-max` shape (the non-precise shape is byte-identical to before, so existing history / `best_<key>` records still resolve). `applyStage` forces `useFretRange` off — Auto Advance always runs on the standard half-picker.
 
 ### Premium Teacher (P2) — shipped; follow-ups
