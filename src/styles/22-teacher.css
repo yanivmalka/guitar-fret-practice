@@ -229,20 +229,18 @@
    `<summary>` line plus `.interval-about`'s own top/bottom margin. */
 .interval-about-slot { min-height: 32px; }
 
-/* ── Interval Selector (§5 / T6) — parity pass (T11) ────────────────────
-   Reuses the Teacher card surface + `.teacher-btn` segmented toggles; these
-   rules only add the per-group spacing and the section labels so the panel
-   reads like the Notes `SelectorPanel`. Theme-token driven; RTL flips via the
-   `dir` attribute the component sets. */
+/* ── Interval Selector (§5 / T6) ───────────────────────────────────────
+   The Interval practice page is the same surface as the Notes
+   `SelectorPanel`: it reuses `.selector-panel` for the frame, the
+   strings-selector pills (`.string-pill`) for the interval picks, the
+   `.mode-card` squares for the exercise, and the `.difficulty-road` track
+   for Direction + Difficulty. These rules only add the group spacing, the
+   section labels, and the few overrides those shared controls need here.
+   Theme-token driven; RTL flips via the `dir` attribute the component sets. */
 .interval-selector-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-/* The card already spaces its groups (`.teacher-card` gap); drop the toggle's
-   own vertical margin so the rhythm stays even. */
-.interval-selector-group .interval-form-toggle {
-  margin: 0;
 }
 .interval-selector-label {
   font-size: 0.72rem;
@@ -251,26 +249,31 @@
   text-transform: uppercase;
   color: var(--text-2);
 }
-/* Selection / group rows carry 4+ chips — let them wrap instead of squashing. */
-.interval-form-toggle.interval-selector-wrap {
-  flex-wrap: wrap;
-}
-.interval-form-toggle.interval-selector-wrap .teacher-btn {
-  flex: 1 1 auto;
-  min-width: 72px;
+
+/* Plain-language line above the picks — a touch of breathing room from the
+   first group. */
+.interval-selector-summary {
+  margin-bottom: 2px;
 }
 
-/* "Multi" — an on/off mode switch, not one of the interval selections. Same
-   visual language as the strings selector's `.string-pill-toggle`: a dashed
-   outline reads as "tappable state", and it stays dashed (accent-tinted) while
-   on so it never looks like a selected interval chip. */
-.interval-selector .interval-multi-toggle {
-  border-style: dashed;
+/* Direction: two on/off tiles rather than the 3-stop difficulty track — give
+   them a small gap and no connecting arrows. */
+.interval-direction-road {
+  gap: 8px;
 }
-.interval-selector .interval-multi-toggle.is-on {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: transparent;
+
+/* Exercise squares: three cards instead of the Notes selector's two, and the
+   labels are short sentences — a little more width and a smaller label. */
+.interval-exercise-cards {
+  max-width: 440px;
+}
+.interval-exercise-cards .mode-card {
+  padding: 10px 8px;
+}
+.interval-exercise-cards .mode-card span {
+  font-size: 0.72rem;
+  line-height: 1.2;
+  text-align: center;
 }
 
 /* One-line note under the Exercise group when Silent mode disables an
@@ -317,41 +320,8 @@
   color: var(--text-0);
 }
 
-/* ── Interval Selector — Notes-Practice palette (parity, T12) ───────────
-   The Interval practice page must read as the same surface as the main
-   Notes `SelectorPanel`, not the gold Premium lane. These rules stay
-   scoped to `.interval-selector` so the Notes Premium "Today" card
-   (`.teacher-card` without `.interval-selector`) keeps its gold accent.
-   Values mirror src/styles/14-selector.css; theme-token driven. */
-
-/* Container: drop the gold card chrome — the page hero already frames it,
-   so match `.selector-panel` (borderless, centred, roomy max-width). */
-.teacher-card.interval-selector {
-  max-width: 500px;
-  padding: 8px;
-  border: none;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-  gap: 12px;
-}
-
-/* Segmented toggles (Exercise / Intervals / Difficulty / Direction):
-   base state = `.diff-btn`; active state = `.mode-card.active`. */
-.interval-selector .teacher-btn:not(.interval-multi-toggle) {
-  border: 2px solid var(--border-soft);
-  border-radius: 10px;
-  background: var(--bg-3);
-  color: var(--text-3);
-  transition: all 0.15s;
-}
-.interval-selector .interval-form-toggle .teacher-btn.teacher-btn-primary {
-  border-color: var(--pick-accent);
-  background: color-mix(in srgb, var(--pick-accent) 18%, var(--bg-3));
-  color: var(--text-0);
-}
-
-/* Start button: the app's solid accent action (cf. `.adjust-suggest-apply`). */
+/* Start button: the app's solid accent action (cf. `.adjust-suggest-apply`),
+   not the gold Premium `.teacher-btn-primary` gradient. */
 .interval-selector .teacher-actions .teacher-btn-primary {
   border: none;
   border-radius: 10px;

@@ -50,7 +50,14 @@ export interface IntervalSelectorState {
   /** The effective tier — clamped to `'focused'` while a single quality is
    *  selected (a lone quality cannot be "mixed" / "full" — §5.4). */
   difficulty: IntervalDifficulty;
+  /** Derived from the two direction toggles below — `'both'` when both are on,
+   *  otherwise the single one that is. Rides the built drill's `interval` spec
+   *  unchanged. */
   direction: IntervalDirection;
+  /** Ascending / descending as two independent on/off tiles, like the strings
+   *  selector's neck half-picker: either or both, but never neither. */
+  dirUp: boolean;
+  dirDown: boolean;
 }
 
 const DEFAULT_SINGLE = 4; // M3 — the "one semitone changes the colour" pair.
@@ -135,9 +142,18 @@ export function useIntervalSelector(opts: UseIntervalSelectorOptions) {
     // ascending-only (`up`). Existing users keep whatever they saved (#8).
     () => loadOneOf('isel_difficulty', DIFFICULTIES, 'focused'),
   );
-  const [direction, setDirectionState] = useState<IntervalDirection>(
-    () => loadOneOf('isel_direction', DIRECTIONS, 'up'),
-  );
+  // Direction is stored as one of 'up' | 'down' | 'both' (unchanged on disk),
+  // but presented as two independent toggle tiles. Either or both may be on;
+  // the last one on cannot be switched off (mirrors the strings selector).
+  const [dirUp, setDirUpState] = useState<boolean>(() => {
+    const d = loadOneOf('isel_direction', DIRECTIONS, 'up');
+    return d === 'up' || d === 'both';
+  });
+  const [dirDown, setDirDownState] = useState<boolean>(() => {
+    const d = loadOneOf('isel_direction', DIRECTIONS, 'up');
+    return d === 'down' || d === 'both';
+  });
+  const direction: IntervalDirection = dirUp && dirDown ? 'both' : dirDown ? 'down' : 'up';
 
   // §5.4: a lone quality cannot be "mixed" or "full" — the tier is pinned to
   // `focused` while exactly one chip is selected. The stored value is kept so
@@ -201,9 +217,15 @@ export function useIntervalSelector(opts: UseIntervalSelectorOptions) {
     setDifficultyState(d);
     saveSetting('isel_difficulty', d);
   };
-  const setDirection = (d: IntervalDirection) => {
-    setDirectionState(d);
-    saveSetting('isel_direction', d);
+  /** Flip one direction tile. Refuses to leave both off — at least one
+   *  direction is always in play, so Start never has nothing to ask. */
+  const toggleDirection = (which: 'up' | 'down') => {
+    const nextUp = which === 'up' ? !dirUp : dirUp;
+    const nextDown = which === 'down' ? !dirDown : dirDown;
+    if (!nextUp && !nextDown) return;
+    setDirUpState(nextUp);
+    setDirDownState(nextDown);
+    saveSetting('isel_direction', nextUp && nextDown ? 'both' : nextDown ? 'down' : 'up');
   };
 
   // ── Resolved interval-quality pool ────────────────────────────────────
@@ -218,6 +240,8 @@ export function useIntervalSelector(opts: UseIntervalSelectorOptions) {
     selectedSizes,
     difficulty,
     direction,
+    dirUp,
+    dirDown,
   };
 
   /** The manual-session `DrillConfig`. Every Selector control feeds this: the
@@ -273,7 +297,7 @@ export function useIntervalSelector(opts: UseIntervalSelectorOptions) {
     selectSize,
     toggleMulti,
     setDifficulty,
-    setDirection,
+    toggleDirection,
     buildDrill,
   };
 }

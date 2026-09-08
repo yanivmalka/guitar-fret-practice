@@ -880,6 +880,7 @@ const he: Record<string, string> = {
   'Ascending': 'עולה',
   'Descending': 'יורד',
   'Both': 'שניהם',
+  'Pick more than one interval to mix': 'בחרו יותר מאינטרוול אחד כדי לערבב',
   'Practising:': 'מתרגלים:',
   "You'll hear two notes. Pick the interval between them.":
     'תשמעו שני תווים. בחרו את האינטרוול שביניהם.',

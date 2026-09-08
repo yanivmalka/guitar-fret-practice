@@ -1,30 +1,34 @@
 // ── IntervalSelectorPanel — the Interval Selector UI ───────────────────
 //
 // The body of the "Intervals" learning page (intervals-learning-spec §5, task
-// T6). Reads as the same *kind* of surface as the Notes `SelectorPanel`: a
-// short set of grouped controls, a plain-language "?" summary, then Start →
-// the shared countdown / drill / feedback. Every control here changes what is
-// drilled or how hard it is (§5).
+// T6). Rebuilt to read as the *same surface* as the Notes `SelectorPanel`:
 //
-// Interval picking mirrors the Practice strings selector: a row of the 11
-// interval chips plus a "Multi" toggle (off ⇒ pick one, on ⇒ pick several).
-// It reuses the Premium Teacher card vocabulary (`.teacher-card`,
-// `.teacher-btn`, `.interval-form-toggle`), so no new design system is
-// introduced. All copy through `t()`; the layout flips for Hebrew via `dir`.
-// Deliberately no Auto Advance toggle (§5.5).
+//   • Intervals pick through the strings-selector pills (`.string-pill`) with
+//     the same on/off lighting, and a dashed `Multi` toggle in the same row.
+//   • Direction is two independent tiles (Ascending / Descending) on the
+//     difficulty-road track — either or both, but never neither, exactly like
+//     the neck half-picker.
+//   • Exercise picks through the `.mode-card` squares.
+//   • Difficulty is the `focused → mixed → full` road.
+//
+// No `.teacher-card` chrome and no bespoke design system. All copy through
+// `t()`; the layout flips for Hebrew via `dir`. Deliberately no Auto Advance
+// toggle (§5.5).
 
+import { Fragment, type ReactElement } from 'react';
 import type { InstrumentConfig } from '../utils/instruments';
 import type { AccidentalMode, NotationMode, OrderMode } from '../utils/music';
 import type { DrillConfig } from '../drill/DrillConfig';
-import { INTERVALS, intervalBySemitones } from '../utils/intervals';
+import { INTERVALS, intervalBySemitones, type IntervalExercise } from '../utils/intervals';
 import { intervalContentBySemitones } from '../learning/intervalContent';
 import {
   useIntervalSelector,
   type IntervalDifficulty,
-  type IntervalDirection,
 } from '../hooks/useIntervalSelector';
 import { useTranslation } from '../i18n/useTranslation';
-import { playClickSound, haptic } from '../utils/feedback';
+import {
+  playClickSound, playToggleOnSound, playToggleOffSound, haptic,
+} from '../utils/feedback';
 
 interface Props {
   instrument: InstrumentConfig;
@@ -50,11 +54,55 @@ const DIFFICULTY_LABELS: Record<IntervalDifficulty, string> = {
   mixed: 'Mixed',
   full: 'Full',
 };
+const DIFFICULTY_ICONS: Record<IntervalDifficulty, string> = {
+  focused: '◎',
+  mixed: '◐',
+  full: '◍',
+};
+const DIFFICULTY_ORDER: IntervalDifficulty[] = ['focused', 'mixed', 'full'];
 
-const DIRECTION_LABELS: Record<IntervalDirection, string> = {
-  up: 'Ascending',
-  down: 'Descending',
-  both: 'Both',
+// Exercise squares — one `.mode-card` each, a small glyph over the label,
+// mirroring the Notes mode selector's Note-by-Fret / Fret-by-Note cards.
+const EXERCISE_ORDER: IntervalExercise[] = [
+  'identifyInterval',
+  'findTargetNote',
+  'findTargetPosition',
+];
+const EXERCISE_META: Record<IntervalExercise, { label: string; glyph: ReactElement }> = {
+  identifyInterval: {
+    label: 'Identify the interval',
+    glyph: (
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+        <path d="M5 13h5l6-5v18l-6-5H5z" fill="currentColor" />
+        <path d="M21 11a7 7 0 0 1 0 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M25 8a12 12 0 0 1 0 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.5" />
+      </svg>
+    ),
+  },
+  findTargetNote: {
+    label: 'Find the note',
+    glyph: (
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+        <circle cx="17" cy="17" r="11" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.35" />
+        <circle cx="17" cy="7" r="3.2" fill="currentColor" opacity="0.3" />
+        <circle cx="25.5" cy="21" r="3.2" fill="currentColor" />
+      </svg>
+    ),
+  },
+  findTargetPosition: {
+    label: 'Find on the neck',
+    glyph: (
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+        {[7, 14, 21].map((y) => (
+          <line key={y} x1="4" y1={y} x2="30" y2={y} stroke="currentColor" strokeWidth="1.4" opacity="0.4" />
+        ))}
+        {[10, 18, 26].map((x) => (
+          <line key={x} x1={x} y1="5" x2={x} y2="23" stroke="currentColor" strokeWidth="1" opacity="0.25" />
+        ))}
+        <circle cx="18" cy="14" r="3.6" fill="currentColor" />
+      </svg>
+    ),
+  },
 };
 
 export default function IntervalSelectorPanel({
@@ -74,10 +122,16 @@ export default function IntervalSelectorPanel({
   });
   const { state, pool } = sel;
 
-  // A small helper so every control fires the click sound + haptic tap, per
-  // the app-wide `click()` convention.
+  // The app-wide interaction feedback: a plain tap plays `click()`; a genuine
+  // on/off toggle plays the directional toggle sound like the strings pills.
   const click = (fn: () => void) => () => {
     playClickSound();
+    haptic.tap();
+    fn();
+  };
+  const toggleClick = (isOn: boolean, fn: () => void) => () => {
+    if (isOn) playToggleOffSound();
+    else playToggleOnSound();
     haptic.tap();
     fn();
   };
@@ -96,33 +150,15 @@ export default function IntervalSelectorPanel({
     // "Practising: ." if the pool is somehow empty.
     (poolShorts ? ` ${t('Practising:')} ${poolShorts}.` : '');
 
-  const segButton = (
-    active: boolean,
-    label: string,
-    onClick: () => void,
-    disabled?: boolean,
-    title?: string,
-  ) => (
-    <button
-      key={label}
-      type="button"
-      className={`teacher-btn${active ? ' teacher-btn-primary' : ''}`}
-      aria-pressed={active}
-      disabled={busy || disabled}
-      title={title}
-      onClick={click(onClick)}
-    >
-      {t(label)}
-    </button>
-  );
+  const singleQuality = state.selectedSizes.length <= 1;
 
   return (
-    <section
-      className="teacher-card interval-selector"
+    <div
+      className="selector-panel interval-selector"
       dir={lang === 'he' ? 'rtl' : undefined}
       aria-label={t('Interval training')}
     >
-      <p className="teacher-card-summary">
+      <p className="teacher-card-summary interval-selector-summary">
         {summary}
         {trackedCount > 0 && (
           <>
@@ -134,61 +170,34 @@ export default function IntervalSelectorPanel({
         )}
       </p>
 
-      {/* ── Exercise (§5.1) ─────────────────────────────────────── */}
-      <div className="interval-selector-group">
-        <span className="interval-selector-label">{t('Exercise')}</span>
-        <div className="interval-form-toggle" role="group" aria-label={t('Exercise')}>
-          {segButton(
-            state.exercise === 'identifyInterval',
-            'Identify the interval',
-            () => sel.setExercise('identifyInterval'),
-            // Audio-only exercise: unavailable while drill sound is muted.
-            silentMode,
-            silentMode ? t('Silent mode is on — this exercise needs sound.') : undefined,
-          )}
-          {segButton(
-            state.exercise === 'findTargetNote',
-            'Find the note',
-            () => sel.setExercise('findTargetNote'),
-          )}
-          {segButton(
-            state.exercise === 'findTargetPosition',
-            'Find on the neck',
-            () => sel.setExercise('findTargetPosition'),
-          )}
-        </div>
-        {silentMode && (
-          <p className="interval-selector-hint">
-            {t('Silent mode is on — “Identify the interval” needs sound.')}
-          </p>
-        )}
-      </div>
-
-      {/* ── Intervals (§5.2) — like the strings selector: pick one, or
-          Multi to pick several ─────────────────────────────────── */}
+      {/* ── Intervals (§5.2) — the strings-selector pills: tap to light one,
+          Multi to light several ─────────────────────────────────────── */}
       <div className="interval-selector-group">
         <span className="interval-selector-label">{t('Intervals')}</span>
-        <div
-          className="interval-form-toggle interval-selector-wrap"
-          role="group"
-          aria-label={t('Intervals')}
-        >
-          {INTERVALS.map((iv) =>
-            segButton(
-              state.selectedSizes.includes(iv.semitones),
-              iv.short,
-              () => sel.selectSize(iv.semitones),
-            ),
-          )}
+        <div className="selector-strings" role="group" aria-label={t('Intervals')}>
+          {INTERVALS.map((iv) => {
+            const selected = state.selectedSizes.includes(iv.semitones);
+            return (
+              <button
+                key={iv.semitones}
+                type="button"
+                className={`string-pill ${selected ? 'active' : ''}`}
+                aria-pressed={selected}
+                disabled={busy}
+                onClick={toggleClick(selected, () => sel.selectSize(iv.semitones))}
+              >
+                {iv.short}
+              </button>
+            );
+          })}
           {/* "Multi" is an on/off mode switch, not a 12th interval — the dashed
-              outline (and dashed-accent when on) matches the strings selector's
-              `.string-pill-toggle` so it never reads as a selected chip. */}
+              `.string-pill-toggle` is exactly the strings selector's Multi. */}
           <button
             type="button"
-            className={`teacher-btn interval-multi-toggle${state.multiMode ? ' is-on' : ''}`}
+            className={`string-pill string-pill-toggle ${state.multiMode ? 'active' : ''}`}
             aria-pressed={state.multiMode}
             disabled={busy}
-            onClick={click(() => sel.toggleMulti())}
+            onClick={toggleClick(state.multiMode, () => sel.toggleMulti())}
           >
             {t('Multi')}
           </button>
@@ -221,29 +230,100 @@ export default function IntervalSelectorPanel({
         </div>
       </div>
 
-      {/* ── Difficulty (§5.4 / §9.2) ────────────────────────────── */}
+      {/* ── Direction (§5.3) — two on/off tiles, at least one lit, like the
+          neck half-picker ──────────────────────────────────────────── */}
       <div className="interval-selector-group">
-        <span className="interval-selector-label">{t('Difficulty')}</span>
-        <div className="interval-form-toggle" role="group" aria-label={t('Difficulty')}>
-          {(Object.keys(DIFFICULTY_LABELS) as IntervalDifficulty[]).map((d) =>
-            segButton(
-              state.difficulty === d,
-              DIFFICULTY_LABELS[d],
-              () => sel.setDifficulty(d),
-              // A lone quality cannot be "mixed" / "full" — pinned to focused.
-              state.selectedSizes.length <= 1 && d !== 'focused',
-            ),
-          )}
+        <span className="interval-selector-label">{t('Direction')}</span>
+        <div
+          className="difficulty-road interval-direction-road"
+          role="group"
+          aria-label={t('Direction')}
+        >
+          <button
+            type="button"
+            className={`diff-btn ${state.dirUp ? 'active' : ''}`}
+            aria-pressed={state.dirUp}
+            disabled={busy}
+            onClick={toggleClick(state.dirUp, () => sel.toggleDirection('up'))}
+          >
+            <span className="diff-icon">↑</span>
+            <span className="diff-label">{t('Ascending')}</span>
+          </button>
+          <button
+            type="button"
+            className={`diff-btn ${state.dirDown ? 'active' : ''}`}
+            aria-pressed={state.dirDown}
+            disabled={busy}
+            onClick={toggleClick(state.dirDown, () => sel.toggleDirection('down'))}
+          >
+            <span className="diff-icon">↓</span>
+            <span className="diff-label">{t('Descending')}</span>
+          </button>
         </div>
       </div>
 
-      {/* ── Direction (§5.3 — both in the MVP) ──────────────────── */}
+      {/* ── Exercise (§5.1) — the `.mode-card` squares ──────────────── */}
       <div className="interval-selector-group">
-        <span className="interval-selector-label">{t('Direction')}</span>
-        <div className="interval-form-toggle" role="group" aria-label={t('Direction')}>
-          {(Object.keys(DIRECTION_LABELS) as IntervalDirection[]).map((d) =>
-            segButton(state.direction === d, DIRECTION_LABELS[d], () => sel.setDirection(d)),
-          )}
+        <span className="interval-selector-label">{t('Exercise')}</span>
+        <div
+          className="mode-cards interval-exercise-cards"
+          role="group"
+          aria-label={t('Exercise')}
+        >
+          {EXERCISE_ORDER.map((ex) => {
+            const active = state.exercise === ex;
+            // Audio-only exercise: unavailable while drill sound is muted.
+            const disabled = busy || (ex === 'identifyInterval' && !!silentMode);
+            return (
+              <button
+                key={ex}
+                type="button"
+                className={`mode-card ${active ? 'active' : ''}`}
+                aria-pressed={active}
+                disabled={disabled}
+                title={
+                  ex === 'identifyInterval' && silentMode
+                    ? t('Silent mode is on — this exercise needs sound.')
+                    : undefined
+                }
+                onClick={click(() => sel.setExercise(ex))}
+              >
+                {EXERCISE_META[ex].glyph}
+                <span>{t(EXERCISE_META[ex].label)}</span>
+              </button>
+            );
+          })}
+        </div>
+        {silentMode && (
+          <p className="interval-selector-hint">
+            {t('Silent mode is on — “Identify the interval” needs sound.')}
+          </p>
+        )}
+      </div>
+
+      {/* ── Difficulty (§5.4 / §9.2) — the focused → mixed → full road ─ */}
+      <div className="interval-selector-group">
+        <span className="interval-selector-label">{t('Difficulty')}</span>
+        <div className="difficulty-road" role="group" aria-label={t('Difficulty')}>
+          {DIFFICULTY_ORDER.map((d, i) => {
+            // A lone quality cannot be "mixed" / "full" — pinned to focused.
+            const locked = singleQuality && d !== 'focused';
+            return (
+              <Fragment key={d}>
+                {i > 0 && <span className="diff-arrow">→</span>}
+                <button
+                  type="button"
+                  className={`diff-btn ${state.difficulty === d ? 'active' : ''}${locked ? ' diff-btn-locked' : ''}`}
+                  disabled={busy || locked}
+                  title={locked ? t('Pick more than one interval to mix') : undefined}
+                  onClick={click(() => sel.setDifficulty(d))}
+                >
+                  <span className="diff-icon">{DIFFICULTY_ICONS[d]}</span>
+                  <span className="diff-label">{t(DIFFICULTY_LABELS[d])}</span>
+                </button>
+              </Fragment>
+            );
+          })}
         </div>
       </div>
 
@@ -257,6 +337,6 @@ export default function IntervalSelectorPanel({
           ▶ {t('Start interval practice')}
         </button>
       </div>
-    </section>
+    </div>
   );
 }

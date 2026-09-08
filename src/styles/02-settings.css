@@ -117,6 +117,21 @@
   color: var(--text-0);
   letter-spacing: -0.01em;
 }
+/* Single-line hero: icon and title on one row (the Interval practice page
+   wants the compact one-line title of the Notes practice screen, not the
+   stacked icon-over-name block). */
+.settings-page-hero--inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+.settings-page-hero--inline .settings-page-emoji {
+  font-size: 1.7rem;
+}
+.settings-page-hero--inline .settings-page-icon-img {
+  width: 34px;
+  height: 34px;
+}
 .settings-page-body {
   display: flex;
   flex-direction: column;

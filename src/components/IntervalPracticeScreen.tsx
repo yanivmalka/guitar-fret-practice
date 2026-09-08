@@ -71,7 +71,7 @@ export default function IntervalPracticeScreen({
             <Chevron dir="back" /> {t('Back')}
           </button>
         </div>
-        <header className="settings-page-hero">
+        <header className="settings-page-hero settings-page-hero--inline">
           {headerIcon ? (
             <img src={headerIcon} alt="" className="settings-page-icon-img" />
           ) : (
