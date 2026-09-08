@@ -224,6 +224,10 @@
 }
 .interval-about-line { margin: 6px 0 0; }
 .interval-about-role { color: var(--text-1); }
+/* Reserves the collapsed "About this interval" row so the panel does not jump
+   when the selection narrows to a single interval (#5). Enough for the
+   `<summary>` line plus `.interval-about`'s own top/bottom margin. */
+.interval-about-slot { min-height: 32px; }
 
 /* ── Interval Selector (§5 / T6) — parity pass (T11) ────────────────────
    Reuses the Teacher card surface + `.teacher-btn` segmented toggles; these

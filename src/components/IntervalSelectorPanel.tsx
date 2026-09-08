@@ -188,27 +188,31 @@ export default function IntervalSelectorPanel({
           </button>
         </div>
 
-        {state.selectedSizes.length === 1 && (() => {
-          // "About this interval" — the §7 educational copy for the lone quality
-          // in play, inline and collapsible (never a theory screen).
-          const only = state.selectedSizes[0];
-          const def = intervalBySemitones(only);
-          const content = intervalContentBySemitones(only);
-          if (!def || !content) return null;
-          return (
-            <details className="interval-about">
-              <summary onClick={() => { playClickSound(); haptic.tap(); }}>
-                {t('About this interval')}
-              </summary>
-              <p className="interval-about-line">
-                <strong>{t(def.nameKey)}</strong> · {only} {t('semitones')}
-              </p>
-              <p className="interval-about-line">{t(content.description)}</p>
-              <p className="interval-about-line">{t(content.comparison)}</p>
-              <p className="interval-about-line interval-about-role">{t(content.role)}</p>
-            </details>
-          );
-        })()}
+        {/* Always rendered so toggling between one and many qualities does not
+            shift the panel; a `min-height` reserves the collapsed `<summary>`. */}
+        <div className="interval-about-slot">
+          {state.selectedSizes.length === 1 && (() => {
+            // "About this interval" — the §7 educational copy for the lone
+            // quality in play, inline and collapsible (never a theory screen).
+            const only = state.selectedSizes[0];
+            const def = intervalBySemitones(only);
+            const content = intervalContentBySemitones(only);
+            if (!def || !content) return null;
+            return (
+              <details className="interval-about">
+                <summary onClick={() => { playClickSound(); haptic.tap(); }}>
+                  {t('About this interval')}
+                </summary>
+                <p className="interval-about-line">
+                  <strong>{t(def.nameKey)}</strong> · {only} {t('semitones')}
+                </p>
+                <p className="interval-about-line">{t(content.description)}</p>
+                <p className="interval-about-line">{t(content.comparison)}</p>
+                <p className="interval-about-line interval-about-role">{t(content.role)}</p>
+              </details>
+            );
+          })()}
+        </div>
       </div>
 
       {/* ── Difficulty (§5.4 / §9.2) ────────────────────────────── */}
