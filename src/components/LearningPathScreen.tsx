@@ -76,9 +76,6 @@ function CheckpointRow({
         <span>
           {view.pctMastered}% {t('mastered')}
         </span>
-        <span>
-          {view.masteredCount}/{view.totalCount} {t('positions')}
-        </span>
       </div>
       {view.current && (
         <p className="lp-cp-next">

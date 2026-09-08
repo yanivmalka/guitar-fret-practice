@@ -151,7 +151,6 @@
 }
 .lp-cp-meta {
   display: flex;
-  justify-content: space-between;
   font-size: 0.72rem;
   font-weight: 700;
   color: var(--text-2);
