@@ -53,7 +53,7 @@ import type { IntervalExercise } from '../utils/intervals';
 import {
   buildIntervalBoard,
   masteredSizes,
-  INTERVAL_MASTERY_MAX_AGE_DAYS,
+  INTERVAL_STATS_WINDOW_DAYS,
   type IntervalBoardRow,
 } from '../learning/intervalMastery';
 import { INTERVAL_CURRICULUM, currentGroupIndex } from '../learning/intervalCurriculum';
@@ -412,7 +412,7 @@ export function useLearning(opts: UseLearningOptions): UseLearningResult {
     const history = instState.intervalHistory ?? [];
     const board = buildIntervalBoard({ intervalSrs: srsMap, historyRows: history, now });
 
-    const cutoff = now - INTERVAL_MASTERY_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+    const cutoff = now - INTERVAL_STATS_WINDOW_DAYS * 24 * 60 * 60 * 1000;
     const recent = history.filter((r) => r.createdAt >= cutoff);
     const correct = recent.filter((r) => r.correct === true);
     const timed = correct.filter((r) => r.seconds > 0);

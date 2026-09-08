@@ -17,6 +17,19 @@
 // silently moves the other (spec §11.1, §19). They happen to start close to
 // the Notes numbers.
 //
+// Recency model (approved spec — product-wishlist.md, "Recency model:
+// exponential time-decay for the practice-statistics windows"). The
+// `notStarted` / `learning` / `mastered` classification runs on the weighted
+// decay engine in `./recency`: every surviving answer inside the 180-day cap
+// gets weight `w = 0.5 ** (ageMs / halfLifeMs)`, the quality's strength is the
+// weighted accuracy `Σ(w·correct) / Σ w`, and its evidence weight is
+// `effectiveN = Σ w`. Below `INTERVAL_MIN_EFFECTIVE_N` the SRS bucket is used
+// as a floor (via `positionScore`); at or above it, the weighted accuracy
+// stands alone and a well-scheduled quality with recent struggle CAN lose its
+// status. The board's accuracy bar and the Stats headline are a SEPARATE, plain
+// unweighted ratio over `INTERVAL_STATS_WINDOW_DAYS` (45) — so a row's label and
+// its bar can legitimately disagree.
+//
 // This module imports nothing from `src/game/**`.
 
 import type { IntervalHistoryRow } from './learningState';
@@ -24,69 +37,121 @@ import type { SrsMap } from './srs';
 import { intervalItemId } from './intervalItem';
 import { INTERVALS, ALL_INTERVAL_SEMITONES } from '../utils/intervals';
 import { INTERVAL_CURRICULUM, sizesThroughGroup } from './intervalCurriculum';
+import {
+  DAY_MS,
+  DEFAULT_HALF_LIFE_DAYS,
+  HARD_CAP_DAYS,
+  weightedAccuracy,
+  positionScore,
+} from './recency';
 
 // ── Constants (own values — see the header note) ───────────────────────
 
 /** SRS bucket at or above which a quality counts as mastered (same start
  *  point as notes, tuned independently). */
 export const INTERVAL_MASTERED_BUCKET = 3;
-/** Recent-window accuracy at or above which a quality counts as mastered. */
+/** Weighted recent accuracy at or above which a quality counts as mastered. */
 export const INTERVAL_MASTERED_ACCURACY = 0.85;
-/** Minimum answers in the recent window before accuracy is trusted — one more
- *  than notes, because there are only 11 items and more chance to fluke a
- *  short streak (spec §11.1). */
-export const INTERVAL_MASTERED_MIN_ATTEMPTS = 4;
-/** Only the most recent this-many answers per quality decide "mastered now" /
- *  the board's accuracy bar. Larger than the notes window because there are
- *  only 11 items and sessions are short (spec §10.5). */
-export const INTERVAL_MASTERY_WINDOW = 20;
-/** History rows older than this are ignored, matching `weakness.ts`'s recency
- *  horizon so a long-ago hot streak can't keep a quality looking mastered. */
-export const INTERVAL_MASTERY_MAX_AGE_DAYS = 45;
+/** Minimum `effectiveN` (weighted answer count) inside the decay cap before the
+ *  weighted accuracy is trusted on its own — one more than notes, because there
+ *  are only 11 qualities and more chance to fluke a short streak (spec §11.1,
+ *  recency-decay plan §3 item 3). Below this, `positionScore` falls back to the
+ *  SRS bucket floor. */
+export const INTERVAL_MIN_EFFECTIVE_N = 4;
+/** History rows older than this are excluded from the decay engine entirely —
+ *  a performance / storage bound only, never a data delete. Matches the shared
+ *  {@link HARD_CAP_DAYS} used across the learning layer. */
+export const INTERVAL_MASTERY_MAX_AGE_DAYS = HARD_CAP_DAYS;
+/** The plain (unweighted) display window, in days, behind the board's accuracy
+ *  bar and the interval Stats headline numbers. Deliberately narrower than the
+ *  180-day decay cap and independent of it (recency-decay plan §3 item 4) so
+ *  the headline numbers stay stable while the classification engine changes. */
+export const INTERVAL_STATS_WINDOW_DAYS = 45;
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+const HALF_LIFE_MS = DEFAULT_HALF_LIFE_DAYS * DAY_MS;
 
 export type IntervalStatus = 'notStarted' | 'learning' | 'mastered';
 
-// ── Recent-window stats for one quality ───────────────────────────────
+// ── Weighted recent stats for one quality (the classification engine) ──
 
-interface WindowStats {
-  /** Answers counted in the recent window (after the age filter). */
-  attempts: number;
-  /** Correct / attempts over the window, 0–1 (0 when attempts === 0). */
+interface WeightedStats {
+  /** Weighted accuracy `Σ(w·correct) / Σ w` over the surviving rows, 0–1. */
   accuracy: number;
+  /** Effective sample size `Σ w` — the evidence weight. */
+  effectiveN: number;
+  /** Raw count of rows that survived the 180-day cap (display only). */
+  attempts: number;
 }
 
 // `IntervalHistoryRow.createdAt` is epoch ms; `normalizeIntervalHistory`
 // already drops rows with a non-positive timestamp.
-function windowStats(
+function weightedStats(
   historyRows: readonly IntervalHistoryRow[],
   size: number,
   now: number,
-): WindowStats {
+): WeightedStats {
   const cutoff = now - INTERVAL_MASTERY_MAX_AGE_DAYS * DAY_MS;
-  const rows = historyRows
-    .filter((r) => r.semitones === size && r.createdAt >= cutoff)
-    .sort((a, b) => a.createdAt - b.createdAt)
-    .slice(-INTERVAL_MASTERY_WINDOW);
+  const rows = historyRows.filter(
+    (r) => r.semitones === size && r.createdAt >= cutoff,
+  );
+  const { accuracy, effectiveN } = weightedAccuracy(
+    rows.map((r) => ({ correct: r.correct === true, atMs: r.createdAt })),
+    now,
+    HALF_LIFE_MS,
+  );
+  return { accuracy, effectiveN, attempts: rows.length };
+}
+
+/** A quality's continuous 0..1 strength: the weighted accuracy once there is
+ *  enough fresh evidence, otherwise the SRS bucket floor. */
+function intervalStrength(
+  size: number,
+  intervalSrs: SrsMap,
+  historyRows: readonly IntervalHistoryRow[],
+  now: number,
+): number {
+  const srsItem = intervalSrs[intervalItemId(size)];
+  const { accuracy, effectiveN } = weightedStats(historyRows, size, now);
+  return positionScore(
+    accuracy,
+    effectiveN,
+    srsItem ? srsItem.bucket : null,
+    INTERVAL_MIN_EFFECTIVE_N,
+  );
+}
+
+// ── Plain unweighted display window (the board bar + Stats headline) ───
+
+interface DisplayStats {
+  /** Answers inside the 45-day display window. */
+  attempts: number;
+  /** Correct / attempts over that window, 0–1 (0 when attempts === 0). */
+  accuracy: number;
+}
+
+function displayStats(
+  historyRows: readonly IntervalHistoryRow[],
+  size: number,
+  now: number,
+): DisplayStats {
+  const cutoff = now - INTERVAL_STATS_WINDOW_DAYS * DAY_MS;
+  const rows = historyRows.filter(
+    (r) => r.semitones === size && r.createdAt >= cutoff,
+  );
   if (rows.length === 0) return { attempts: 0, accuracy: 0 };
   const correct = rows.filter((r) => r.correct === true).length;
   return { attempts: rows.length, accuracy: correct / rows.length };
 }
 
-/** Recent-window accuracy for one quality, or `null` when there are too few
- *  recent answers to judge. */
-function recentAccuracyOrNull(stats: WindowStats): number | null {
-  return stats.attempts >= INTERVAL_MASTERED_MIN_ATTEMPTS ? stats.accuracy : null;
-}
-
 // ── Public predicates ────────────────────────────────────────────────
 
 /**
- * Is this interval quality mastered? True when EITHER its `intervalSrs` bucket
- * is at or above {@link INTERVAL_MASTERED_BUCKET}, OR its recent-window
- * accuracy is at or above {@link INTERVAL_MASTERED_ACCURACY} over at least
- * {@link INTERVAL_MASTERED_MIN_ATTEMPTS} answers. Pure; deterministic.
+ * Is this interval quality mastered? True when its continuous strength score is
+ * at or above {@link INTERVAL_MASTERED_ACCURACY}. That score is the weighted
+ * recent accuracy once `effectiveN >= `{@link INTERVAL_MIN_EFFECTIVE_N}; below
+ * that gate it falls back to the SRS bucket floor, so a bucket at or above
+ * {@link INTERVAL_MASTERED_BUCKET} (whose floor is 0.85) still reads as
+ * mastered while recent evidence is thin. Pure; deterministic.
  */
 export function isIntervalMastered(
   size: number,
@@ -94,16 +159,16 @@ export function isIntervalMastered(
   historyRows: readonly IntervalHistoryRow[],
   now: number,
 ): boolean {
-  const srsItem = intervalSrs[intervalItemId(size)];
-  if (srsItem && srsItem.bucket >= INTERVAL_MASTERED_BUCKET) return true;
-  const acc = recentAccuracyOrNull(windowStats(historyRows, size, now));
-  return acc != null && acc >= INTERVAL_MASTERED_ACCURACY;
+  return (
+    intervalStrength(size, intervalSrs, historyRows, now) >=
+    INTERVAL_MASTERED_ACCURACY
+  );
 }
 
 /**
  * The three-state status for one interval quality:
  *   • `mastered`   — {@link isIntervalMastered} holds;
- *   • `notStarted` — no schedule row AND no recent history at all;
+ *   • `notStarted` — no schedule row AND no history inside the decay cap;
  *   • `learning`   — anything in between.
  * Same three-level idea as `utils/mastery.ts`'s `unplayed / needsWork / known`.
  */
@@ -115,7 +180,7 @@ export function intervalStatus(
 ): IntervalStatus {
   if (isIntervalMastered(size, intervalSrs, historyRows, now)) return 'mastered';
   const hasSchedule = intervalSrs[intervalItemId(size)] != null;
-  const { attempts } = windowStats(historyRows, size, now);
+  const { attempts } = weightedStats(historyRows, size, now);
   return hasSchedule || attempts > 0 ? 'learning' : 'notStarted';
 }
 
@@ -145,12 +210,17 @@ export interface IntervalBoardRow {
   short: string;
   /** Full-name i18n key, e.g. `Major 3rd` (from `INTERVALS`). */
   nameKey: string;
-  /** `notStarted` / `learning` / `mastered`. */
+  /** `notStarted` / `learning` / `mastered` — from the weighted decay engine. */
   status: IntervalStatus;
-  /** Recent-window accuracy, 0–1 (0 when no recent answers) — the thin bar. */
+  /** Plain unweighted accuracy over the 45-day display window, 0–1 (0 when no
+   *  recent answers) — the thin bar. Independent of `status`, so the two can
+   *  legitimately disagree (recency-decay plan §7 item 5). */
   recentAccuracy: number;
-  /** Answers counted in the recent window. */
+  /** Answers counted in the 45-day display window. */
   attempts: number;
+  /** The continuous 0..1 strength score behind `status` (weighted accuracy, or
+   *  the SRS bucket floor while evidence is thin). No UI consumes it yet. */
+  strength: number;
 }
 
 export interface IntervalBoardOptions {
@@ -168,21 +238,24 @@ const CURRICULUM_ORDER: readonly number[] = sizesThroughGroup(
 
 /**
  * Build the flat 11-interval status board: one row per quality, in curriculum
- * order, each with its status and recent accuracy. Pure — derived entirely
- * from `intervalSrs` + `intervalHistory`; no storage of its own.
+ * order. `status` / `strength` come from the weighted 180-day decay engine;
+ * `recentAccuracy` / `attempts` are the plain unweighted 45-day display window.
+ * Pure — derived entirely from `intervalSrs` + `intervalHistory`; no storage of
+ * its own.
  */
 export function buildIntervalBoard(opts: IntervalBoardOptions): IntervalBoardRow[] {
   const { intervalSrs, historyRows, now } = opts;
   return CURRICULUM_ORDER.map((size) => {
     const def = INTERVALS.find((d) => d.semitones === size)!;
-    const stats = windowStats(historyRows, size, now);
+    const display = displayStats(historyRows, size, now);
     return {
       semitones: size,
       short: def.short,
       nameKey: def.nameKey,
       status: intervalStatus(size, intervalSrs, historyRows, now),
-      recentAccuracy: stats.accuracy,
-      attempts: stats.attempts,
+      recentAccuracy: display.accuracy,
+      attempts: display.attempts,
+      strength: intervalStrength(size, intervalSrs, historyRows, now),
     };
   });
 }
