@@ -118,11 +118,6 @@ export default function IntervalSelectorPanel({
       dir={lang === 'he' ? 'rtl' : undefined}
       aria-label={t('Interval training')}
     >
-      <header className="teacher-card-head">
-        <span className="teacher-card-badge">⭐ {t('Premium')}</span>
-        <h2 className="teacher-card-title">{t('Interval training')}</h2>
-      </header>
-
       <p className="teacher-card-summary">
         {summary}
         {trackedCount > 0 && (

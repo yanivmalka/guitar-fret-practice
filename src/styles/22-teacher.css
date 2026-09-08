@@ -313,6 +313,48 @@
   color: var(--text-0);
 }
 
+/* ── Interval Selector — Notes-Practice palette (parity, T12) ───────────
+   The Interval practice page must read as the same surface as the main
+   Notes `SelectorPanel`, not the gold Premium lane. These rules stay
+   scoped to `.interval-selector` so the Notes Premium "Today" card
+   (`.teacher-card` without `.interval-selector`) keeps its gold accent.
+   Values mirror src/styles/14-selector.css; theme-token driven. */
+
+/* Container: drop the gold card chrome — the page hero already frames it,
+   so match `.selector-panel` (borderless, centred, roomy max-width). */
+.teacher-card.interval-selector {
+  max-width: 500px;
+  padding: 8px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  gap: 12px;
+}
+
+/* Segmented toggles (Exercise / Intervals / Difficulty / Direction):
+   base state = `.diff-btn`; active state = `.mode-card.active`. */
+.interval-selector .teacher-btn:not(.interval-multi-toggle) {
+  border: 2px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--bg-3);
+  color: var(--text-3);
+  transition: all 0.15s;
+}
+.interval-selector .interval-form-toggle .teacher-btn.teacher-btn-primary {
+  border-color: var(--pick-accent);
+  background: color-mix(in srgb, var(--pick-accent) 18%, var(--bg-3));
+  color: var(--text-0);
+}
+
+/* Start button: the app's solid accent action (cf. `.adjust-suggest-apply`). */
+.interval-selector .teacher-actions .teacher-btn-primary {
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
 /* ── Interval progress in Stats & progress (§12 / §15.1) ───────────────── */
 .ivl-stats {
   display: flex;
