@@ -33,8 +33,8 @@
 //     two id spaces never collide; a pre-0015 blob round-trips through the
 //     top-level normalize/merge with no intervalPath; src/game/** and the
 //     interval learning modules never import each other; no stars/checkpoint
-//     vocabulary in interval code; App.tsx gates PB/badges/leaderboard off an
-//     interval run
+//     vocabulary in interval code; the round lifecycle / celebration hooks
+//     gate PB/badges/leaderboard off an interval run
 
 import { register } from 'node:module';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -1013,17 +1013,32 @@ for (const [label, inst] of [['guitar', guitar], ['bass', bass]] as const) {
 
   // §22.1.8 — an interval run suppresses the personal-best write, the badge
   // sweep and the leaderboard upsert. Headless proxy: the guard expressions
-  // are present in App.tsx (the runtime behaviour is on the §22.2 manual list).
+  // are present in the round lifecycle / round-end-celebration hooks (the
+  // runtime behaviour is on the §22.2 manual list). These guards used to live
+  // inline in App.tsx; the decomposition of App.tsx into concern hooks moved
+  // them into src/hooks/useRoundLifecycle.ts (the beginRun call) and
+  // src/hooks/useRoundEndCelebrations.ts (beginRun + the game-end effect),
+  // with the invariant itself unchanged.
   {
-    const app = stripComments(readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8'));
-    check('§22.8 App.tsx skips the end-of-run badge sweep on an interval run',
-      /!wasIntervalRunRef\.current/.test(app) && /sweepBadges\(/.test(app));
-    check('§22.8 App.tsx early-returns the leaderboard upsert on an interval run',
-      /if \(wasIntervalRunRef\.current\) return;/.test(app));
-    check('§22.8 an interval run also sets wasTeacherRunRef, so the personal-best write is gated out',
-      /wasIntervalRunRef\.current = intervalPlan !== null/.test(app) &&
-      /wasTeacherRunRef\.current = teacherPlan !== null \|\| intervalPlan !== null/.test(app) &&
-      /!wasTeacherRunRef\.current[\s\S]{0,600}saveBest\(histKey/.test(app));
+    const celebrations = stripComments(
+      readFileSync(new URL('../src/hooks/useRoundEndCelebrations.ts', import.meta.url), 'utf8'));
+    const lifecycle = stripComments(
+      readFileSync(new URL('../src/hooks/useRoundLifecycle.ts', import.meta.url), 'utf8'));
+
+    check('§22.8 the end-of-run badge sweep is skipped on an interval run',
+      /const sweepBadges =/.test(celebrations) &&
+      /!wasIntervalRunRef\.current[\s\S]{0,200}sweepBadges\(/.test(celebrations));
+    check('§22.8 the leaderboard upsert early-returns on an interval run',
+      /if \(wasIntervalRunRef\.current\) return;/.test(celebrations) &&
+      /upsertMyEntry\(/.test(celebrations));
+    check('§22.8 an interval run also counts as a teacher run, so the personal-best write is gated out',
+      // start() flags the run as "teacher" for either a Teacher or an interval plan…
+      /celebrationsBeginRunRef\.current\(\s*teacherPlan !== null \|\| intervalPlan !== null,\s*intervalPlan !== null,/.test(lifecycle) &&
+      // …beginRun records that onto wasTeacherRunRef / wasIntervalRunRef…
+      /wasTeacherRunRef\.current = isTeacher/.test(celebrations) &&
+      /wasIntervalRunRef\.current = isInterval/.test(celebrations) &&
+      // …and the personal-best write is gated on !wasTeacherRunRef.current.
+      /!wasTeacherRunRef\.current[\s\S]{0,600}saveBest\(histKey/.test(celebrations));
   }
 }
 
