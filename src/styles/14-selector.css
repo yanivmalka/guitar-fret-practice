@@ -172,6 +172,21 @@
   max-width: 370px;
   margin: 0 auto;
 }
+/* When the Auto Advance toggle is present it hangs off the inline-end of the
+   row. Lift it out of the flex flow and mirror its footprint as inline-start
+   padding, so the three stage buttons stay centred in the row (and line up
+   with the neck / mode cards above) instead of being pushed toward the start. */
+.difficulty-road:has(> .auto-advance-toggle) {
+  position: relative;
+  padding-inline: 40px;
+}
+.difficulty-road > .auto-advance-toggle {
+  position: absolute;
+  inset-inline-end: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+}
 .diff-btn {
   display: flex;
   flex-direction: row;
