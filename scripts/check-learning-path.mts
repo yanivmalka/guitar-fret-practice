@@ -152,6 +152,33 @@ function row(string: number, fret: number, correct: boolean | null, tOffsetMs = 
   check('cold start makes checkpoint 1 the current one', cold.currentIndex === 0);
 }
 
+// ── Recent-window mastery is chronological, not array order ───────────
+// `entries` concatenates the rows of every historyKey combination, so a
+// position drilled under more than one combo arrives out of order. The
+// trailing `slice(-MASTERY_WINDOW)` must still be the *most recent* answers.
+{
+  const progress = emptyPathProgress();
+  const openItems = checkpointItemIds(PATH_CHECKPOINTS[0], GUITAR, GUITAR_NOTES);
+  // 5 of the 6 open naturals: fully mastered (5 recent correct answers each).
+  const solid = openItems.slice(1).flatMap((it, k) =>
+    Array.from({ length: 5 }, (_, i) => row(it.string, it.fret, true, k * 10_000 + i * 500)),
+  );
+  // The 6th: 12 recent WRONG answers plus 12 CORRECT ones from ~30 days ago,
+  // pushed in newest-first — the way one history key concatenated after another
+  // can leave them. Only a chronological sort before the window lets the recent
+  // misses win, so the position must read as NOT mastered.
+  const p6 = openItems[0];
+  const recentWrong = Array.from({ length: 12 }, (_, i) => row(p6.string, p6.fret, false, i * 500));
+  const olderRight = Array.from({ length: 12 }, (_, i) => row(p6.string, p6.fret, true, -29 * DAY + i * 500));
+  const scrambled = evaluatePath({
+    entries: [...recentWrong, ...olderRight, ...solid],
+    srs: {}, instrument: GUITAR, noteTable: GUITAR_NOTES, progress, now: T0,
+  });
+  check('recent-window mastery follows createdAt, not array order (older correct rows do not mask recent misses)',
+    scrambled.checkpoints[0].masteredCount === 5 && scrambled.checkpoints[0].pctMastered === 83,
+    `masteredCount=${scrambled.checkpoints[0].masteredCount} pct=${scrambled.checkpoints[0].pctMastered}`);
+}
+
 // ── Monotonic stars + merge ──────────────────────────────────────────
 {
   let p = emptyPathProgress();

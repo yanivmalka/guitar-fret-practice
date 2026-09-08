@@ -215,6 +215,14 @@ export function evaluatePath(opts: EvaluatePathOptions): PathView {
     if (list) list.push(e);
     else rowsById.set(id, [e]);
   }
+  // `entries` concatenates the rows of every `historyKey` combination, so it is
+  // NOT globally chronological even though each combination's own rows are.
+  // Sort each position's rows by `createdAt` so `recentAccuracy`'s trailing
+  // `slice(-MASTERY_WINDOW)` really is the most recent answers — matching what
+  // `weakness.ts` already does before it windows.
+  for (const list of rowsById.values()) {
+    list.sort((a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? ''));
+  }
 
   const isMastered = (itemId: string): boolean => {
     const srsItem = srs[itemId];

@@ -689,7 +689,9 @@ carried here so they are not re-discovered.
   months-old performance can't stay a current weakness. A user who practises
   1–2×/week could see a position drop off the weakness list after ~6 weeks
   untouched (a genuinely due SRS item still surfaces via its schedule). Revisit
-  against real Premium cadence.
+  against real Premium cadence. → **Superseded by "Recency model: exponential
+  time-decay" under Open decisions below** — the hard cutoff is replaced by a
+  decaying weight.
 
 **Medium items from the audit, out of P2.1 scope:**
 - **Consolidation rarely fires for a once-a-day user. — STILL OPEN, needs a
@@ -807,6 +809,77 @@ re-discovered:
 - **`buildIntervalDrill` uses all strings (multi-string by-note/by-fret).** Fine
   for variety, but if it feels noisy, restricting to one string is a one-line
   change.
+
+### Recency model: exponential time-decay for the practice-statistics windows
+
+**Status: approved 2026-09-08, not yet built.** A model change to how the
+learning layer decides "how am I doing *now*" on a note position or an interval
+quality.
+
+**Problem.** Today every recency-scoped statistic uses the same shape: take the
+last N answers, then drop anything past a hard `maxAgeDays` cutoff (45). Two
+weaknesses:
+- **A cliff, not a fade.** A strong learner who stops for 45 days loses the
+  entire accuracy signal at once — e.g. the Learning Path's per-position "% 
+  mastered" bar collapses (the monotonic checkpoint stars are kept, but the bar
+  and the green-dot positions are not). The number should sag gently, not fall
+  off a shelf.
+- **Recent improvement is slow to register / old data lingers unweighted.**
+  Inside the window every answer counts equally, so a fortnight-old answer masks
+  today's.
+
+  (A related array-order bug in `pathProgress.evaluatePath` — the trailing
+  window was sliced from `entries` order, which concatenates history keys and is
+  not chronological — was patched separately with a `createdAt` sort. That patch
+  becomes redundant once the Path moves onto this model, which weights every
+  answer by age and never "takes the last N in order".)
+
+**Decision — replace the fixed window + hard cutoff with an exponential
+time-decay weight.** Each answer gets a weight `w = 0.5 ** (ageMs / halfLifeMs)`;
+a position's recent accuracy is the weighted mean `Σ(w·correct) / Σ(w)`, and its
+"effective sample size" is `Σ(w)`.
+
+Product-owner parameters (2026-09-08):
+- **Half-life: 14 days.** An answer from two weeks ago counts half as much as
+  one from today; a month ago a quarter; two months an eighth.
+- **Hard cap: 180 days.** Rows older than this are still dropped entirely — but
+  now purely as a performance / storage bound, not a signal boundary (the decay
+  weight at 180 days with a 14-day half-life is ≈ 0.0001, already negligible).
+  Rows with no `createdAt` are still treated as too old, as now.
+- **Minimum evidence: effective sample size ≥ 3** (`Σ(w) >= 3`), matching
+  today's `minAttempts: 3` — a position is not judged "weak" or "mastered" on
+  accuracy until it has ~3 answers' worth of recent weight. The raw-count
+  "repeated recent misses" trigger (2 misses within the last 4 answers) stays
+  unweighted, so a position the learner just bombed still surfaces immediately.
+- **Per-position mastery stays binary.** A position is mastered or not
+  (weighted accuracy ≥ `MASTERED_ACCURACY`, with enough weight, OR SRS bucket
+  ≥ `MASTERED_BUCKET`); a checkpoint's "%" is still `mastered / total`. Not
+  switching to a continuous per-position score — that would change the
+  green-dot UI and the "N/M positions" line for no clear product gain.
+
+**Scope — for now, three models:**
+- `src/learning/weakness.ts` — `analyzeWeakness` (feeds the notes daily-practice
+  plan). `leastPractisedPositions` (the coverage fallback) is lifetime-count by
+  design and is left alone.
+- `src/learning/intervalWeakness.ts` — `analyzeIntervalWeakness`.
+- `src/learning/intervalMastery.ts` — `windowStats` / `isIntervalMastered` /
+  `intervalStatus`.
+
+**Deliberately deferred: `src/learning/pathProgress.ts`.** Its trailing-window
+mastery test now has the `createdAt` sort as a stopgap. Folding the Path's
+per-position mastery onto the same decay helper is the follow-up, so that all
+four recency models share one definition of "recent" — but it is not in this
+first pass.
+
+**Implementation sketch.** One pure shared helper (`recencyWeight(ageMs,
+halfLifeMs)`, and a `weightedAccuracy(rows, now, halfLifeDays)` returning
+`{ accuracy, effectiveN }`), `now` injected as everywhere else in the learning
+layer. Each of the three modules swaps its `slice(-windowSize)` +
+`filter(correct)` for the weighted call and its `attempts >= minAttempts` gate
+for `effectiveN >= 3`. Update `scripts/check-learning.mts` /
+`check-intervals.mts` with decay-curve assertions (a 14-day-old correct answer
+contributes half; a position with only >180-day rows is dropped; effective-N
+gate holds).
 
 ### Open decisions
 - **Premium shape** — ~~a single higher-priced subscription tier, or one-time in-app purchases per game mode~~. **DECIDED 2026-09-08: a single higher-priced subscription tier.** No per-mode one-time purchases. This matches `premium-product-plan.md`, which frames Premium as one adaptive learning system rather than a bundle of separately bought modes. The tier is still parked (not yet priced or sold); only Free/Pro is built.
