@@ -68,8 +68,20 @@ jobs:
       - run: cp android-overrides/MainActivity.java android/app/src/main/java/com/guitarfretpractice/app/MainActivity.java
       # Swap in the manifest with the OAuth-callback deep-link intent-filter.
       - run: cp android-overrides/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
-      # Monotonic versionCode so Android always treats a new APK as an update.
-      - run: sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/" android/app/build.gradle
+      # Monotonic versionCode + a matching visible versionName, so every new
+      # APK is seen as an update of the previous one (installs in place, app
+      # data kept) and you can tell from Settings > Apps which build is on the
+      # phone. `github.run_number` only ever increases, so a newer APK is never
+      # rejected as a version downgrade. Fail the build loudly if the Capacitor
+      # template moved and the substitution missed — a silently un-bumped
+      # `versionCode 1` would later block installs once a higher-numbered build
+      # is already on the device.
+      - name: Stamp the build version
+        run: |
+          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          sed -i "s/versionName \"1.0\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
+          grep -q "versionCode ${{ github.run_number }}" android/app/build.gradle
+          grep -q "versionName \"1.0.${{ github.run_number }}\"" android/app/build.gradle
       - run: npx cap sync android
 
       # Gradle's default debug signingConfig reads ~/.android/debug.keystore
