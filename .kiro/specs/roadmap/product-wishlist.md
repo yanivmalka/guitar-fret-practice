@@ -707,13 +707,16 @@ Deliberately **not** in the first slice — carried here so they are not
 re-discovered:
 - **No Learning Path checkpoints for intervals.** The Path is still notes-only;
   interval checkpoints woven into the ladder are the next P4 step.
-- **The planner (`buildDailyPlan`) does not fold interval items in.** As of
-  2026-09-08 the Learn area's daily screen (`DailyPracticeScreen`) surfaces a
-  dedicated `IntervalTodayCard` with its own today / weak-spots entry points
-  alongside the notes plan, so intervals now have a home on the daily screen —
-  but they remain a *parallel* lane. A single weighted daily mix that
-  interleaves interval qualities and note items in one session still needs the
-  interval SRS and the note SRS to be scheduled together.
+- **The planner (`buildDailyPlan`) does not fold interval items in — and by
+  current product intent it should not.** Today drills by *understanding*: a
+  learner who has not taken up intervals cannot use an intervals Today, so each
+  learning component gets its own separate Today. As of 2026-09-08 the Learn
+  area's daily screen (`DailyPracticeScreen`) surfaces a dedicated
+  `IntervalTodayCard` with its own today / weak-spots entry points alongside the
+  notes plan; this per-component split is the wanted shape for now. A single
+  weighted daily mix that interleaves interval qualities and note items in one
+  session is a **possible future direction, explicitly deferred**, not the next
+  P4 step.
 - **No adaptive difficulty for intervals.** Fixed fret window (0–12), fixed
   question count / timer; no promote/demote by cluster accuracy.
 - **Interval SRS granularity is quality-only and ascending.** Per-root and
