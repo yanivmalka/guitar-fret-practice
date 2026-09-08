@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { SettingsDrawerNav, SettingsSubPage, type SettingsSection } from './components/settings/SettingsDrawer';
 import PlayingSection from './components/settings/sections/PlayingSection';
 import GeneralSettingsSection from './components/settings/sections/GeneralSettingsSection';
@@ -17,8 +17,8 @@ import Onboarding from './components/Onboarding';
 import { setActiveInstrument } from './utils/music';
 import type { HistoryEntry, AccidentalMode } from './utils/music';
 import { getInstrument, type InstrumentId } from './utils/instruments';
-import { preloadAllSamples, unlockAudio, setAudioInstrument } from './utils/audio';
-import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3 } from './utils/feedback';
+import { setAudioInstrument } from './utils/audio';
+import { playClickSound, playToggleOnSound, playToggleOffSound, haptic } from './utils/feedback';
 import { withClick as click } from './utils/withClick';
 import { loadSetting, saveSetting } from './utils/settings';
 import { useThemeEffect } from './hooks/useThemeEffect';
@@ -27,8 +27,6 @@ import { useBootReadyEvent } from './hooks/useBootReadyEvent';
 import { useAutoPauseOnBackground } from './hooks/useAutoPauseOnBackground';
 import { useQuestionChangeAnimation } from './hooks/useQuestionChangeAnimation';
 import { useAdjustSuggestion } from './hooks/useAdjustSuggestion';
-import { loadBest, saveBest } from './utils/personalBest';
-import { historyForInstrument, flattenHistory } from './utils/mastery';
 import { useAuth } from './hooks/useAuth';
 import { useCloudSync } from './hooks/useCloudSync';
 import { useVoiceProfileSummary } from './hooks/useVoiceProfileSummary';
@@ -62,7 +60,6 @@ import DebugLogPanel from './components/DebugLogPanel';
 import VoiceCalibration from './components/VoiceCalibration';
 import { FeedbackBoard } from './components/FeedbackBoard';
 import { LeaderboardPanel } from './components/LeaderboardPanel';
-import { computeMyStats, leaderboardName, upsertMyEntry } from './utils/leaderboard';
 import { BadgeGrid } from './components/BadgeGrid';
 import { UpgradeCard } from './components/UpgradeCard';
 import { can } from './utils/features';
@@ -70,13 +67,11 @@ import { GuestMergePrompt } from './components/GuestMergePrompt';
 import { useAppNavigation } from './hooks/useAppNavigation';
 import { useBackNavigation } from './hooks/useBackNavigation';
 import { BadgeToast, BadgeRevealOverlay, type CelebratedBadge } from './components/BadgeCelebration';
-import {
-  badgeDef, evaluateSession, evaluateLifetime, awardFamilyUpTo, earnedTier,
-  type BadgeId, type SessionSnapshot, type LifetimeSnapshot, type Tier,
-} from './utils/badges';
 import type { SpeechNotation } from './utils/speechVocab';
 import { useTranslation } from './i18n/useTranslation';
-import { mergeCelebrated } from './utils/badgeCelebration';
+import { useAutoAdvance } from './hooks/useAutoAdvance';
+import { useRoundLifecycle } from './hooks/useRoundLifecycle';
+import { useRoundEndCelebrations } from './hooks/useRoundEndCelebrations';
 
 // The learning domains, chosen from the "Learn" drawer page (<LearnHub>).
 // 'notes' is the Selector — the home screen and the default on every launch;
@@ -292,40 +287,23 @@ export default function App() {
   // history (OD-5 / OD-6).
   intervalRecordRef.current = learning.recordIntervalTeacherAnswer;
 
-  // Auto Advance: when the current stage/selection is actually completed
-  // (every question answered, not a manual Stop), move into the next stage of
-  // the ordered curriculum (see utils/stageSequence.ts) and continue straight
-  // into it, keeping the same score/streak/session. selector.applyStage and
-  // setPendingAutoAdvance are called together in the same tick as the engine's
-  // setRunning(false), so React batches them into one render — the
-  // game-end-summary effect (below) sees pendingAutoAdvance already true at
-  // that same render and skips showing the "round complete" screen.
-  const [pendingAutoAdvance, setPendingAutoAdvance] = useState(false);
-  // Data for the brief Auto Advance stage-transition banner (null = not shown).
-  const [stageTransition, setStageTransition] = useState<{ name: string; from: number; to: number } | null>(null);
-  // Mirror of the *current* stage's question count, read at the moment a stage
-  // completes (before the next stage re-renders) to show "15 → 20".
-  const stageMaxQRef = useRef(derivedSettings.maxQuestions);
-  stageMaxQRef.current = derivedSettings.maxQuestions;
-  const autoAdvanceFromRef = useRef(0);
-  // Label of the stage being advanced into, captured for the transition banner.
-  const autoAdvanceLabelRef = useRef('');
-  const handleAutoComplete = useCallback(() => {
-    // Teacher sessions are a fixed one-off plan — never chain into the Auto
-    // Advance curriculum even if the user has it switched on in the Selector.
-    if (teacherPlanRef.current || intervalPlanRef.current) return;
-    if (!selector.state.autoAdvance) return;
-    const next = selector.nextStage();
-    if (!next) return; // end of the curriculum — let the run finish normally
-    autoAdvanceFromRef.current = stageMaxQRef.current;
-    autoAdvanceLabelRef.current = next.label;
-    // Continuous run: carry score / streak / timing progression straight into
-    // the next stage. runStreak keeps counting across this boundary — the
-    // engine's next start() must NOT call scoring.beginRun (only manual Play
-    // does), so the single run-length ramp is preserved.
-    selector.applyStage(next);
-    setPendingAutoAdvance(true);
-  }, [selector]);
+  // Auto Advance (see hooks/useAutoAdvance): when the current stage/selection
+  // is actually completed (every question answered, not a manual Stop), roll
+  // straight into the next stage of the ordered curriculum keeping the same
+  // score/streak/session. `handleAutoComplete` feeds useDrillSession's
+  // `onComplete`; it and selector.applyStage fire in the same tick as the
+  // engine's setRunning(false), so the game-end effect sees pendingAutoAdvance
+  // already true and skips the "round complete" screen.
+  //
+  // `engineStartRef` is filled right after useDrillSession below so the Auto
+  // Advance hold starts the *next* stage's `eff`. `celebrationsBeginRunRef` is
+  // filled right after useRoundEndCelebrations; `start()` and the historyKey
+  // reset effect call it to clear the per-run badge / toast / PB state.
+  const engineStartRef = useRef<(maxQ: number, currentTime: number, isByNote: boolean) => void>(() => {});
+  const celebrationsBeginRunRef = useRef<(isTeacher: boolean, isInterval: boolean) => void>(() => {});
+  const { pendingAutoAdvance, stageTransition, handleAutoComplete } = useAutoAdvance({
+    selector, derivedSettings, engineStartRef, teacherPlanRef, intervalPlanRef,
+  });
 
   // Practice's picks, reduced to the platform-neutral shape the shared drill
   // engine runs on (Practice → DrillSession ← Game). `accidental`/`order`/the
@@ -373,6 +351,8 @@ export default function App() {
     // record; a future Game will read the same shape for its own end screen.
     result: sessionResult,
   } = session;
+  // Fresh handle for the Auto Advance hold (registered before useDrillSession).
+  engineStartRef.current = engineStart;
 
   // Voice answering (WP-4): while a question is on screen and answerMode is
   // 'voice', listen and route the recognised note/fret through the same
@@ -398,38 +378,6 @@ export default function App() {
   useEffect(() => { voiceLearnRef.current = voice.learn; }, [voice.learn]);
   // Fall back to tap input if voice is selected but no recogniser exists.
   const voiceActive = answerMode === 'voice' && voice.supported;
-
-  // Latest-value mirror so the Auto Advance effect below can depend ONLY on
-  // `pendingAutoAdvance`. `engineStart` (and the objects it closes over) get a
-  // fresh identity on every render, so listing it as a dep would re-run the
-  // effect mid-hold and restart the timer forever.
-  const autoAdvanceLatestRef = useRef({ engineStart, derivedSettings });
-  autoAdvanceLatestRef.current = { engineStart, derivedSettings };
-
-  // On an Auto Advance boundary: show the "STAGE COMPLETE / <NAME>" banner,
-  // hold briefly, then start the next stage exactly the way it started before —
-  // same engineStart, same per-question countdown, no 3-2-1. No scoring/streak/
-  // multiplier/timing state is touched here; this only delays *when* the first
-  // question of the new stage is asked (~1s, or ~0.55s under reduced-motion).
-  // `pendingAutoAdvance` stays true for the whole hold so the "round complete"
-  // screen stays suppressed and the game screen stays mounted (see gameActive).
-  useLayoutEffect(() => {
-    if (!pendingAutoAdvance) return;
-    const reduced = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    const { derivedSettings: ds } = autoAdvanceLatestRef.current;
-    setStageTransition({
-      name: autoAdvanceLabelRef.current,
-      from: autoAdvanceFromRef.current,
-      to: ds.maxQuestions,
-    });
-    const id = window.setTimeout(() => {
-      const l = autoAdvanceLatestRef.current;
-      setStageTransition(null);
-      setPendingAutoAdvance(false);
-      l.engineStart(l.derivedSettings.maxQuestions, l.derivedSettings.time, l.derivedSettings.byNote);
-    }, reduced ? 550 : 1000);
-    return () => window.clearTimeout(id);
-  }, [pendingAutoAdvance]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (!paused) setGuitarString(eff.guitarString); }, [eff.guitarString, paused]);
@@ -459,34 +407,10 @@ export default function App() {
     setSignInPromptSeen(true);
     saveSetting('pref_signInPromptSeen', true);
   };
-  // All the "which screen is open" navigation state (Stats / drawer / settings
-  // sub-page / learning-type tab / Game), the mic-permission card, the info
-  // bubble, `gfp_view` reload-restore, and the Escape-key ladder live in
-  // useAppNavigation. The call itself is further down, once `voice` and
-  // `hasAnyHistory` (its inputs) are available.
-  const [countdown, setCountdown] = useState<number | null>(null);
-  const [gameEnded, setGameEnded] = useState(false);
-  const gameRowRef = useRef<HTMLDivElement>(null);
-  const playBtnRef = useRef<HTMLButtonElement>(null);
-  // Guards the Tier 3 (new personal best) celebration so it fires at most once
-  // per completed run. Reset on every Play and whenever the selector combo changes.
-  const tier3FiredRef = useRef(false);
-  // Guards badge evaluation so it runs at most once per completed run, and holds
-  // the ids newly earned this run for the game-end summary card.
-  const badgesFiredRef = useRef(false);
-  // Every badge newly earned this run (mid-game sweeps + the final one), keyed
-  // by family. Feeds the game-end summary list and the reveal finale.
-  const [newBadges, setNewBadges] = useState<CelebratedBadge[]>([]);
-  const newBadgesRef = useRef<CelebratedBadge[]>([]);
-  useEffect(() => { newBadgesRef.current = newBadges; }, [newBadges]);
-  // Pending top-of-screen toasts (one shown at a time) and the badges handed to
-  // the end-of-round reveal overlay.
-  const [toastQueue, setToastQueue] = useState<CelebratedBadge[]>([]);
-  const [revealBadges, setRevealBadges] = useState<CelebratedBadge[]>([]);
-  // Last answered-question count a mid-game badge sweep ran at, so each answer
-  // triggers at most one sweep. A per-run running id for celebrated badges.
-  const midSweepCountRef = useRef(0);
-  const badgeUidRef = useRef(0);
+  // `countdown` / `gameEnded` / the Play handler `start()` live in
+  // useRoundLifecycle; the per-run badge & personal-best celebration state
+  // lives in useRoundEndCelebrations. Both are called below, once their inputs
+  // (nav's `askForMic`, the drill session) are available.
 
   const isPlaying = running && !paused;
   const isStopped = !running && !paused;
@@ -496,12 +420,6 @@ export default function App() {
   // false between stages, but the game screen must stay mounted (frozen on the
   // last question) so the transition never collapses the layout.
   const gameActive = running || paused || pendingAutoAdvance;
-  // During the 3-2-1 count-in the engine hasn't started yet (`running` is still
-  // false), but the fretboard/circle should already wear the stage's play
-  // appearance — no all-time mastery overlay, dots shown — instead of flashing
-  // the at-rest page look for the three seconds before the first question.
-  const boardLive = gameActive || countdown !== null;
-
 
   const hasHistory = historyOps.getEntriesForKey(histKey).length > 0;
   const hasAnyHistory = hasHistory || Object.values(historyOps.allHistory).some(list => list.length > 0);
@@ -515,6 +433,28 @@ export default function App() {
     micPrompt, setMicPrompt, showInfo, gameBackRef, upgradeFromAccountRef,
     askForMic, grantMic, openInfo,
   } = nav;
+
+  // The Play handler + 3-2-1 count-in + `gameEnded` flag + the Teacher /
+  // interval auto-launch effect (A33). `start()` calls `celebrationsBeginRunRef`
+  // (filled just below) to reset the per-run celebration state.
+  const {
+    start, countdown, gameEnded, setGameEnded, gameRowRef, playBtnRef,
+  } = useRoundLifecycle({
+    eff, selector, scoring, engineStart, voice, teacherPlan, intervalPlan,
+    preloaded, setPreloaded, askForMic, answerMode, running, paused,
+    celebrationsBeginRunRef,
+  });
+
+  // During the 3-2-1 count-in the engine hasn't started yet (`running` is still
+  // false), but the fretboard/circle should already wear the stage's play
+  // appearance — no all-time mastery overlay, dots shown — instead of flashing
+  // the at-rest page look for the three seconds before the first question.
+  const boardLive = gameActive || countdown !== null;
+
+  // The end-of-round badge reveal list. Owned here rather than inside
+  // useRoundEndCelebrations because useBackNavigation consumes it and the
+  // historyKey reset effect clears it before that hook is even called.
+  const [revealBadges, setRevealBadges] = useState<CelebratedBadge[]>([]);
 
   // ── "Back" keeps you inside the app ─────────────────────────────────
   // Android's hardware Back / back-gesture and the browser's Back button both
@@ -545,14 +485,13 @@ export default function App() {
   // own Back control takes over from there.
   const showBurger = !isPlaying && !pendingAutoAdvance && countdown === null && !settingsOpen;
 
+  // Reset the transient view + per-run celebration state whenever the settings
+  // combination (historyKey) changes. Kept here — above useRoundEndCelebrations
+  // — so that hook's game-end effect still registers *after* this reset, exactly
+  // as it did before the split.
   useEffect(() => {
     setShowStats(false); setGameEnded(false);
-    tier3FiredRef.current = false;
-    wasTeacherRunRef.current = false;
-    wasIntervalRunRef.current = false;
-    badgesFiredRef.current = false; setNewBadges([]);
-    midSweepCountRef.current = 0;
-    setToastQueue([]); setRevealBadges([]);
+    celebrationsBeginRunRef.current(false, false);
     setTeacherPlan(null);
     setIntervalPlan(null);
   }, [histKey]);
@@ -568,225 +507,21 @@ export default function App() {
     activeStringRef.current = guitarString;
   }, [guitarString, gameActive, isMulti]);
 
-  // Evaluate this run's session badges plus a retroactive pass over all-time
-  // history, award every reached tier (idempotent), and return the families
-  // that were genuinely new this call. Mid-game it drops the badges that a
-  // later answer could still invalidate — a clean run or whole-round accuracy
-  // is only final once the round is over.
-  const sweepBadges = useCallback((midGame: boolean): CelebratedBadge[] => {
-    const sessionSnap: SessionSnapshot = {
-      questionsAnswered: scoring.session.questionsAnswered,
-      maxQuestions: intervalPlanRef.current
-        ? intervalPlanRef.current.questionCount
-        : teacherPlanRef.current
-          ? teacherPlanRef.current.drill.questionCount
-          : selector.runQuestionCount(),
-      longestStreak: scoring.session.longestStreak,
-      entries: historyOps.history,
-      instrument,
-    };
-    const lifetimeSnap: LifetimeSnapshot = {
-      instrumentEntries: historyForInstrument(historyOps.allHistory, instrument.id),
-      allEntries: flattenHistory(historyOps.allHistory),
-      instrument,
-    };
-    const reached: Partial<Record<BadgeId, Tier>> = {
-      ...evaluateSession(sessionSnap),
-      ...evaluateLifetime(lifetimeSnap),
-    };
-    if (midGame) {
-      delete reached.perfect_session;
-      delete reached.flawless_sprint;
-      delete reached.every_string;
-    }
-    const earned: CelebratedBadge[] = [];
-    for (const [idStr, tier] of Object.entries(reached) as [BadgeId, Tier | undefined][]) {
-      if (!tier) continue;
-      const def = badgeDef(idStr, instrument);
-      if (!def) continue;
-      const prevTier = earnedTier(idStr, instrument.id);
-      const newly = awardFamilyUpTo(idStr, instrument.id, tier, def.levels);
-      if (newly.length > 0) {
-        earned.push({
-          uid: ++badgeUidRef.current,
-          id: idStr,
-          tier: newly[newly.length - 1],
-          upgrade: prevTier !== null,
-        });
-      }
-    }
-    return earned;
-  }, [
-    scoring.session.questionsAnswered, scoring.session.longestStreak,
-    selector, historyOps.history, historyOps.allHistory, instrument,
-  ]);
-
-  // Mid-game achievement check: after every answered question, sweep for newly
-  // earned badges and slide a toast in from the top for each. The full list is
-  // also accumulated so the end-of-round reveal shows everything won this run.
-  useEffect(() => {
-    if (!running || paused) return;
-    const n = scoring.session.questionsAnswered;
-    if (n === 0 || n === midSweepCountRef.current) return;
-    midSweepCountRef.current = n;
-    const earned = sweepBadges(true);
-    if (earned.length === 0) return;
-    setNewBadges(prev => mergeCelebrated(prev, earned));
-    if (showScore) setToastQueue(q => [...q, ...earned]);
-  }, [running, paused, scoring.session.questionsAnswered, showScore, sweepBadges]);
-
-  // Detect game end (skipped when Auto Advance is about to continue straight
-  // into the next stage, so the "round complete" screen doesn't flash up for
-  // a transition that isn't actually ending the session).
-  const wasRunningRef = useRef(false);
-  useEffect(() => {
-    if (wasRunningRef.current && !running && !paused && scoring.session.questionsAnswered > 0 && !pendingAutoAdvance) {
-      setGameEnded(true);
-      // A Teacher / interval session is a one-off: its per-answer feedback
-      // already went into the learning model, so once the run ends drop the
-      // plan and the app returns to the normal Selector view.
-      setTeacherPlan(null);
-      setIntervalPlan(null);
-
-      // Major achievement: a new personal-best score for this exact selector
-      // combination — the same per-historyKey `best_<key>` record StatsPanel
-      // maintains. Persist it here and fire the Tier 3 celebration once per run
-      // (tier3FiredRef also blocks a repeat if this effect re-runs).
-      //
-      // A Teacher session runs on the plan's own fret window / string / count,
-      // not the Selector combo `histKey` still points at, so its score is not
-      // comparable to that combo's best — recording it (or flashing "NEW BEST!"
-      // for it) would be misleading. Its answers are still in the shared
-      // history; only this Selector-combo record is skipped.
-      const score = scoring.session.score;
-      const prevBest = loadBest(histKey);
-      let pbCardShown = false;
-      if (!wasTeacherRunRef.current && !tier3FiredRef.current && score > 0 && score > (prevBest?.score ?? 0)) {
-        tier3FiredRef.current = true;
-        // Accuracy for the personal-best record comes from the drill session's
-        // SessionResult (correct / recorded-answers, rounded) rather than a
-        // second inline pass over the same history.
-        saveBest(histKey, { score, streak: scoring.session.longestStreak, accuracy: sessionResult.accuracy });
-        // Personal-best progress is always recorded; the celebration itself is
-        // a score effect, so it is skipped in "serious learning" mode.
-        if (showScore) pbCardShown = true;
-      }
-
-      // Achievements: a final sweep (session badges that only settle at the end
-      // + a retroactive lifetime pass), once per completed run (badgesFiredRef,
-      // like tier3FiredRef, blocks a repeat if the effect re-runs). Awarding is
-      // never gated on `showScore` — badges accrue in Silent / Score-off mode;
-      // only the toast and the reveal below are score effects.
-      let revealList: CelebratedBadge[] = [];
-      // An interval session's answers are not in the note history at all
-      // (isolated sink), so it earns no note badges — skip the sweep entirely.
-      if (!badgesFiredRef.current && !wasIntervalRunRef.current) {
-        badgesFiredRef.current = true;
-        const merged = mergeCelebrated(newBadgesRef.current, sweepBadges(false));
-        if (merged.length > 0) {
-          setNewBadges(merged);
-          if (showScore) {
-            setToastQueue([]); // the reveal supersedes any still-queued mid-game toasts
-            revealList = merged;
-          }
-        }
-      }
-
-      // The personal-best card is a blocking modal the user must dismiss; only
-      // then does the badge reveal fly in, so it never lands hidden behind it.
-      // With no PB card, a short beat lets the score register first.
-      if (pbCardShown) {
-        celebrateTier3(
-          score, scoring.session.longestStreak,
-          revealList.length > 0 ? () => setRevealBadges(revealList) : undefined,
-        );
-      } else if (revealList.length > 0) {
-        window.setTimeout(() => setRevealBadges(revealList), 900);
-      }
-    }
-    wasRunningRef.current = running;
-  }, [running, paused, pendingAutoAdvance, scoring.session.questionsAnswered, scoring.session.score, scoring.session.longestStreak, sessionResult, histKey, historyOps.allHistory, instrument, selector.state.difficulty, selector.state.autoAdvance, showScore, sweepBadges]);
-
-  // Push the signed-in player's leaderboard row after each completed run, so
-  // the public board tracks their all-time XP without them opening it. Guests
-  // and opted-out players are skipped; failures are ignored (the board also
-  // refreshes its own row whenever the panel is opened).
-  useEffect(() => {
-    if (!gameEnded || !auth.user || leaderboardOptOut) return;
-    // An interval session contributed nothing to `allHistoryEntries` — don't
-    // fire a redundant leaderboard upsert for it.
-    if (wasIntervalRunRef.current) return;
-    const name = leaderboardName(
-      auth.profile?.name ?? null,
-      auth.profile?.email ?? auth.user.email ?? null,
-    );
-    void upsertMyEntry(
-      auth.user.id,
-      instrument.id,
-      name,
-      computeMyStats(allHistoryEntries),
-    );
-  }, [gameEnded, auth.user, auth.profile, leaderboardOptOut, instrument.id, allHistoryEntries]);
-
-  const start = () => {
-    unlockAudio();
-    // Trigger the mic permission prompt from this user gesture, like unlockAudio.
-    if (answerMode === 'voice' && voice.supported) askForMic();
-    if (!preloaded) { preloadAllSamples().then(() => setPreloaded(true)); setPreloaded(true); }
-    scoring.reset();
-    // One continuous timing ramp for the whole run: from this difficulty's
-    // base down to the 3s floor across every question the run will ask
-    // (all Auto Advance stages, or just this one).
-    scoring.beginRun(
-      eff.time,
-      (teacherPlan || intervalPlan) ? eff.maxQuestions : selector.runQuestionCount(),
-    );
-    setGameEnded(false);
-    tier3FiredRef.current = false;
-    // Remember whether this run is a Teacher / interval session — the game-end
-    // effect uses these to skip the Selector personal-best / badge / leaderboard
-    // flow (see there).
-    wasTeacherRunRef.current = teacherPlan !== null || intervalPlan !== null;
-    wasIntervalRunRef.current = intervalPlan !== null;
-    badgesFiredRef.current = false;
-    setNewBadges([]);
-    midSweepCountRef.current = 0;
-    setToastQueue([]); setRevealBadges([]);
-    // Count-in: the on-screen countdown steps 3 → 2 → 1 once a second and the
-    // game comes in on "0" at t = 3s. The four drum-stick clicks run on their
-    // own steady, faster cadence — one every 750ms (t = 0, 0.75, 1.5, 2.25s),
-    // "1-2-3-4" — so the game arrives exactly one beat after the last click.
-    setCountdown(3);
-    playStickClick();
-    [750, 1500, 2250].forEach((t) => window.setTimeout(playStickClick, t));
-    let c = 3;
-    const interval = setInterval(() => {
-      c--;
-      if (c > 0) {
-        setCountdown(c);
-      } else {
-        clearInterval(interval);
-        setCountdown(null);
-        engineStart(eff.maxQuestions, eff.time, eff.byNote);
-        setTimeout(() => gameRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
-      }
-    }, 1000);
-  };
-
-  // Fresh-closure handle on `start` so the Teacher-launch effect below always
-  // calls the version that has already seen the new `eff` (post-setTeacherPlan
-  // render), not a stale one.
-  const startRef = useRef(start);
-  startRef.current = start;
-  // The Today card just calls `setTeacherPlan(plan)`. Once the plan is set (and
-  // `eff` / `drillConfig` have re-derived from it) kick off the run exactly
-  // like a manual Play — same 3-2-1, same engine, same scoring.
-  useEffect(() => {
-    if ((teacherPlan || intervalPlan) && !running && !paused && countdown === null && !gameEnded) {
-      startRef.current();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teacherPlan, intervalPlan]);
+  // Mid-game badge sweep + slide-in toasts, the game-end pass (new personal
+  // best → Tier 3 celebration, final badge sweep → reveal overlay, plan
+  // tear-down) and the post-run leaderboard upsert (A32). `beginRun` clears the
+  // per-run state; it is wired into `celebrationsBeginRunRef` for `start()` and
+  // the historyKey reset effect above.
+  const {
+    newBadges, setNewBadges, toastQueue, setToastQueue, beginRun: celebrationsBeginRun,
+  } = useRoundEndCelebrations({
+    running, paused, pendingAutoAdvance, scoring, selector, sessionResult,
+    historyOps, instrument, showScore, histKey,
+    wasTeacherRunRef, wasIntervalRunRef, teacherPlanRef, intervalPlanRef,
+    auth, leaderboardOptOut, allHistoryEntries,
+    gameEnded, setGameEnded, setTeacherPlan, setIntervalPlan, setRevealBadges,
+  });
+  celebrationsBeginRunRef.current = celebrationsBeginRun;
 
   // Multiplier display tracks the streak-tier multiplier from useScoring
   // (1×, 1.25×, 1.5×, 2×, 2.5×, 3×, 4× at streaks 0, 3, 5, 7, 10, 15, 20).

@@ -1,0 +1,225 @@
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction, type MutableRefObject } from 'react';
+import { celebrateTier3 } from '../utils/feedback';
+import { loadBest, saveBest } from '../utils/personalBest';
+import { historyForInstrument, flattenHistory } from '../utils/mastery';
+import { computeMyStats, leaderboardName, upsertMyEntry } from '../utils/leaderboard';
+import { mergeCelebrated } from '../utils/badgeCelebration';
+import {
+  badgeDef, evaluateSession, evaluateLifetime, awardFamilyUpTo, earnedTier,
+  type BadgeId, type SessionSnapshot, type LifetimeSnapshot, type Tier,
+} from '../utils/badges';
+import type { CelebratedBadge } from '../components/BadgeCelebration';
+import type { useAuth } from './useAuth';
+import type { useScoring } from './useScoring';
+import type { useSelector } from './useSelector';
+import type { useHistory } from './useHistory';
+import type { InstrumentConfig } from '../utils/instruments';
+import type { TeacherPlan } from '../learning/planner';
+import type { DrillConfig, SessionResult } from '../drill/DrillConfig';
+import type { HistoryEntry } from '../utils/music';
+
+interface Params {
+  running: boolean;
+  paused: boolean;
+  pendingAutoAdvance: boolean;
+  scoring: ReturnType<typeof useScoring>;
+  selector: ReturnType<typeof useSelector>;
+  sessionResult: SessionResult;
+  historyOps: ReturnType<typeof useHistory>;
+  instrument: InstrumentConfig;
+  showScore: boolean;
+  histKey: string;
+  wasTeacherRunRef: MutableRefObject<boolean>;
+  wasIntervalRunRef: MutableRefObject<boolean>;
+  teacherPlanRef: MutableRefObject<TeacherPlan | null>;
+  intervalPlanRef: MutableRefObject<DrillConfig | null>;
+  auth: ReturnType<typeof useAuth>;
+  leaderboardOptOut: boolean;
+  allHistoryEntries: HistoryEntry[];
+  gameEnded: boolean;
+  setGameEnded: (v: boolean) => void;
+  setTeacherPlan: (v: TeacherPlan | null) => void;
+  setIntervalPlan: (v: DrillConfig | null) => void;
+  setRevealBadges: Dispatch<SetStateAction<CelebratedBadge[]>>;
+}
+
+/**
+ * Round-end celebrations (A32): the mid-game badge sweep + slide-in toasts, the
+ * game-end pass (new personal best → Tier 3 celebration, final badge sweep →
+ * reveal overlay, plan tear-down), and the post-run leaderboard upsert.
+ *
+ * `beginRun(isTeacher, isInterval)` clears the per-run state (badge guards,
+ * toast queue, PB guard) — called by `start()` and on a historyKey change.
+ */
+export function useRoundEndCelebrations({
+  running, paused, pendingAutoAdvance, scoring, selector, sessionResult,
+  historyOps, instrument, showScore, histKey,
+  wasTeacherRunRef, wasIntervalRunRef, teacherPlanRef, intervalPlanRef,
+  auth, leaderboardOptOut, allHistoryEntries,
+  gameEnded, setGameEnded, setTeacherPlan, setIntervalPlan, setRevealBadges,
+}: Params) {
+  // Guards the Tier 3 (new personal best) celebration so it fires at most once
+  // per completed run.
+  const tier3FiredRef = useRef(false);
+  // Guards badge evaluation so it runs at most once per completed run.
+  const badgesFiredRef = useRef(false);
+  // Every badge newly earned this run (mid-game sweeps + the final one), keyed
+  // by family. Feeds the game-end summary list and the reveal finale.
+  const [newBadges, setNewBadges] = useState<CelebratedBadge[]>([]);
+  const newBadgesRef = useRef<CelebratedBadge[]>([]);
+  useEffect(() => { newBadgesRef.current = newBadges; }, [newBadges]);
+  // Pending top-of-screen toasts (one shown at a time).
+  const [toastQueue, setToastQueue] = useState<CelebratedBadge[]>([]);
+  // Last answered-question count a mid-game badge sweep ran at, so each answer
+  // triggers at most one sweep. A per-run running id for celebrated badges.
+  const midSweepCountRef = useRef(0);
+  const badgeUidRef = useRef(0);
+
+  const beginRun = useCallback((isTeacher: boolean, isInterval: boolean) => {
+    tier3FiredRef.current = false;
+    wasTeacherRunRef.current = isTeacher;
+    wasIntervalRunRef.current = isInterval;
+    badgesFiredRef.current = false;
+    setNewBadges([]);
+    midSweepCountRef.current = 0;
+    setToastQueue([]);
+    setRevealBadges([]);
+  }, [wasTeacherRunRef, wasIntervalRunRef, setRevealBadges]);
+
+  // Evaluate this run's session badges plus a retroactive pass over all-time
+  // history, award every reached tier (idempotent), and return the families
+  // that were genuinely new this call. Mid-game it drops the badges that a
+  // later answer could still invalidate.
+  const sweepBadges = useCallback((midGame: boolean): CelebratedBadge[] => {
+    const sessionSnap: SessionSnapshot = {
+      questionsAnswered: scoring.session.questionsAnswered,
+      maxQuestions: intervalPlanRef.current
+        ? intervalPlanRef.current.questionCount
+        : teacherPlanRef.current
+          ? teacherPlanRef.current.drill.questionCount
+          : selector.runQuestionCount(),
+      longestStreak: scoring.session.longestStreak,
+      entries: historyOps.history,
+      instrument,
+    };
+    const lifetimeSnap: LifetimeSnapshot = {
+      instrumentEntries: historyForInstrument(historyOps.allHistory, instrument.id),
+      allEntries: flattenHistory(historyOps.allHistory),
+      instrument,
+    };
+    const reached: Partial<Record<BadgeId, Tier>> = {
+      ...evaluateSession(sessionSnap),
+      ...evaluateLifetime(lifetimeSnap),
+    };
+    if (midGame) {
+      delete reached.perfect_session;
+      delete reached.flawless_sprint;
+      delete reached.every_string;
+    }
+    const earned: CelebratedBadge[] = [];
+    for (const [idStr, tier] of Object.entries(reached) as [BadgeId, Tier | undefined][]) {
+      if (!tier) continue;
+      const def = badgeDef(idStr, instrument);
+      if (!def) continue;
+      const prevTier = earnedTier(idStr, instrument.id);
+      const newly = awardFamilyUpTo(idStr, instrument.id, tier, def.levels);
+      if (newly.length > 0) {
+        earned.push({
+          uid: ++badgeUidRef.current,
+          id: idStr,
+          tier: newly[newly.length - 1],
+          upgrade: prevTier !== null,
+        });
+      }
+    }
+    return earned;
+  }, [
+    scoring.session.questionsAnswered, scoring.session.longestStreak,
+    selector, historyOps.history, historyOps.allHistory, instrument,
+    intervalPlanRef, teacherPlanRef,
+  ]);
+
+  // Mid-game achievement check: after every answered question, sweep for newly
+  // earned badges and slide a toast in from the top for each.
+  useEffect(() => {
+    if (!running || paused) return;
+    const n = scoring.session.questionsAnswered;
+    if (n === 0 || n === midSweepCountRef.current) return;
+    midSweepCountRef.current = n;
+    const earned = sweepBadges(true);
+    if (earned.length === 0) return;
+    setNewBadges(prev => mergeCelebrated(prev, earned));
+    if (showScore) setToastQueue(q => [...q, ...earned]);
+  }, [running, paused, scoring.session.questionsAnswered, showScore, sweepBadges]);
+
+  // Detect game end (skipped when Auto Advance is about to continue straight
+  // into the next stage).
+  const wasRunningRef = useRef(false);
+  useEffect(() => {
+    if (wasRunningRef.current && !running && !paused && scoring.session.questionsAnswered > 0 && !pendingAutoAdvance) {
+      setGameEnded(true);
+      // A Teacher / interval session is a one-off: once the run ends drop the
+      // plan and the app returns to the normal Selector view.
+      setTeacherPlan(null);
+      setIntervalPlan(null);
+
+      // Major achievement: a new personal-best score for this exact selector
+      // combination. A Teacher session runs on the plan's own window, so its
+      // score is not comparable to that combo's best — skip the record for it.
+      const score = scoring.session.score;
+      const prevBest = loadBest(histKey);
+      let pbCardShown = false;
+      if (!wasTeacherRunRef.current && !tier3FiredRef.current && score > 0 && score > (prevBest?.score ?? 0)) {
+        tier3FiredRef.current = true;
+        saveBest(histKey, { score, streak: scoring.session.longestStreak, accuracy: sessionResult.accuracy });
+        if (showScore) pbCardShown = true;
+      }
+
+      // Achievements: a final sweep, once per completed run. Awarding is never
+      // gated on `showScore`; only the toast and the reveal are score effects.
+      let revealList: CelebratedBadge[] = [];
+      if (!badgesFiredRef.current && !wasIntervalRunRef.current) {
+        badgesFiredRef.current = true;
+        const merged = mergeCelebrated(newBadgesRef.current, sweepBadges(false));
+        if (merged.length > 0) {
+          setNewBadges(merged);
+          if (showScore) {
+            setToastQueue([]); // the reveal supersedes any still-queued mid-game toasts
+            revealList = merged;
+          }
+        }
+      }
+
+      // The personal-best card is a blocking modal; only after it is dismissed
+      // does the badge reveal fly in. With no PB card, a short beat lets the
+      // score register first.
+      if (pbCardShown) {
+        celebrateTier3(
+          score, scoring.session.longestStreak,
+          revealList.length > 0 ? () => setRevealBadges(revealList) : undefined,
+        );
+      } else if (revealList.length > 0) {
+        window.setTimeout(() => setRevealBadges(revealList), 900);
+      }
+    }
+    wasRunningRef.current = running;
+  }, [running, paused, pendingAutoAdvance, scoring.session.questionsAnswered, scoring.session.score, scoring.session.longestStreak, sessionResult, histKey, historyOps.allHistory, instrument, selector.state.difficulty, selector.state.autoAdvance, showScore, sweepBadges]);
+
+  // Push the signed-in player's leaderboard row after each completed run.
+  useEffect(() => {
+    if (!gameEnded || !auth.user || leaderboardOptOut) return;
+    if (wasIntervalRunRef.current) return;
+    const name = leaderboardName(
+      auth.profile?.name ?? null,
+      auth.profile?.email ?? auth.user.email ?? null,
+    );
+    void upsertMyEntry(
+      auth.user.id,
+      instrument.id,
+      name,
+      computeMyStats(allHistoryEntries),
+    );
+  }, [gameEnded, auth.user, auth.profile, leaderboardOptOut, instrument.id, allHistoryEntries]);
+
+  return { newBadges, setNewBadges, toastQueue, setToastQueue, beginRun };
+}
