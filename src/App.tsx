@@ -499,6 +499,16 @@ export default function App() {
     setIntervalPlan(null);
   }, [histKey]);
 
+  // An interval session stays armed after a round ends (so pressing Play runs
+  // another interval question rather than the Selector's note drill). Tear it
+  // down when the user actually leaves the interval flow — i.e. when the active
+  // domain returns to 'notes' (Back, the Learn hub, or a tier drop). Interval
+  // plans are only ever launched from the 'intervals' / 'daily' tabs, so a
+  // 'notes' domain always means the flow is over.
+  useEffect(() => {
+    if (activeDomain === 'notes' && !running && !paused) setIntervalPlan(null);
+  }, [activeDomain, running, paused]);
+
   // Multi-string mode: a short haptic pulse when the drilled string changes
   // between questions, reinforcing the visual string-change emphasis. Single-
   // string rounds never switch string, so this only ever fires in Multi.
@@ -522,7 +532,7 @@ export default function App() {
     historyOps, instrument, showScore, histKey,
     wasTeacherRunRef, wasIntervalRunRef, teacherPlanRef, intervalPlanRef,
     auth, leaderboardOptOut, allHistoryEntries,
-    gameEnded, setGameEnded, setTeacherPlan, setIntervalPlan, setRevealBadges,
+    gameEnded, setGameEnded, setRevealBadges,
   });
   celebrationsBeginRunRef.current = celebrationsBeginRun;
 
@@ -831,55 +841,72 @@ export default function App() {
   // from the main return as usual; the user then lands back on the tab they
   // launched from. A tier drop falls straight through to the home screen.
   const backToLearnHub = () => {
+    // Leaving a learning tab ends any armed Teacher / interval session — the
+    // plans outlive a single round now, so they must be dropped here.
+    setTeacherPlan(null);
+    setIntervalPlan(null);
     setActiveDomain('notes');
     setSettingsOpen(true);
     setDrawerSection('learn');
   };
   if (activeDomain === 'daily' && can('premiumTeacher', auth.tier)
-      && onboardingDone && !gameActive && !gameEnded && countdown === null) {
+      && onboardingDone && !gameActive && !gameEnded) {
+    // Keep the Daily page mounted through the 3-2-1 count-in (with the shared
+    // overlay on top) so launching a plan never flashes the note practice
+    // board — Selector → count-in → the guided question, same as Intervals.
     return (
-      <DailyPracticeScreen
-        todayPlan={learning.todayPlan}
-        weakSpotsPlan={learning.weakSpotsPlan}
-        dailyGoal={learning.dailyGoal}
-        goalComplete={learning.goalComplete}
-        accidental={accidental}
-        notation={notation}
-        instrument={instrument}
-        canIntervals={can('intervalDrill', auth.tier)}
-        intervalTodayPlan={learning.intervalTodayPlan}
-        intervalWeakSpotsPlan={learning.intervalWeakSpotsPlan}
-        intervalDailyGoal={learning.intervalDailyGoal}
-        intervalGoalComplete={learning.intervalGoalComplete}
-        busy={gameActive || countdown !== null}
-        onStart={(plan) => setTeacherPlan(plan)}
-        onStartIntervalPlan={(exercise, kind) => {
-          const plan = kind === 'weak'
-            ? learning.buildIntervalWeakSpotsPlan(exercise)
-            : learning.buildIntervalTodayPlan(exercise);
-          if (plan) setIntervalPlan(plan.drill);
-        }}
-        onOpenPath={can('learningPath', auth.tier)
-          ? () => { setShowStats(false); setSettingsOpen(false); setShowPath(true); }
-          : undefined}
-        onClose={backToLearnHub}
-      />
+      <>
+        <DailyPracticeScreen
+          todayPlan={learning.todayPlan}
+          weakSpotsPlan={learning.weakSpotsPlan}
+          dailyGoal={learning.dailyGoal}
+          goalComplete={learning.goalComplete}
+          accidental={accidental}
+          notation={notation}
+          instrument={instrument}
+          canIntervals={can('intervalDrill', auth.tier)}
+          intervalTodayPlan={learning.intervalTodayPlan}
+          intervalWeakSpotsPlan={learning.intervalWeakSpotsPlan}
+          intervalDailyGoal={learning.intervalDailyGoal}
+          intervalGoalComplete={learning.intervalGoalComplete}
+          busy={gameActive || countdown !== null}
+          onStart={(plan) => setTeacherPlan(plan)}
+          onStartIntervalPlan={(exercise, kind) => {
+            const plan = kind === 'weak'
+              ? learning.buildIntervalWeakSpotsPlan(exercise)
+              : learning.buildIntervalTodayPlan(exercise);
+            if (plan) setIntervalPlan(plan.drill);
+          }}
+          onOpenPath={can('learningPath', auth.tier)
+            ? () => { setShowStats(false); setSettingsOpen(false); setShowPath(true); }
+            : undefined}
+          onClose={backToLearnHub}
+        />
+        {countdown !== null && <CountdownOverlay countdown={countdown} />}
+      </>
     );
   }
   if (activeDomain === 'intervals' && can('intervalDrill', auth.tier)
-      && onboardingDone && !gameActive && !gameEnded && countdown === null) {
+      && onboardingDone && !gameActive && !gameEnded) {
+    // Keep the Interval page mounted through the 3-2-1 count-in (with the
+    // shared overlay on top) so launching a session never flashes the note
+    // practice board — it goes straight from the Selector to the count-in to
+    // the interval question.
     return (
-      <IntervalPracticeScreen
-        instrument={instrument}
-        intervalBoard={learning.intervalBoard}
-        accidental={accidental}
-        order={order}
-        notation={notation}
-        trackedCount={learning.intervalTrackedCount}
-        silentMode={silentMode}
-        onStart={(config: DrillConfig) => setIntervalPlan(config)}
-        onClose={backToLearnHub}
-      />
+      <>
+        <IntervalPracticeScreen
+          instrument={instrument}
+          intervalBoard={learning.intervalBoard}
+          accidental={accidental}
+          order={order}
+          notation={notation}
+          trackedCount={learning.intervalTrackedCount}
+          silentMode={silentMode}
+          onStart={(config: DrillConfig) => setIntervalPlan(config)}
+          onClose={backToLearnHub}
+        />
+        {countdown !== null && <CountdownOverlay countdown={countdown} />}
+      </>
     );
   }
 
@@ -1071,7 +1098,13 @@ export default function App() {
               questionsAnswered={sessionResult.questionsAnswered}
               newBadges={newBadges}
               instrument={instrument}
-              onOk={() => { setGameEnded(false); setNewBadges([]); setToastQueue([]); setRevealBadges([]); }}
+              onOk={() => {
+                setGameEnded(false); setNewBadges([]); setToastQueue([]); setRevealBadges([]);
+                // Dismissing the summary ends an armed Teacher / interval
+                // session; pressing Play (instead of OK) keeps it for another
+                // question.
+                setTeacherPlan(null); setIntervalPlan(null);
+              }}
             />
           )}
           <DrillControls

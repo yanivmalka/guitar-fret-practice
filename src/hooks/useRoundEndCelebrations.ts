@@ -38,8 +38,6 @@ interface Params {
   allHistoryEntries: HistoryEntry[];
   gameEnded: boolean;
   setGameEnded: (v: boolean) => void;
-  setTeacherPlan: (v: TeacherPlan | null) => void;
-  setIntervalPlan: (v: DrillConfig | null) => void;
   setRevealBadges: Dispatch<SetStateAction<CelebratedBadge[]>>;
 }
 
@@ -56,7 +54,7 @@ export function useRoundEndCelebrations({
   historyOps, instrument, showScore, histKey,
   wasTeacherRunRef, wasIntervalRunRef, teacherPlanRef, intervalPlanRef,
   auth, leaderboardOptOut, allHistoryEntries,
-  gameEnded, setGameEnded, setTeacherPlan, setIntervalPlan, setRevealBadges,
+  gameEnded, setGameEnded, setRevealBadges,
 }: Params) {
   // Guards the Tier 3 (new personal best) celebration so it fires at most once
   // per completed run.
@@ -158,10 +156,12 @@ export function useRoundEndCelebrations({
   useEffect(() => {
     if (wasRunningRef.current && !running && !paused && scoring.session.questionsAnswered > 0 && !pendingAutoAdvance) {
       setGameEnded(true);
-      // A Teacher / interval session is a one-off: once the run ends drop the
-      // plan and the app returns to the normal Selector view.
-      setTeacherPlan(null);
-      setIntervalPlan(null);
+      // A Teacher / interval session stays armed after the round so pressing
+      // Play runs another plan question instead of falling back to the
+      // Selector's note drill. Both plans are torn down when the user actually
+      // leaves the flow — App clears them from the end-of-round summary's "OK",
+      // the "Learn" back button, the "Stop" control, and (for intervals) when
+      // the active domain returns to 'notes'.
 
       // Major achievement: a new personal-best score for this exact selector
       // combination. A Teacher session runs on the plan's own window, so its
