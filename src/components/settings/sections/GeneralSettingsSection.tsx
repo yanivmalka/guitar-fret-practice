@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { SettingCard, SegmentedControl, PickRow, StepperMeter } from '../../SettingCard';
 import {
   NOTE_VOLUME_MIN, NOTE_VOLUME_MAX, NOTE_VOLUME_STEP, NOTE_VOLUME_DEFAULT,
@@ -11,6 +12,32 @@ import type { Theme } from '../../../utils/theme';
 import type { VoiceEnginePref } from '../../../utils/speech';
 
 type AnswerMode = 'tap' | 'voice';
+type WindowMode = MasteryWindow['kind'];
+
+/** Local-calendar `YYYY-MM-DD` for a Date, matching what an `<input type="date">` emits. */
+function localDayStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+/** Local midnight of a `YYYY-MM-DD` day, as an ISO instant. */
+function startOfDayISO(dayStr: string): string {
+  return new Date(`${dayStr}T00:00:00`).toISOString();
+}
+/** Local midnight of the day *after* `dayStr`, as an ISO instant — the half-open
+ *  upper bound `applyMasteryWindow` expects (`>= fromISO && < toISO`). */
+function dayAfterISO(dayStr: string): string {
+  const x = new Date(`${dayStr}T00:00:00`);
+  x.setDate(x.getDate() + 1);
+  return x.toISOString();
+}
+/** Inverse of {@link dayAfterISO}: the inclusive "to" day a stored `toISO` came from. */
+function toISOToDayStr(toISO: string): string {
+  const x = new Date(toISO);
+  x.setDate(x.getDate() - 1);
+  return localDayStr(x);
+}
 
 /**
  * The general "Settings" drawer section body: score display, silent mode,
@@ -51,6 +78,44 @@ export default function GeneralSettingsSection({
   voiceEnginePref, pickVoiceEngine, voiceProfileStat, setSettingsOpen,
   setShowVoiceCalibration, showMastery, setShowMastery, masteryWindow, setMasteryWindow,
 }: GeneralSettingsSectionProps) {
+  const todayStr = localDayStr(new Date());
+  // Which sub-control of the "Mastery time window" card is visible. Seeded from
+  // the persisted window, but tracked separately so "A range" can be shown while
+  // its two dates are still being filled in (an invalid range is never persisted).
+  const [winMode, setWinMode] = useState<WindowMode>(masteryWindow.kind);
+  // Remembered so switching Recent → Day → Recent is lossless.
+  const [lastNMemo, setLastNMemo] = useState(
+    masteryWindow.kind === 'lastN' ? masteryWindow.n : 250,
+  );
+  const [daySel, setDaySel] = useState(
+    masteryWindow.kind === 'onDay' ? masteryWindow.dayISO.slice(0, 10) : todayStr,
+  );
+  const [rangeFrom, setRangeFrom] = useState(
+    masteryWindow.kind === 'dateRange' ? masteryWindow.fromISO.slice(0, 10) : '',
+  );
+  const [rangeTo, setRangeTo] = useState(
+    masteryWindow.kind === 'dateRange' ? toISOToDayStr(masteryWindow.toISO) : '',
+  );
+
+  const commitWindow = (w: MasteryWindow) => {
+    setMasteryWindow(w);
+    saveSetting('pref_masteryWindow', w);
+  };
+  const commitRange = (from: string, to: string) => {
+    if (from && to && from <= to) {
+      commitWindow({ kind: 'dateRange', fromISO: startOfDayISO(from), toISO: dayAfterISO(to) });
+    }
+  };
+
+  const windowSummary =
+    masteryWindow.kind === 'lastN'
+      ? masteryWindow.n === 0
+        ? t('showing all questions')
+        : `${t('showing last')} ${masteryWindow.n}`
+      : masteryWindow.kind === 'onDay'
+        ? `${t('showing')} ${masteryWindow.dayISO.slice(0, 10)}`
+        : `${t('showing')} ${masteryWindow.fromISO.slice(0, 10)} – ${toISOToDayStr(masteryWindow.toISO)}`;
+
   return (
     <>
       <SettingCard
@@ -207,25 +272,95 @@ export default function GeneralSettingsSection({
       <ProGate
         feature="masteryMaps"
         variant="replace"
-        pitch={t('Choose how many recent questions the mastery bars are counted from')}
+        pitch={t('Point the mastery bars at a recent-question count, a single day, or a date range')}
       >
         <SettingCard
-          label={t('Questions counted')}
-          help={t('How many of your most recent questions the mastery bars are computed from. Free accounts use the last 250.')}
+          label={t('Mastery time window')}
+          help={<>
+            {t('What slice of your history the mastery bars are computed from. Free accounts use the last 250 questions. Older history saved without a date is not counted for a specific day or range.')}
+            {' '}<em>{windowSummary}</em>
+          </>}
         >
-          <PickRow
-            ariaLabel={t('Questions counted')}
-            value={masteryWindow.kind === 'lastN' ? String(masteryWindow.n) : '250'}
-            options={PRO_MASTERY_LASTN_CHOICES.map((n) => ({
-              value: String(n),
-              label: n === 0 ? t('All') : String(n),
-            }))}
-            onChange={(v) => {
-              const next: MasteryWindow = { kind: 'lastN', n: Number(v) };
-              setMasteryWindow(next);
-              saveSetting('pref_masteryWindow', next);
+          <SegmentedControl
+            ariaLabel={t('Mastery time window')}
+            value={winMode}
+            options={[
+              { value: 'lastN', label: t('Recent') },
+              { value: 'onDay', label: t('A day') },
+              { value: 'dateRange', label: t('A range') },
+            ]}
+            onChange={(m) => {
+              setWinMode(m);
+              if (m === 'lastN') commitWindow({ kind: 'lastN', n: lastNMemo });
+              else if (m === 'onDay') commitWindow({ kind: 'onDay', dayISO: daySel });
+              else commitRange(rangeFrom, rangeTo);
             }}
           />
+          {winMode === 'lastN' && (
+            <PickRow
+              ariaLabel={t('Questions counted')}
+              value={String(lastNMemo)}
+              options={PRO_MASTERY_LASTN_CHOICES.map((n) => ({
+                value: String(n),
+                label: n === 0 ? t('All') : String(n),
+              }))}
+              onChange={(v) => {
+                const n = Number(v);
+                setLastNMemo(n);
+                commitWindow({ kind: 'lastN', n });
+              }}
+            />
+          )}
+          {winMode === 'onDay' && (
+            <label className="set-date-field">
+              <span>{t('A day')}</span>
+              <input
+                type="date"
+                className="set-date-input"
+                max={todayStr}
+                value={daySel}
+                onChange={(e) => {
+                  const d = e.target.value;
+                  if (!d) return;
+                  setDaySel(d);
+                  commitWindow({ kind: 'onDay', dayISO: d });
+                }}
+              />
+            </label>
+          )}
+          {winMode === 'dateRange' && (
+            <div className="set-date-range">
+              <label className="set-date-field">
+                <span>{t('From')}</span>
+                <input
+                  type="date"
+                  className="set-date-input"
+                  max={rangeTo || todayStr}
+                  value={rangeFrom}
+                  onChange={(e) => {
+                    const from = e.target.value;
+                    setRangeFrom(from);
+                    commitRange(from, rangeTo);
+                  }}
+                />
+              </label>
+              <label className="set-date-field">
+                <span>{t('To')}</span>
+                <input
+                  type="date"
+                  className="set-date-input"
+                  min={rangeFrom || undefined}
+                  max={todayStr}
+                  value={rangeTo}
+                  onChange={(e) => {
+                    const to = e.target.value;
+                    setRangeTo(to);
+                    commitRange(rangeFrom, to);
+                  }}
+                />
+              </label>
+            </div>
+          )}
         </SettingCard>
       </ProGate>
     </>

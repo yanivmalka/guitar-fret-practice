@@ -67,6 +67,19 @@ const he: Record<string, string> = {
     'מכמה מהשאלות האחרונות שלך מחושבים פסי השליטה. חשבונות חינמיים משתמשים ב־250 האחרונות.',
   'Choose how many recent questions the mastery bars are counted from':
     'בחירת כמות השאלות האחרונות שמהן נספרים פסי השליטה',
+  'Mastery time window': 'חלון זמן לשליטה',
+  'Point the mastery bars at a recent-question count, a single day, or a date range':
+    'כיוונון פסי השליטה לכמות שאלות אחרונות, ליום מסוים או לטווח תאריכים',
+  'What slice of your history the mastery bars are computed from. Free accounts use the last 250 questions. Older history saved without a date is not counted for a specific day or range.':
+    'מאיזה חלק מההיסטוריה שלך מחושבים פסי השליטה. חשבונות חינמיים משתמשים ב־250 השאלות האחרונות. היסטוריה ישנה שנשמרה ללא תאריך אינה נספרת ליום או לטווח מסוימים.',
+  'Recent': 'אחרונות',
+  'A day': 'יום',
+  'A range': 'טווח',
+  'From': 'מ־',
+  'To': 'עד',
+  'showing': 'מוצג',
+  'showing last': 'מוצגות אחרונות',
+  'showing all questions': 'מוצגות כל השאלות',
   'All': 'הכל',
   'Stats & progress': 'סטטיסטיקות והתקדמות',
   'Answer mode': 'מצב מענה',

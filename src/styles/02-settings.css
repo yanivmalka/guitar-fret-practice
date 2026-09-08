@@ -754,3 +754,38 @@
   cursor: pointer; display: flex; align-items: center; justify-content: center;
 }
 .range-val { color: var(--text-0); font-size: 15px; margin: 0 6px; }
+
+/* Date pickers for the Pro "Mastery time window" card (A day / A range). */
+.settings-page .set-date-range {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.settings-page .set-date-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 120px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.settings-page .set-date-input {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 9px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--surface-border);
+  background: var(--bg-3);
+  color: var(--text-0);
+  text-transform: none;
+  letter-spacing: normal;
+  -webkit-tap-highlight-color: transparent;
+}
+.settings-page .set-date-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
