@@ -12,18 +12,35 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
-// Retire the inline boot splash (index.html) once React has painted. Hold it
-// long enough for its ~1.6s progress-bar animation to read as complete, then
-// fade out and remove. Guarded so it's a no-op if the element is already gone.
+// Retire the inline boot splash (index.html) once the app has both painted and
+// finished its first data load. <App> fires a window 'app-ready' event when the
+// Supabase session and (for a signed-in user) the entitlement lookup have
+// resolved, so the UI never visibly flips from a guest/default state to the
+// signed-in one after the splash has already gone. We still hold the splash for
+// the length of its ~1.6s progress-bar animation so it reads as complete, and a
+// hard cap dismisses it anyway if that signal never arrives (slow / offline
+// network). Guarded so it's a no-op if the element is already gone.
 {
   const splash = document.getElementById('boot-splash')
   if (splash) {
-    const dismiss = () => {
+    const MIN_VISIBLE_MS = 1600
+    const MAX_VISIBLE_MS = 5000
+    const shownAt = performance.now()
+    let dismissed = false
+    const remove = () => {
       splash.classList.add('boot-splash--hide')
       splash.addEventListener('transitionend', () => splash.remove(), { once: true })
       // Fallback in case the transition never fires (e.g. reduced motion).
       setTimeout(() => splash.remove(), 600)
     }
-    setTimeout(dismiss, 1600)
+    const dismiss = () => {
+      if (dismissed) return
+      dismissed = true
+      const held = performance.now() - shownAt
+      if (held >= MIN_VISIBLE_MS) remove()
+      else setTimeout(remove, MIN_VISIBLE_MS - held)
+    }
+    window.addEventListener('app-ready', dismiss, { once: true })
+    setTimeout(dismiss, MAX_VISIBLE_MS)
   }
 }

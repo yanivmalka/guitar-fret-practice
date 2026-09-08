@@ -294,6 +294,20 @@ export default function App() {
     if (themeColor) themeColor.setAttribute('content', THEME_BG[theme]);
   }, [theme]);
 
+  // Hold the boot splash (index.html) until the first data load has settled —
+  // the Supabase session and, for a signed-in user, the entitlement lookup — so
+  // the UI doesn't visibly flip from a guest/default state to the real one after
+  // the splash has already gone. `src/main.tsx` listens for this event and still
+  // enforces its own minimum-visible and hard-cap timers, so a guest build (both
+  // flags false from the start) or a stalled network can't get stuck behind it.
+  const bootReadyRef = useRef(false);
+  useEffect(() => {
+    if (bootReadyRef.current) return;
+    if (auth.loading || auth.entitlementLoading) return;
+    bootReadyRef.current = true;
+    window.dispatchEvent(new Event('app-ready'));
+  }, [auth.loading, auth.entitlementLoading]);
+
   const historyOps = useHistory();
   // Interval drill (P4): an isolated in-memory history for interval sessions,
   // so they never touch `useHistory` / mastery / stats / badges / leaderboard.
