@@ -18,3 +18,8 @@ scripts/wav
 scripts/wav-v2
 scripts/testset
 record-test-set.html
+
+# Local design-tool scratch: artboards published from the Claude Code
+# `design` skill (canvas.json + *.dc.html + the big self-contained
+# published-canvas HTML). Design exploration only, not app code.
+design-canvas/
