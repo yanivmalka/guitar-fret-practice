@@ -31,10 +31,11 @@ import { useAutoPauseOnBackground } from './hooks/useAutoPauseOnBackground';
 import { useQuestionChangeAnimation } from './hooks/useQuestionChangeAnimation';
 import { useAdjustSuggestion } from './hooks/useAdjustSuggestion';
 import { loadBest, saveBest } from './utils/personalBest';
-import { historyForInstrument, flattenHistory, fretMasteryMap, noteMasteryMap, applyMasteryWindow, DEFAULT_MASTERY_WINDOW, FREE_MASTERY_WINDOW, type MasteryStat, type MasteryWindow } from './utils/mastery';
+import { historyForInstrument, flattenHistory, DEFAULT_MASTERY_WINDOW, type MasteryWindow } from './utils/mastery';
 import { useAuth } from './hooks/useAuth';
 import { useCloudSync } from './hooks/useCloudSync';
 import { useVoiceProfileSummary } from './hooks/useVoiceProfileSummary';
+import { useMasteryOverlay } from './hooks/useMasteryOverlay';
 import { useSelector, type DerivedSettings } from './hooks/useSelector';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useDrillSession } from './hooks/useDrillSession';
@@ -300,20 +301,18 @@ export default function App() {
   const { cofList, isMulti } = derived;
   const scoring = useScoring();
 
-  // All-time (every settings combo ever played) mastery, shown as a small
-  // equalizer-style overlay on the fretboard/note-circle so the user can see
-  // at a glance what they know vs. what needs work, in both directions:
-  // frets on the current string, and each note across all strings.
-  const allHistoryEntries = useMemo(
-    () => historyForInstrument(historyOps.allHistory, instrument.id),
-    [historyOps.allHistory, instrument.id],
-  );
-  // Every instrument's history flattened — feeds the player-progress badges
-  // (Century, streaks, accuracy…), which are not scoped to the current one.
-  const everyInstrumentHistory = useMemo(
-    () => flattenHistory(historyOps.allHistory),
-    [historyOps.allHistory],
-  );
+  // All-time mastery overlay for the fretboard/note-circle (fret bars on the
+  // current string, note bars across all strings) plus the flattened history
+  // the badges read. Free vs Pro window handling lives in the hook.
+  const { allHistoryEntries, everyInstrumentHistory, fretMastery, noteMastery } =
+    useMasteryOverlay({
+      allHistory: historyOps.allHistory,
+      instrument,
+      safeGuitarString,
+      cofList,
+      masteryWindow,
+      isPro: auth.isPro,
+    });
 
   // Premium Teacher: reads the same instrument-scoped history, keeps the SRS
   // schedule + daily goal, and derives today's recommended session + a
@@ -332,22 +331,6 @@ export default function App() {
   // (spec §13 / §14 / §15.2). It never touches the note schedule / goal /
   // history (OD-5 / OD-6).
   intervalRecordRef.current = learning.recordIntervalTeacherAnswer;
-  // The overlay is free for everyone (spec free-pro-tiering §5.2). Free users
-  // see it computed from FREE_MASTERY_WINDOW (last 250 questions); Pro users
-  // pick the window via the "questions counted" control in Settings.
-  const effectiveMasteryWindow = auth.isPro ? masteryWindow : FREE_MASTERY_WINDOW;
-  const windowedMasteryEntries = useMemo(
-    () => applyMasteryWindow(allHistoryEntries, effectiveMasteryWindow),
-    [allHistoryEntries, effectiveMasteryWindow],
-  );
-  const fretMastery = useMemo<Record<number, MasteryStat>>(
-    () => fretMasteryMap(windowedMasteryEntries, safeGuitarString),
-    [windowedMasteryEntries, safeGuitarString],
-  );
-  const noteMastery = useMemo<Record<string, MasteryStat>>(
-    () => noteMasteryMap(windowedMasteryEntries, cofList),
-    [windowedMasteryEntries, cofList],
-  );
 
   // Auto Advance: when the current stage/selection is actually completed
   // (every question answered, not a manual Stop), move into the next stage of
