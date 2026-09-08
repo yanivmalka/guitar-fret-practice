@@ -17,7 +17,7 @@ import Onboarding from './components/Onboarding';
 import { setActiveInstrument } from './utils/music';
 import type { HistoryEntry, AccidentalMode } from './utils/music';
 import { getInstrument, type InstrumentId } from './utils/instruments';
-import { setAudioInstrument } from './utils/audio';
+import { setAudioInstrument, setNoteVolume as setAudioNoteVolume } from './utils/audio';
 import { playClickSound, playToggleOnSound, playToggleOffSound, haptic } from './utils/feedback';
 import { withClick as click } from './utils/withClick';
 import { loadSetting, saveSetting } from './utils/settings';
@@ -174,8 +174,10 @@ export default function App() {
     answerMode, setAnswerMode, voiceEnginePref, setVoiceEnginePref,
     showScore, setShowScore, showMastery, setShowMastery,
     masteryWindow, setMasteryWindow, silentMode, setSilentMode,
+    noteVolume, setNoteVolume,
     leaderboardOptOut, setLeaderboardOptOut, theme, setTheme,
   } = useAppPreferences();
+  useEffect(() => { setAudioNoteVolume(noteVolume); }, [noteVolume]);
   const [showVoiceCalibration, setShowVoiceCalibration] = useState(false);
   // Voice-engine calibration epoch + the stored-profile summary shown in
   // Settings. `bumpVoiceEngineEpoch` re-selects the speech engine after a
@@ -341,7 +343,7 @@ export default function App() {
   });
   const {
     running, paused, currentFret, currentNote, askedFret, remaining, feedback,
-    correctCofNote, wrongCofNote, answered, remainingFrets, foundFrets, wrongFret,
+    correctCofNote, wrongCofNote, wrongInterval, answered, remainingFrets, foundFrets, wrongFret,
     questionTime, questionStart, questionSeq, questionNumber, intervalPrompt,
     start: engineStart, stop, pause, resume, selectFret, selectAnswer,
     selectInterval, replayIntervalQuestion,
@@ -665,6 +667,8 @@ export default function App() {
           setShowScore={setShowScore}
           silentMode={silentMode}
           setSilentMode={setSilentMode}
+          noteVolume={noteVolume}
+          setNoteVolume={setNoteVolume}
           theme={theme}
           setTheme={setTheme}
           voiceSupported={voice.supported}
@@ -1050,6 +1054,7 @@ export default function App() {
           wrongFret={wrongFret}
           correctCofNote={correctCofNote}
           wrongCofNote={wrongCofNote}
+          wrongInterval={wrongInterval}
           selectFret={selectFret}
           selectAnswer={selectAnswer}
           selectInterval={selectInterval}

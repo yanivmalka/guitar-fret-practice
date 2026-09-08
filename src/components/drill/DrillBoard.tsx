@@ -75,6 +75,7 @@ export interface DrillBoardProps {
   wrongFret: number | null;
   correctCofNote: string | null;
   wrongCofNote: string | null;
+  wrongInterval: number | null;
 
   selectFret: (fret: number) => void;
   selectAnswer: (note: string) => boolean | undefined;
@@ -91,7 +92,7 @@ export default function DrillBoard({
   answered, showScore, showMastery, byString, voiceActive, multiplierIcon, feedback,
   safeGuitarString, currentNote, currentFret, questionSeq, remaining, questionTime,
   questionStart, questionNumber, remainingFrets, foundFrets, wrongFret,
-  correctCofNote, wrongCofNote,
+  correctCofNote, wrongCofNote, wrongInterval,
   selectFret, selectAnswer, selectInterval, replayIntervalQuestion,
   children,
 }: DrillBoardProps) {
@@ -211,6 +212,15 @@ export default function DrillBoard({
                 ? intervalPrompt.exercise === 'identifyInterval'
                   ? String(intervalPrompt.semitones)
                   : intervalPrompt.targetNote
+                : null
+            }
+            wrong={
+              gameActive && answered
+                ? intervalPrompt.exercise === 'identifyInterval'
+                  ? wrongInterval != null
+                    ? String(wrongInterval)
+                    : null
+                  : wrongCofNote
                 : null
             }
             disabled={!(isPlaying && !answered)}

@@ -149,6 +149,10 @@ export function useGameEngine(
   const [feedback, setFeedback] = useState('');
   const [correctCofNote, setCorrectCofNote] = useState<string | null>(null);
   const [wrongCofNote, setWrongCofNote] = useState<string | null>(null);
+  // The interval size (semitones) the learner wrongly picked on the chip row of
+  // an *identify the interval* question, or null. Mirrors `wrongCofNote` for the
+  // note circle: it drives the `.is-wrong` marker on `IntervalChoiceRow`.
+  const [wrongInterval, setWrongInterval] = useState<number | null>(null);
   const [answered, setAnswered] = useState(false);
   const [remainingFrets, setRemainingFrets] = useState<number[]>([]);
   const [foundFrets, setFoundFrets] = useState<number[]>([]);
@@ -665,6 +669,7 @@ export function useGameEngine(
     setFeedback('');
     setCorrectCofNote(null);
     setWrongCofNote(null);
+    setWrongInterval(null);
 
     // With an explicit candidate set: pick a string from the candidate pool
     // and use that string's candidate frets. Without one: the original
@@ -795,6 +800,7 @@ export function useGameEngine(
     } else {
       onWrong();
       haptic.wrong();
+      setWrongInterval(chosenSemitones);
     }
     addEntry(tagInterval({ note: p.targetNote, fret: p.targetFret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: false, correct: isCorrect }));
     const answerShort = intervalBySemitones(p.semitones)?.short ?? `+${p.semitones}`;
@@ -843,6 +849,7 @@ export function useGameEngine(
     setAskedFret(null);
     setCorrectCofNote(null);
     setWrongCofNote(null);
+    setWrongInterval(null);
     setFoundFrets([]);
     setWrongFret(null);
     intervalPromptRef.current = null;
@@ -867,6 +874,7 @@ export function useGameEngine(
     setAskedFret(null);
     setCorrectCofNote(null);
     setWrongCofNote(null);
+    setWrongInterval(null);
     setFoundFrets([]);
     setWrongFret(null);
     intervalPromptRef.current = null;
@@ -901,6 +909,7 @@ export function useGameEngine(
     setAskedFret(null);
     setCorrectCofNote(null);
     setWrongCofNote(null);
+    setWrongInterval(null);
     setFoundFrets([]);
     setWrongFret(null);
     setRemainingFrets([]);
@@ -923,7 +932,7 @@ export function useGameEngine(
   return {
     // state
     running, paused, currentFret, currentNote, askedFret, remaining, feedback,
-    correctCofNote, wrongCofNote, answered, remainingFrets, foundFrets, wrongFret,
+    correctCofNote, wrongCofNote, wrongInterval, answered, remainingFrets, foundFrets, wrongFret,
     questionTime, questionStart, questionSeq, questionNumber, intervalPrompt,
     // actions
     start, stop, pause, resume, selectFret, selectAnswer,
