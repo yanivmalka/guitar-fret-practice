@@ -851,35 +851,53 @@ Product-owner parameters (2026-09-08):
   accuracy until it has ~3 answers' worth of recent weight. The raw-count
   "repeated recent misses" trigger (2 misses within the last 4 answers) stays
   unweighted, so a position the learner just bombed still surfaces immediately.
-- **Per-position mastery stays binary.** A position is mastered or not
-  (weighted accuracy ≥ `MASTERED_ACCURACY`, with enough weight, OR SRS bucket
-  ≥ `MASTERED_BUCKET`); a checkpoint's "%" is still `mastered / total`. Not
-  switching to a continuous per-position score — that would change the
-  green-dot UI and the "N/M positions" line for no clear product gain.
+- **Per-position mastery becomes continuous (decided 2026-09-08, product-owner
+  preference).** Instead of a boolean `mastered`, each position carries a score
+  in `0..1` = its weighted recent accuracy, blended with the SRS schedule as
+  `positionScore = max(weightedAccuracy, bucket / MAX_BUCKET)` (so a
+  well-scheduled position still scores high with little recent history; the
+  exact blend curve is open — `max` is the starting proposal). A checkpoint's
+  "%" is then the **mean of its positions' scores**, not `mastered / total`.
+  - `evaluateStars` / `meetsGoal` already take `accuracy` as a 0–100 number, so
+    the continuous checkpoint mean feeds the existing star math unchanged.
+  - `effectiveN >= 3` still gates: a position with too little recent weight and
+    no SRS row contributes `0` (unseen), not a noisy fraction.
+  - **UI follow-ups this forces (decide before build):** the per-position
+    green-dot display becomes an intensity / gradient rather than on-off; and
+    the "N/M positions" line either becomes a secondary "N positions ≥ 85%"
+    readout or is dropped in favour of the single continuous bar.
 
 **Scope — for now, three models:**
 - `src/learning/weakness.ts` — `analyzeWeakness` (feeds the notes daily-practice
-  plan). `leastPractisedPositions` (the coverage fallback) is lifetime-count by
-  design and is left alone.
-- `src/learning/intervalWeakness.ts` — `analyzeIntervalWeakness`.
+  plan). Already ranks on a continuous `score` and only thresholds for
+  inclusion, so the change here is the decay weighting + `effectiveN` gate, not
+  a binary→continuous flip. `leastPractisedPositions` (the coverage fallback) is
+  lifetime-count by design and is left alone.
+- `src/learning/intervalWeakness.ts` — `analyzeIntervalWeakness` (same: decay
+  weighting + gate).
 - `src/learning/intervalMastery.ts` — `windowStats` / `isIntervalMastered` /
-  `intervalStatus`.
+  `intervalStatus`. The board's 3-way label (`notStarted` / `learning` /
+  `mastered`) stays, but is derived from a continuous per-quality strength
+  score (same `max(weightedAccuracy, bucket/MAX_BUCKET)` shape); the strength
+  can also be surfaced directly on the board.
 
 **Deliberately deferred: `src/learning/pathProgress.ts`.** Its trailing-window
 mastery test now has the `createdAt` sort as a stopgap. Folding the Path's
-per-position mastery onto the same decay helper is the follow-up, so that all
-four recency models share one definition of "recent" — but it is not in this
-first pass.
+per-position scoring onto the same decay + continuous helper is the follow-up —
+this is where the continuous-checkpoint-% change actually lands — so that all
+four recency models share one definition of "recent" and one 0–1 position
+score. Not in this first pass.
 
-**Implementation sketch.** One pure shared helper (`recencyWeight(ageMs,
-halfLifeMs)`, and a `weightedAccuracy(rows, now, halfLifeDays)` returning
-`{ accuracy, effectiveN }`), `now` injected as everywhere else in the learning
-layer. Each of the three modules swaps its `slice(-windowSize)` +
-`filter(correct)` for the weighted call and its `attempts >= minAttempts` gate
-for `effectiveN >= 3`. Update `scripts/check-learning.mts` /
-`check-intervals.mts` with decay-curve assertions (a 14-day-old correct answer
-contributes half; a position with only >180-day rows is dropped; effective-N
-gate holds).
+**Implementation sketch.** One pure shared helper module: `recencyWeight(ageMs,
+halfLifeMs)`, `weightedAccuracy(rows, now, halfLifeDays)` → `{ accuracy,
+effectiveN }`, and `positionScore(weightedAccuracy, effectiveN, srsBucket)` →
+`0..1`. `now` injected as everywhere else in the learning layer. Each of the
+three modules swaps its `slice(-windowSize)` + `filter(correct)` for the
+weighted call and its `attempts >= minAttempts` gate for `effectiveN >= 3`.
+Update `scripts/check-learning.mts` / `check-intervals.mts` with decay-curve
+assertions (a 14-day-old correct answer contributes half; a position with only
+>180-day rows is dropped; the `effectiveN` gate holds; `positionScore` rises
+monotonically with recent accuracy and with SRS bucket).
 
 ### Open decisions
 - **Premium shape** — ~~a single higher-priced subscription tier, or one-time in-app purchases per game mode~~. **DECIDED 2026-09-08: a single higher-priced subscription tier.** No per-mode one-time purchases. This matches `premium-product-plan.md`, which frames Premium as one adaptive learning system rather than a bundle of separately bought modes. The tier is still parked (not yet priced or sold); only Free/Pro is built.
