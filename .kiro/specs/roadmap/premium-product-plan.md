@@ -508,9 +508,11 @@ Not decided here — flagged for later, deliberately.
   `RANK` makes that automatic — unless the owner says otherwise.)
 - **Free trial of Premium** — length, and whether it needs the payment rail first (it does; the
   payment rail itself is still unbuilt — Free/Pro phase 7).
-- **One Premium subscription vs per-domain unlocks** (a "chords pack", a "reading pack"). The
-  current `entitlements` model is one tier per user; per-domain unlocks would need a different
-  shape. **Decide before P4**, since P4 is the first extra domain.
+- ~~**One Premium subscription vs per-domain unlocks** (a "chords pack", a "reading pack").~~
+  **Decided: one Premium subscription.** Premium stays a single tier that unlocks every learning
+  domain; there are no per-domain unlocks. The current one-tier-per-user `entitlements` model is
+  kept as-is — P4 (intervals) and every later domain gate on the existing `premium` tier, not on a
+  new per-pack shape.
 - **Ads in Free** — still open from the Free/Pro spec; unchanged here.
 - **Which instruments beyond guitar and bass**, and whether any is Premium-only.
 - **SRS algorithm** — Leitner vs SM-2 vs FSRS. Pick a simple one at P2; low stakes to change later

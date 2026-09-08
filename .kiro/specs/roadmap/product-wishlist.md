@@ -125,7 +125,15 @@ Work needed to make the Selector-based experience feel complete and polished on 
 - **Settings panel polish/completion.** — **DONE.** The hamburger settings now open each section as its own full page (`Hamburger settings: each section opens as its own full page`), rebuilt in the Stats & Progress visual language, including RTL layout for Hebrew (`Settings + stats panels: lay out right-to-left in Hebrew`). Notation (A-B-C/solfege), circle order, and time all live inside the live `SelectorPanel.tsx` / settings flow as intended.
 - **`?` info affordance** — **DONE.** The bubble auto-pops once for a brand-new player with no history (`Selector "?" hint: auto-pop once for brand-new players`) and otherwise opens/closes manually via the "?" affordance, matching the originally described behavior.
 - **Toggle button visual state before interaction** — **DONE.** Un-toggled controls carry a `1px dashed` border (`src/styles/02-settings.css`) to distinguish them before interaction.
-- **Order-switcher layout stability** — not specifically verified; no dedicated commit found addressing this. Still open unless someone confirms it's no longer an issue.
+- **Order-switcher layout stability** — **CLOSED, verified as a non-issue.** Code review found only one reflow vector: `.order-chip-active` (`src/styles/10-stages.css`) adds `font-weight: bold`, so the active Alpha/Fifths (and A-B-C / Do-Re-Mi) chip grows ~1–3px on toggle. It is horizontal only and bounded — `.mode-order-col` is `max-width: 80px` + `overflow: hidden`, and by explicit design does not drive `.mode-cards` row height, so there is no vertical jump and the fret neck below never moves. The product owner checked the running app (Alpha↔Fifths, A-B-C↔Do-Re-Mi) and judged the width shimmer not noticeable ("לא מפריע"). No fix needed; a `min-width` on `.order-chip` remains an option if it ever regresses.
+
+- **Badge art + earn-animation redesign** — **PLANNED, in progress, blocked on art assets.** The product owner rejected the current uniform struck-metal disc (`src/components/BadgeMedal.tsx`) — every badge the same circle, only a thin line emblem and metal tint changing — as "round, uniform and boring". Target look: the app's hamburger-menu tab icons (`src/assets/menu-icons/*.png`) — chunky 3D-rendered metallic objects, each with its own silhouette and personality. Direction agreed:
+  - Each badge *family* becomes its own sculpted object (a flame, a trophy cup, a neck slice, a target), rendered as **raster PNGs generated in Gemini**, not SVG. Tier (bronze/silver/gold/platinum) = the metal finish on that same object. Instrument variants stay visually distinct (see the badge-scoping memory).
+  - **Front and back faces per (family × tier).** The back must be the *same meaningful object seen from behind* (a flame from the back is still a flame) — explicitly **not** a generic shared back-plate.
+  - New `<BadgeImage>` component picks the PNG by (id, instrumentId, tier, face) from a manifest, with the existing `<BadgeMedal>` SVG as fallback for families without art yet. Touches `BadgeGrid.tsx`, `BadgeCelebration.tsx`, `PinnedBadges.tsx`.
+  - **End-of-round reveal animation** (`badge-reveal-fly` in `src/styles/17-celebrations.css`): replace the current in-plane `rotate(-1080deg)` Z-spin with a **drop + bounce + horizontal Y-axis spin** (right-to-left, suits the RTL app), using `perspective` + two `backface-visibility: hidden` layers so the Gemini-rendered back face flashes past during the spin. Keep the existing `prefers-reduced-motion` and `rushing` (2×) handling.
+  - First pass covers only the 4 prototype badges (On Fire, Marathoner, String Master, Perfect Session); pipeline proven there, then scaled. Asset volume across all ~25+ families × tiers × 2 faces × instrument variants is a real bundle / PWA-offline-cache concern to weigh when scaling.
+  - SVG-filter exploration of the sculpted silhouettes (as an alternative to raster) lives in the "Badge Silhouettes" design canvas; the product owner chose the raster/Gemini route over it for the warmth the painted look gives.
 
 ---
 
@@ -553,7 +561,7 @@ First-pass split of the feature set into paid vs free, to frame the monetization
 > - **Entitlement data model** — `public.entitlements` (Supabase migration `0007`, RLS read-own, no client write) plus `public.orphan_practice`; grants tightened in `0009`; an admin self-toggle path added in `0010`.
 > - **One source of truth** — `src/utils/entitlement.ts` (`fetchEntitlement`/`cachedEntitlement`, fail-open on read error, fail-closed on absence) surfaced through `useAuth.ts` as `tier` / `isPro`, read everywhere via the thin `useEntitlement()` hook.
 > - **Gating layer** — `src/utils/features.ts` (`Feature` map, all `'pro'` for now, `FREE_HISTORY_DAYS = 7`), the presentational `<ProGate>` component (overlay / replace / inline-badge variants), `<UpgradeCard>` + a standalone **⭐ Pro** drawer section with an `openUpgrade` handler. CTA is still a disabled "Coming soon" placeholder — **no payment SDK, no real purchase**.
-> - **What is actually gated for Free:** the fret/note mastery-map overlays, the personal voice profile + calibration, all-combinations personal bests, and history in the Stats & Progress screen older than 7 days (a **view filter only** — recording, sync and restore stay complete and free for everyone). *(Multi-string mode and the 0–12 / 12–max fret-range half-picker were freed after the initial pass; the `fretRange` feature key now gates the precise "fret N–M" window control that layers on top of the free half-picker.)*
+> - **What is actually gated for Free:** the mastery-map "questions counted" window-size control (the overlay itself is free — see below), the personal voice profile + calibration, all-combinations personal bests, multi-string drilling beyond 2 strings (`multiStringFull`), the precise fret-range window (`fretRange`), and history in the Stats & Progress screen older than 7 days (a **view filter only** — recording, sync and restore stay complete and free for everyone). *(The 0–12 / 12–max fret-range half-picker stays free for everyone; only the finer "fret N–M" window layered on top of it is Pro. Multi-string mode itself is free up to `FREE_MULTI_STRING_LIMIT` = 2 strings at once — reaching for a 3rd+ string is what's gated, reversing the "freed after the initial pass" note this line used to carry.)*
 > - **Guest → account merge** is now an explicit prompt (`GuestMergePrompt.tsx`), with orphaned guest practice captured to `orphan_practice` when the user declines the merge.
 > - **Testing seams** — `scripts/grant-pro.mts` (admin grant by email), `src/utils/devSimulatePro.ts` (DEV-only simulate-Pro toggle in the debug panel), and an admin-only in-app Pro toggle for one's own account.
 > - **Deliberately NOT gated / still free:** cloud sync + multi-device restore, the leaderboard, XP, badges, guitar + bass, scoring/celebrations, notation options, onboarding, offline.
@@ -565,7 +573,7 @@ First-pass split of the feature set into paid vs free, to frame the monetization
 A complete, genuinely useful app with no payment, or there is no adoption funnel.
 - By-fret and by-note modes
 - **Guitar and bass** (bass is a free instrument, not a Pro hook)
-- Single-string **and multi-string** selection, the 0–12 / 12–max fret-range half-picker, difficulty stages, Auto Advance
+- Single-string selection, and multi-string drilling **up to `FREE_MULTI_STRING_LIMIT` (2) strings at once** (3rd+ is Pro, see below), the 0–12 / 12–max fret-range half-picker, difficulty stages, Auto Advance
 - Scoring, streak, fire multiplier, celebrations, "serious learning" (score-off) mode
 - Notation A-B-C / Do-Re-Mi, circle-of-fifths / alphabetical order
 - Basic voice answering (Web Speech / native), no personal profile
@@ -579,12 +587,15 @@ Core value = persistence of data over time + a wider drill surface. The gating f
 - **Mastery-map window size.** The fret / note equalizer overlays are now **free for everyone**, computed from the last 250 questions (`FREE_MASTERY_WINDOW` in `src/utils/mastery.ts`). Pro unlocks the "Questions counted" control (100 / 250 / 500 / 1000 / All) — *gated via `<ProGate feature="masteryMaps">`*. Persisted as a `MasteryWindow` object (`pref_masteryWindow`).
 - All-combinations personal bests — *gated (`allPersonalBests`)*
 - **Precise fret-range selector** (choose an arbitrary "fret N to fret M" window, not just a half) — *built. `<ProGate feature="fretRange">` around the "Precise fret range" toggle + two-handle slider under the neck in `SelectorPanel`; `useSelector` carries `useFretRange` / `fretLo` / `fretHi` and applies the window only for a Pro user. The 0–12 / 12–max half-picker underneath is unchanged and stays **free**.*
+- **Multi-string drilling beyond 2 strings** — *built (`multiStringFull`, `27527cb`). Free drills at most `FREE_MULTI_STRING_LIMIT` = 2 strings at once; `useSelector`'s `safeStrings` clamps a Free user's selection at render time (so a downgrade takes effect immediately and an upgrade restores the full pick), `onStringSelect` blocks adding a 3rd+ string, and `onMultiToggle` seeds a 2-string default pair instead of selecting every string. `SelectorPanel` renders the remaining string pills locked past the cap — tapping one opens the Pro upsell — and tags the Multi pill "Pro 1-N" for a free user. This reverses the earlier "multi-string mode freed for everyone" note (`0382d9e`).*
 - Personal voice profile + calibration — *gated (`voiceProfile`); free users fall back to basic Web Speech / native*
 - No ads (if the free tier ever carries them)
 - **NOT Pro:** Google account, cloud sync and multi-device restore all stay free (see the status update).
 
 ### Premium (higher tier / add-ons) — "a teacher, not just a timer"
 Does not exist yet; needs to be built to justify a price above Pro. Justified only once 2–3 of these ship.
+
+> **This list has been superseded by a full product plan: [`premium-product-plan.md`](./premium-product-plan.md).** That document organizes the items below into one learning system (Premium is a single adaptive learning product, not a bundle of paid game modes), defines the boundaries against Free/Pro, a shared learning engine, the "Teacher" system, a build order, a notes-only MVP, and the open decisions. The raw bullets are kept here for provenance; plan work should start from `premium-product-plan.md`.
 - **New game modes**: chords, scales, intervals, staff notation reading, triads on a string set
 - **Structured training plan / course**: daily goals, a guided path stage to stage
 - **Automatic weakness-targeted drills**: engine reads the mastery map and builds a session from what the user gets wrong, plus spaced repetition (SRS) for notes
@@ -595,6 +606,110 @@ Does not exist yet; needs to be built to justify a price above Pro. Justified on
 ### Open / deferred work
 - **Mastery "time-travel" view (Pro) — build the UI.** Pro should be able to see the mastery overlay as it stood for an *exact* question count, a *date range*, or a *specific day* ("how was I on that day"). The foundation exists: `MasteryWindow` in `src/utils/mastery.ts` already defines `dateRange` / `onDay` variants and `applyMasteryWindow` honours them; only the `lastN` variant is wired to UI (the "Questions counted" segmented control). What remains: a date/day picker control, `<ProGate feature="masteryMaps">` around it, and persisting the chosen `MasteryWindow` (the `pref_masteryWindow` key already stores the whole object, so no migration).
 - **Precise fret-range selector (Pro) — DONE.** Built as an extra layer on top of the free 0–12 / 12–max half-picker (which is unchanged and stays free). A new **"Precise fret range"** on/off toggle plus a two-handle slider (`src/components/FretRangeControl.tsx`) sit under the neck SVG in `SelectorPanel`, wrapped in `<ProGate feature="fretRange" variant="overlay">`. `useSelector` now takes an `isPro` argument and carries an explicit window: `useFretRange` / `fretLo` / `fretHi` (persisted as `sel_useFretRange` / `sel_fretLo` / `sel_fretHi`, global, clamped to `[0, maxFret]` with a 3-fret minimum via `clampFretWindow`, re-clamped on instrument switch). The derivation applies the window only when `useFretRange && isPro` (`precise`), so a free user — or a Pro user with the toggle off — falls back to the halves and the stored window is kept untouched. `getTime` is fed effective halves derived from the window (`fretFrom < 12` / `fretTo > 12`). `historyKey(state, instrument, isPro)` emits a `p<lo>-<hi>` fret segment for a precise window so its stats never mix with the half-picker's `0-12` / `12-max` shape (the non-precise shape is byte-identical to before, so existing history / `best_<key>` records still resolve). `applyStage` forces `useFretRange` off — Auto Advance always runs on the standard half-picker.
+
+### Premium Teacher (P2) — shipped; follow-ups
+
+P0 (premium entitlement plumbing), P1 (item-keyed mastery), P2 (the notes-only
+Teacher: `src/learning/*` — weakness detection, Leitner SRS, session planner,
+`TodayCard`, per-instrument learning state + best-effort cloud sync) and the
+P2.1 QA fixes are **built and shipped** on `main`. The items below came out of
+the P2 QA audit and the P2.1 pass and were deliberately **not** taken then —
+carried here so they are not re-discovered.
+
+**Open product decisions (P2.1 made a deliberate call that may want revisiting):**
+- **by-note Selector practice does not feed the SRS schedule.** Only by-fret
+  Selector answers and Teacher-session answers advance a NoteItem's SRS state
+  (`recordPracticeAnswer` is gated to by-fret because by-note wrong-tap history
+  rows carry the *wrong* fret). A Premium user who drills only in by-note mode
+  still seeds the schedule from Teacher sessions alone. Weakness detection from
+  history still covers them. Option: feed by-note in, filtered to
+  correct/timeout rows (which do carry a valid position).
+- **Selector practice does not tick the prescribed daily goal.** By design —
+  the daily goal is "do one Teacher session", and free-drilling must not
+  complete it. If the product wants "any note practice counts toward today",
+  that is a change to `recordPracticeAnswer`.
+- **Sign-out discards unsynced offline Teacher progress.** `clearLocalLearningState()`
+  on sign-out drops the on-device blob so it can't be merged into the next
+  account on a shared device; a user who runs a Teacher session offline and
+  signs out before the debounced cloud push lands loses that delta. Accepted as
+  an explicit-action tradeoff; the alternative is per-user namespacing of the
+  `learningState` localStorage key.
+- **`WeaknessConfig.maxAgeDays = 45` is an untuned guess.** Rows older than the
+  horizon (and rows with no `createdAt`) are ignored by `analyzeWeakness` so
+  months-old performance can't stay a current weakness. A user who practises
+  1–2×/week could see a position drop off the weakness list after ~6 weeks
+  untouched (a genuinely due SRS item still surfaces via its schedule). Revisit
+  against real Premium cadence.
+
+**Medium items from the audit, out of P2.1 scope:**
+- **Consolidation rarely fires for a once-a-day user.** The planner's
+  consolidation pool is `bucket >= 2 && dueAt > now`; with Leitner intervals of
+  20 min / 2 h / 1 day, an item answered correctly yesterday is overdue again
+  today and never sits in that pool. So daily sessions are "weak spots +
+  least-practised coverage", not "weak spots + reinforcement" as intended
+  ("a session is not 100% struggle"). Consider loosening the pool (e.g.
+  `bucket >= 1`, or "answered correctly last time").
+- **Coverage fallback span is hardcoded to frets 0–5, all strings**
+  (`coverageSpan` in `planner.ts`). The "new ground" padding never reaches the
+  upper neck, so P2 on its own does not "widen the material" as the user
+  improves. P3 (Learning Path) is the intended home for progression, but if P3
+  slips, widen this.
+- **`useLearning` rebuilds both full plans on every Teacher answer and every
+  60 s tick.** Each `buildDailyPlan` / `buildWeakSpotsPlan` runs `analyzeWeakness`
+  over the whole instrument history. Harmless today (the card is unmounted
+  during a session) but wasteful; memoise `analyzeWeakness` once and/or skip
+  plan rebuilds while a session is running.
+- **`learningSync.reconcile` does a full pull → merge → upsert per debounced
+  push.** In a slow session that can be ~one Supabase round-trip per answer.
+  Best-effort and non-blocking, but a coarser debounce or a dirty-flag gate
+  would cut the chatter.
+- **Latent: guard the daily-goal count if a by-note Teacher question type is
+  ever added.** `recordTeacherAnswer` bumps `completed` once per history row;
+  a by-note question emits one row per fret found, which would over-count the
+  goal. Not reachable today (the planner only emits `mode: 'byFret'`).
+- **Known / accepted: Teacher answers record under the Selector's current
+  `historyKey`.** The roadmap chose "no historyKey for Teacher", so a Teacher
+  session's rows land in whatever combo the Selector is set to and show up when
+  that combo's stats are filtered. P2.1 fixed the misleading personal-best
+  side-effect; the stats-filter mixing is the accepted cost of not scoping
+  Teacher history.
+
+### Interval drill (P4) — first slice shipped; follow-ups
+
+The first vertical slice of intervals (premium-product-plan.md §9 P4) is built:
+`src/utils/intervals.ts` (semitone / note math), `src/learning/intervalItem.ts`
+(`interval:<semitones>` identity, quality-only, ascending), `intervalDrill.ts`
+(`buildIntervalDrill` → a plain `DrillConfig` with an `interval` spec),
+`intervalSrs` added to the per-instrument learning-state blob (migration `0014`,
+doc-only), a tightly-scoped `interval` branch in `useGameEngine` that rides the
+existing by-fret / by-note answer flow, an isolated in-memory history sink so
+interval answers never touch note stats / mastery / badges / leaderboard, and a
+Premium-gated `IntervalCard` (`intervalDrill` feature key) with a form toggle.
+Two answer forms: **on-neck** ("M6 above ◉", tap the target fret) and
+**by-name** ("Perfect 5th above G", tap the note on the circle). Validation:
+`scripts/check-intervals.mts`.
+
+Deliberately **not** in the first slice — carried here so they are not
+re-discovered:
+- **No Learning Path checkpoints for intervals.** The Path is still notes-only;
+  interval checkpoints woven into the ladder are the next P4 step.
+- **The planner (`buildDailyPlan`) does not fold interval items in.** An
+  interval session is launched only from the Interval card, not from the Today
+  card / daily plan. Wiring interval qualities into the weighted daily mix
+  needs the interval SRS and the note SRS to be considered together.
+- **No adaptive difficulty for intervals.** Fixed fret window (0–12), fixed
+  question count / timer; no promote/demote by cluster accuracy.
+- **Interval SRS granularity is quality-only and ascending.** Per-root and
+  per-string-set granularity (a M3 across strings 3–2 vs 6–5 is a different
+  skill) and descending intervals are later refinements — `intervalItemId`
+  takes only `semitones` today.
+- **On-neck target acceptance is the single same-string ascending position.**
+  Octave-equivalent targets elsewhere on the neck are computed by
+  `targetPositionsForInterval` (used by the check script) but the engine asks
+  for exactly one, to keep the SRS review count per question exact.
+- **`buildIntervalDrill` uses all strings (multi-string by-note/by-fret).** Fine
+  for variety, but if it feels noisy, restricting to one string is a one-line
+  change.
 
 ### Open decisions
 - **Premium shape** — a single higher-priced subscription tier, or one-time in-app purchases per game mode (a natural fit for chords / scales / intervals as separate unlocks). *Still open — the third tier is parked; only Free/Pro is modelled and built.*
