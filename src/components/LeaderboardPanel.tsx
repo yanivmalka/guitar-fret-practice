@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import type { AuthProfile } from '../hooks/useAuth';
 import { getInstrument, type InstrumentId } from '../utils/instruments';
@@ -9,7 +9,6 @@ import { useTranslation } from '../i18n/useTranslation';
 import {
   fetchLeaderboard,
   upsertMyEntry,
-  deleteMyEntry,
   computeMyStats,
   leaderboardName,
   type LeaderboardRow,
@@ -22,8 +21,8 @@ import {
  *
  * Free / open feature: the standings load for everyone, signed in or not. A
  * signed-in player is pushed onto the board automatically (their XP = lifetime
- * correct answers on the selected instrument) and can hide themselves with the
- * toggle. Guests see the list plus a sign-in nudge.
+ * correct answers on the selected instrument). Guests see the list plus a
+ * sign-in nudge.
  *
  * The board is per-instrument, and a Guitar / Bass switch lets a player look at
  * either without leaving the drill they're set up for.
@@ -54,16 +53,12 @@ export function LeaderboardPanel({
   allHistory,
   user,
   profile,
-  optedOut,
-  onOptOutChange,
   onSignIn,
 }: {
   activeInstrumentId: InstrumentId;
   allHistory: Record<string, HistoryEntry[]>;
   user: User | null;
   profile: AuthProfile | null;
-  optedOut: boolean;
-  onOptOutChange: (next: boolean) => void;
   onSignIn: () => void;
 }) {
   const { t, lang } = useTranslation();
@@ -71,7 +66,6 @@ export function LeaderboardPanel({
   const [rows, setRows] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const [xpOpen, setXpOpen] = useState(false);
 
   const instrument = getInstrument(view);
@@ -82,28 +76,16 @@ export function LeaderboardPanel({
     [allHistory, view],
   );
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setRows(await fetchLeaderboard(view, userId));
-    } catch {
-      setError(t('Couldn’t load the leaderboard. Check your connection and try again.'));
-    } finally {
-      setLoading(false);
-    }
-  }, [view, userId, t]);
-
   // On open (and on instrument / sign-in change): push our own up-to-date row
-  // first when we're participating, then load the standings so our position is
-  // current. A push failure is non-fatal — we still show the list.
+  // first, then load the standings so our position is current. A push failure
+  // is non-fatal — we still show the list.
   useEffect(() => {
     let alive = true;
     void (async () => {
       setLoading(true);
       setError(null);
       try {
-        if (userId && !optedOut) {
+        if (userId) {
           try {
             await upsertMyEntry(userId, view, myName, myStats);
           } catch { /* keep going — show whatever is on the board */ }
@@ -119,32 +101,13 @@ export function LeaderboardPanel({
     return () => { alive = false; };
     // myStats / myName are snapshots captured at open; intentionally not deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, userId, optedOut]);
+  }, [view, userId]);
 
   const switchView = (next: InstrumentId) => {
     if (next === view) return;
     playClickSound();
     haptic.tap();
     setView(next);
-  };
-
-  const toggleParticipation = async () => {
-    if (!userId || busy) return;
-    playClickSound();
-    haptic.tap();
-    const nextOut = !optedOut;
-    setBusy(true);
-    setError(null);
-    try {
-      if (nextOut) await deleteMyEntry(userId, view);
-      else await upsertMyEntry(userId, view, myName, myStats);
-      onOptOutChange(nextOut);
-      await load();
-    } catch {
-      setError(t('Couldn’t update that. Check your connection and try again.'));
-    } finally {
-      setBusy(false);
-    }
   };
 
   const mine = rows.find((r) => r.mine);
@@ -188,7 +151,7 @@ export function LeaderboardPanel({
       <div className="lb-standing-k">{t('Your standing')}</div>
       <div className="lb-standing-row">
         <div className="lb-rankpill">
-          <span className="lb-rankpill-n">{mine ? mine.rank : optedOut ? '–' : '–'}</span>
+          <span className="lb-rankpill-n">{mine ? mine.rank : '–'}</span>
           <span className="lb-rankpill-l">{t('RANK')}</span>
         </div>
         <div className="lb-standing-id">
@@ -203,16 +166,7 @@ export function LeaderboardPanel({
         </div>
       </div>
       <div className="lb-standing-foot">
-        <span>{optedOut ? t('Hidden from the leaderboard') : t('Visible on the leaderboard')}</span>
-        <button
-          className={`lb-switch${optedOut ? '' : ' lb-switch-on'}`}
-          role="switch"
-          aria-checked={!optedOut}
-          disabled={busy}
-          onClick={() => void toggleParticipation()}
-        >
-          <span className="lb-switch-knob" />
-        </button>
+        <span>{t('Visible on the leaderboard')}</span>
       </div>
     </div>
   ) : (
@@ -315,15 +269,13 @@ export function LeaderboardPanel({
             <>
               נקודת ניסיון אחת על כל תשובה נכונה, שנצברת לאורך כל תרגולי ה{t(instrument.label)} שלך —
               זהו אותו סך מצטבר שמופיע במסך הסטטיסטיקות. בונוסים על מהירות ורצף מעלים את הניקוד שלך
-              במשחק, לא את נקודות הניסיון. אפשר לכבות בכל עת את האפשרות{' '}
-              <em>{t('Visible on the leaderboard')}</em> כדי להסיר את עצמך מהטבלה.
+              במשחק, לא את נקודות הניסיון.
             </>
           ) : (
             <>
               1&nbsp;XP for every correct answer, added up across all your {instrument.label.toLowerCase()}{' '}
               practice — the same lifetime total as your Stats screen. Speed and streak bonuses lift
-              your in-game score, not your XP. Turn <em>Visible on the leaderboard</em> off any time to
-              leave the board.
+              your in-game score, not your XP.
             </>
           )}
         </p>

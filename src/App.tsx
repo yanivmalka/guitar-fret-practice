@@ -175,7 +175,7 @@ export default function App() {
     showScore, setShowScore, showMastery, setShowMastery,
     masteryWindow, setMasteryWindow, silentMode, setSilentMode,
     noteVolume, setNoteVolume,
-    leaderboardOptOut, setLeaderboardOptOut, theme, setTheme,
+    theme, setTheme,
   } = useAppPreferences();
   useEffect(() => { setAudioNoteVolume(noteVolume); }, [noteVolume]);
   const [showVoiceCalibration, setShowVoiceCalibration] = useState(false);
@@ -531,7 +531,7 @@ export default function App() {
     running, paused, pendingAutoAdvance, scoring, selector, sessionResult,
     historyOps, instrument, showScore, histKey,
     wasTeacherRunRef, wasIntervalRunRef, teacherPlanRef, intervalPlanRef,
-    auth, leaderboardOptOut, allHistoryEntries,
+    auth, allHistoryEntries,
     gameEnded, setGameEnded, setRevealBadges,
   });
   celebrationsBeginRunRef.current = celebrationsBeginRun;
@@ -732,11 +732,6 @@ export default function App() {
           allHistory={historyOps.allHistory}
           user={auth.user}
           profile={auth.profile}
-          optedOut={leaderboardOptOut}
-          onOptOutChange={(next) => {
-            setLeaderboardOptOut(next);
-            saveSetting('pref_leaderboardOptOut', next);
-          }}
           onSignIn={() => { void auth.signInWithGoogle(); }}
         />
       ),

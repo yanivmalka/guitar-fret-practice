@@ -36,9 +36,6 @@ export function useAppPreferences() {
     if (typeof raw === 'number') return raw;
     return { low: 1.6, normal: 2.6, high: 3.6, max: 4.8 }[raw] ?? NOTE_VOLUME_DEFAULT;
   });
-  const [leaderboardOptOut, setLeaderboardOptOut] = useState(() =>
-    loadSetting('pref_leaderboardOptOut', false),
-  );
   const [theme, setThemeState] = useState<Theme>(() => loadSetting<Theme>('pref_theme', 'dark'));
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);
@@ -56,7 +53,6 @@ export function useAppPreferences() {
     masteryWindow, setMasteryWindow,
     silentMode, setSilentMode,
     noteVolume, setNoteVolume,
-    leaderboardOptOut, setLeaderboardOptOut,
     theme, setTheme,
   };
 }

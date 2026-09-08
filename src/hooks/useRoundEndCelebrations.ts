@@ -34,7 +34,6 @@ interface Params {
   teacherPlanRef: MutableRefObject<TeacherPlan | null>;
   intervalPlanRef: MutableRefObject<DrillConfig | null>;
   auth: ReturnType<typeof useAuth>;
-  leaderboardOptOut: boolean;
   allHistoryEntries: HistoryEntry[];
   gameEnded: boolean;
   setGameEnded: (v: boolean) => void;
@@ -53,7 +52,7 @@ export function useRoundEndCelebrations({
   running, paused, pendingAutoAdvance, scoring, selector, sessionResult,
   historyOps, instrument, showScore, histKey,
   wasTeacherRunRef, wasIntervalRunRef, teacherPlanRef, intervalPlanRef,
-  auth, leaderboardOptOut, allHistoryEntries,
+  auth, allHistoryEntries,
   gameEnded, setGameEnded, setRevealBadges,
 }: Params) {
   // Guards the Tier 3 (new personal best) celebration so it fires at most once
@@ -207,7 +206,7 @@ export function useRoundEndCelebrations({
 
   // Push the signed-in player's leaderboard row after each completed run.
   useEffect(() => {
-    if (!gameEnded || !auth.user || leaderboardOptOut) return;
+    if (!gameEnded || !auth.user) return;
     if (wasIntervalRunRef.current) return;
     const name = leaderboardName(
       auth.profile?.name ?? null,
@@ -219,7 +218,7 @@ export function useRoundEndCelebrations({
       name,
       computeMyStats(allHistoryEntries),
     );
-  }, [gameEnded, auth.user, auth.profile, leaderboardOptOut, instrument.id, allHistoryEntries]);
+  }, [gameEnded, auth.user, auth.profile, instrument.id, allHistoryEntries]);
 
   return { newBadges, setNewBadges, toastQueue, setToastQueue, beginRun };
 }
