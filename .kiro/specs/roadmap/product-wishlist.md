@@ -134,6 +134,7 @@ Work needed to make the Selector-based experience feel complete and polished on 
   - **End-of-round reveal animation** (`badge-reveal-fly` in `src/styles/17-celebrations.css`): replace the current in-plane `rotate(-1080deg)` Z-spin with a **drop + bounce + horizontal Y-axis spin** (right-to-left, suits the RTL app), using `perspective` + two `backface-visibility: hidden` layers so the Gemini-rendered back face flashes past during the spin. Keep the existing `prefers-reduced-motion` and `rushing` (2×) handling.
   - First pass covers only the 4 prototype badges (On Fire, Marathoner, String Master, Perfect Session); pipeline proven there, then scaled. Asset volume across all ~25+ families × tiers × 2 faces × instrument variants is a real bundle / PWA-offline-cache concern to weigh when scaling.
   - SVG-filter exploration of the sculpted silhouettes (as an alternative to raster) lives in the "Badge Silhouettes" design canvas; the product owner chose the raster/Gemini route over it for the warmth the painted look gives.
+  - **Update 2026-09-07:** a first sculpted-metal figurine for **On Fire** plus a new **Y-axis earn spin** were tried; the figurine was reverted (art not right yet) but the earn spin was kept. So the reveal-animation half of this item has a landed first step; the per-family art is still the blocker.
 
 ---
 
@@ -689,14 +690,30 @@ Two answer forms: **on-neck** ("M6 above ◉", tap the target fret) and
 **by-name** ("Perfect 5th above G", tap the note on the circle). Validation:
 `scripts/check-intervals.mts`.
 
+**Update 2026-09-08 — second slice + polish shipped** (see §7's dated
+subsection for the full list): a second on-neck exercise **"Find the target
+position"** (engine branch + a `FretGrid` rendering branch keyed on
+`intervalPrompt.exercise === 'findTargetPosition'`), both directions and a
+separate SRS lane wired, an `IntervalTodayCard` and interval today / weak-spots
+entry points folded into `DailyPracticeScreen`, interval feedback rendered in
+the user's chosen notation, the wrong chip marked on an "identify the interval"
+miss, a gentler first session (a fresh learner defaults to a `focused` register
+and ascending-only), a degenerate-fret-window fallback across candidate strings,
+and the Interval practice page re-skinned to the Notes-selector palette. The
+bullets below are the parts of the follow-up list still **open** after that
+pass.
+
 Deliberately **not** in the first slice — carried here so they are not
 re-discovered:
 - **No Learning Path checkpoints for intervals.** The Path is still notes-only;
   interval checkpoints woven into the ladder are the next P4 step.
-- **The planner (`buildDailyPlan`) does not fold interval items in.** An
-  interval session is launched only from the Interval card, not from the Today
-  card / daily plan. Wiring interval qualities into the weighted daily mix
-  needs the interval SRS and the note SRS to be considered together.
+- **The planner (`buildDailyPlan`) does not fold interval items in.** As of
+  2026-09-08 the Learn area's daily screen (`DailyPracticeScreen`) surfaces a
+  dedicated `IntervalTodayCard` with its own today / weak-spots entry points
+  alongside the notes plan, so intervals now have a home on the daily screen —
+  but they remain a *parallel* lane. A single weighted daily mix that
+  interleaves interval qualities and note items in one session still needs the
+  interval SRS and the note SRS to be scheduled together.
 - **No adaptive difficulty for intervals.** Fixed fret window (0–12), fixed
   question count / timer; no promote/demote by cluster accuracy.
 - **Interval SRS granularity is quality-only and ascending.** Per-root and
@@ -739,3 +756,40 @@ Found while re-checking the codebase against this document — real, shipped fea
 - **In-game feedback softened.** Streak celebrations were dropped and the "correct" chime softened (`In-game feedback: drop streak celebrations, soften the correct chime`) — a deliberate move *away* from the "Celebration tiers" escalation still drafted in §3; that plan should be re-read against this before being picked up.
 - **`index.css` split into per-domain partials.** `src/styles/01-base.css` … `21-pro-gate.css`, `@import`-ed from `src/index.css`. Internal only, no behavior change, but the "Files touched" lists in the §3 implementation plans that name `src/index.css` now mean the relevant `src/styles/*.css` partial.
 - **`pref_language` synced across devices.** Language choice now round-trips through the account like other settings.
+
+### Shipped 2026-09-07 / 09-08 — Learn area, intervals polish, audio, sync, boot
+
+A batch of work re-checked against this document after the fact. Grouped by area.
+
+**Learn area / navigation**
+- **One "Learn" page of tiles.** The separate drawer rows for Notes / Daily / Intervals were folded into a single `LearnHub` tile grid reached from a "Learn" drawer row (`LearnDomain = 'notes' | 'daily' | 'intervals'`, plus a dev/admin-only **Game** tile). The Learn menu icon (`src/assets/menu-icons/learn.png`) was added and sized/tinted to match its siblings. Learning-tab Back returns to the hub.
+- **`DailyPracticeScreen` is the shared daily home.** It now hosts both the notes plan and an `IntervalTodayCard` (interval today / weak-spots entry points), which `IntervalPracticeScreen` dropped; that screen also took a `silentMode` prop.
+
+**Intervals (P4) — second slice + polish** (see the dated update under §6's "Interval drill (P4)" section)
+- Second on-neck exercise **"Find the target position"** — `useGameEngine` support plus a `FretGrid` branch on `intervalPrompt.exercise === 'findTargetPosition'`.
+- Both interval **directions** and a separate interval **SRS lane** wired (`intervalSrs` in the per-instrument learning-state blob).
+- Interval feedback now renders in the user's selected **notation** (sharp / flat), and the note area shows Natural / Sharp / Flat properly.
+- A missed **"identify the interval"** question now marks the wrong chip.
+- **Gentler first session**: a fresh interval learner defaults to a `focused` register and ascending-only direction (was `mixed` / `both`); existing users keep their saved picks.
+- **Robustness**: when `buildIntervalQuestion` returns null on the chosen string (a degenerate fret window), the engine tries the other candidate strings before dropping to a plain note question; the last-tapped interval is kept when leaving Multi; space is reserved for the "About this interval" row; Hebrew singular "1 interval tracked" string added.
+- Interval practice page **re-skinned** to the Notes-selector palette.
+- **Teacher / interval sessions stay armed across a round.** A Teacher or interval session selected before a round starts is no longer discarded when the round begins.
+
+**Audio**
+- **Note volume redesigned.** The four-step Note volume picker became a draggable `StepperMeter` (− / + buttons + drag track, shown as a percentage of the old default). The makeup-gain multiplier (`pref_noteVolume`) is now a plain `1×–10×` number (was capped at `4.8×`) so drill notes can go noticeably louder, with the `DynamicsCompressor` limiter still catching peaks; legacy string values (`'low' | 'normal' | 'high' | 'max'`) are mapped forward on load. This is separate from the still-unbuilt B1/B2 audio-refinements plan in §3.
+
+**Cross-device sync**
+- **Theme and Silent mode now sync across devices**, joining `pref_language` — matching the standing preference that user-facing settings should follow the account, not the device.
+- The **leaderboard opt-out was removed** (appearing on the leaderboard requires only Google sign-in, as the Free-tier description already assumed).
+
+**Boot / build freshness**
+- The boot splash is **held until the first data load** and draws into the Android notch.
+- The boot splash **checks for a newer deployed build**, and the build-info "refresh" button now pulls the newest deploy rather than only re-reading the current one.
+
+**Android / infra**
+- The themed background is painted under the status-bar inset (no more system-coloured strip behind the notch).
+- The debug APK stamps a real `versionName` and guards the `versionCode` bump.
+- CI workflow actions bumped off the deprecated Node 20 majors.
+
+**Internal — no behaviour change**
+- **`src/App.tsx` (~2000 lines) decomposed into concern hooks + presentational pieces** across ~10 refactor commits: the settings drawer + its sections, the drill board + transport controls, the account cloud-sync effects, the voice-profile summary hook, the mastery-overlay memos, the global preference state, the navigation + back-handler state, the round lifecycle + celebrations, and assorted small UI pieces and self-contained effects/helpers. Like the `index.css` split noted above, the "Files touched: `src/App.tsx`" lines in the §3 implementation plans now often mean the relevant extracted hook.
