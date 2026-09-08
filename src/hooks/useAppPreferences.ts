@@ -3,7 +3,7 @@ import { loadSetting, saveSetting } from '../utils/settings';
 import type { NotationMode, OrderMode } from '../utils/music';
 import type { VoiceEnginePref } from '../utils/speech';
 import type { Theme } from '../utils/theme';
-import type { NoteVolume } from '../utils/audio';
+import { NOTE_VOLUME_DEFAULT } from '../utils/audio';
 import { DEFAULT_MASTERY_WINDOW, type MasteryWindow } from '../utils/mastery';
 
 type AnswerMode = 'tap' | 'voice';
@@ -28,9 +28,14 @@ export function useAppPreferences() {
     () => loadSetting('pref_masteryWindow', DEFAULT_MASTERY_WINDOW),
   );
   const [silentMode, setSilentMode] = useState(() => loadSetting('pref_silentMode', false));
-  const [noteVolume, setNoteVolume] = useState<NoteVolume>(
-    () => loadSetting('pref_noteVolume', 'normal'),
-  );
+  // A plain makeup-gain multiplier. Earlier builds briefly stored a string
+  // enum ('low'|'normal'|'high'|'max'); map those forward so a device that set
+  // it then isn't stuck on the default.
+  const [noteVolume, setNoteVolume] = useState<number>(() => {
+    const raw = loadSetting<number | string>('pref_noteVolume', NOTE_VOLUME_DEFAULT);
+    if (typeof raw === 'number') return raw;
+    return { low: 1.6, normal: 2.6, high: 3.6, max: 4.8 }[raw] ?? NOTE_VOLUME_DEFAULT;
+  });
   const [leaderboardOptOut, setLeaderboardOptOut] = useState(() =>
     loadSetting('pref_leaderboardOptOut', false),
   );

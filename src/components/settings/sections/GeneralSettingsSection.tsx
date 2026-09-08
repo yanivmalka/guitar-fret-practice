@@ -1,11 +1,13 @@
-import { SettingCard, SegmentedControl, PickRow } from '../../SettingCard';
+import { SettingCard, SegmentedControl, PickRow, StepperMeter } from '../../SettingCard';
+import {
+  NOTE_VOLUME_MIN, NOTE_VOLUME_MAX, NOTE_VOLUME_STEP, NOTE_VOLUME_DEFAULT,
+} from '../../../utils/audio';
 import { ProGate } from '../../ProGate';
 import { withClick as click } from '../../../utils/withClick';
 import { saveSetting } from '../../../utils/settings';
 import { LANGUAGES, type Lang } from '../../../i18n/translations';
 import { PRO_MASTERY_LASTN_CHOICES, type MasteryWindow } from '../../../utils/mastery';
 import type { Theme } from '../../../utils/theme';
-import type { NoteVolume } from '../../../utils/audio';
 import type { VoiceEnginePref } from '../../../utils/speech';
 
 type AnswerMode = 'tap' | 'voice';
@@ -24,8 +26,8 @@ export interface GeneralSettingsSectionProps {
   setShowScore: (v: boolean) => void;
   silentMode: boolean;
   setSilentMode: (v: boolean) => void;
-  noteVolume: NoteVolume;
-  setNoteVolume: (v: NoteVolume) => void;
+  noteVolume: number;
+  setNoteVolume: (v: number) => void;
   theme: Theme;
   setTheme: (t: Theme) => void;
   voiceSupported: boolean;
@@ -81,17 +83,15 @@ export default function GeneralSettingsSection({
       </SettingCard>
       <SettingCard
         label={t('Note volume')}
-        help={t('How loud the drill note samples play. Turn it up if the notes sound weak; the limiter keeps the loud levels from distorting.')}
+        help={t('How loud the drill note samples play. Drag the slider or use − / + to boost it if the notes sound weak; the limiter keeps even the loudest setting from distorting.')}
       >
-        <PickRow
+        <StepperMeter
           ariaLabel={t('Note volume')}
           value={noteVolume}
-          options={[
-            { value: 'low', label: t('Quiet') },
-            { value: 'normal', label: t('Normal') },
-            { value: 'high', label: t('Loud') },
-            { value: 'max', label: t('Maximum') },
-          ]}
+          min={NOTE_VOLUME_MIN}
+          max={NOTE_VOLUME_MAX}
+          step={NOTE_VOLUME_STEP}
+          formatValue={(v) => `${Math.round((v / NOTE_VOLUME_DEFAULT) * 100)}%`}
           onChange={(v) => { setNoteVolume(v); saveSetting('pref_noteVolume', v); }}
         />
       </SettingCard>

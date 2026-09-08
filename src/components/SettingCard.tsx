@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { playClickSound, haptic } from '../utils/feedback';
 
 /**
@@ -76,6 +76,67 @@ export function PickRow<T extends string>({
           {o.label}
         </button>
       ))}
+    </div>
+  );
+}
+
+/**
+ * A continuous control for a numeric setting: a draggable track flanked by a
+ * `−` and a `+` button (each snaps by one `step`), with the current value
+ * shown at the end. Buttons carry the same click sound + haptic as the other
+ * settings controls; dragging the track does not (it would fire constantly).
+ */
+export function StepperMeter({
+  value, min, max, step, onChange, ariaLabel, formatValue,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (v: number) => void;
+  ariaLabel?: string;
+  formatValue?: (v: number) => string;
+}) {
+  const snap = (v: number) => {
+    const stepped = Math.round((v - min) / step) * step + min;
+    return Math.min(max, Math.max(min, Math.round(stepped * 1000) / 1000));
+  };
+  const nudge = (dir: 1 | -1) => {
+    const next = snap(value + dir * step);
+    if (next === value) return;
+    playClickSound();
+    haptic.tap();
+    onChange(next);
+  };
+  const pct = ((value - min) / (max - min)) * 100;
+  return (
+    <div className="stepper-meter" role="group" aria-label={ariaLabel}>
+      <button
+        type="button"
+        className="stepper-btn"
+        aria-label={`${ariaLabel ?? ''} −`.trim()}
+        onClick={() => nudge(-1)}
+        disabled={value <= min}
+      >−</button>
+      <input
+        type="range"
+        className="stepper-range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        aria-label={ariaLabel}
+        onChange={(e) => onChange(snap(Number(e.target.value)))}
+        style={{ '--meter-pct': `${pct}%` } as CSSProperties}
+      />
+      <button
+        type="button"
+        className="stepper-btn"
+        aria-label={`${ariaLabel ?? ''} +`.trim()}
+        onClick={() => nudge(1)}
+        disabled={value >= max}
+      >+</button>
+      {formatValue && <span className="stepper-val">{formatValue(value)}</span>}
     </div>
   );
 }

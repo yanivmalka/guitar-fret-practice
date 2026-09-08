@@ -313,6 +313,85 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* <StepperMeter>: a draggable track between a − and a + button, with the
+   current value at the end. Shares the card's var(--bg-3) / var(--accent)
+   vocabulary. The track fill is a gradient driven by --meter-pct; the RTL
+   root flips its direction so the fill still grows from the low end. */
+.stepper-meter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.stepper-btn {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--surface-border);
+  border-radius: 10px;
+  background: var(--bg-3);
+  color: var(--accent);
+  font: inherit;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.stepper-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.stepper-range {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--accent) var(--meter-pct, 50%),
+    var(--bg-3) var(--meter-pct, 50%)
+  );
+  cursor: pointer;
+}
+[dir="rtl"] .stepper-range {
+  background: linear-gradient(
+    to left,
+    var(--accent) var(--meter-pct, 50%),
+    var(--bg-3) var(--meter-pct, 50%)
+  );
+}
+.stepper-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--accent-ink);
+  cursor: pointer;
+}
+.stepper-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--accent-ink);
+  cursor: pointer;
+}
+.stepper-val {
+  flex: none;
+  min-width: 3.5ch;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
 .set-card-btn {
   align-self: stretch;
   padding: 11px 16px;

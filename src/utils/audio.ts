@@ -38,20 +38,21 @@ function getCtx(): AudioContext {
 // The soundfont MP3 samples are mastered quiet, so every drill note runs
 // through a shared makeup-gain stage: a boost (>1×) followed by a limiter that
 // catches the peaks the boost would otherwise clip. Route note playback into
-// masterOut() instead of ctx.destination.
-export type NoteVolume = 'low' | 'normal' | 'high' | 'max';
-const BOOST_BY_VOLUME: Record<NoteVolume, number> = {
-  low: 1.6,
-  normal: 2.6,
-  high: 3.6,
-  max: 4.8,
-};
-let _boost = BOOST_BY_VOLUME.normal;
+// masterOut() instead of ctx.destination. The boost is a plain multiplier the
+// user drags in Settings (`pref_noteVolume`); the limiter keeps even the top
+// of the range from distorting.
+export const NOTE_VOLUME_MIN = 1;
+export const NOTE_VOLUME_MAX = 10;
+export const NOTE_VOLUME_STEP = 0.2;
+export const NOTE_VOLUME_DEFAULT = 2.6;
+
+let _boost = NOTE_VOLUME_DEFAULT;
 let masterGain: GainNode | null = null;
 
-/** Set the makeup-gain level for drill-note playback (persisted as `pref_noteVolume`). */
-export function setNoteVolume(v: NoteVolume): void {
-  _boost = BOOST_BY_VOLUME[v] ?? BOOST_BY_VOLUME.normal;
+/** Set the makeup-gain multiplier for drill-note playback (persisted as `pref_noteVolume`). */
+export function setNoteVolume(boost: number): void {
+  const b = Number.isFinite(boost) ? boost : NOTE_VOLUME_DEFAULT;
+  _boost = Math.min(NOTE_VOLUME_MAX, Math.max(NOTE_VOLUME_MIN, b));
   if (masterGain) {
     const ctx = masterGain.context;
     masterGain.gain.setTargetAtTime(_boost, ctx.currentTime, 0.02);
