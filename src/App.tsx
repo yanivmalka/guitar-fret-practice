@@ -1,5 +1,8 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
-import type { ReactNode } from 'react';
+import { SettingsDrawerNav, SettingsSubPage, type SettingsSection } from './components/settings/SettingsDrawer';
+import PlayingSection from './components/settings/sections/PlayingSection';
+import GeneralSettingsSection from './components/settings/sections/GeneralSettingsSection';
+import AccountSection from './components/settings/sections/AccountSection';
 import menuIconLearn from './assets/menu-icons/learn.png';
 import menuIconPlaying from './assets/menu-icons/playing.png';
 import menuIconSettings from './assets/menu-icons/settings.png';
@@ -12,17 +15,13 @@ import FretGrid from './components/FretGrid';
 import IntervalChoiceRow from './components/IntervalChoiceRow';
 import SelectorPanel from './components/SelectorPanel';
 import AdjustSuggestionBanner from './components/AdjustSuggestionBanner';
-import FretRangeControl from './components/FretRangeControl';
-import FretRangeNeck from './components/FretRangeNeck';
 import ProgressPanel from './components/ProgressPanel';
-import { SettingCard, SegmentedControl, PickRow } from './components/SettingCard';
 import Onboarding from './components/Onboarding';
-import { Chevron } from './components/Chevron';
 import SpeedBar from './components/SpeedBar';
 import AnimatedScore from './components/AnimatedScore';
 import { displayNote, displayNoteBothEnharmonics, setActiveInstrument } from './utils/music';
 import type { HistoryEntry, AccidentalMode, OrderMode, NotationMode } from './utils/music';
-import { getInstrument, COMING_SOON_INSTRUMENTS, type InstrumentId } from './utils/instruments';
+import { getInstrument, type InstrumentId } from './utils/instruments';
 import { preloadAllSamples, unlockAudio, setAudioInstrument } from './utils/audio';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
@@ -37,7 +36,7 @@ import { useAutoPauseOnBackground } from './hooks/useAutoPauseOnBackground';
 import { useQuestionChangeAnimation } from './hooks/useQuestionChangeAnimation';
 import { useAdjustSuggestion } from './hooks/useAdjustSuggestion';
 import { loadBest, saveBest, loadAllBests, writeAllBests } from './utils/personalBest';
-import { historyForInstrument, flattenHistory, fretMasteryMap, noteMasteryMap, applyMasteryWindow, DEFAULT_MASTERY_WINDOW, FREE_MASTERY_WINDOW, PRO_MASTERY_LASTN_CHOICES, type MasteryStat, type MasteryWindow } from './utils/mastery';
+import { historyForInstrument, flattenHistory, fretMasteryMap, noteMasteryMap, applyMasteryWindow, DEFAULT_MASTERY_WINDOW, FREE_MASTERY_WINDOW, type MasteryStat, type MasteryWindow } from './utils/mastery';
 import { useAuth } from './hooks/useAuth';
 import { bootstrapUser, reconcileUser, syncedUser, clearSyncedUser, cloudCaptureOrphans, restoreOnly } from './utils/sync';
 import { bootstrapSettings, syncedSettingsUser, clearSyncedSettingsUser, cloudPushSettings } from './utils/settingsSync';
@@ -75,11 +74,8 @@ import { FeedbackBoard } from './components/FeedbackBoard';
 import { LeaderboardPanel } from './components/LeaderboardPanel';
 import { computeMyStats, leaderboardName, upsertMyEntry } from './utils/leaderboard';
 import { BadgeGrid } from './components/BadgeGrid';
-import { PinnedBadges } from './components/PinnedBadges';
 import { UpgradeCard } from './components/UpgradeCard';
-import { ProGate } from './components/ProGate';
 import { can } from './utils/features';
-import { setOwnEntitlement } from './utils/entitlement';
 import { GuestMergePrompt } from './components/GuestMergePrompt';
 import { registerUpgradeHandler } from './utils/upgradeDrawer';
 import { BadgeMedal, BadgeMedalDefs } from './components/BadgeMedal';
@@ -88,7 +84,6 @@ import {
   badgeDef, evaluateSession, evaluateLifetime, awardFamilyUpTo, earnedTier, TIER_LABEL,
   type BadgeId, type SessionSnapshot, type LifetimeSnapshot, type Tier,
 } from './utils/badges';
-import { verror } from './utils/debugLog';
 import type { SpeechNotation } from './utils/speechVocab';
 import { resetSpeechEngine, type VoiceEnginePref } from './utils/speech';
 import {
@@ -97,7 +92,6 @@ import {
 import { PROFILE_LABELS, SAMPLES_PER_LABEL, profileVocabId } from './utils/voiceProfileVocab';
 import { bootstrapVoiceProfile, voiceSyncedUser, clearVoiceSyncedUser } from './utils/voiceSync';
 import { useTranslation } from './i18n/useTranslation';
-import { LANGUAGES } from './i18n/translations';
 import { mergeCelebrated } from './utils/badgeCelebration';
 
 type AnswerMode = 'tap' | 'voice';
@@ -1465,7 +1459,7 @@ export default function App() {
   // sub-page with a short blurb plus just that section's controls.
   // `onSelect`, when set, fires on tap instead of opening the section's sub-page —
   // used by "Stats & progress" to jump straight to its full screen like a page.
-  const settingsSections: Array<{ id: string; title: string; icon?: string; blurb: string; body: ReactNode; onSelect?: () => void }> = [
+  const settingsSections: SettingsSection[] = [
     {
       id: 'learn',
       title: t('Learn'),
@@ -1504,121 +1498,26 @@ export default function App() {
       icon: menuIconPlaying,
       blurb: '',
       body: (
-        <>
-          <SettingCard
-            label={t('Instruments')}
-            help={t('Switches tuning, string count and fret range, then reloads the note samples.')}
-          >
-            <div className="pick-row" role="group" aria-label={t('Instruments')}>
-              {([['guitar', '🎸', t('Guitar')], ['bass', '🎵', t('Bass')]] as const).map(([id, emoji, name]) => (
-                <button
-                  key={id}
-                  type="button"
-                  className={`pick-btn${instrumentId === id ? ' pick-btn-on' : ''}`}
-                  aria-pressed={instrumentId === id}
-                  onClick={click(() => {
-                    if (id === instrumentId) return;
-                    if (running || paused) stop();
-                    applyInstrument(id);
-                    setPreloaded(false);
-                  })}
-                >
-                  {emoji} {name}
-                </button>
-              ))}
-            </div>
-            {/* Roadmap instruments the engine can't drill yet — shown to admins
-                inside the same card as Guitar/Bass, as a second row of smaller
-                disabled buttons, so the plan reads as part of the picker. */}
-            {auth.admin && (
-              <div className="pick-soon-row" role="group" aria-label={t('Coming soon')}>
-                {COMING_SOON_INSTRUMENTS.map((ci) => (
-                  <button
-                    key={ci.label}
-                    type="button"
-                    className="pick-btn-soon"
-                    disabled
-                    aria-disabled="true"
-                    title={`${t('Coming soon')} — ${ci.tuning}`}
-                  >
-                    {ci.emoji} {t(ci.label)}
-                  </button>
-                ))}
-              </div>
-            )}
-          </SettingCard>
-          {/* Note-name notation used to be its own drawer row; it's really a
-              display preference for the instrument, so it lives here now. The
-              helper line also carries the short Natural / Sharp / Flat primer,
-              worded with the vocabulary that matches the chosen notation
-              (A-B-C → "sharp / flat"; Do-Re-Mi → "dièse / bémol", i.e. Hebrew
-              "דיאז / במול"). No standalone spelling toggle: a question shows
-              both enharmonic names side by side ("C♯ = D♭"). */}
-          <SettingCard
-            label={t('Notes')}
-            help={
-              <>
-                {t("Display only — the drill itself doesn't change.")}{' '}
-                {notation === 'solfege'
-                  ? t('A natural note has no sign (Do, Re, Mi…). A dièse (♯) is a half-step higher; a bémol (♭) is a half-step lower. The same pitch can be written either way — Do♯ and Re♭ are one note, and a question shows both.')
-                  : t('A natural note has no sign (C, D, E…). A sharp (♯) is a half-step higher; a flat (♭) is a half-step lower. The same pitch can be written either way — C♯ and D♭ are one note, and a question shows both.')}
-              </>
-            }
-          >
-            <div className="pick-row" role="group" aria-label={t('Notes')}>
-              {([['alpha', 'A B C'], ['solfege', 'Do Re Mi']] as const).map(([val, label]) => (
-                <button
-                  key={val}
-                  type="button"
-                  className={`pick-btn${notation === val ? ' pick-btn-on' : ''}`}
-                  aria-pressed={notation === val}
-                  onClick={click(() => { setNotation(val); saveSetting('pref_notation', val); })}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </SettingCard>
-          {/* Precise fret-range window (Pro). It used to sit under the neck on
-              the home screen; it lives here now, with its own neck picture
-              whose dark silhouette tracks the slider. The home-screen neck
-              still reflects the chosen window. */}
-          <SettingCard
-            label={t('Fret range')}
-            help={t('Drill only part of the neck. Drag the handles to set the exact fret window — the shaded area is muted out, both here and on the home-screen neck.')}
-          >
-            <ProGate
-              feature="fretRange"
-              variant="overlay"
-              pitch={t('Pick an exact fret N–M window to drill')}
-            >
-              <div className="fret-range-block">
-                <SegmentedControl
-                  ariaLabel={t('Precise fret range')}
-                  value={selector.state.useFretRange ? 'on' : 'off'}
-                  options={[
-                    { value: 'on', label: t('On') },
-                    { value: 'off', label: t('Off') },
-                  ]}
-                  onChange={() => selector.onFretRangePreciseToggle()}
-                />
-                <FretRangeNeck
-                  instrument={instrument}
-                  lo={selector.state.fretLo}
-                  hi={selector.state.fretHi}
-                  disabled={!selector.state.useFretRange}
-                />
-                <FretRangeControl
-                  maxFret={instrument.maxFret}
-                  lo={selector.state.fretLo}
-                  hi={selector.state.fretHi}
-                  onChange={selector.onFretRangeWindow}
-                  disabled={!selector.state.useFretRange}
-                />
-              </div>
-            </ProGate>
-          </SettingCard>
-        </>
+        <PlayingSection
+          t={t}
+          instrument={instrument}
+          instrumentId={instrumentId}
+          admin={auth.admin}
+          running={running}
+          paused={paused}
+          stop={stop}
+          applyInstrument={applyInstrument}
+          setPreloaded={setPreloaded}
+          notation={notation}
+          setNotation={setNotation}
+          fretRange={{
+            useFretRange: selector.state.useFretRange,
+            fretLo: selector.state.fretLo,
+            fretHi: selector.state.fretHi,
+            onPreciseToggle: selector.onFretRangePreciseToggle,
+            onWindow: selector.onFretRangeWindow,
+          }}
+        />
       ),
     },
     {
@@ -1630,169 +1529,30 @@ export default function App() {
       icon: menuIconSettings,
       blurb: '',
       body: (
-        <>
-          <SettingCard
-            label={t('Score & celebrations')}
-            help={<>{t('Live score, streak multiplier and celebrations are shown.')} <em>{t('Every answer is still recorded to your stats and personal bests either way.')}</em></>}
-          >
-            <SegmentedControl
-              ariaLabel={t('Score')}
-              value={showScore ? 'on' : 'off'}
-              options={[
-                { value: 'on', label: t('On') },
-                { value: 'off', label: t('Off') },
-              ]}
-              onChange={(v) => { const on = v === 'on'; setShowScore(on); saveSetting('pref_showScore', on); }}
-            />
-          </SettingCard>
-          <SettingCard
-            label={t('Silent mode')}
-            help={t('Visual-only questions — no note playback or chime. Haptics and on-screen celebrations stay on. Great for practising with headphones off or a guitar in hand.')}
-          >
-            <SegmentedControl
-              ariaLabel={t('Silent mode')}
-              value={silentMode ? 'on' : 'off'}
-              options={[
-                { value: 'on', label: t('On') },
-                { value: 'off', label: t('Off') },
-              ]}
-              onChange={(v) => { const on = v === 'on'; setSilentMode(on); saveSetting('pref_silentMode', on); }}
-            />
-          </SettingCard>
-          <SettingCard
-            label={t('Theme')}
-            help={t('Night is a warmer, dimmer palette for a dark room. Day is a light palette.')}
-          >
-            <PickRow
-              ariaLabel={t('Theme')}
-              value={theme}
-              options={[
-                { value: 'dark', label: t('Dark') },
-                { value: 'night', label: t('Night') },
-                { value: 'day', label: t('Day') },
-              ]}
-              onChange={(v) => setTheme(v)}
-            />
-          </SettingCard>
-          <SettingCard label={t('Language')}>
-            <PickRow
-              ariaLabel={t('Language')}
-              value={lang}
-              options={LANGUAGES}
-              onChange={(l) => { setLang(l); }}
-            />
-          </SettingCard>
-          {voice.supported && (
-            <>
-              <SettingCard
-                label={t('How you answer')}
-                help={t('Voice mode asks for microphone permission the first time.')}
-              >
-                <PickRow
-                  ariaLabel={t('Answer mode')}
-                  value={answerMode}
-                  options={[
-                    { value: 'tap', label: <>👆 {t('Tap')}</> },
-                    { value: 'voice', label: <>🎤 {t('Voice')}</> },
-                  ]}
-                  onChange={(m) => {
-                    setAnswerMode(m);
-                    saveSetting('pref_answerMode', m);
-                    if (m === 'voice') askForMic();
-                  }}
-                />
-              </SettingCard>
-              {/* Voice engine + personal profile only matter once Voice is the
-                  chosen answer mode, so they live nested under it. */}
-              {answerMode === 'voice' && (
-                <ProGate
-                  feature="voiceProfile"
-                  variant="replace"
-                  pitch={t('A personal voice profile built from your own calibration recordings')}
-                >
-                  <SettingCard
-                    label={t('Voice engine')}
-                    help={t('Auto picks the best available. Personal uses your calibrated profile; General uses the built-in model.')}
-                  >
-                    <PickRow
-                      ariaLabel={t('Voice engine')}
-                      value={voiceEnginePref}
-                      options={[
-                        { value: 'auto', label: t('Auto') },
-                        { value: 'profile', label: t('Personal') },
-                        { value: 'general', label: t('General') },
-                      ]}
-                      onChange={(v) => pickVoiceEngine(v)}
-                    />
-                  </SettingCard>
-                  <SettingCard
-                    label={t('Your voice profile')}
-                    help={t('Calibrating your own voice improves recognition when answering by voice.')}
-                  >
-                    {voiceProfileStat && voiceProfileStat.count > 0 && (
-                      <div className="sp2-hero">
-                        <div className="sp2-tile">
-                          <span className="sp2-tile-v">{voiceProfileStat.count}</span>
-                          <span className="sp2-tile-l">{t('recordings')}</span>
-                        </div>
-                        <div className="sp2-tile">
-                          <span className="sp2-tile-v" style={{ color: voiceProfileStat.enabled ? '#34e07a' : '#ff9d2e' }}>
-                            {voiceProfileStat.enabled ? t('On') : t('Off')}
-                          </span>
-                          <span className="sp2-tile-l">{t('enabled')}</span>
-                        </div>
-                      </div>
-                    )}
-                    <button
-                      className="set-card-btn"
-                      onClick={click(() => { setSettingsOpen(false); setShowVoiceCalibration(true); })}
-                    >🎙️ {voiceProfileStat && voiceProfileStat.count > 0
-                      ? t('Add / review recordings')
-                      : t('Calibrate my voice')}</button>
-                  </SettingCard>
-                </ProGate>
-              )}
-            </>
-          )}
-          <SettingCard
-            label={t('Mastery on the fretboard')}
-            help={<>{t('The per-note / per-fret accuracy bars drawn over the circle and grid while stopped or paused.')} <em>{t('Mastery keeps being tracked and shows on the Stats screen either way.')}</em></>}
-          >
-            <SegmentedControl
-              ariaLabel={t('Mastery on the fretboard')}
-              value={showMastery ? 'on' : 'off'}
-              options={[
-                { value: 'on', label: t('On') },
-                { value: 'off', label: t('Off') },
-              ]}
-              onChange={(v) => { const on = v === 'on'; setShowMastery(on); saveSetting('pref_showMastery', on); }}
-            />
-          </SettingCard>
-          <ProGate
-            feature="masteryMaps"
-            variant="replace"
-            pitch={t('Choose how many recent questions the mastery bars are counted from')}
-          >
-            <SettingCard
-              label={t('Questions counted')}
-              help={t('How many of your most recent questions the mastery bars are computed from. Free accounts use the last 250.')}
-            >
-              <PickRow
-                ariaLabel={t('Questions counted')}
-                value={masteryWindow.kind === 'lastN' ? String(masteryWindow.n) : '250'}
-                options={PRO_MASTERY_LASTN_CHOICES.map((n) => ({
-                  value: String(n),
-                  label: n === 0 ? t('All') : String(n),
-                }))}
-                onChange={(v) => {
-                  const next: MasteryWindow = { kind: 'lastN', n: Number(v) };
-                  setMasteryWindow(next);
-                  saveSetting('pref_masteryWindow', next);
-                }}
-              />
-            </SettingCard>
-          </ProGate>
-        </>
+        <GeneralSettingsSection
+          t={t}
+          lang={lang}
+          setLang={setLang}
+          showScore={showScore}
+          setShowScore={setShowScore}
+          silentMode={silentMode}
+          setSilentMode={setSilentMode}
+          theme={theme}
+          setTheme={setTheme}
+          voiceSupported={voice.supported}
+          answerMode={answerMode}
+          setAnswerMode={setAnswerMode}
+          askForMic={askForMic}
+          voiceEnginePref={voiceEnginePref}
+          pickVoiceEngine={pickVoiceEngine}
+          voiceProfileStat={voiceProfileStat}
+          setSettingsOpen={setSettingsOpen}
+          setShowVoiceCalibration={setShowVoiceCalibration}
+          showMastery={showMastery}
+          setShowMastery={setShowMastery}
+          masteryWindow={masteryWindow}
+          setMasteryWindow={setMasteryWindow}
+        />
       ),
     },
     {
@@ -1844,162 +1604,13 @@ export default function App() {
       icon: menuIconAccount,
       blurb: '',
       body: (
-        <>
-        {auth.user ? (
-        <SettingCard
-          label={t('Signed in')}
-          help={t('Keeps your preferences and data in sync across devices.')}
-        >
-          <div className="account-user">
-            {auth.profile?.avatarUrl && (
-              <img
-                className="account-avatar"
-                src={auth.profile.avatarUrl}
-                alt=""
-                referrerPolicy="no-referrer"
-                width={40}
-                height={40}
-              />
-            )}
-            <span className="account-identity">
-              {auth.profile?.name && (
-                <span className="account-name">{auth.profile.name}</span>
-              )}
-              <span className="account-email">
-                {auth.profile?.email ?? auth.user.email ?? t('Signed in')}
-              </span>
-              {auth.user.created_at && (
-                <span className="account-member-since">
-                  {t('Member since')} {new Date(auth.user.created_at).toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-GB', {
-                    day: 'numeric', month: 'long', year: 'numeric',
-                  })}
-                </span>
-              )}
-            </span>
-          </div>
-          {/* Subscription tier: a plain tappable tile showing the current plan,
-              sitting just above Sign out. Opens the `upgrade` sub-page. */}
-          <button
-            type="button"
-            className={`account-plan${auth.isPro ? ' is-pro' : ''}`}
-            onClick={click(() => { upgradeFromAccountRef.current = true; setDrawerSection('upgrade'); })}
-          >
-            <span className="account-plan-icon" aria-hidden="true">⭐</span>
-            <span className="account-plan-tier">
-              {auth.isPremium ? t('Premium') : auth.isPro ? t('Pro') : t('Free')}
-            </span>
-          </button>
-          <button
-            className="set-card-danger"
-            onClick={click(() => { void auth.signOut(); })}
-          >
-            {t('Sign out')}
-          </button>
-        </SettingCard>
-      ) : (
-        <SettingCard
-          label={t('Account')}
-          help={t('Sign in with Google to keep your preferences and data across devices.')}
-        >
-          {/* Signed-out: no plan on the account, so show the current (Free)
-              plan large. Tapping opens the `upgrade` sub-page. */}
-          <button
-            type="button"
-            className="account-plan account-plan-lg"
-            onClick={click(() => { upgradeFromAccountRef.current = true; setDrawerSection('upgrade'); })}
-          >
-            <span className="account-plan-icon" aria-hidden="true">⭐</span>
-            <span className="account-plan-tier">{t('Free')}</span>
-          </button>
-          <button
-            className="set-card-btn set-card-btn-primary"
-            onClick={click(() => { void auth.signInWithGoogle(); })}
-          >
-            <svg className="google-icon" viewBox="0 0 18 18" width="16" height="16" aria-hidden="true">
-              <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z" />
-              <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z" />
-              <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1z" />
-              <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" />
-            </svg>
-            {t('Sign in with Google')}
-          </button>
-        </SettingCard>
-      )}
-        {/* The badge shelf: up to five medals the player pins beside their
-            name, plus the floating picker that leads into the full Badges
-            page (which used to be its own nav-row here). */}
-        <PinnedBadges
-          isAdmin={auth.admin}
-          onOpenBadges={() => setDrawerSection('badges')}
+        <AccountSection
+          t={t}
+          lang={lang}
+          auth={auth}
+          setDrawerSection={setDrawerSection}
+          upgradeFromAccountRef={upgradeFromAccountRef}
         />
-        {/* Admin-only account tools, grouped here rather than on the
-            customer-facing Pro screen — kept below the badge shelf so the
-            player-facing bits of Account come first. Gated on `adminAccount`
-            (the real row in public.admins) so the "back to admin" switch
-            stays reachable even while browsing as a regular user. */}
-        {auth.adminAccount && (
-          <SettingCard
-            label={t('Admin: view the app as')}
-            help={t('Hides every admin-only control so you see exactly what a regular user sees. Switch back here any time — this is a local view change only and does not change what your account can do.')}
-          >
-            <SegmentedControl<'admin' | 'user'>
-              ariaLabel={t('Admin: view the app as')}
-              value={auth.viewingAsUser ? 'user' : 'admin'}
-              options={[
-                { value: 'admin', label: t('Admin') },
-                { value: 'user', label: t('Regular user') },
-              ]}
-              onChange={(next) => auth.setViewingAsUser(next === 'user')}
-            />
-          </SettingCard>
-        )}
-        {auth.admin && auth.user && (
-          <SettingCard
-            label={t('Admin: plan on your account')}
-            help={t('Sets the plan on your own account only (Free, Pro or Premium). Writes to the entitlements table and syncs across your devices.')}
-          >
-            <SegmentedControl<'free' | 'pro' | 'premium'>
-              ariaLabel={t('Admin: plan on your account')}
-              value={auth.tier}
-              options={[
-                { value: 'free', label: t('Free') },
-                { value: 'pro', label: t('Pro') },
-                { value: 'premium', label: t('Premium') },
-              ]}
-              onChange={(next) => {
-                const userId = auth.user?.id;
-                if (!userId || next === auth.tier) return;
-                void (async () => {
-                  try {
-                    await setOwnEntitlement(userId, next);
-                    await auth.refreshEntitlement();
-                  } catch (e) {
-                    verror('[admin] plan toggle failed', e);
-                  }
-                })();
-              }}
-            />
-          </SettingCard>
-        )}
-        {import.meta.env.DEV && (
-          <p
-            className="dev-tier-readout"
-            style={{ opacity: 0.6, fontSize: '0.8em', margin: '8px 0 0' }}
-          >
-            {/* Dev-only readout; the tri-state "simulate tier" control that
-                drives the "(sim:…)" state lives in the debug panel (🐞). */}
-            tier: {auth.tier}
-            {auth.devSimulateTier !== 'off' ? ` (sim:${auth.devSimulateTier})` : ''}
-            {auth.entitlementLoading ? ' …' : ''}
-          </p>
-        )}
-        {/* App version — moved here from the bottom of the main screen so the
-            footer stays clean; this is the one place it now lives. */}
-        <div className="build-info account-build-info">
-          {__COMMIT_HASH__} · {__COMMIT_DATE__.slice(0, 16)}
-          <button className="refresh-btn" onClick={() => window.location.reload()} title={t('Refresh')}>↻</button>
-        </div>
-        </>
       ),
     }] : []),
     ...(auth.configured ? [{
@@ -2146,50 +1757,17 @@ export default function App() {
     const activeSection = settingsSections.find(s => s.id === drawerSection);
     if (activeSection && activeSection.body != null) {
       return (
-        <div className="app settings-page">
-          <div className="sp2 settings-page-inner" dir={lang === 'he' ? 'rtl' : undefined}>
-            <div className="sp2-head settings-page-head">
-              {/* Badges is a sub-page of Account (opened from the pinned-badge
-                  picker), so Back returns there, not to the hamburger list.
-                  Upgrade is a sub-page of Account too when opened from the
-                  plan tile, but can also be opened directly by a locked
-                  ProGate elsewhere — upgradeFromAccountRef tracks which. */}
-              <button
-                className="sp2-back"
-                onClick={click(() => {
-                  const backToAccount = drawerSection === 'badges'
-                    || (drawerSection === 'upgrade' && upgradeFromAccountRef.current);
-                  setDrawerSection(backToAccount ? 'account' : null);
-                })}
-              >
-                <Chevron dir="back" /> {t('Back')}
-              </button>
-            </div>
-            <header className="settings-page-hero">
-              {activeSection.icon ? (
-                <img src={activeSection.icon} alt="" className="settings-page-icon-img" />
-              ) : (
-                <span className="settings-page-emoji" aria-hidden="true">
-                  {activeSection.title.split(' ')[0]}
-                </span>
-              )}
-              <h2 className="settings-page-name">
-                {activeSection.icon ? activeSection.title : activeSection.title.slice(activeSection.title.indexOf(' ') + 1)}
-              </h2>
-            </header>
-            <div className="settings-page-body">{activeSection.body}</div>
-          </div>
-          {/* This full-screen settings sub-page is its own return path, so the
-              reveal fired by an admin Grant on the Badges wall must be mounted
-              here too — the copy in the main return never renders from here. */}
-          {revealBadges.length > 0 && (
-            <BadgeRevealOverlay
-              badges={revealBadges}
-              instrument={instrument}
-              onClose={() => setRevealBadges([])}
-            />
-          )}
-        </div>
+        <SettingsSubPage
+          section={activeSection}
+          lang={lang}
+          t={t}
+          drawerSection={drawerSection}
+          upgradeFromAccountRef={upgradeFromAccountRef}
+          setDrawerSection={setDrawerSection}
+          revealBadges={revealBadges}
+          instrument={instrument}
+          setRevealBadges={setRevealBadges}
+        />
       );
     }
   }
@@ -2277,54 +1855,13 @@ export default function App() {
           Tapping one opens that section as its own full page (handled by the
           early return above). Backdrop click or Escape dismisses. */}
       {settingsOpen && drawerSection === null && (
-        <div className="settings-overlay" onClick={click(() => setSettingsOpen(false))}>
-          <div
-            className="settings-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-label={t('Game settings')}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <nav className="settings-menu" dir={lang === 'he' ? 'rtl' : undefined}>
-              <div className="sp2-head">
-                <button
-                  className="sp2-back"
-                  onClick={click(() => setSettingsOpen(false))}
-                >
-                  <Chevron dir="back" /> {t('Back')}
-                </button>
-                {/* No title here on purpose: the burger menu is just the list
-                    of sections. "Settings" is one of those sections now. */}
-              </div>
-              {settingsSections.filter(s => s.id !== 'upgrade' && s.id !== 'badges').map(s => {
-                // `upgrade` (subscription tier) and `badges` are not top-level
-                // rows — each is a tappable tile inside the Account section that
-                // opens its sub-page. They stay in `settingsSections` only so
-                // that sub-page still resolves by id.
-                // `s.icon` is a real image (the metal 3D tab icons); sections
-                // without one (upgrade, badges — not shown as top-level rows
-                // right now) fall back to the old "<emoji> <label>" title
-                // convention, split apart so the emoji is its own leading-icon
-                // node and never disturbs the bidi resolution of the
-                // (possibly RTL) label text next to it.
-                const [emoji, ...rest] = s.icon ? [] : s.title.split(' ');
-                return (
-                  <button
-                    key={s.id}
-                    className="nav-row"
-                    onClick={click(() => { if (s.onSelect) s.onSelect(); else setDrawerSection(s.id); })}
-                  >
-                    <span className="nav-row__lead" aria-hidden="true">
-                      {s.icon ? <img src={s.icon} alt="" className="nav-row__icon-img" /> : emoji}
-                    </span>
-                    <span className="nav-row__label">{s.icon ? s.title : rest.join(' ')}</span>
-                    <Chevron dir="forward" className="nav-row__chev" />
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
-        </div>
+        <SettingsDrawerNav
+          sections={settingsSections}
+          lang={lang}
+          t={t}
+          setSettingsOpen={setSettingsOpen}
+          setDrawerSection={setDrawerSection}
+        />
       )}
 
       {/* Microphone permission card — our own copy + styling, shown ahead of
