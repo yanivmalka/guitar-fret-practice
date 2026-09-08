@@ -4,8 +4,10 @@
 // out every learning domain as a tile, so the drawer keeps one row instead of
 // a long list. 'notes' is the Selector (always open); 'daily' and 'intervals'
 // are Premium — a tile the user's tier can't reach shows a lock and opens the
-// upgrade page. Scales / Chords / Staff reading / Game are inert "coming soon"
-// tiles (premium-product-plan.md §9 P5–P7 + the Game layer).
+// upgrade page. Scales / Chords / Staff reading are inert "coming soon" tiles
+// (premium-product-plan.md §9 P5–P7). The Game tile is the sole entry point
+// into the Game layer, but only for dev/admin (`showGame`) — everyone else
+// still sees it as "coming soon".
 //
 // All copy through `t()`; the grid inherits `dir` from the settings page root.
 
@@ -18,10 +20,14 @@ interface Props {
   activeDomain: LearnDomain;
   canDaily: boolean;
   canIntervals: boolean;
+  /** Dev/admin only: the Game tile is a live entry point, not "coming soon". */
+  showGame: boolean;
   /** Open the given domain (closes the drawer). */
   onPick: (d: LearnDomain) => void;
   /** A locked (Premium) tile was tapped — open the upgrade page. */
   onLocked: () => void;
+  /** The Game tile was tapped — open the Game layer (closes the drawer). */
+  onOpenGame: () => void;
 }
 
 interface OpenTile {
@@ -36,24 +42,34 @@ interface SoonTile {
   emoji: string;
   label: string;
 }
+interface ActionTile {
+  kind: 'action';
+  emoji: string;
+  label: string;
+  onSelect: () => void;
+}
 
 export default function LearnHub({
   activeDomain,
   canDaily,
   canIntervals,
+  showGame,
   onPick,
   onLocked,
+  onOpenGame,
 }: Props) {
   const { t } = useTranslation();
 
-  const tiles: Array<OpenTile | SoonTile> = [
+  const tiles: Array<OpenTile | SoonTile | ActionTile> = [
     { kind: 'open', id: 'daily', emoji: '📅', label: 'Daily practice', locked: !canDaily },
     { kind: 'open', id: 'notes', emoji: '🎵', label: 'Notes', locked: false },
     { kind: 'open', id: 'intervals', emoji: '🎸', label: 'Intervals', locked: !canIntervals },
     { kind: 'soon', emoji: '🎼', label: 'Scales' },
     { kind: 'soon', emoji: '🎹', label: 'Chords' },
     { kind: 'soon', emoji: '📖', label: 'Staff reading' },
-    { kind: 'soon', emoji: '🎮', label: 'Game' },
+    showGame
+      ? { kind: 'action', emoji: '🎮', label: 'Game', onSelect: onOpenGame }
+      : { kind: 'soon', emoji: '🎮', label: 'Game' },
   ];
 
   return (
@@ -72,6 +88,25 @@ export default function LearnHub({
                 <span className="learn-tile__label">{t(tile.label)}</span>
                 <span className="learn-tile__state">{t('Coming soon')}</span>
               </div>
+            );
+          }
+
+          if (tile.kind === 'action') {
+            return (
+              <button
+                key={tile.label}
+                type="button"
+                className="learn-tile"
+                onClick={() => {
+                  playClickSound();
+                  haptic.tap();
+                  tile.onSelect();
+                }}
+              >
+                <span className="learn-tile__emoji" aria-hidden="true">{tile.emoji}</span>
+                <span className="learn-tile__label">{t(tile.label)}</span>
+                <span className="learn-tile__state" />
+              </button>
             );
           }
 

@@ -718,9 +718,21 @@ const he: Record<string, string> = {
   // question (intervals-learning-spec §8.1, task T5).
   'Identify the interval': 'לזהות את האינטרוול',
   'Find the note': 'למצוא את התו',
+  'Find on the neck': 'למצוא על הצוואר',
   'Which interval did you hear?': 'איזה אינטרוול שמעת?',
   'Hear it again': 'להשמיע שוב',
   'below': 'מתחת ל־',
+  // *Find on the neck* (intervals-learning-spec §8.5): one note is marked on the
+  // string, tap the note that completes the interval.
+  'above the marked note': 'מעל התו המסומן',
+  'below the marked note': 'מתחת לתו המסומן',
+  'A note is marked on the neck — tap the note that completes the interval.':
+    'תו מסומן על הצוואר — הקש על התו שמשלים את האינטרוול.',
+  // Silent mode disables the audio-only "Identify the interval" exercise.
+  'Silent mode is on — this exercise needs sound.':
+    'מצב שקט מופעל — התרגיל הזה דורש קול.',
+  'Silent mode is on — “Identify the interval” needs sound.':
+    'מצב שקט מופעל — התרגיל „לזהות את האינטרוול” דורש קול.',
   'Minor 2nd': 'סקונדה קטנה',
   'Major 2nd': 'סקונדה גדולה',
   'Minor 3rd': 'טרצה קטנה',

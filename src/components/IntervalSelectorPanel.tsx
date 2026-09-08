@@ -6,30 +6,29 @@
 // the shared countdown / drill / feedback. Every control here changes what is
 // drilled or how hard it is (§5).
 //
+// Interval picking mirrors the Practice strings selector: a row of the 11
+// interval chips plus a "Multi" toggle (off ⇒ pick one, on ⇒ pick several).
 // It reuses the Premium Teacher card vocabulary (`.teacher-card`,
-// `.teacher-btn`, `.interval-form-toggle`) and the interval answer-chip row,
-// so no new design system is introduced. All copy through `t()`; the layout
-// flips for Hebrew via `dir`. Deliberately no Auto Advance toggle (§5.5).
+// `.teacher-btn`, `.interval-form-toggle`), so no new design system is
+// introduced. All copy through `t()`; the layout flips for Hebrew via `dir`.
+// Deliberately no Auto Advance toggle (§5.5).
 
 import type { InstrumentConfig } from '../utils/instruments';
 import type { AccidentalMode, OrderMode } from '../utils/music';
 import type { DrillConfig } from '../drill/DrillConfig';
 import { INTERVALS, intervalBySemitones } from '../utils/intervals';
-import { INTERVAL_CURRICULUM } from '../learning/intervalCurriculum';
 import { intervalContentBySemitones } from '../learning/intervalContent';
 import {
   useIntervalSelector,
-  type IntervalSelection,
   type IntervalDifficulty,
   type IntervalDirection,
 } from '../hooks/useIntervalSelector';
-import IntervalChoiceRow from './IntervalChoiceRow';
 import { useTranslation } from '../i18n/useTranslation';
 import { playClickSound, haptic } from '../utils/feedback';
 
 interface Props {
   instrument: InstrumentConfig;
-  /** Semitone sizes currently mastered — resolves "All learned" (§5.2). */
+  /** Semitone sizes currently mastered — seeds the first-run selection (§5.2). */
   masteredSizes: number[];
   accidental: AccidentalMode;
   order: OrderMode;
@@ -37,15 +36,11 @@ interface Props {
   trackedCount: number;
   /** Disable the actions while a session is starting / running. */
   busy?: boolean;
+  /** Silent mode is on — drill-content audio is muted app-wide. "Identify the
+   *  interval" is audio-only, so it is unavailable while this is true. */
+  silentMode?: boolean;
   onStart: (config: DrillConfig) => void;
 }
-
-const SELECTION_LABELS: Record<IntervalSelection, string> = {
-  one: 'One interval',
-  group: 'A group',
-  allLearned: 'All learned',
-  all11: 'All 11',
-};
 
 const DIFFICULTY_LABELS: Record<IntervalDifficulty, string> = {
   focused: 'Focused',
@@ -66,10 +61,13 @@ export default function IntervalSelectorPanel({
   order,
   trackedCount,
   busy,
+  silentMode,
   onStart,
 }: Props) {
   const { t, lang } = useTranslation();
-  const sel = useIntervalSelector({ instrument, masteredSizes, accidental, order });
+  const sel = useIntervalSelector({
+    instrument, masteredSizes, accidental, order, audioMuted: silentMode,
+  });
   const { state, pool } = sel;
 
   // A small helper so every control fires the click sound + haptic tap, per
@@ -87,14 +85,19 @@ export default function IntervalSelectorPanel({
   const summary =
     (state.exercise === 'identifyInterval'
       ? t("You'll hear two notes. Pick the interval between them.")
-      : t("You'll see a note and an interval. Pick the note that far above it.")) +
-    ` ${t('Practising:')} ${poolShorts}.`;
+      : state.exercise === 'findTargetPosition'
+        ? t('A note is marked on the neck — tap the note that completes the interval.')
+        : t("You'll see a note and an interval. Pick the note that far above it.")) +
+    // At least one interval is always selected, but stay defensive: no dangling
+    // "Practising: ." if the pool is somehow empty.
+    (poolShorts ? ` ${t('Practising:')} ${poolShorts}.` : '');
 
   const segButton = (
     active: boolean,
     label: string,
     onClick: () => void,
     disabled?: boolean,
+    title?: string,
   ) => (
     <button
       key={label}
@@ -102,6 +105,7 @@ export default function IntervalSelectorPanel({
       className={`teacher-btn${active ? ' teacher-btn-primary' : ''}`}
       aria-pressed={active}
       disabled={busy || disabled}
+      title={title}
       onClick={click(onClick)}
     >
       {t(label)}
@@ -137,72 +141,79 @@ export default function IntervalSelectorPanel({
             state.exercise === 'identifyInterval',
             'Identify the interval',
             () => sel.setExercise('identifyInterval'),
+            // Audio-only exercise: unavailable while drill sound is muted.
+            silentMode,
+            silentMode ? t('Silent mode is on — this exercise needs sound.') : undefined,
           )}
           {segButton(
             state.exercise === 'findTargetNote',
             'Find the note',
             () => sel.setExercise('findTargetNote'),
           )}
+          {segButton(
+            state.exercise === 'findTargetPosition',
+            'Find on the neck',
+            () => sel.setExercise('findTargetPosition'),
+          )}
         </div>
+        {silentMode && (
+          <p className="interval-selector-hint">
+            {t('Silent mode is on — “Identify the interval” needs sound.')}
+          </p>
+        )}
       </div>
 
-      {/* ── Interval selection (§5.2) ───────────────────────────── */}
+      {/* ── Intervals (§5.2) — like the strings selector: pick one, or
+          Multi to pick several ─────────────────────────────────── */}
       <div className="interval-selector-group">
-        <span className="interval-selector-label">{t('Interval selection')}</span>
+        <span className="interval-selector-label">{t('Intervals')}</span>
         <div
           className="interval-form-toggle interval-selector-wrap"
           role="group"
-          aria-label={t('Interval selection')}
+          aria-label={t('Intervals')}
         >
-          {(Object.keys(SELECTION_LABELS) as IntervalSelection[]).map((s) =>
-            segButton(state.selection === s, SELECTION_LABELS[s], () => sel.setSelection(s)),
+          {INTERVALS.map((iv) =>
+            segButton(
+              state.selectedSizes.includes(iv.semitones),
+              iv.short,
+              () => sel.selectSize(iv.semitones),
+            ),
           )}
+          {/* "Multi" is an on/off mode switch, not a 12th interval — the dashed
+              outline (and dashed-accent when on) matches the strings selector's
+              `.string-pill-toggle` so it never reads as a selected chip. */}
+          <button
+            type="button"
+            className={`teacher-btn interval-multi-toggle${state.multiMode ? ' is-on' : ''}`}
+            aria-pressed={state.multiMode}
+            disabled={busy}
+            onClick={click(() => sel.toggleMulti())}
+          >
+            {t('Multi')}
+          </button>
         </div>
 
-        {state.selection === 'one' && (
-          <>
-            <IntervalChoiceRow
-              variant="interval"
-              options={INTERVALS.map((i) => ({ value: String(i.semitones), label: i.short }))}
-              correct={String(state.single)}
-              disabled={busy}
-              dir={lang === 'he' ? 'rtl' : undefined}
-              onSelect={(v) => sel.setSingle(Number(v))}
-            />
-            {(() => {
-              // "About this interval" — the §7 educational copy for the single
-              // quality in play, inline and collapsible (never a theory screen).
-              const def = intervalBySemitones(state.single);
-              const content = intervalContentBySemitones(state.single);
-              if (!def || !content) return null;
-              return (
-                <details className="interval-about">
-                  <summary onClick={() => { playClickSound(); haptic.tap(); }}>
-                    {t('About this interval')}
-                  </summary>
-                  <p className="interval-about-line">
-                    <strong>{t(def.nameKey)}</strong> · {state.single} {t('semitones')}
-                  </p>
-                  <p className="interval-about-line">{t(content.description)}</p>
-                  <p className="interval-about-line">{t(content.comparison)}</p>
-                  <p className="interval-about-line interval-about-role">{t(content.role)}</p>
-                </details>
-              );
-            })()}
-          </>
-        )}
-
-        {state.selection === 'group' && (
-          <div
-            className="interval-form-toggle interval-selector-wrap"
-            role="group"
-            aria-label={t('A group')}
-          >
-            {INTERVAL_CURRICULUM.filter((g) => g.id !== 'all').map((g) =>
-              segButton(state.groupId === g.id, g.name, () => sel.setGroup(g.id)),
-            )}
-          </div>
-        )}
+        {state.selectedSizes.length === 1 && (() => {
+          // "About this interval" — the §7 educational copy for the lone quality
+          // in play, inline and collapsible (never a theory screen).
+          const only = state.selectedSizes[0];
+          const def = intervalBySemitones(only);
+          const content = intervalContentBySemitones(only);
+          if (!def || !content) return null;
+          return (
+            <details className="interval-about">
+              <summary onClick={() => { playClickSound(); haptic.tap(); }}>
+                {t('About this interval')}
+              </summary>
+              <p className="interval-about-line">
+                <strong>{t(def.nameKey)}</strong> · {only} {t('semitones')}
+              </p>
+              <p className="interval-about-line">{t(content.description)}</p>
+              <p className="interval-about-line">{t(content.comparison)}</p>
+              <p className="interval-about-line interval-about-role">{t(content.role)}</p>
+            </details>
+          );
+        })()}
       </div>
 
       {/* ── Difficulty (§5.4 / §9.2) ────────────────────────────── */}
@@ -214,8 +225,8 @@ export default function IntervalSelectorPanel({
               state.difficulty === d,
               DIFFICULTY_LABELS[d],
               () => sel.setDifficulty(d),
-              // A single quality cannot be "mixed" / "full" — pinned to focused.
-              state.selection === 'one' && d !== 'focused',
+              // A lone quality cannot be "mixed" / "full" — pinned to focused.
+              state.selectedSizes.length <= 1 && d !== 'focused',
             ),
           )}
         </div>
@@ -235,7 +246,7 @@ export default function IntervalSelectorPanel({
         <button
           type="button"
           className="teacher-btn teacher-btn-primary"
-          disabled={busy}
+          disabled={busy || pool.length === 0}
           onClick={click(() => onStart(sel.buildDrill()))}
         >
           ▶ {t('Start interval practice')}

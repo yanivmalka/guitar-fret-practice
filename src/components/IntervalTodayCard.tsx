@@ -166,6 +166,15 @@ export default function IntervalTodayCard({
         >
           🔤 {t('Find the note')}
         </button>
+        <button
+          type="button"
+          className={`teacher-btn${exercise === 'findTargetPosition' ? ' teacher-btn-primary' : ''}`}
+          aria-pressed={exercise === 'findTargetPosition'}
+          disabled={busy}
+          onClick={() => pickExercise('findTargetPosition')}
+        >
+          🎸 {t('Find on the neck')}
+        </button>
       </div>
 
       <div className="teacher-actions">

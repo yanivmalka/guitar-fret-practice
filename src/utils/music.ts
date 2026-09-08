@@ -80,7 +80,7 @@ export interface HistoryEntry {
   // Which interval exercise / direction produced the row (intervals-learning
   // spec §8.3 / §10.3). Carried for Stats and possible future per-form /
   // per-direction tracking — neither changes which SRS item is reviewed.
-  intervalForm?: 'identify' | 'findNote';
+  intervalForm?: 'identify' | 'findNote' | 'findPosition';
   intervalDir?: 'up' | 'down';
 }
 

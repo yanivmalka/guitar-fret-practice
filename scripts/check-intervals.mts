@@ -188,8 +188,11 @@ for (const [label, inst] of [['guitar', guitar], ['bass', bass]] as const) {
   };
   const identify = buildIntervalDrill({ ...base, exercise: 'identifyInterval' });
   const findNote = buildIntervalDrill({ ...base, exercise: 'findTargetNote' });
-  check('both interval exercises answer through the by-fret (chip-row) flow',
+  const findPos = buildIntervalDrill({ ...base, exercise: 'findTargetPosition' });
+  check('the two chip-row interval exercises answer through the by-fret flow',
     identify.mode === 'byFret' && findNote.mode === 'byFret');
+  check('*find on the neck* answers through the by-note (FretGrid) flow',
+    findPos.mode === 'byNote' && findPos.interval!.exercise === 'findTargetPosition');
   check('the interval spec carries the exercise and defaults direction to "both"',
     identify.interval!.exercise === 'identifyInterval' &&
     findNote.interval!.exercise === 'findTargetNote' &&

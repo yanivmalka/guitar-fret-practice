@@ -1,5 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import type { ReactNode } from 'react';
+import menuIconLearn from './assets/menu-icons/learn.png';
 import menuIconPlaying from './assets/menu-icons/playing.png';
 import menuIconSettings from './assets/menu-icons/settings.png';
 import menuIconStats from './assets/menu-icons/stats.png';
@@ -930,8 +931,14 @@ export default function App() {
       }
       if (s.showStats) { setShowStats(false); return true; }
       if (s.showPath) { setShowPath(false); return true; }
-      // Learning-type tabs step back to 'notes' (the Selector / home screen).
-      if (s.activeDomain !== 'notes') { setActiveDomain('notes'); return true; }
+      // Learning-type tabs step back to the "Learn" drawer hub they were
+      // launched from, not all the way out to the Selector / home screen.
+      if (s.activeDomain !== 'notes') {
+        setActiveDomain('notes');
+        setSettingsOpen(true);
+        setDrawerSection('learn');
+        return true;
+      }
       if (s.gameOpen) { gameBackRef.current?.(); return true; }
       if (s.running || s.paused) { s.stop(); return true; }
       return false;
@@ -1433,7 +1440,15 @@ export default function App() {
       isPlaying={panelPlaying}
       notationOnly={notationOnly}
       activeString={gameActive ? safeGuitarString : undefined}
-      activeFret={gameActive && !intervalPrompt ? askedFret : undefined}
+      activeFret={
+        gameActive
+          ? intervalPrompt
+            ? intervalPrompt.exercise === 'findTargetPosition'
+              ? intervalPrompt.refFret
+              : undefined
+            : askedFret
+          : undefined
+      }
       byString={byString}
       order={order}
       onByStringToggle={() => { if (byString) playToggleOffSound(); else playToggleOnSound(); haptic.tap(); const next = !byString; setByString(next); saveSetting('pref_byString', next); }}
@@ -1453,13 +1468,15 @@ export default function App() {
   const settingsSections: Array<{ id: string; title: string; icon?: string; blurb: string; body: ReactNode; onSelect?: () => void }> = [
     {
       id: 'learn',
-      title: `🎓 ${t('Learn')}`,
+      title: t('Learn'),
+      icon: menuIconLearn,
       blurb: t('Choose what to practise.'),
       body: (
         <LearnHub
           activeDomain={activeDomain}
           canDaily={can('premiumTeacher', auth.tier)}
           canIntervals={can('intervalDrill', auth.tier)}
+          showGame={import.meta.env.DEV || auth.admin}
           onPick={(d) => {
             setActiveDomain(d);
             setShowStats(false);
@@ -1470,6 +1487,13 @@ export default function App() {
           onLocked={() => {
             upgradeFromAccountRef.current = false;
             setDrawerSection('upgrade');
+          }}
+          onOpenGame={() => {
+            setShowStats(false);
+            setShowPath(false);
+            setSettingsOpen(false);
+            setDrawerSection(null);
+            setGameOpen(true);
           }}
         />
       ),
@@ -2056,11 +2080,17 @@ export default function App() {
   }
 
   // Learning-type tabs (drawer "Learn" group). Full pages like Stats / the
-  // Learning Path: a back button returns to 'notes' — the Selector and the
-  // home screen. They bail while a round is running, during the count-in, or
+  // Learning Path. Their Back button drops the domain and re-opens the "Learn"
+  // drawer hub the user launched from, rather than falling out to the Selector
+  // / home screen. They bail while a round is running, during the count-in, or
   // while the end-of-round summary is up, so the game and its summary render
   // from the main return as usual; the user then lands back on the tab they
   // launched from. A tier drop falls straight through to the home screen.
+  const backToLearnHub = () => {
+    setActiveDomain('notes');
+    setSettingsOpen(true);
+    setDrawerSection('learn');
+  };
   if (activeDomain === 'daily' && can('premiumTeacher', auth.tier)
       && onboardingDone && !gameActive && !gameEnded && countdown === null) {
     return (
@@ -2072,12 +2102,23 @@ export default function App() {
         accidental={accidental}
         notation={notation}
         instrument={instrument}
+        canIntervals={can('intervalDrill', auth.tier)}
+        intervalTodayPlan={learning.intervalTodayPlan}
+        intervalWeakSpotsPlan={learning.intervalWeakSpotsPlan}
+        intervalDailyGoal={learning.intervalDailyGoal}
+        intervalGoalComplete={learning.intervalGoalComplete}
         busy={gameActive || countdown !== null}
         onStart={(plan) => setTeacherPlan(plan)}
+        onStartIntervalPlan={(exercise, kind) => {
+          const plan = kind === 'weak'
+            ? learning.buildIntervalWeakSpotsPlan(exercise)
+            : learning.buildIntervalTodayPlan(exercise);
+          if (plan) setIntervalPlan(plan.drill);
+        }}
         onOpenPath={can('learningPath', auth.tier)
           ? () => { setShowStats(false); setSettingsOpen(false); setShowPath(true); }
           : undefined}
-        onClose={() => setActiveDomain('notes')}
+        onClose={backToLearnHub}
       />
     );
   }
@@ -2090,19 +2131,10 @@ export default function App() {
         accidental={accidental}
         order={order}
         trackedCount={learning.intervalTrackedCount}
-        todayPlan={learning.intervalTodayPlan}
-        weakSpotsPlan={learning.intervalWeakSpotsPlan}
-        intervalDailyGoal={learning.intervalDailyGoal}
-        intervalGoalComplete={learning.intervalGoalComplete}
         busy={gameActive || countdown !== null}
+        silentMode={silentMode}
         onStart={(config: DrillConfig) => setIntervalPlan(config)}
-        onStartPlan={(exercise, kind) => {
-          const plan = kind === 'weak'
-            ? learning.buildIntervalWeakSpotsPlan(exercise)
-            : learning.buildIntervalTodayPlan(exercise);
-          if (plan) setIntervalPlan(plan.drill);
-        }}
-        onClose={() => setActiveDomain('notes')}
+        onClose={backToLearnHub}
       />
     );
   }
@@ -2213,16 +2245,8 @@ export default function App() {
 
       <h1>{instrument.emoji} {t(instrument.label)} {t('Fret Practice')}</h1>
 
-      {/* F.1 Game wiring spike — dev/admin-only entry point. */}
-      {(import.meta.env.DEV || auth.admin) && !gameActive && countdown === null && (
-        <button
-          className="clear-btn"
-          style={{ margin: '8px auto', display: 'block' }}
-          onClick={() => setGameOpen(true)}
-        >
-          🎮 Game (spike)
-        </button>
-      )}
+      {/* The Game layer's only entry point is the "Game" tile on the drawer's
+          "Learn" page (<LearnHub>, dev/admin only) — no home-screen button. */}
 
       {/* The Premium Teacher's Today card and the interval-drill entry now
           live on their own learning-type tabs (drawer "Learn" group →
@@ -2560,7 +2584,25 @@ export default function App() {
 
         {/* Keep the grid/circle visible (frozen) while paused; hide only when fully stopped and showing stats/end summary */}
         {(gameActive || (isStopped && !gameEnded)) && (
-          intervalPrompt ? (
+          intervalPrompt && intervalPrompt.exercise === 'findTargetPosition' ? (
+            // *Find on the neck*: the reference note is marked on the string and
+            // the learner taps the note that completes the interval (any
+            // octave-equivalent counts). The engine drives it through the
+            // by-note flow — `remainingFrets` holds every accepted position.
+            <FretGrid
+              fretFrom={eff.fretFrom}
+              fretTo={eff.fretTo}
+              guitarString={safeGuitarString}
+              validFrets={new Set(Array.from({ length: eff.fretTo - eff.fretFrom + 1 }, (_, i) => eff.fretFrom + i))}
+              active={isPlaying && !answered}
+              correctFrets={gameActive ? remainingFrets : []}
+              wrongFret={gameActive ? wrongFret : null}
+              foundFrets={gameActive ? foundFrets : []}
+              onSelect={selectFret}
+              showMastery={false}
+              referenceFret={intervalPrompt.refFret}
+            />
+          ) : intervalPrompt ? (
             <IntervalChoiceRow
               variant={intervalPrompt.exercise === 'identifyInterval' ? 'interval' : 'note'}
               options={

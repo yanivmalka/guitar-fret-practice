@@ -74,7 +74,7 @@ export interface IntervalHistoryRow {
    *  item — an ascending and a descending M3 both review `interval:4`. */
   dir: 'up' | 'down';
   /** Which exercise produced the answer. */
-  form: 'identify' | 'findNote';
+  form: 'identify' | 'findNote' | 'findPosition';
   /** A timeout folds in here as `false`, matching the SRS treatment. */
   correct: boolean;
   /** Seconds taken; `0` when unknown. */
@@ -201,7 +201,10 @@ export function normalizeIntervalHistory(raw: unknown): IntervalHistoryRow[] {
         ? Math.round(r.createdAt)
         : NaN;
     if (!Number.isFinite(createdAt)) continue;
-    const form = r.form === 'identify' || r.form === 'findNote' ? r.form : null;
+    const form =
+      r.form === 'identify' || r.form === 'findNote' || r.form === 'findPosition'
+        ? r.form
+        : null;
     if (form == null) continue;
     const dir = r.dir === 'down' ? 'down' : 'up';
     const seconds =
@@ -426,7 +429,7 @@ export interface RecordedIntervalAnswer {
   /** Interval size in semitones, 1..11. */
   semitones: number;
   dir: 'up' | 'down';
-  form: 'identify' | 'findNote';
+  form: 'identify' | 'findNote' | 'findPosition';
   correct: boolean;
   /** Seconds taken; `0` when unknown. */
   seconds: number;

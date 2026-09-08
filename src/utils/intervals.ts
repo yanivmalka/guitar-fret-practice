@@ -57,16 +57,20 @@ export function intervalBySemitones(semitones: number): IntervalDef | undefined 
  *  guided planner always runs `mixed` (§13.1 / §13.5). */
 export type IntervalDifficulty = 'focused' | 'mixed' | 'full';
 
-/** Which of the two MVP exercises an interval question runs
- *  (intervals-learning-spec §8.1 / §5.1). Both answer by picking from a chip
- *  row — never on the neck. */
+/** Which interval exercise a question runs (intervals-learning-spec §8.1 /
+ *  §5.1, plus the §8.5 "find on the neck" extension). The first two answer by
+ *  picking from a chip row; `findTargetPosition` answers on the neck. */
 export type IntervalExercise =
   /** "Which interval did you hear?" — the app plays two notes in sequence;
    *  the learner picks the interval quality from a chip row. */
   | 'identifyInterval'
   /** "M3 above G" — the app shows a first note + interval + direction; the
    *  learner picks the target note from a chip row. */
-  | 'findTargetNote';
+  | 'findTargetNote'
+  /** "M3 above the marked note" — the app names the string and interval and
+   *  marks one note on the neck; the learner taps the note that completes the
+   *  interval on that string (any octave-equivalent position is accepted). */
+  | 'findTargetPosition';
 
 /** The optional interval question spec a `DrillConfig` / `GameSettings` may
  *  carry. Absent ⇒ the engine behaves exactly as it did before intervals. */

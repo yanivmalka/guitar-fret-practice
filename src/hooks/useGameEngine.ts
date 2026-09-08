@@ -7,6 +7,7 @@ import type { DrillPosition } from '../drill/candidates';
 import {
   noteNameAtSemitones, intervalBySemitones,
   buildIntervalOptionSemitones, buildTargetNoteOptions,
+  targetPositionsForInterval,
   type IntervalDrillSpec, type IntervalExercise,
 } from '../utils/intervals';
 import { intervalItemId } from '../learning/intervalItem';
@@ -157,6 +158,11 @@ export function useGameEngine(
   // history rows without re-creating on every prompt change.
   const [intervalPrompt, setIntervalPrompt] = useState<IntervalPromptState | null>(null);
   const intervalPromptRef = useRef<IntervalPromptState | null>(null);
+  // True while a *find on the neck* interval question is on screen: the answer
+  // is a fret tap on `FretGrid` (like by-note), every octave-equivalent of the
+  // target note on the reference string is accepted, and the first correct tap
+  // ends the question (no "where else?" sub-round).
+  const intervalPositionRef = useRef(false);
   // Single source of truth for the SpeedBar. `questionTime` is the exact limit
   // the current countdown runs on (matches questionTimeRef); `questionStart` is
   // the wall-clock the countdown started at (matches questionStartRef);
@@ -360,6 +366,23 @@ export function useGameEngine(
       const targetFret = refFret + delta;
       const targetNote = noteNameAtSemitones(row[refFret], delta);
       const optionCount = Math.max(2, spec.optionCount ?? 4);
+
+      // *find on the neck*: the answer is a fret tap, and every octave-equivalent
+      // of the target note on the reference string counts (like the by-note
+      // flow). Fall back to the single exact fret if the window somehow holds
+      // none (degenerate range).
+      const positionFrets =
+        spec.exercise === 'findTargetPosition'
+          ? (() => {
+              const ps = targetPositionsForInterval(
+                { string: qString, fret: refFret },
+                delta,
+                notes,
+                { strings: [qString], fretFrom, fretTo },
+              ).map((p) => p.fret);
+              return ps.length > 0 ? ps : [targetFret];
+            })()
+          : [targetFret];
       // §9.2 option-set shaping: focused avoids near confusers, full forces the
       // nearest neighbours in, mixed only completes the current group's
       // in-pool confuser pairs.
@@ -371,7 +394,7 @@ export function useGameEngine(
       return {
         askedFret: targetFret,
         targetNote,
-        targetFrets: [targetFret],
+        targetFrets: positionFrets,
         prompt: {
           exercise: spec.exercise,
           dir,
@@ -424,7 +447,12 @@ export function useGameEngine(
       ? {
           ...entry,
           intervalItemId: intervalItemId(p.semitones),
-          intervalForm: p.exercise === 'identifyInterval' ? 'identify' : 'findNote',
+          intervalForm:
+            p.exercise === 'identifyInterval'
+              ? 'identify'
+              : p.exercise === 'findTargetPosition'
+                ? 'findPosition'
+                : 'findNote',
           intervalDir: p.dir,
         }
       : entry;
@@ -465,8 +493,48 @@ export function useGameEngine(
     const validFrets = candFrets && candFrets.length > 0
       ? candFrets
       : getValidFrets(qString - 1, fretFrom, fretTo, wholeToneOnly, dotsOnly);
-    // By-note is a note-only surface — interval questions always run through
-    // the by-fret flow (chip-row answer), never here.
+
+    // *Find on the neck* interval question (§8.5): the only interval exercise
+    // that answers on the neck. Mark one note on this string, name the interval
+    // + direction, and accept a tap on any octave-equivalent of the target note.
+    const iq =
+      interval && interval.exercise === 'findTargetPosition'
+        ? buildIntervalQuestion(qString, validFrets)
+        : null;
+    if (iq) {
+      intervalPositionRef.current = true;
+      setIntervalPromptBoth(iq.prompt);
+      const targetNote = iq.targetNote;
+      lastNoteRef.current = targetNote;
+      askedFretRef.current = iq.prompt.targetFret;
+      currentNoteRef.current = targetNote;
+      remainingFretsRef.current = [...iq.targetFrets];
+      setRemainingFrets([...iq.targetFrets]);
+      setCurrentNote(targetNote);
+      setCurrentFret(null);
+      setAskedFret(iq.prompt.refFret);
+      questionStartRef.current = Date.now();
+      questionTimeRef.current = getQuestionTime(baseTimeRef.current);
+      playIntervalStimulus();
+      beginCountdown(questionTimeRef.current, () => {
+        if (answeredRef.current || sessionRef.current !== mySession) return;
+        answeredRef.current = true;
+        setAnswered(true);
+        beep();
+        onTimeout();
+        const elapsed = (Date.now() - questionStartRef.current) / 1000;
+        addEntry(tagInterval({ note: targetNote, fret: remainingFretsRef.current[0], string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null }));
+        setFeedback(`⏱ ${displayNote(targetNote, accidental)}`);
+        playNoteSingle(qString, remainingFretsRef.current[0], questionPlaybackRate());
+        advanceAfterSound(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
+      });
+      return;
+    }
+    intervalPositionRef.current = false;
+    setIntervalPromptBoth(null);
+
+    // By-note is a note-only surface — the two chip-row interval exercises
+    // always run through the by-fret flow, never here.
     const fret = pickSmartFret(validFrets, qString - 1);
     const note = notes[qString - 1][fret];
     lastNoteRef.current = note;
@@ -497,7 +565,7 @@ export function useGameEngine(
       playNoteSingle(qString, askedFretRef.current, questionPlaybackRate());
       advanceAfterSound(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
     });
-  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, wholeToneOnly, dotsOnly, candidateFretsByString, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, advanceAfterSound, onComplete, getQuestionTime, tagInterval]);
+  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, wholeToneOnly, dotsOnly, candidateFretsByString, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, advanceAfterSound, onComplete, getQuestionTime, tagInterval, interval, buildIntervalQuestion, setIntervalPromptBoth, playIntervalStimulus, accidental]);
 
   // ── SELECT FRET (by note mode) ────────────────────────────────
   const selectFret = useCallback((selectedFret: number) => {
@@ -512,7 +580,10 @@ export function useGameEngine(
     if (isCorrect) {
       const elapsed = (Date.now() - questionStartRef.current) / 1000;
       const scoreResult = scoreCorrect(elapsed);
-      const newRem = rem.filter(f => f !== selectedFret);
+      // *Find on the neck*: one correct tap completes the question — every
+      // octave-equivalent of the target note was an accepted answer, not a
+      // separate thing to find, so there is no "where else?" sub-round.
+      const newRem = intervalPositionRef.current ? [] : rem.filter(f => f !== selectedFret);
       remainingFretsRef.current = newRem;
       setRemainingFrets(newRem);
       setFoundFrets(prev => [...prev, selectedFret]);
@@ -522,7 +593,7 @@ export function useGameEngine(
         clearTimers();
         answeredRef.current = true;
         setAnswered(true);
-        setFeedback('✓ All found!');
+        setFeedback(intervalPositionRef.current ? '✓ Correct!' : '✓ All found!');
         // Visual celebration (floating text, rings/banner) plays independently
         // on its own overlay, but the success chime must finish before the next
         // question note so they don't overlap.
@@ -569,10 +640,14 @@ export function useGameEngine(
       setWrongFret(selectedFret);
       const elapsed = (Date.now() - questionStartRef.current) / 1000;
       addEntry(tagInterval({ note, fret: selectedFret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: false, correct: false }));
-      setFeedback(`✗ Correct: ${rem.join(', ')}`);
+      setFeedback(
+        intervalPositionRef.current
+          ? `✗ ${displayNote(note, accidental)}`
+          : `✗ Correct: ${rem.join(', ')}`,
+      );
       advanceAfterSound(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
     }
-  }, [paused, addEntry, nextByNote, onTimeout, onWrong, scoreCorrect, scheduleAdvance, advanceAfterSound, showScore, tagInterval]);
+  }, [paused, addEntry, nextByNote, onTimeout, onWrong, scoreCorrect, scheduleAdvance, advanceAfterSound, showScore, tagInterval, accidental]);
 
   // ── BY FRET MODE ──────────────────────────────────────────────
   const next = useCallback(() => {

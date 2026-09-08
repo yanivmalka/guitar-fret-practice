@@ -256,6 +256,27 @@
   min-width: 72px;
 }
 
+/* "Multi" — an on/off mode switch, not one of the interval selections. Same
+   visual language as the strings selector's `.string-pill-toggle`: a dashed
+   outline reads as "tappable state", and it stays dashed (accent-tinted) while
+   on so it never looks like a selected interval chip. */
+.interval-selector .interval-multi-toggle {
+  border-style: dashed;
+}
+.interval-selector .interval-multi-toggle.is-on {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: transparent;
+}
+
+/* One-line note under the Exercise group when Silent mode disables an
+   audio-only exercise. */
+.interval-selector-hint {
+  margin: 4px 0 0;
+  font-size: 0.72rem;
+  color: var(--text-2);
+}
+
 /* ── Interval answer / picker chip row (Exercise A + the "one interval"
    picker) — T11 moves the layout off the inline style it shipped with. */
 .interval-choice-row {

@@ -3,10 +3,13 @@
 // Rendered in the question area in place of the plain note-name / fret-number
 // display whenever `useGameEngine` has an interval question on screen.
 //
-//   identifyInterval → "Which interval did you hear?" + a "🔊 hear it again"
-//                      control (the two notes are not named until feedback)
-//   findTargetNote   → "Major 3rd above G" / "Major 3rd below G", with the same
-//                      "🔊 hear it again" control (replays the first note)
+//   identifyInterval    → "Which interval did you hear?" + a "🔊 hear it again"
+//                         control (the two notes are not named until feedback)
+//   findTargetNote      → "Major 3rd above G" / "Major 3rd below G", with the
+//                         same "🔊 hear it again" control (replays the first note)
+//   findTargetPosition  → "Major 3rd above the marked note" — the reference note
+//                         is marked on the neck, not named; tap the note that
+//                         completes the interval. Same "🔊 hear it again".
 //
 // All copy through `t()`; the phrase order is handled by the layout direction.
 
@@ -48,6 +51,25 @@ export default function IntervalPrompt({ prompt, accidental, notation, onReplay 
             className="interval-replay-btn"
             onClick={replay}
           >
+            🔊 {t('Hear it again')}
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  if (prompt.exercise === 'findTargetPosition') {
+    // The reference note is marked on the neck (see <FretGrid referenceFret>),
+    // so it is not named here — just the interval and which way to count. The
+    // string name is already shown above this prompt (App.tsx `.string-label`).
+    return (
+      <div className="interval-prompt" dir={rtl ? 'rtl' : undefined}>
+        <span className="interval-prompt-name">{name}</span>
+        <span className="interval-prompt-rel">
+          {prompt.dir === 'down' ? t('below the marked note') : t('above the marked note')}
+        </span>
+        {replay && (
+          <button type="button" className="interval-replay-btn" onClick={replay}>
             🔊 {t('Hear it again')}
           </button>
         )}

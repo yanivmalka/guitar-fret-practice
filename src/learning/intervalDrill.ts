@@ -173,9 +173,9 @@ export function buildIntervalDrill(opts: IntervalDrillOptions): DrillConfig {
     strings,
     primaryString: strings[0],
     isMulti: strings.length > 1,
-    // Both interval exercises answer on a chip row through the by-fret flow —
-    // there is no neck answer surface in the MVP.
-    mode: 'byFret',
+    // The two chip-row exercises answer through the by-fret flow; *find on the
+    // neck* answers with a fret tap on `FretGrid`, i.e. the by-note flow.
+    mode: exercise === 'findTargetPosition' ? 'byNote' : 'byFret',
     fretFrom: 0,
     fretTo,
     wholeToneOnly: false,

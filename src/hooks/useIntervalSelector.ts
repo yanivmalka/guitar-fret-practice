@@ -6,6 +6,11 @@
 // plain `DrillConfig` with an `interval` spec — so a manual interval session
 // runs through the EXISTING `useDrillSession` / engine (no new runner).
 //
+// Interval selection mirrors the Practice **strings selector**: a row of the
+// 11 interval chips plus a "Multi" toggle. Multi off ⇒ exactly one quality;
+// Multi on ⇒ any subset. There is no bespoke "one / group / all" scheme and no
+// group shortcut — the curriculum groups stay an internal Teacher concept.
+//
 // It touches nothing in the Notes selector and nothing in the engine; every
 // interval-only concept lives behind `DrillConfig.interval`.
 //
@@ -33,30 +38,28 @@ export type { IntervalDifficulty };
 
 // ── Types ────────────────────────────────────────────────────────────────
 
-/** How the learner picks the practice material (§5.2). */
-export type IntervalSelection = 'one' | 'group' | 'allLearned' | 'all11';
-
 /** Ascending, descending, or a per-question mix (§5.3). */
 export type IntervalDirection = 'up' | 'down' | 'both';
 
 export interface IntervalSelectorState {
   exercise: IntervalExercise;
-  selection: IntervalSelection;
-  /** The curriculum group id in play while `selection === 'group'`. */
-  groupId: string;
-  /** The single interval size (semitones) in play while `selection === 'one'`. */
-  single: number;
-  /** The effective tier — clamped to `'focused'` while `selection === 'one'`
-   *  (a single quality cannot be "mixed" — §5.4). */
+  /** Multi off ⇒ tapping a chip replaces the selection; on ⇒ it toggles. */
+  multiMode: boolean;
+  /** The interval sizes (semitones, 1..11) currently picked, ascending. */
+  selectedSizes: number[];
+  /** The effective tier — clamped to `'focused'` while a single quality is
+   *  selected (a lone quality cannot be "mixed" / "full" — §5.4). */
   difficulty: IntervalDifficulty;
   direction: IntervalDirection;
 }
 
 const DEFAULT_SINGLE = 4; // M3 — the "one semitone changes the colour" pair.
-const DEFAULT_GROUP = INTERVAL_CURRICULUM[0].id; // 'perfect'
 
-const EXERCISES: readonly IntervalExercise[] = ['identifyInterval', 'findTargetNote'];
-const SELECTIONS: readonly IntervalSelection[] = ['one', 'group', 'allLearned', 'all11'];
+const EXERCISES: readonly IntervalExercise[] = [
+  'identifyInterval',
+  'findTargetNote',
+  'findTargetPosition',
+];
 const DIFFICULTIES: readonly IntervalDifficulty[] = ['focused', 'mixed', 'full'];
 const DIRECTIONS: readonly IntervalDirection[] = ['up', 'down', 'both'];
 
@@ -68,14 +71,27 @@ function loadOneOf<T extends string>(key: string, allowed: readonly T[], fallbac
   return (allowed as readonly string[]).includes(raw) ? (raw as T) : fallback;
 }
 
-function loadSingle(): number {
-  const raw = loadSetting<number>('isel_single', DEFAULT_SINGLE);
-  return Number.isInteger(raw) && raw >= 1 && raw <= 11 ? raw : DEFAULT_SINGLE;
+/** The first-run selection: everything the Teacher has introduced so far, or —
+ *  before the Teacher has advanced past its first group — all 11 (no artificial
+ *  lock, OD-2). */
+function defaultSizes(masteredSizes: number[]): number[] {
+  const idx = currentGroupIndex(new Set(masteredSizes));
+  if (idx === 0) return [...ALL_INTERVAL_SEMITONES];
+  return sizesThroughGroup(idx).slice().sort((a, b) => a - b);
 }
 
-function loadGroup(): string {
-  const raw = loadSetting<string>('isel_group', DEFAULT_GROUP);
-  return INTERVAL_CURRICULUM.some((g) => g.id === raw) ? raw : DEFAULT_GROUP;
+function cleanSizes(raw: unknown): number[] {
+  if (!Array.isArray(raw)) return [];
+  const set = new Set<number>();
+  for (const s of raw) {
+    if (Number.isInteger(s) && s >= 1 && s <= 11) set.add(s as number);
+  }
+  return [...set].sort((a, b) => a - b);
+}
+
+function loadSelectedSizes(masteredSizes: number[]): number[] {
+  const stored = cleanSizes(loadSetting<number[]>('isel_sizes', []));
+  return stored.length > 0 ? stored : defaultSizes(masteredSizes);
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────────
@@ -83,23 +99,33 @@ function loadGroup(): string {
 export interface UseIntervalSelectorOptions {
   instrument: InstrumentConfig;
   /** Semitone sizes currently mastered (from `buildIntervalBoard` / the
-   *  `intervalSrs` map). Only used to resolve "All learned" (§5.2, OD-2). */
+   *  `intervalSrs` map). Only used to seed the first-run selection (§5.2). */
   masteredSizes: number[];
   accidental: AccidentalMode;
   order: OrderMode;
+  /** Silent mode is on — drill-content audio is muted. "Identify the interval"
+   *  is audio-only, so while this is true the effective exercise falls back to
+   *  "find the target note". The learner's stored pick is untouched and comes
+   *  back when sound returns. */
+  audioMuted?: boolean;
 }
 
 export function useIntervalSelector(opts: UseIntervalSelectorOptions) {
-  const { instrument, masteredSizes, accidental, order } = opts;
+  const { instrument, masteredSizes, accidental, order, audioMuted } = opts;
 
-  const [exercise, setExerciseState] = useState<IntervalExercise>(
+  const [exerciseStored, setExerciseState] = useState<IntervalExercise>(
     () => loadOneOf('isel_exercise', EXERCISES, 'findTargetNote'),
   );
-  const [selection, setSelectionState] = useState<IntervalSelection>(
-    () => loadOneOf('isel_selection', SELECTIONS, 'allLearned'),
+  // Same shape as the `difficulty` clamp below: the stored pick is preserved,
+  // only the *effective* value is coerced while audio is unavailable.
+  const exercise: IntervalExercise =
+    audioMuted && exerciseStored === 'identifyInterval' ? 'findTargetNote' : exerciseStored;
+  const [multiMode, setMultiModeState] = useState<boolean>(
+    () => loadSetting<boolean>('isel_multi', true),
   );
-  const [groupId, setGroupState] = useState<string>(() => loadGroup());
-  const [single, setSingleState] = useState<number>(() => loadSingle());
+  const [selectedSizes, setSelectedSizesState] = useState<number[]>(
+    () => loadSelectedSizes(masteredSizes),
+  );
   const [difficultyStored, setDifficultyState] = useState<IntervalDifficulty>(
     () => loadOneOf('isel_difficulty', DIFFICULTIES, 'mixed'),
   );
@@ -107,32 +133,54 @@ export function useIntervalSelector(opts: UseIntervalSelectorOptions) {
     () => loadOneOf('isel_direction', DIRECTIONS, 'both'),
   );
 
-  // §5.4: a single quality cannot be "mixed" or "full" — the tier is pinned to
-  // `focused` while "One interval" is selected. The stored value is kept so
-  // switching back to a broader pool restores the learner's pick.
-  const difficulty: IntervalDifficulty = selection === 'one' ? 'focused' : difficultyStored;
+  // §5.4: a lone quality cannot be "mixed" or "full" — the tier is pinned to
+  // `focused` while exactly one chip is selected. The stored value is kept so
+  // widening the selection restores the learner's pick.
+  const singleQuality = selectedSizes.length <= 1;
+  const difficulty: IntervalDifficulty = singleQuality ? 'focused' : difficultyStored;
 
   const setExercise = (e: IntervalExercise) => {
     setExerciseState(e);
     saveSetting('isel_exercise', e);
   };
-  const setSelection = (s: IntervalSelection) => {
-    setSelectionState(s);
-    saveSetting('isel_selection', s);
+
+  const commitSizes = (next: number[]) => {
+    setSelectedSizesState(next);
+    saveSetting('isel_sizes', next);
   };
-  const setGroup = (id: string) => {
-    if (!INTERVAL_CURRICULUM.some((g) => g.id === id)) return;
-    setGroupState(id);
-    saveSetting('isel_group', id);
-  };
-  const setSingle = (semitones: number) => {
+
+  /** Tap a chip: replace the selection in single mode, toggle it in Multi. */
+  const selectSize = (semitones: number) => {
     if (!Number.isInteger(semitones) || semitones < 1 || semitones > 11) return;
-    setSingleState(semitones);
-    saveSetting('isel_single', semitones);
+    if (!multiMode) {
+      commitSizes([semitones]);
+      return;
+    }
+    // At least one quality is always in play — like the strings selector, you
+    // cannot deselect your last pick (it would leave Start dead with nothing to
+    // practise). Tapping the lone selected chip is a no-op.
+    if (selectedSizes.length === 1 && selectedSizes.includes(semitones)) return;
+    commitSizes(
+      selectedSizes.includes(semitones)
+        ? selectedSizes.filter((s) => s !== semitones)
+        : [...selectedSizes, semitones].sort((a, b) => a - b),
+    );
   };
+
+  /** Flip the Multi toggle. Leaving Multi collapses the selection to its first
+   *  chip (or M3 if it was empty), mirroring the strings selector. */
+  const toggleMulti = () => {
+    const nowMulti = !multiMode;
+    setMultiModeState(nowMulti);
+    saveSetting('isel_multi', nowMulti);
+    if (!nowMulti && selectedSizes.length !== 1) {
+      commitSizes([selectedSizes[0] ?? DEFAULT_SINGLE]);
+    }
+  };
+
   const setDifficulty = (d: IntervalDifficulty) => {
     // Ignored while clamped to focused — the panel disables the other tiles too.
-    if (selection === 'one') return;
+    if (singleQuality) return;
     setDifficultyState(d);
     saveSetting('isel_difficulty', d);
   };
@@ -142,62 +190,40 @@ export function useIntervalSelector(opts: UseIntervalSelectorOptions) {
   };
 
   // ── Resolved interval-quality pool ────────────────────────────────────
-  const pool = useMemo<number[]>(() => {
-    switch (selection) {
-      case 'one':
-        return [single];
-      case 'group': {
-        const g = INTERVAL_CURRICULUM.find((x) => x.id === groupId) ?? INTERVAL_CURRICULUM[0];
-        // The group's qualities plus its designated confusers (§5.2), so
-        // "tell them apart" is always in the pool.
-        const set = new Set<number>([...g.introduces, ...g.review]);
-        for (const [a, b] of g.confusers) {
-          set.add(a);
-          set.add(b);
-        }
-        return [...set].filter((s) => s >= 1 && s <= 11).sort((a, b) => a - b);
-      }
-      case 'allLearned': {
-        const idx = currentGroupIndex(new Set(masteredSizes));
-        // OD-2: a learner who has never moved past group 1 gets all 11 — no
-        // artificial lock. Once the Teacher has advanced, it is the
-        // introduced-so-far set.
-        if (idx === 0) return [...ALL_INTERVAL_SEMITONES];
-        return sizesThroughGroup(idx).slice().sort((a, b) => a - b);
-      }
-      case 'all11':
-      default:
-        return [...ALL_INTERVAL_SEMITONES];
-    }
-  }, [selection, single, groupId, masteredSizes]);
+  const pool = useMemo<number[]>(
+    () => selectedSizes.filter((s) => s >= 1 && s <= 11).slice().sort((a, b) => a - b),
+    [selectedSizes],
+  );
 
   const state: IntervalSelectorState = {
     exercise,
-    selection,
-    groupId,
-    single,
+    multiMode,
+    selectedSizes,
     difficulty,
     direction,
   };
 
   /** The manual-session `DrillConfig`. Every Selector control feeds this: the
-   *  exercise + direction ride the `interval` spec, the pool is the resolved
+   *  exercise + direction ride the `interval` spec, the pool is the picked
    *  quality set, and the difficulty tier drives the full §9 question envelope
    *  (count / timer / option count + first-note / register / confuser rules)
    *  through the shared `intervalDifficulty` function. */
   const buildDrill = (): DrillConfig => {
+    // Defensive: the panel disables Start on an empty pool, but never emit an
+    // interval spec with no qualities.
+    const effectivePool = pool.length > 0 ? pool : [...ALL_INTERVAL_SEMITONES];
     const group =
       INTERVAL_CURRICULUM[currentGroupIndex(new Set(masteredSizes))] ?? null;
-    const env = intervalDifficulty(difficulty, pool, group, masteredSizes);
+    const env = intervalDifficulty(difficulty, effectivePool, group, masteredSizes);
     const strings = Array.from({ length: instrument.stringCount }, (_, i) => i + 1);
     const fretTo = Math.max(3, Math.min(12, instrument.maxFret));
     return {
       strings,
       primaryString: strings[0],
       isMulti: strings.length > 1,
-      // Both interval exercises answer on a chip row through the by-fret flow —
-      // there is no neck answer surface in the MVP.
-      mode: 'byFret',
+      // The two chip-row exercises answer through the by-fret flow; *find on the
+      // neck* answers with a fret tap on `FretGrid`, i.e. the by-note flow.
+      mode: exercise === 'findTargetPosition' ? 'byNote' : 'byFret',
       fretFrom: 0,
       fretTo,
       wholeToneOnly: false,
@@ -207,7 +233,7 @@ export function useIntervalSelector(opts: UseIntervalSelectorOptions) {
       accidental,
       order,
       interval: {
-        semitones: pool,
+        semitones: effectivePool,
         // The learner's explicit Direction control always wins over the tier's
         // direction default (§5.3 / §9.2) — so `state.direction`, not
         // `env.direction`, rides the spec here.
@@ -226,9 +252,8 @@ export function useIntervalSelector(opts: UseIntervalSelectorOptions) {
     state,
     pool,
     setExercise,
-    setSelection,
-    setGroup,
-    setSingle,
+    selectSize,
+    toggleMulti,
     setDifficulty,
     setDirection,
     buildDrill,

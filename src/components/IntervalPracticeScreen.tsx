@@ -1,8 +1,10 @@
 // ── IntervalPracticeScreen — the "Intervals" learning tab (full page) ───
 //
 // One of the learning-type tabs from the drawer's "Learn" group. It hosts the
-// Interval Selector (intervals-learning-spec §5) as a full page instead of a
-// card stacked on the home screen. Premium-only: the host mounts it behind
+// free Interval Selector (intervals-learning-spec §5) as a full page instead
+// of a card stacked on the home screen. The guided "Today's intervals" card
+// is *not* here — anything daily-plan-shaped lives on the Daily practice tab
+// (<DailyPracticeScreen>). Premium-only: the host mounts it behind
 // `can('intervalDrill', tier)` and it is wrapped in <ProGate> as a second
 // line of defence. All copy through `t()`; the layout flips for Hebrew via
 // `dir`.
@@ -12,11 +14,7 @@ import type { InstrumentConfig } from '../utils/instruments';
 import type { AccidentalMode, OrderMode } from '../utils/music';
 import type { DrillConfig } from '../drill/DrillConfig';
 import type { IntervalBoardRow } from '../learning/intervalMastery';
-import type { IntervalTeacherPlan } from '../learning/intervalPlanner';
-import type { DailyGoal } from '../learning/learningState';
-import type { IntervalExercise } from '../utils/intervals';
 import IntervalSelectorPanel from './IntervalSelectorPanel';
-import IntervalTodayCard from './IntervalTodayCard';
 import { ProGate } from './ProGate';
 import { Chevron } from './Chevron';
 import { useTranslation } from '../i18n/useTranslation';
@@ -31,19 +29,14 @@ interface Props {
   order: OrderMode;
   /** Distinct interval qualities the SRS schedule is tracking so far. */
   trackedCount: number;
-  /** The recommended guided session + the weak-spots session (spec §13). */
-  todayPlan: IntervalTeacherPlan | null;
-  weakSpotsPlan: IntervalTeacherPlan | null;
-  /** Today's separate *interval* goal (OD-5). */
-  intervalDailyGoal: DailyGoal;
-  intervalGoalComplete: boolean;
   headerIcon?: string;
   /** Disable the actions while a session is starting / running. */
   busy?: boolean;
+  /** Silent mode is on — forwarded so the Selector can hide the audio-only
+   *  "Identify the interval" exercise. */
+  silentMode?: boolean;
   /** Start a free Selector-configured session. */
   onStart: (config: DrillConfig) => void;
-  /** Start a guided Today-card session (daily or weak-spots) for an exercise. */
-  onStartPlan: (exercise: IntervalExercise, kind: 'today' | 'weak') => void;
   onClose: () => void;
 }
 
@@ -53,14 +46,10 @@ export default function IntervalPracticeScreen({
   accidental,
   order,
   trackedCount,
-  todayPlan,
-  weakSpotsPlan,
-  intervalDailyGoal,
-  intervalGoalComplete,
   headerIcon,
   busy,
+  silentMode,
   onStart,
-  onStartPlan,
   onClose,
 }: Props) {
   const { t, lang } = useTranslation();
@@ -96,14 +85,6 @@ export default function IntervalPracticeScreen({
             variant="replace"
             pitch={t('Practise hearing and finding intervals')}
           >
-            <IntervalTodayCard
-              todayPlan={todayPlan}
-              weakSpotsPlan={weakSpotsPlan}
-              dailyGoal={intervalDailyGoal}
-              goalComplete={intervalGoalComplete}
-              busy={busy}
-              onStart={onStartPlan}
-            />
             <IntervalSelectorPanel
               instrument={instrument}
               masteredSizes={masteredSizes}
@@ -111,6 +92,7 @@ export default function IntervalPracticeScreen({
               order={order}
               trackedCount={trackedCount}
               busy={busy}
+              silentMode={silentMode}
               onStart={onStart}
             />
           </ProGate>
