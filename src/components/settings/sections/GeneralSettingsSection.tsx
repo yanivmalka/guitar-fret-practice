@@ -7,7 +7,9 @@ import { ProGate } from '../../ProGate';
 import { withClick as click } from '../../../utils/withClick';
 import { saveSetting } from '../../../utils/settings';
 import { LANGUAGES, type Lang } from '../../../i18n/translations';
-import { PRO_MASTERY_LASTN_CHOICES, type MasteryWindow } from '../../../utils/mastery';
+import {
+  PRO_MASTERY_LASTN_CHOICES, describeMasteryWindow, type MasteryWindow,
+} from '../../../utils/mastery';
 import type { Theme } from '../../../utils/theme';
 import type { VoiceEnginePref } from '../../../utils/speech';
 
@@ -107,14 +109,7 @@ export default function GeneralSettingsSection({
     }
   };
 
-  const windowSummary =
-    masteryWindow.kind === 'lastN'
-      ? masteryWindow.n === 0
-        ? t('showing all questions')
-        : `${t('showing last')} ${masteryWindow.n}`
-      : masteryWindow.kind === 'onDay'
-        ? `${t('showing')} ${masteryWindow.dayISO.slice(0, 10)}`
-        : `${t('showing')} ${masteryWindow.fromISO.slice(0, 10)} – ${toISOToDayStr(masteryWindow.toISO)}`;
+  const windowSummary = describeMasteryWindow(masteryWindow, t);
 
   return (
     <>

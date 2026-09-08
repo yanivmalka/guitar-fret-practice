@@ -50,5 +50,14 @@ export function useMasteryOverlay({
     [windowedMasteryEntries, cofList],
   );
 
-  return { allHistoryEntries, everyInstrumentHistory, fretMastery, noteMastery };
+  return {
+    allHistoryEntries,
+    everyInstrumentHistory,
+    fretMastery,
+    noteMastery,
+    // The window actually in force after Free/Pro resolution — the overlay
+    // caption is driven off this, so a Free user (always FREE_MASTERY_WINDOW)
+    // never sees a caption.
+    effectiveMasteryWindow,
+  };
 }

@@ -39,8 +39,11 @@ export type MasteryWindow =
   | { kind: 'dateRange'; fromISO: string; toISO: string } // future UI
   | { kind: 'onDay'; dayISO: string };                    // future UI ("that day")
 
-export const FREE_MASTERY_WINDOW: MasteryWindow = { kind: 'lastN', n: 250 };
-export const DEFAULT_MASTERY_WINDOW: MasteryWindow = { kind: 'lastN', n: 250 };
+// The last-N count every account gets by default: Free is pinned to it, Pro
+// starts here until the "Mastery time window" control is touched.
+export const DEFAULT_MASTERY_LASTN = 250;
+export const FREE_MASTERY_WINDOW: MasteryWindow = { kind: 'lastN', n: DEFAULT_MASTERY_LASTN };
+export const DEFAULT_MASTERY_WINDOW: MasteryWindow = { kind: 'lastN', n: DEFAULT_MASTERY_LASTN };
 // Options offered to Pro in the "questions counted" control. 0 = all-time.
 export const PRO_MASTERY_LASTN_CHOICES = [100, 250, 500, 1000, 0] as const;
 
@@ -58,6 +61,35 @@ function dayBoundsISO(dayISO: string): { fromISO: string; toISO: string } {
   const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
   return { fromISO: start.toISOString(), toISO: end.toISOString() };
+}
+
+// True when the window is the plain "last 250" default that every account
+// (Free, and Pro that hasn't changed it) sees — i.e. nothing worth captioning.
+export function isDefaultMasteryWindow(window: MasteryWindow): boolean {
+  return window.kind === 'lastN' && window.n === DEFAULT_MASTERY_LASTN;
+}
+
+// A short, translatable label for the active window — for the fretboard overlay
+// caption and the Settings card, so a time-travelled overlay is never mistaken
+// for the live one. `t` is passed in so this stays i18n-free itself.
+export function describeMasteryWindow(
+  window: MasteryWindow,
+  t: (s: string) => string,
+): string {
+  if (window.kind === 'lastN') {
+    return window.n <= 0
+      ? t('showing all questions')
+      : `${t('showing last')} ${window.n}`;
+  }
+  if (window.kind === 'onDay') return `${t('showing')} ${window.dayISO.slice(0, 10)}`;
+  // dateRange: `toISO` is the half-open upper bound (local midnight after the
+  // last counted day), so step back one day for the inclusive label.
+  const lastDay = new Date(window.toISO);
+  lastDay.setDate(lastDay.getDate() - 1);
+  const y = lastDay.getFullYear();
+  const m = String(lastDay.getMonth() + 1).padStart(2, '0');
+  const d = String(lastDay.getDate()).padStart(2, '0');
+  return `${t('showing')} ${window.fromISO.slice(0, 10)} – ${y}-${m}-${d}`;
 }
 
 export function applyMasteryWindow(entries: HistoryEntry[], window: MasteryWindow): HistoryEntry[] {
