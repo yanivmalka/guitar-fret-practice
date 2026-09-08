@@ -55,25 +55,25 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Home screen: bottom-anchor the content column and clip instead of scroll.
-   The selector + drill board are a fraction taller than a short Android
-   WebView viewport once the safe-area insets are taken out, which left the
-   home screen with a few px of dead scroll. Pinning the column to the bottom
-   pushes it down into the space that was sitting empty above the nav-bar
-   inset; any remaining overflow is absorbed off the (near-empty) top — the
-   burger + title strip — rather than becoming a scroll. Only the home
-   screen's .app gets this; the Stats / Learn / settings sub-pages keep
-   their normal `overflow-y: auto` and scroll freely. */
+/* Home screen: a top-aligned column that clips instead of scrolling.
+   Top-aligning keeps the title right under the burger and lets any spare
+   height fall as breathing room *below* the board, above the nav-bar
+   inset — rather than piling it into a dead gap over the title (what
+   bottom-anchoring here used to do: on the idle selector screen the board
+   is well short of the viewport, so `flex-end` dumped ~70px of slack
+   above the title and left the note wheel flush against the bottom edge).
+   `overflow-y: hidden` (not `auto`) so the APK viewport can't be dragged
+   up/down; the board fits without a scroll. Only the home screen's .app
+   gets this — the Stats / Learn / settings sub-pages keep their normal
+   `overflow-y: auto` and scroll freely. */
 .app.home-page {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: flex-start;
   overflow-y: hidden;
   /* Drop the extra +12px breathing room under the content on the home
-     screen so the board sits right above the Android nav-bar inset with
-     no dead gap; keep the inset itself as clearance so the lowest note
-     buttons never fall under the system nav. The reclaimed space is
-     absorbed off the top (burger + title), matching the bottom-anchor. */
+     screen; keep the safe-area inset itself as clearance so the lowest
+     note buttons never fall under the system nav. */
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
@@ -81,20 +81,10 @@ body {
   margin-bottom: 0;
 }
 
-/* While a round is actually running the drill board is much taller than
-   the idle selector screen the bottom-anchor rule above was tuned for
-   (question prompt + speed bar + live score + feedback line + the full
-   NoteCircle + the Pause/Stop controls). Bottom-anchoring that taller
-   board dumps the surplus height as empty space under the title, pushes
-   the burger + title off the top, and still clips the lowest NoteCircle
-   notes off the bottom. Top-align the column during play instead so the
-   title stays put and the surplus space sits below the board — the
-   board itself is short enough to fit without scrolling. `overflow-y`
-   stays `hidden` (inherited from the rule above): no scrollbar. */
-.app.home-page.playing {
-  justify-content: flex-start;
-}
-
+/* While a round is running the board is ~190px taller (question prompt,
+   speed bar, live score, feedback line, the full NoteCircle, Pause/Stop).
+   Keep the game-row from being squeezed so the whole board stays on
+   screen without a scroll. */
 .app.home-page.playing .game-row {
   flex-shrink: 0;
 }
