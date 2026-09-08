@@ -22,20 +22,26 @@ import AnimatedScore from './components/AnimatedScore';
 import { displayNote, displayNoteBothEnharmonics, setActiveInstrument } from './utils/music';
 import type { HistoryEntry, AccidentalMode, OrderMode, NotationMode } from './utils/music';
 import { getInstrument, COMING_SOON_INSTRUMENTS, type InstrumentId } from './utils/instruments';
-import { preloadAllSamples, unlockAudio, setAudioInstrument, setSilent as setAudioSilent } from './utils/audio';
+import { preloadAllSamples, unlockAudio, setAudioInstrument } from './utils/audio';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
-import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3, setSilent as setFeedbackSilent } from './utils/feedback';
+import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3 } from './utils/feedback';
+import { withClick as click } from './utils/withClick';
 import { loadSetting, saveSetting } from './utils/settings';
-import { THEME_BG, THEME_COLOR_SCHEME, type Theme } from './utils/theme';
+import { type Theme } from './utils/theme';
+import { useThemeEffect } from './hooks/useThemeEffect';
+import { useSilentModeEffect } from './hooks/useSilentModeEffect';
+import { useBootReadyEvent } from './hooks/useBootReadyEvent';
+import { useAutoPauseOnBackground } from './hooks/useAutoPauseOnBackground';
+import { useQuestionChangeAnimation } from './hooks/useQuestionChangeAnimation';
+import { useAdjustSuggestion } from './hooks/useAdjustSuggestion';
 import { loadBest, saveBest, loadAllBests, writeAllBests } from './utils/personalBest';
 import { historyForInstrument, flattenHistory, fretMasteryMap, noteMasteryMap, applyMasteryWindow, DEFAULT_MASTERY_WINDOW, FREE_MASTERY_WINDOW, PRO_MASTERY_LASTN_CHOICES, type MasteryStat, type MasteryWindow } from './utils/mastery';
 import { useAuth } from './hooks/useAuth';
 import { bootstrapUser, reconcileUser, syncedUser, clearSyncedUser, cloudCaptureOrphans, restoreOnly } from './utils/sync';
 import { bootstrapSettings, syncedSettingsUser, clearSyncedSettingsUser, cloudPushSettings } from './utils/settingsSync';
 import { bootstrapBadges, syncedBadgesUser, clearSyncedBadgesUser, cloudPushBadges } from './utils/badgeSync';
-import { useSelector, nextDifficulty, prevDifficulty, type Difficulty, type DerivedSettings } from './hooks/useSelector';
-import { suggestAdjustment } from './utils/progress';
+import { useSelector, type DerivedSettings } from './hooks/useSelector';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useDrillSession } from './hooks/useDrillSession';
 import { deriveDrillConfig, type DrillConfig } from './drill/DrillConfig';
@@ -81,7 +87,7 @@ import {
   badgeDef, evaluateSession, evaluateLifetime, awardFamilyUpTo, earnedTier, TIER_LABEL,
   type BadgeId, type SessionSnapshot, type LifetimeSnapshot, type Tier,
 } from './utils/badges';
-import { vlog, verror } from './utils/debugLog';
+import { verror } from './utils/debugLog';
 import type { SpeechNotation } from './utils/speechVocab';
 import { resetSpeechEngine, type VoiceEnginePref } from './utils/speech';
 import {
@@ -91,6 +97,7 @@ import { PROFILE_LABELS, SAMPLES_PER_LABEL, profileVocabId } from './utils/voice
 import { bootstrapVoiceProfile, voiceSyncedUser, clearVoiceSyncedUser } from './utils/voiceSync';
 import { useTranslation } from './i18n/useTranslation';
 import { LANGUAGES } from './i18n/translations';
+import { mergeCelebrated } from './utils/badgeCelebration';
 
 type AnswerMode = 'tap' | 'voice';
 
@@ -100,15 +107,6 @@ type AnswerMode = 'tap' | 'voice';
 // IntervalPracticeScreen). Not persisted, so a fresh launch — or a page
 // reload — always lands back on the Selector. `LearnDomain` is defined by
 // <LearnHub> and re-exported through its import above.
-
-// Merge two lists of freshly-earned badges, keeping one entry per family — the
-// later one wins, so a family that reached Bronze mid-round and Silver at the
-// end is celebrated once, at Silver.
-function mergeCelebrated(prev: CelebratedBadge[], next: CelebratedBadge[]): CelebratedBadge[] {
-  const byFamily = new Map<string, CelebratedBadge>();
-  for (const b of [...prev, ...next]) byFamily.set(b.id, b);
-  return [...byFamily.values()];
-}
 
 export default function App() {
   const { t, lang, setLang } = useTranslation();
@@ -273,40 +271,18 @@ export default function App() {
     loadSetting('pref_leaderboardOptOut', false),
   );
 
-  useEffect(() => {
-    setAudioSilent(silentMode);
-    setFeedbackSilent(silentMode);
-  }, [silentMode]);
+  useSilentModeEffect(silentMode);
 
   // Theme: 'dark' (default, original look) / 'night' (warm, dimmer) / 'day'
-  // (light). Applied on <html> (not just inside .app) so modals/portals that
-  // render outside the normal tree still pick up the right token block.
+  // (light).
   const [theme, setThemeState] = useState<Theme>(() => loadSetting<Theme>('pref_theme', 'dark'));
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);
     saveSetting('pref_theme', t);
   }, []);
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    const colorScheme = document.querySelector('meta[name="color-scheme"]');
-    if (colorScheme) colorScheme.setAttribute('content', THEME_COLOR_SCHEME[theme]);
-    const themeColor = document.querySelector('meta[name="theme-color"]');
-    if (themeColor) themeColor.setAttribute('content', THEME_BG[theme]);
-  }, [theme]);
+  useThemeEffect(theme);
 
-  // Hold the boot splash (index.html) until the first data load has settled —
-  // the Supabase session and, for a signed-in user, the entitlement lookup — so
-  // the UI doesn't visibly flip from a guest/default state to the real one after
-  // the splash has already gone. `src/main.tsx` listens for this event and still
-  // enforces its own minimum-visible and hard-cap timers, so a guest build (both
-  // flags false from the start) or a stalled network can't get stuck behind it.
-  const bootReadyRef = useRef(false);
-  useEffect(() => {
-    if (bootReadyRef.current) return;
-    if (auth.loading || auth.entitlementLoading) return;
-    bootReadyRef.current = true;
-    window.dispatchEvent(new Event('app-ready'));
-  }, [auth.loading, auth.entitlementLoading]);
+  useBootReadyEvent(auth.loading, auth.entitlementLoading);
 
   const historyOps = useHistory();
   // Interval drill (P4): an isolated in-memory history for interval sessions,
@@ -797,25 +773,7 @@ export default function App() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (!paused) setGuitarString(eff.guitarString); }, [eff.guitarString, paused]);
 
-  // Subtle in-place transition when the question changes. Animates the single
-  // existing .note-display / .fret-display node via the Web Animations API — no
-  // React remount, so there is never more than one element and the layout box
-  // never grows or shifts. Transform/opacity only; direction-agnostic (works in
-  // LTR and RTL). questionSeq bumps once per question (incl. Auto Advance).
-  const questionDisplayRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (questionSeq === 0) return;
-    const el = questionDisplayRef.current;
-    if (!el || typeof el.animate !== 'function') return;
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-    el.animate(
-      [
-        { transform: 'translateY(4px) scale(0.96)', opacity: 0.35 },
-        { transform: 'translateY(0) scale(1)', opacity: 1 },
-      ],
-      { duration: 130, easing: 'ease-out' },
-    );
-  }, [questionSeq]);
+  const questionDisplayRef = useQuestionChangeAnimation(questionSeq);
 
   // Settings changed while actively playing invalidate the session, so stop it.
   // While paused, just remember the new settings — they're picked up on resume
@@ -826,67 +784,7 @@ export default function App() {
     derivedRef.current = derivedSettings;
   }, [derivedSettings, running, paused, stop]);
 
-  // Freeze the game (pause, not stop) whenever the app is backgrounded, hidden,
-  // or closed, so returning to it resumes exactly where it left off instead of
-  // resetting. Only actually running sessions pause; already-idle/paused state
-  // is left alone.
-  const pauseRef = useRef(pause);
-  pauseRef.current = pause;
-  const runningRef2 = useRef(running);
-  runningRef2.current = running;
-  useEffect(() => {
-    const pauseEverything = () => {
-      vlog('[voice] pauseEverything', {
-        running: runningRef2.current,
-        hidden: document.hidden,
-        visibilityState: document.visibilityState,
-      });
-      if (runningRef2.current) pauseRef.current();
-    };
-
-    // `visibilitychange` → hidden is a noisy signal on desktop: some setups
-    // (remote-desktop sessions, an undocked/focused DevTools window, brief
-    // OS-level occlusion) flip the tab to "hidden" for a moment while the user
-    // is still looking at it. That was freezing the game — and killing Voice
-    // mode's microphone — mid-round. Genuinely backgrounding the app (switching
-    // tab/app, minimising) keeps it hidden for far longer, so wait a short
-    // beat and only pause if it is still hidden. Becoming visible again cancels.
-    let hiddenTimer: number | null = null;
-    const clearHiddenTimer = () => {
-      if (hiddenTimer !== null) { clearTimeout(hiddenTimer); hiddenTimer = null; }
-    };
-    const onVisibilityChange = () => {
-      if (document.hidden) {
-        clearHiddenTimer();
-        hiddenTimer = window.setTimeout(() => {
-          hiddenTimer = null;
-          if (document.hidden) pauseEverything();
-        }, 2000);
-      } else {
-        clearHiddenTimer();
-      }
-    };
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    // `pagehide` means the page is actually being torn down — pause at once.
-    const onPageHide = () => { clearHiddenTimer(); pauseEverything(); };
-    document.addEventListener('pagehide', onPageHide);
-
-    let removeAppStateListener: (() => void) | undefined;
-    CapacitorApp.addListener('appStateChange', ({ isActive }) => {
-      if (!isActive) pauseEverything();
-    }).then((handle) => { removeAppStateListener = () => handle.remove(); });
-    CapacitorApp.addListener('pause', pauseEverything).then((handle) => {
-      const prev = removeAppStateListener;
-      removeAppStateListener = () => { prev?.(); handle.remove(); };
-    });
-
-    return () => {
-      clearHiddenTimer();
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-      document.removeEventListener('pagehide', onPageHide);
-      removeAppStateListener?.();
-    };
-  }, [pause]);
+  useAutoPauseOnBackground(pause, running);
 
   const [preloaded, setPreloaded] = useState(false);
   const [onboardingDone, setOnboardingDone] = useState(() => loadSetting<boolean>('onboardingDone', false));
@@ -987,7 +885,6 @@ export default function App() {
   // the at-rest page look for the three seconds before the first question.
   const boardLive = gameActive || countdown !== null;
 
-  const click = <T,>(fn: () => T) => () => { playClickSound(); haptic.tap(); return fn(); };
 
   // ── "Back" keeps you inside the app ─────────────────────────────────
   // Android's hardware Back / back-gesture (via @capacitor/app) and the
@@ -1134,37 +1031,14 @@ export default function App() {
   const hasHistory = historyOps.getEntriesForKey(histKey).length > 0;
   const hasAnyHistory = hasHistory || Object.values(historyOps.allHistory).some(list => list.length > 0);
 
-  // Adaptive suggestion (wishlist §3): once enough questions have been answered
-  // on the current settings combination, offer a one-tap move to a harder or
-  // easier difficulty based on recent accuracy for that combination. It's a
-  // hint layered over the Selector — the old Stage sequence is not revived.
-  // Suppressed while Auto Advance already marches difficulty on its own, while a
-  // precise Pro fret window pins difficulty to Full, and once dismissed for this
-  // exact combination (kept per-key in localStorage so it doesn't nag again).
-  const { getEntriesForKey } = historyOps;
-  // Dismissals made this session, keyed by historyKey; the persisted copy in
-  // localStorage (`sel_suggestDismissed_<key>`) is read in the memo below so a
-  // dismissal survives a reload without an effect syncing state.
-  const [suggestDismiss, setSuggestDismiss] = useState<Record<string, 'harder' | 'easier'>>({});
-  const adjustSuggestion = useMemo<null | { direction: 'harder' | 'easier'; target: Difficulty }>(() => {
-    if (selector.state.autoAdvance) return null;
-    if (selector.state.useFretRange && auth.isPro) return null;
-    const verdict = suggestAdjustment(getEntriesForKey(histKey));
-    if (!verdict) return null;
-    const dismissed = suggestDismiss[histKey]
-      ?? loadSetting<'harder' | 'easier' | null>(`sel_suggestDismissed_${histKey}`, null);
-    if (verdict === dismissed) return null;
-    const target = verdict === 'harder'
-      ? nextDifficulty(selector.state.difficulty)
-      : prevDifficulty(selector.state.difficulty);
-    // Already at the hardest / gentlest difficulty — v1 has nothing to offer
-    // (widening the fret-range half is a documented future fallback).
-    if (!target) return null;
-    return { direction: verdict, target };
-  }, [
-    selector.state.autoAdvance, selector.state.useFretRange, selector.state.difficulty,
-    auth.isPro, getEntriesForKey, histKey, suggestDismiss,
-  ]);
+  const { adjustSuggestion, dismissSuggestion } = useAdjustSuggestion({
+    autoAdvance: selector.state.autoAdvance,
+    useFretRange: selector.state.useFretRange,
+    difficulty: selector.state.difficulty,
+    isPro: auth.isPro,
+    histKey,
+    getEntriesForKey: historyOps.getEntriesForKey,
+  });
 
   // First-time hint: a brand-new player (no history at all, hint never seen)
   // gets the setup-summary bubble popped open automatically the first time they
@@ -2371,10 +2245,7 @@ export default function App() {
             // itself plays the click + haptic (see AdjustSuggestionBanner).
             selector.onDifficultySelect(adjustSuggestion.target);
           }}
-          onDismiss={() => {
-            saveSetting(`sel_suggestDismissed_${histKey}`, adjustSuggestion.direction);
-            setSuggestDismiss(m => ({ ...m, [histKey]: adjustSuggestion.direction }));
-          }}
+          onDismiss={() => dismissSuggestion(adjustSuggestion.direction)}
         />
       )}
 
