@@ -73,11 +73,16 @@ export default defineConfig({
     },
     react(),
     VitePWA({
-      // 'prompt', not 'autoUpdate': we want the "is there a newer build?" check
-      // to land during the boot splash (src/main.tsx) and reload into the new
-      // version there, rather than the service worker swapping itself in
-      // silently mid-session. registerSW() is called by hand in main.tsx.
-      registerType: 'prompt',
+      // 'autoUpdate': the generated SW takes control as soon as a newer build
+      // finishes installing (skipWaiting + clientsClaim), so a fresh deploy is
+      // picked up on the next launch without depending on a hand-rolled apply
+      // step landing inside the boot-splash window. 'prompt' left the new SW
+      // stuck in "waiting" whenever that window was missed, so the app could
+      // sit on a stale cached build indefinitely. registerSW() is still called
+      // by hand in main.tsx (injectRegister: false) to drive the boot splash
+      // and the manual refresh button; in practice the update still applies
+      // behind the splash on launch, not mid-session.
+      registerType: 'autoUpdate',
       injectRegister: false,
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,mp3}'],

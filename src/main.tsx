@@ -34,8 +34,8 @@ createRoot(document.getElementById('root')!).render(
 {
   const splash = document.getElementById('boot-splash')
   const MIN_VISIBLE_MS = 1600
-  const MAX_VISIBLE_MS = 6000
-  const UPDATE_CHECK_CAP_MS = 4000
+  const MAX_VISIBLE_MS = 10000
+  const UPDATE_CHECK_CAP_MS = 7000
   const RECHECK_INTERVAL_MS = 60 * 60 * 1000
   const BOOT_RELOAD_KEY = 'pwa-boot-reloaded'
 
