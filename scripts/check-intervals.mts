@@ -524,14 +524,21 @@ for (const [label, inst] of [['guitar', guitar], ['bass', bass]] as const) {
 {
   const {
     isIntervalMastered, intervalStatus, masteredSizes, buildIntervalBoard,
-    INTERVAL_MASTERED_BUCKET, INTERVAL_MASTERED_ACCURACY, INTERVAL_MASTERED_MIN_ATTEMPTS,
+    INTERVAL_MASTERED_BUCKET, INTERVAL_MASTERED_ACCURACY, INTERVAL_MIN_EFFECTIVE_N,
+    INTERVAL_STATS_WINDOW_DAYS, INTERVAL_MASTERY_MAX_AGE_DAYS,
   } = await import('../src/learning/intervalMastery.ts');
   const { currentGroupIndex } = await import('../src/learning/intervalCurriculum.ts');
+  const { HARD_CAP_DAYS } = await import('../src/learning/recency.ts');
 
+  const DAY = 24 * 60 * 60 * 1000;
   type Row = { semitones: number; dir: string; form: string; correct: boolean; seconds: number; createdAt: number };
-  const rows = (size: number, n: number, correct: boolean): Row[] =>
+  // `n` rows for `size`, all fresh (spaced 1s, ending at T0) unless `ageDays` is
+  // given — then every row sits `ageDays` in the past, so its decay weight is
+  // `0.5 ** (ageDays / 14)` and `effectiveN ≈ n * that`.
+  const rows = (size: number, n: number, correct: boolean, ageDays = 0): Row[] =>
     Array.from({ length: n }, (_, i) => ({
-      semitones: size, dir: 'up', form: 'findNote', correct, seconds: 1.5, createdAt: T0 - i * 1000,
+      semitones: size, dir: 'up', form: 'findNote', correct, seconds: 1.5,
+      createdAt: T0 - ageDays * DAY - i * 1000,
     }));
 
   // Empty inputs → 11 rows, all notStarted, in curriculum order.
@@ -554,21 +561,46 @@ for (const [label, inst] of [['guitar', guitar], ['bass', bass]] as const) {
     isIntervalMastered(5, { 'interval:5': { ...newSrsItem('interval:5', T0), bucket: INTERVAL_MASTERED_BUCKET - 1 } }, [], T0) === false &&
     intervalStatus(5, { 'interval:5': { ...newSrsItem('interval:5', T0), bucket: INTERVAL_MASTERED_BUCKET - 1 } }, [], T0) === 'learning');
 
-  // Recent-window accuracy path.
-  check('accuracy ≥ threshold over ≥ MIN_ATTEMPTS → mastered (no SRS row)',
-    isIntervalMastered(4, {}, rows(4, INTERVAL_MASTERED_MIN_ATTEMPTS, true), T0) === true);
-  check('too few attempts → not mastered even at 100% accuracy',
-    isIntervalMastered(4, {}, rows(4, INTERVAL_MASTERED_MIN_ATTEMPTS - 1, true), T0) === false);
-  check('low recent accuracy → "learning", not mastered',
-    intervalStatus(4, {}, rows(4, 6, false), T0) === 'learning' &&
-    isIntervalMastered(4, {}, rows(4, 6, false), T0) === false);
-  check('a timeout-as-false row counts against accuracy',
-    isIntervalMastered(4, {}, [...rows(4, 3, true), { semitones: 4, dir: 'up', form: 'identify', correct: false, seconds: 0, createdAt: T0 }], T0) === false);
+  // Recent-window accuracy path — now the weighted decay engine (recency-decay
+  // plan §3). The evidence gate is `effectiveN >= INTERVAL_MIN_EFFECTIVE_N` (4);
+  // above it the weighted accuracy stands alone, below it `positionScore` falls
+  // back to the SRS-bucket floor (0 when there is no SRS row).
+  check('weighted accuracy ≥ INTERVAL_MASTERED_ACCURACY over enough fresh evidence → mastered (no SRS row)',
+    isIntervalMastered(4, {}, rows(4, 6, true), T0) === true);
+  check('too little weighted evidence → not mastered even at 100% accuracy',
+    isIntervalMastered(4, {}, rows(4, 3, true), T0) === false);
+  check('low weighted accuracy → "learning", not mastered',
+    intervalStatus(4, {}, rows(4, 8, false), T0) === 'learning' &&
+    isIntervalMastered(4, {}, rows(4, 8, false), T0) === false);
+  check('a timeout-as-false row counts against the weighted accuracy',
+    // 4 correct + 2 misses over fresh rows ⇒ effectiveN ≈ 6 (gate met),
+    // weighted accuracy ≈ 0.67 < 0.8 ⇒ not mastered.
+    isIntervalMastered(4, {}, [
+      ...rows(4, 4, true),
+      { semitones: 4, dir: 'up', form: 'identify', correct: false, seconds: 0, createdAt: T0 - 5000 },
+      { semitones: 4, dir: 'up', form: 'identify', correct: false, seconds: 0, createdAt: T0 - 6000 },
+    ], T0) === false);
 
-  // Age horizon: stale-only history with no SRS row drops back to notStarted.
-  const stale = rows(4, 8, true).map((r) => ({ ...r, createdAt: T0 - 400 * 24 * 60 * 60 * 1000 }));
-  check('history older than the recency horizon is ignored (→ notStarted)',
-    intervalStatus(4, {}, stale, T0) === 'notStarted');
+  // Decay curve: an answer 14 days old (one half-life) weighs half, so it takes
+  // ~2× as many aged answers as fresh ones to clear the same `effectiveN` gate.
+  check('a 14-day-old answer weighs half — 6 aged rows miss the gate, 6 fresh clear it',
+    isIntervalMastered(4, {}, rows(4, 6, true), T0) === true &&
+    isIntervalMastered(4, {}, rows(4, 6, true, 14), T0) === false);
+  check('enough 14-day-old rows still clear the gate (10 ⇒ effectiveN ≈ 5)',
+    isIntervalMastered(4, {}, rows(4, 10, true, 14), T0) === true);
+
+  // Age horizon: rows past the 180-day hard cap are dropped entirely, so a
+  // quality with only stale history and no SRS row reads notStarted.
+  check('INTERVAL_MASTERY_MAX_AGE_DAYS is the shared 180-day hard cap',
+    INTERVAL_MASTERY_MAX_AGE_DAYS === HARD_CAP_DAYS && HARD_CAP_DAYS === 180);
+  check('history past the 180-day hard cap is ignored (→ notStarted)',
+    intervalStatus(4, {}, rows(4, 8, true, 400), T0) === 'notStarted');
+  check('history inside the cap but too thin (≈100 days old) reads "learning", never "mastered"',
+    // 8 rows at 100 days ⇒ each weighs 0.5**(100/14) ≈ 0.007, effectiveN ≈ 0.06,
+    // so it is below the gate and not mastered — but the rows are inside the
+    // 180-day cap, so the quality is "started".
+    intervalStatus(4, {}, rows(4, 8, true, 100), T0) === 'learning' &&
+    isIntervalMastered(4, {}, rows(4, 8, true, 100), T0) === false);
 
   // masteredSizes feeds currentGroupIndex.
   check('masteredSizes(∅) is empty → currentGroupIndex 0',
@@ -586,9 +618,19 @@ for (const [label, inst] of [['guitar', guitar], ['bass', bass]] as const) {
   check('all 11 mastered → masteredSizes size 11 → currentGroupIndex 6',
     masteredSizes(allSrs, [], T0).size === 11 && currentGroupIndex(masteredSizes(allSrs, [], T0)) === 6);
 
+  const barFor = (historyRows: Row[]) =>
+    buildIntervalBoard({ intervalSrs: {}, historyRows, now: T0 })
+      .find((r: { semitones: number }) => r.semitones === 4)!.recentAccuracy;
   check('board accuracy bar reflects the recent window',
-    buildIntervalBoard({ intervalSrs: {}, historyRows: [...rows(4, 2, true), ...rows(4, 2, false)], now: T0 })
-      .find((r: { semitones: number }) => r.semitones === 4)!.recentAccuracy === 0.5);
+    barFor([...rows(4, 2, true), ...rows(4, 2, false)]) === 0.5);
+  check('board accuracy bar is a PLAIN unweighted ratio, not the decay engine',
+    // 2 correct fresh + 2 wrong 30 days old ⇒ plain ratio 0.5; a decay-weighted
+    // mean would be ≈ 0.81. The bar must read the plain 0.5.
+    barFor([...rows(4, 2, true), ...rows(4, 2, false, 30)]) === 0.5);
+  check('board accuracy bar ignores rows outside INTERVAL_STATS_WINDOW_DAYS (45)',
+    // 2 correct fresh + 1 wrong 60 days old ⇒ the 60-day row is outside the
+    // 45-day display window, so the bar is 2/2 = 1.
+    barFor([...rows(4, 2, true), ...rows(4, 1, false, 60)]) === 1);
 
   // No ladder / stars vocabulary anywhere in the module (invariant §22.10).
   const src = readFileSync(new URL('../src/learning/intervalMastery.ts', import.meta.url), 'utf8');
@@ -597,8 +639,8 @@ for (const [label, inst] of [['guitar', guitar], ['bass', bass]] as const) {
   check('intervalMastery.ts contains no stars / ladder vocabulary', hit.length === 0, hit.join(', '));
 
   check('INTERVAL_MASTERED_* constants are the interval domain\'s own values',
-    INTERVAL_MASTERED_BUCKET === 3 && INTERVAL_MASTERED_ACCURACY === 0.85 &&
-    INTERVAL_MASTERED_MIN_ATTEMPTS === 4);
+    INTERVAL_MASTERED_BUCKET === 3 && INTERVAL_MASTERED_ACCURACY === 0.8 &&
+    INTERVAL_MIN_EFFECTIVE_N === 4 && INTERVAL_STATS_WINDOW_DAYS === 45);
 }
 
 // ── Interval planner + weakness (spec §10.5 / §13 / §14, task T4) ────
@@ -662,6 +704,22 @@ for (const [label, inst] of [['guitar', guitar], ['bass', bass]] as const) {
     }));
     check('analyzeIntervalWeakness ignores history past the recency horizon',
       analyzeIntervalWeakness(staleHist, {}, T0).length === 0);
+
+    // Decay + the effectiveN >= 4 gate. `[f,f,f,f,t,t,t,t]` (misses first, hits
+    // last) ⇒ recent-mistakes never fires (last 4 are all correct), so the only
+    // possible reason is lowAccuracy. Fresh: effectiveN ≈ 8, accuracy 0.5 ⇒
+    // flagged. Aged 30 days: each weight ≈ 0.5**(30/14) ≈ 0.23, effectiveN
+    // ≈ 1.8 < 4 ⇒ the weighted accuracy is no longer trusted and the signal
+    // drops out entirely.
+    const split = [false, false, false, false, true, true, true, true];
+    const fresh8 = histRows(6, split);
+    check('analyzeIntervalWeakness flags a low weighted-accuracy quality (fresh, effectiveN clears 4)',
+      analyzeIntervalWeakness(fresh8, {}, T0)
+        .some((s: { semitones: number; reasons: string[] }) =>
+          s.semitones === 6 && s.reasons.includes('lowAccuracy') && !s.reasons.includes('recentMistakes')));
+    const aged8 = fresh8.map((r) => ({ ...r, createdAt: r.createdAt - 30 * 24 * 60 * 60 * 1000 }));
+    check('analyzeIntervalWeakness drops that quality once the same answers age below the gate',
+      analyzeIntervalWeakness(aged8, {}, T0).length === 0);
   }
 
   // ── buildIntervalDailyPlan ──────────────────────────────────────────

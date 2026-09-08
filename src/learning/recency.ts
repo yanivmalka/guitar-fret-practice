@@ -43,12 +43,14 @@ export const HARD_CAP_DAYS = 180;
 export const MIN_EFFECTIVE_N = 3;
 
 /**
- * Bucket → score lookup, indexed by Leitner bucket 0…6. Used by
- * `positionScore` as a *floor* only, and only while fresh evidence is still
- * thin. Bucket 3 maps to 0.85 so a well-scheduled position with little recent
- * history still clears the "known" line, matching the old "bucket >= 3 alone ⇒
- * known" behaviour. The 0.3 / 0.6 entries are secondary tuning — they only
- * ever apply below the evidence gate — but are fixed here for determinism.
+ * Bucket → score lookup, indexed by Leitner bucket 0…6. It is the *entire*
+ * score while fresh evidence is still thin (below the evidence gate) — the
+ * weighted accuracy is discarded there as noise, so a couple of lucky recent
+ * answers can never brand a position "known". Bucket 3 maps to 0.85 so a
+ * well-scheduled position with little recent history still clears the "known"
+ * line, matching the old "bucket >= 3 alone ⇒ known" behaviour. The 0.3 / 0.6
+ * entries are secondary tuning — they only ever apply below the evidence gate —
+ * but are fixed here for determinism.
  */
 export const BUCKET_SCORE: readonly number[] = [0, 0.3, 0.6, 0.85, 0.9, 0.95, 1.0];
 
@@ -113,8 +115,10 @@ export function weightedMeanSeconds(
  *     the weighted accuracy alone — the SRS bucket plays no part, not even as
  *     a floor, so a well-scheduled position with recent evidence of struggling
  *     can still lose its status.
- *   • Below the gate the score is `max(weightedAccuracy, floor)`, where the
- *     floor is `BUCKET_SCORE[srsBucket]` (or `0` when `srsBucket` is `null`).
+ *   • Below the gate the weighted accuracy is discarded as noise: the score is
+ *     `BUCKET_SCORE[srsBucket]`, or `0` (unseen) when `srsBucket` is `null`. So
+ *     a position judged on too little recent weight and no schedule row
+ *     contributes 0, not a noisy fraction (approved spec — product-wishlist.md).
  */
 export function positionScore(
   weightedAccuracy: number,
@@ -123,7 +127,5 @@ export function positionScore(
   minEffectiveN: number = MIN_EFFECTIVE_N,
 ): number {
   if (effectiveN >= minEffectiveN) return weightedAccuracy;
-  const floor =
-    srsBucket == null ? 0 : BUCKET_SCORE[srsBucket] ?? 0;
-  return Math.max(weightedAccuracy, floor);
+  return srsBucket == null ? 0 : BUCKET_SCORE[srsBucket] ?? 0;
 }

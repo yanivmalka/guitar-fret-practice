@@ -156,6 +156,14 @@ function row(string: number, fret: number, correct: boolean | null, tOffsetMs = 
 // `entries` concatenates the rows of every historyKey combination, so a
 // position drilled under more than one combo arrives out of order. The
 // trailing `slice(-MASTERY_WINDOW)` must still be the *most recent* answers.
+//
+// TODO(recency-decay plan): pathProgress.ts still uses this `createdAt`-sorted
+// trailing fixed window as a stopgap. The deferred follow-up folds it onto the
+// shared exponential time-decay helper in src/learning/recency.ts (weighted
+// accuracy + `effectiveN` gate + continuous `positionScore`), which weights
+// every answer by age and never "takes the last N in order" — at which point
+// this array-order test becomes redundant and this block should be replaced
+// with decay-curve assertions like check-learning.mts / check-intervals.mts.
 {
   const progress = emptyPathProgress();
   const openItems = checkpointItemIds(PATH_CHECKPOINTS[0], GUITAR, GUITAR_NOTES);

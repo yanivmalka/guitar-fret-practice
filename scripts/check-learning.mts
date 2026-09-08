@@ -60,6 +60,11 @@ const { analyzeWeakness, leastPractisedPositions } =
   await import('../src/learning/weakness.ts');
 const { buildDailyPlan, buildWeakSpotsPlan } = await import('../src/learning/planner.ts');
 const {
+  recencyWeight, weightedAccuracy, weightedMeanSeconds, positionScore,
+  BUCKET_SCORE, DEFAULT_HALF_LIFE_DAYS, HARD_CAP_DAYS, MIN_EFFECTIVE_N,
+  DAY_MS: RECENCY_DAY_MS,
+} = await import('../src/learning/recency.ts');
+const {
   loadLearningState, saveLearningStateLocal, getInstrumentState, withInstrumentState,
   recordTeacherAnswer, recordPracticeAnswer, rollDailyGoal, mergeLearningState,
   emptyInstrumentState,
@@ -139,6 +144,66 @@ function row(
   check('dueItems is most-overdue first',
     due[0].itemId === '6:1' && due[1].itemId === '6:2');
   check('overdueByMs is 0 for a not-yet-due item', overdueByMs(map['6:3'], T0) === 0);
+}
+
+// ── Recency decay helper (recency-decay plan §1) ──────────────────────
+// The shared, domain-neutral module weakness.ts / intervalWeakness.ts /
+// intervalMastery.ts all reduce their history down to.
+{
+  const HL = DEFAULT_HALF_LIFE_DAYS * RECENCY_DAY_MS; // one half-life, in ms
+
+  check('module constants match the approved spec',
+    DEFAULT_HALF_LIFE_DAYS === 14 && HARD_CAP_DAYS === 180 && MIN_EFFECTIVE_N === 3 &&
+    RECENCY_DAY_MS === 24 * 60 * 60 * 1000);
+  check('BUCKET_SCORE maps bucket 3 to 0.85 and is monotonic 0..1',
+    BUCKET_SCORE.length === 7 && BUCKET_SCORE[0] === 0 && BUCKET_SCORE[3] === 0.85 &&
+    BUCKET_SCORE[6] === 1 &&
+    BUCKET_SCORE.every((v: number, i: number) => i === 0 || v > BUCKET_SCORE[i - 1]));
+
+  // recencyWeight: 0 → 1, one half-life → 0.5, two → 0.25, future → clamped to 1.
+  check('recencyWeight halves every half-life',
+    recencyWeight(0, HL) === 1 &&
+    recencyWeight(HL, HL) === 0.5 &&
+    recencyWeight(2 * HL, HL) === 0.25 &&
+    recencyWeight(-1000, HL) === 1);
+
+  // weightedAccuracy: a 14-day-old answer contributes half of a fresh one.
+  const wa = weightedAccuracy(
+    [{ correct: true, atMs: T0 }, { correct: false, atMs: T0 - HL }],
+    T0, HL,
+  );
+  check('weightedAccuracy weights a 14-day-old answer at half',
+    Math.abs(wa.effectiveN - 1.5) < 1e-9 &&
+    Math.abs(wa.accuracy - (1 / 1.5)) < 1e-9);
+  check('weightedAccuracy is 0 / 0-N for an empty row set',
+    weightedAccuracy([], T0, HL).accuracy === 0 &&
+    weightedAccuracy([], T0, HL).effectiveN === 0);
+
+  // weightedMeanSeconds: the recent answer dominates the mean.
+  const wms = weightedMeanSeconds(
+    [{ seconds: 2, atMs: T0 }, { seconds: 8, atMs: T0 - 2 * HL }],
+    T0, HL,
+  );
+  check('weightedMeanSeconds leans on the recent answer',
+    wms > 2 && wms < 3.5); // (1*2 + 0.25*8) / 1.25 = 3.2
+
+  // positionScore: above the gate the weighted accuracy stands alone; below it
+  // the accuracy is discarded and only the bucket mapping (or 0) is used.
+  check('positionScore above the gate is the weighted accuracy alone (bucket ignored)',
+    positionScore(0.4, 5, 6, MIN_EFFECTIVE_N) === 0.4 &&
+    positionScore(0.9, 5, null, MIN_EFFECTIVE_N) === 0.9);
+  check('positionScore below the gate discards accuracy: bucket mapping, or 0 when unseen',
+    positionScore(1, 2, null, MIN_EFFECTIVE_N) === 0 &&
+    positionScore(1, 2, 3, MIN_EFFECTIVE_N) === 0.85 &&
+    positionScore(0, 2, 5, MIN_EFFECTIVE_N) === 0.95);
+  check('positionScore rises monotonically with weighted accuracy above the gate',
+    positionScore(0.2, 4, null) < positionScore(0.6, 4, null) &&
+    positionScore(0.6, 4, null) < positionScore(0.95, 4, null));
+  check('positionScore rises monotonically with the SRS bucket below the gate',
+    positionScore(0, 1, 1) < positionScore(0, 1, 3) &&
+    positionScore(0, 1, 3) < positionScore(0, 1, 6));
+  check('positionScore takes a custom minEffectiveN (the interval lane passes 4)',
+    positionScore(1, 3, null, 4) === 0 && positionScore(1, 4, null, 4) === 1);
 }
 
 // ── Weakness detection: slow + inaccurate become candidates ────────────

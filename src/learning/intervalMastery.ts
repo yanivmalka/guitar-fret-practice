@@ -23,10 +23,10 @@
 // decay engine in `./recency`: every surviving answer inside the 180-day cap
 // gets weight `w = 0.5 ** (ageMs / halfLifeMs)`, the quality's strength is the
 // weighted accuracy `Σ(w·correct) / Σ w`, and its evidence weight is
-// `effectiveN = Σ w`. Below `INTERVAL_MIN_EFFECTIVE_N` the SRS bucket is used
-// as a floor (via `positionScore`); at or above it, the weighted accuracy
-// stands alone and a well-scheduled quality with recent struggle CAN lose its
-// status. The board's accuracy bar and the Stats headline are a SEPARATE, plain
+// `effectiveN = Σ w`. Below `INTERVAL_MIN_EFFECTIVE_N` the weighted accuracy is
+// discarded as noise and the score is the SRS-bucket mapping alone (0 when
+// there is no schedule row); at or above it, the weighted accuracy stands
+// alone and a well-scheduled quality with recent struggle CAN lose its status. The board's accuracy bar and the Stats headline are a SEPARATE, plain
 // unweighted ratio over `INTERVAL_STATS_WINDOW_DAYS` (45) — so a row's label and
 // its bar can legitimately disagree.
 //
@@ -50,13 +50,19 @@ import {
 /** SRS bucket at or above which a quality counts as mastered (same start
  *  point as notes, tuned independently). */
 export const INTERVAL_MASTERED_BUCKET = 3;
-/** Weighted recent accuracy at or above which a quality counts as mastered. */
-export const INTERVAL_MASTERED_ACCURACY = 0.85;
+/** Weighted recent accuracy at or above which a quality counts as mastered.
+ *  Lowered from 0.85 to 0.80 (recency-decay plan §3 item 6): now that the SRS
+ *  bucket no longer backstops a well-scheduled quality once `effectiveN` clears
+ *  the gate, 0.85 would drop a genuinely-known quality to "learning" on a single
+ *  recent slip (4 of 5). The thin-evidence bucket-3 floor stays 0.85, so a
+ *  quality at bucket >= `INTERVAL_MASTERED_BUCKET` with little recent history
+ *  still reads as mastered. */
+export const INTERVAL_MASTERED_ACCURACY = 0.8;
 /** Minimum `effectiveN` (weighted answer count) inside the decay cap before the
  *  weighted accuracy is trusted on its own — one more than notes, because there
  *  are only 11 qualities and more chance to fluke a short streak (spec §11.1,
- *  recency-decay plan §3 item 3). Below this, `positionScore` falls back to the
- *  SRS bucket floor. */
+ *  recency-decay plan §3 item 3). Below this, `positionScore` discards the
+ *  weighted accuracy and uses the SRS bucket mapping alone. */
 export const INTERVAL_MIN_EFFECTIVE_N = 4;
 /** History rows older than this are excluded from the decay engine entirely —
  *  a performance / storage bound only, never a data delete. Matches the shared
