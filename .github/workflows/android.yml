@@ -23,7 +23,7 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
 
       # A stable signing key so every APK is signed identically and new builds
       # install over the old app (data kept) instead of being rejected for a
@@ -94,7 +94,7 @@ jobs:
       - run: ./gradlew assembleDebug
         working-directory: android
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: app-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
