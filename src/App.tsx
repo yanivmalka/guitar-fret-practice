@@ -10,16 +10,11 @@ import menuIconStats from './assets/menu-icons/stats.png';
 import menuIconFeedback from './assets/menu-icons/feedback.png';
 import menuIconLeaderboard from './assets/menu-icons/leaderboard.png';
 import menuIconAccount from './assets/menu-icons/account.png';
-import NoteCircle from './components/NoteCircle';
-import FretGrid from './components/FretGrid';
-import IntervalChoiceRow from './components/IntervalChoiceRow';
 import SelectorPanel from './components/SelectorPanel';
 import AdjustSuggestionBanner from './components/AdjustSuggestionBanner';
 import ProgressPanel from './components/ProgressPanel';
 import Onboarding from './components/Onboarding';
-import SpeedBar from './components/SpeedBar';
-import AnimatedScore from './components/AnimatedScore';
-import { displayNote, displayNoteBothEnharmonics, setActiveInstrument } from './utils/music';
+import { setActiveInstrument } from './utils/music';
 import type { HistoryEntry, AccidentalMode, OrderMode, NotationMode } from './utils/music';
 import { getInstrument, type InstrumentId } from './utils/instruments';
 import { preloadAllSamples, unlockAudio, setAudioInstrument } from './utils/audio';
@@ -46,7 +41,6 @@ import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useDrillSession } from './hooks/useDrillSession';
 import { deriveDrillConfig, type DrillConfig } from './drill/DrillConfig';
 import GameFlow from './game/GameFlow';
-import IntervalPrompt from './components/IntervalPrompt';
 import LearningPathScreen from './components/LearningPathScreen';
 import DailyPracticeScreen from './components/DailyPracticeScreen';
 import IntervalPracticeScreen from './components/IntervalPracticeScreen';
@@ -54,8 +48,6 @@ import LearnHub, { type LearnDomain } from './components/LearnHub';
 import { useLearning } from './hooks/useLearning';
 import { useDrillHistorySink } from './game/useDrillHistorySink';
 import type { HistoryOps } from './hooks/useGameEngine';
-import { intervalBySemitones } from './utils/intervals';
-import { intervalContentBySemitones } from './learning/intervalContent';
 import type { TeacherPlan } from './learning/planner';
 import {
   bootstrapLearning, syncedLearningUser, clearSyncedLearningUser, clearLocalLearningState, cloudPushLearning,
@@ -67,14 +59,14 @@ import {
 import { useHistory } from './hooks/useHistory';
 import { useScoring } from './hooks/useScoring';
 import { useVoiceAnswer } from './hooks/useVoiceAnswer';
-import VoiceLevelMeter from './components/VoiceLevelMeter';
 import ExitHintToast from './components/ExitHintToast';
 import MicPermissionCard from './components/MicPermissionCard';
 import SignInNudge from './components/SignInNudge';
 import CountdownOverlay from './components/drill/CountdownOverlay';
 import StageTransition from './components/drill/StageTransition';
-import VoiceStatusRow from './components/drill/VoiceStatusRow';
 import GameEndSummary from './components/drill/GameEndSummary';
+import DrillBoard from './components/drill/DrillBoard';
+import DrillControls from './components/drill/DrillControls';
 import DebugLogPanel from './components/DebugLogPanel';
 import VoiceCalibration from './components/VoiceCalibration';
 import { FeedbackBoard } from './components/FeedbackBoard';
@@ -580,7 +572,7 @@ export default function App() {
     eff.wholeToneOnly, eff.dotsOnly,
     accidental, order, byString, eff.multiStrings, instrumentId,
   );
-  const { cofList, startIndex, activeNotes, questionActiveNotes, fretDots, noteFrets, isMulti } = derived;
+  const { cofList, isMulti } = derived;
   const scoring = useScoring();
 
   // All-time (every settings combo ever played) mastery, shown as a small
@@ -1886,75 +1878,53 @@ export default function App() {
 
       <div className="game-row" ref={gameRowRef}>
         {stageTransition && <StageTransition stageTransition={stageTransition} t={t} />}
-        <div className="question-col">
-          {gameActive && (
-            <>
-              <div className="string-label" key={`str-${safeGuitarString}`}>{t(instrument.stringLabels[safeGuitarString])}</div>
-              {intervalPrompt
-                ? <div className={`note-display${stageTransition ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>
-                    <IntervalPrompt prompt={intervalPrompt} accidental={accidental} notation={notation} onReplay={replayIntervalQuestion} />
-                  </div>
-                : eff.byNote
-                ? <div className={`note-display${currentNote && displayNoteBothEnharmonics(currentNote, notation).includes('=') ? ' note-display-both' : ''}${stageTransition ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>{currentNote ? displayNoteBothEnharmonics(currentNote, notation) : '—'}</div>
-                : <div className={`fret-display${stageTransition ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>{currentFret !== null ? currentFret : '—'}</div>
-              }
-              <SpeedBar key={`sb-${questionSeq}`} remaining={remaining} total={questionTime} startAt={questionStart} answered={answered} paused={paused} />
-              <div className="game-info-row">
-                <span className="game-timer">{remaining}s</span>
-                <span className="game-progress-text">{questionNumber}/{eff.maxQuestions}</span>
-                {showScore && multiplierIcon && <span className="multiplier-icon">{multiplierIcon}</span>}
-              </div>
-              {showScore && (
-                <div id="live-score" className="score-live">
-                  <AnimatedScore value={scoring.session.score} />
-                </div>
-              )}
-              <div className={`feedback ${feedback.startsWith('✓') ? 'good' : feedback.startsWith('✗') ? 'bad' : 'warn'}`}>
-                {feedback}{showScore && scoring.session.lastPoints > 0 && feedback.startsWith('✓') ? ` +${scoring.session.lastPoints}` : ''}
-              </div>
-              {/* Intervals Learning (§7 / task T10): on a missed or timed-out
-                  interval question, reveal the interval name + its size, the
-                  nearest-neighbour discriminator, and — for *identify the
-                  interval* — the two notes that were played, plus a 🔊 replay.
-                  Educational content only; no theory screen. */}
-              {intervalPrompt && answered && !feedback.startsWith('✓') && (() => {
-                const def = intervalBySemitones(intervalPrompt.semitones);
-                const content = intervalContentBySemitones(intervalPrompt.semitones);
-                return (
-                  <div className="interval-feedback-note" dir={lang === 'he' ? 'rtl' : undefined}>
-                    <div className="interval-feedback-name">
-                      <strong>{def ? t(def.nameKey) : `+${intervalPrompt.semitones}`}</strong>
-                      {' · '}
-                      {intervalPrompt.semitones} {t('semitones')}
-                    </div>
-                    {intervalPrompt.exercise === 'identifyInterval' && (
-                      <div className="interval-feedback-pair" dir="ltr">
-                        {displayNote(intervalPrompt.rootNote, accidental, notation)}
-                        {' → '}
-                        {displayNote(intervalPrompt.targetNote, accidental, notation)}
-                      </div>
-                    )}
-                    {content && (
-                      <div className="interval-feedback-compare">{t(content.comparison)}</div>
-                    )}
-                    <button
-                      type="button"
-                      className="interval-replay-btn"
-                      onClick={click(replayIntervalQuestion)}
-                    >
-                      🔊 {t('Hear it again')}
-                    </button>
-                  </div>
-                );
-              })()}
-              {voiceActive && <VoiceStatusRow voice={voice} t={t} />}
-              {voiceActive && running && !paused && voice.permission !== 'denied' && (
-                <VoiceLevelMeter active={running && !paused} />
-              )}
-            </>
-          )}
-
-          {/* Game ended summary */}
+        <DrillBoard
+          t={t}
+          lang={lang}
+          accidental={accidental}
+          notation={notation}
+          instrument={instrument}
+          derived={derived}
+          eff={eff}
+          voice={voice}
+          scoringSession={scoring.session}
+          fretMastery={fretMastery}
+          noteMastery={noteMastery}
+          intervalPrompt={intervalPrompt}
+          questionDisplayRef={questionDisplayRef}
+          gameActive={gameActive}
+          isStopped={isStopped}
+          gameEnded={gameEnded}
+          stageExiting={stageTransition != null}
+          isPlaying={isPlaying}
+          boardLive={boardLive}
+          running={running}
+          paused={paused}
+          answered={answered}
+          showScore={showScore}
+          showMastery={showMastery}
+          byString={byString}
+          voiceActive={voiceActive}
+          multiplierIcon={multiplierIcon}
+          feedback={feedback}
+          safeGuitarString={safeGuitarString}
+          currentNote={currentNote}
+          currentFret={currentFret}
+          questionSeq={questionSeq}
+          remaining={remaining}
+          questionTime={questionTime}
+          questionStart={questionStart}
+          questionNumber={questionNumber}
+          remainingFrets={remainingFrets}
+          foundFrets={foundFrets}
+          wrongFret={wrongFret}
+          correctCofNote={correctCofNote}
+          wrongCofNote={wrongCofNote}
+          selectFret={selectFret}
+          selectAnswer={selectAnswer}
+          selectInterval={selectInterval}
+          replayIntervalQuestion={replayIntervalQuestion}
+        >
           {gameEnded && isStopped && (
             <GameEndSummary
               t={t}
@@ -1968,128 +1938,19 @@ export default function App() {
               onOk={() => { setGameEnded(false); setNewBadges([]); setToastQueue([]); setRevealBadges([]); }}
             />
           )}
-
-          {/* Controls: Play (centered) → becomes a Pause/Resume toggle plus a separate Stop when playing/paused */}
-          <div className="controls">
-            {!running && !paused && !countdown ? (
-              <button ref={playBtnRef} className="icon-btn play-btn" onClick={click(start)} title={t('Start')}>
-                <svg viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
-              </button>
-            ) : running || paused ? (
-              <>
-                <button
-                  className="icon-btn pause-btn"
-                  onClick={() => {
-                    if (paused) resume();
-                    else pause();
-                    playClickSound(); haptic.tap();
-                  }}
-                  title={paused ? t('Resume') : t('Pause')}
-                  aria-label={paused ? t('Resume') : t('Pause')}
-                >
-                  <span className={`morph-icon ${paused ? 'is-resume' : 'is-pause'}`}>
-                    <svg className="icon-pause" viewBox="0 0 24 24" width="24" height="24"><rect x="5" y="4" width="4" height="16" fill="currentColor"/><rect x="15" y="4" width="4" height="16" fill="currentColor"/></svg>
-                    <svg className="icon-play" viewBox="0 0 24 24" width="24" height="24"><polygon points="6,4 20,12 6,20" fill="currentColor"/></svg>
-                  </span>
-                </button>
-                <button
-                  className="icon-btn stop-btn-icon"
-                  onClick={() => { stop(); setTeacherPlan(null); setIntervalPlan(null); playClickSound(); haptic.tap(); }}
-                  title={t('Stop')}
-                  aria-label={t('Stop')}
-                >
-                  <svg viewBox="0 0 24 24" width="24" height="24"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor"/></svg>
-                </button>
-              </>
-            ) : null}
-          </div>
-        </div>
-
-        {/* Keep the grid/circle visible (frozen) while paused; hide only when fully stopped and showing stats/end summary */}
-        {(gameActive || (isStopped && !gameEnded)) && (
-          intervalPrompt && intervalPrompt.exercise === 'findTargetPosition' ? (
-            // *Find on the neck*: the reference note is marked on the string and
-            // the learner taps the note that completes the interval (any
-            // octave-equivalent counts). The engine drives it through the
-            // by-note flow — `remainingFrets` holds every accepted position.
-            <FretGrid
-              fretFrom={eff.fretFrom}
-              fretTo={eff.fretTo}
-              guitarString={safeGuitarString}
-              validFrets={new Set(Array.from({ length: eff.fretTo - eff.fretFrom + 1 }, (_, i) => eff.fretFrom + i))}
-              active={isPlaying && !answered}
-              correctFrets={gameActive ? remainingFrets : []}
-              wrongFret={gameActive ? wrongFret : null}
-              foundFrets={gameActive ? foundFrets : []}
-              onSelect={selectFret}
-              showMastery={false}
-              referenceFret={intervalPrompt.refFret}
-            />
-          ) : intervalPrompt ? (
-            <IntervalChoiceRow
-              variant={intervalPrompt.exercise === 'identifyInterval' ? 'interval' : 'note'}
-              options={
-                intervalPrompt.exercise === 'identifyInterval'
-                  ? intervalPrompt.optionSemitones.map((s) => ({
-                      value: String(s),
-                      label: intervalBySemitones(s)?.short ?? `+${s}`,
-                    }))
-                  : intervalPrompt.options.map((n) => ({
-                      value: n,
-                      label: displayNote(n, accidental, notation),
-                    }))
-              }
-              correct={
-                gameActive && answered
-                  ? intervalPrompt.exercise === 'identifyInterval'
-                    ? String(intervalPrompt.semitones)
-                    : intervalPrompt.targetNote
-                  : null
-              }
-              disabled={!(isPlaying && !answered)}
-              dir={lang === 'he' ? 'rtl' : undefined}
-              onSelect={(value) =>
-                intervalPrompt.exercise === 'identifyInterval'
-                  ? selectInterval(Number(value))
-                  : selectAnswer(value)
-              }
-            />
-          ) : eff.byNote ? (
-            <FretGrid
-              fretFrom={eff.fretFrom}
-              fretTo={eff.fretTo}
-              guitarString={safeGuitarString}
-              validFrets={new Set(Object.values(noteFrets).flat())}
-              active={isPlaying && !answered}
-              correctFrets={gameActive ? remainingFrets : []}
-              wrongFret={gameActive ? wrongFret : null}
-              foundFrets={gameActive ? foundFrets : []}
-              onSelect={selectFret}
-              masteryByFret={fretMastery}
-              showMastery={!boardLive && showMastery}
-              referenceFret={null}
-            />
-          ) : (
-            <NoteCircle
-              notes={cofList}
-              activeNotes={isMulti && gameActive ? questionActiveNotes : activeNotes}
-              active={isPlaying && !answered}
-              correctNote={gameActive ? correctCofNote : null}
-              wrongNote={gameActive ? wrongCofNote : null}
-              onSelect={selectAnswer}
-              guitarString={safeGuitarString}
-              fretDots={fretDots}
-              noteFrets={noteFrets}
-              byString={byString}
-              startIndex={startIndex}
-              showDots={!(isMulti && eff.multiStrings.length > 1) || boardLive}
-              accidental={accidental}
-              notation={notation}
-              masteryByNote={noteMastery}
-              showMastery={!boardLive && showMastery}
-            />
-          )
-        )}
+          <DrillControls
+            running={running}
+            paused={paused}
+            countdown={countdown}
+            t={t}
+            playBtnRef={playBtnRef}
+            start={start}
+            pause={pause}
+            resume={resume}
+            stop={stop}
+            onStopPlan={() => { setTeacherPlan(null); setIntervalPlan(null); }}
+          />
+        </DrillBoard>
       </div>
 
       {(auth.admin || import.meta.env.DEV) && (
