@@ -81,6 +81,8 @@ createRoot(document.getElementById('root')!).render(
     markUpdateSettled()
   }, MAX_VISIBLE_MS)
 
+  let swRegistration: ServiceWorkerRegistration | undefined
+
   const updateSW = registerSW({
     immediate: true,
     onNeedRefresh() {
@@ -101,6 +103,7 @@ createRoot(document.getElementById('root')!).render(
     onRegisteredSW(_swUrl, reg) {
       try { sessionStorage.removeItem(BOOT_RELOAD_KEY) } catch { /* ignore */ }
       if (!reg) { markUpdateSettled(); return }
+      swRegistration = reg
       // Kick an immediate check instead of waiting for the browser's own.
       Promise.resolve(reg.update()).catch(() => {}).finally(() => {
         // If nothing is installing, onNeedRefresh won't fire — settle now.
@@ -110,4 +113,29 @@ createRoot(document.getElementById('root')!).render(
     },
     onRegisterError() { markUpdateSettled() },
   })
+
+  // The build-info "↻" button calls this instead of a bare location.reload().
+  // A plain reload just re-serves the cached build, so a fresh deploy only
+  // showed up after the hourly re-check or a cold launch. Here we ask the
+  // service worker to check *now*, wait for any newer build to finish
+  // installing, then activate it and reload straight into it.
+  window.__applyUpdate = async () => {
+    const reg = swRegistration
+    if (!reg) { window.location.reload(); return }
+    try { await reg.update() } catch { /* offline — fall through to a plain reload */ }
+
+    const installing = reg.installing
+    if (installing && !reg.waiting) {
+      await new Promise<void>((resolve) => {
+        const done = () => resolve()
+        installing.addEventListener('statechange', () => {
+          if (installing.state === 'installed' || installing.state === 'activated' || installing.state === 'redundant') done()
+        })
+        setTimeout(done, 8000)
+      })
+    }
+
+    if (reg.waiting) await updateSW(true) // skipWaiting + auto-reload into the new build
+    else window.location.reload()
+  }
 }

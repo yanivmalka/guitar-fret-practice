@@ -177,7 +177,11 @@ export default function AccountSection({
           footer stays clean; this is the one place it now lives. */}
       <div className="build-info account-build-info">
         {__COMMIT_HASH__} · {__COMMIT_DATE__.slice(0, 16)}
-        <button className="refresh-btn" onClick={() => window.location.reload()} title={t('Refresh')}>↻</button>
+        <button
+          className="refresh-btn"
+          onClick={() => { void (window.__applyUpdate?.() ?? Promise.resolve(window.location.reload())); }}
+          title={t('Refresh')}
+        >↻</button>
       </div>
     </>
   );
