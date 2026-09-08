@@ -204,7 +204,7 @@ function build(opts: PlannerOptions, kind: 'daily' | 'weakSpots'): TeacherPlan {
     // Still short (new Premium user, little history) — fill from the
     // least-practised positions across the neck.
     if (picked.length < sessionSize) {
-      const span = coverageSpan(allStrings, maxFret);
+      const span = coverageSpan(allStrings, maxFret, entries);
       for (const cp of leastPractisedPositions(entries, span)) {
         if (picked.length >= sessionSize) break;
         if (add(cp.itemId, 'coverage', [])) coverage++;
@@ -274,13 +274,24 @@ function build(opts: PlannerOptions, kind: 'daily' | 'weakSpots'): TeacherPlan {
   };
 }
 
-// A neck-wide-ish span for coverage fallback: open position through fret 5 (or
-// the whole neck if it is shorter), every string.
+// The span for the coverage fallback: always from the open position, every
+// string, but the upper bound grows with how far up the neck the learner has
+// actually played — `playedMax + 3` frets of head-room, floored at fret 5 and
+// capped at the instrument's last fret. So a brand-new user still gets the
+// open-position span (frets 0–5), and a Teacher session widens past it on its
+// own as the learner starts working higher up, instead of being pinned to the
+// first five frets for ever.
 function coverageSpan(
   allStrings: number[],
   maxFret: number,
+  entries: HistoryEntry[],
 ): { strings: number[]; fretFrom: number; fretTo: number } {
-  return { strings: [...allStrings], fretFrom: 0, fretTo: Math.min(5, maxFret) };
+  let playedMax = 0;
+  for (const e of entries) {
+    if (Number.isInteger(e.fret) && e.fret > playedMax) playedMax = e.fret;
+  }
+  const fretTo = clamp(Math.max(5, playedMax + 3), 5, maxFret);
+  return { strings: [...allStrings], fretFrom: 0, fretTo };
 }
 
 function averageRecentAccuracy(

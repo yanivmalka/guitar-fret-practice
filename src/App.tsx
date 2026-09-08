@@ -227,12 +227,16 @@ export default function App() {
       addEntryRaw(histKey, entry);
       // Feed the Premium learning model. A Teacher session's answers update the
       // SRS schedule *and* the daily goal. Ordinary Selector play updates the
-      // SRS schedule only (no daily-goal tick) and only in by-fret mode, where
-      // each entry is exactly the asked (string, fret) — by-note's wrong-tap
-      // entries are the wrong fret, so they must not touch the schedule. Both
-      // recorders are inert off Premium.
+      // SRS schedule only (no daily-goal tick). In by-fret mode every entry is
+      // exactly the asked (string, fret). In by-note mode a correct tap and a
+      // timeout also carry a genuine matching position (a real fret for the
+      // shown note — one the player found, or one they failed to), so those
+      // feed the schedule too; only an explicit wrong tap records the WRONG
+      // fret and must be kept out. Both recorders are inert off Premium.
       if (teacherPlanRef.current) teacherRecordRef.current?.(entry);
-      else if (!effByNoteRef.current) practiceRecordRef.current?.(entry);
+      else if (!effByNoteRef.current || entry.correct !== false) {
+        practiceRecordRef.current?.(entry);
+      }
     },
     [histKey, addEntryRaw],
   );
