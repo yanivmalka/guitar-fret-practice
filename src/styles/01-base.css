@@ -69,6 +69,16 @@ body {
   flex-direction: column;
   justify-content: flex-end;
   overflow-y: hidden;
+  /* Drop the extra +12px breathing room under the content on the home
+     screen so the board sits right above the Android nav-bar inset with
+     no dead gap; keep the inset itself as clearance so the lowest note
+     buttons never fall under the system nav. The reclaimed space is
+     absorbed off the top (burger + title), matching the bottom-anchor. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.app.home-page .game-row {
+  margin-bottom: 0;
 }
 
 /* On larger (desktop/tablet) screens, render the app at its native
