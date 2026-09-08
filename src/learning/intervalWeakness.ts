@@ -13,51 +13,59 @@
 //
 // Signals (any one is enough to make a quality a candidate), the same four as
 // `weakness.ts`:
-//   • low recent accuracy   — over a recent window, not lifetime
-//   • slow correct answers   — mean time of recent correct answers is high
+//   • low recent accuracy   — a recency-weighted mean, not lifetime
+//   • slow correct answers   — recency-weighted mean time of correct answers
 //   • repeated recent misses — several wrong/timeouts in the last few tries
 //   • overdue SRS review     — its `dueAt` has passed
 //
-// Because there are only 11 items and interval sessions are short, the recent
-// window is larger than the notes one (20 vs 12); the recency horizon stays
-// 45 days (spec §10.5). Deterministic: same inputs → same ranked list, ties
-// broken by semitone size.
+// Because there are only 11 items and interval sessions are short, the evidence
+// gate is stricter than the notes one (an effective 4 recent answers vs 3 — a
+// short lucky streak over 11 qualities is easy). Recent accuracy is an
+// exponential time-decay weighted mean (shared `recency.ts` model, 14-day
+// half-life); the recency horizon is a 180-day performance cap, not a window.
+// Deterministic: same inputs → same ranked list, ties broken by semitone size.
 
 import type { IntervalHistoryRow } from './learningState';
 import { intervalItemId, parseIntervalItemId } from './intervalItem';
 import { overdueByMs, type SrsItem, type SrsMap } from './srs';
+import {
+  DAY_MS,
+  DEFAULT_HALF_LIFE_DAYS,
+  HARD_CAP_DAYS,
+  weightedAccuracy,
+  weightedMeanSeconds,
+} from './recency';
 
 export interface IntervalWeaknessConfig {
-  /** Only the most recent this-many answers per quality are considered — a
-   *  recent window, never the whole lifetime history. Larger than the notes
-   *  window (there are only 11 items and sessions are short — spec §10.5). */
-  windowSize: number;
-  /** Need at least this many answers in the window before accuracy / speed
-   *  are trusted, so a couple of unlucky answers can't brand a quality weak. */
-  minAttempts: number;
-  /** Recent accuracy at or below this (with enough attempts) ⇒ weak. 0–1. */
+  /** Effective sample size (Σ of the decay weights) a quality needs before its
+   *  weighted accuracy / speed are trusted, so a couple of unlucky answers
+   *  can't brand a quality weak. Stricter than the notes lane (4 vs 3). */
+  minEffectiveN: number;
+  /** Weighted recent accuracy at or below this (with enough evidence) ⇒ weak. 0–1. */
   lowAccuracy: number;
-  /** Mean time (seconds) of recent CORRECT answers at or above this ⇒ weak. */
+  /** Weighted mean time (seconds) of recent CORRECT answers at or above this ⇒ weak. */
   slowSeconds: number;
   /** How many of the most recent answers the "repeated misses" check looks at. */
   mistakeLookback: number;
   /** That many wrong/timeout answers within the lookback ⇒ weak. */
   mistakeThreshold: number;
-  /** History rows older than this many days are ignored entirely, so a rough
-   *  patch from months ago cannot stay a "current" weakness for ever. A
-   *  quality with only stale history (and no live SRS row) drops off the
-   *  list; a genuinely due SRS item still surfaces via its schedule. */
+  /** Half-life of the recency decay weight, in days. */
+  halfLifeDays: number;
+  /** History rows older than this many days are dropped entirely before the
+   *  decay model sees them — a performance / storage bound only, never a data
+   *  delete. A quality with only stale history (and no live SRS row) drops off
+   *  the list; a genuinely due SRS item still surfaces via its schedule. */
   maxAgeDays: number;
 }
 
 export const DEFAULT_INTERVAL_WEAKNESS_CONFIG: IntervalWeaknessConfig = {
-  windowSize: 20,
-  minAttempts: 3,
+  minEffectiveN: 4,
   lowAccuracy: 0.7,
   slowSeconds: 5,
   mistakeLookback: 4,
   mistakeThreshold: 2,
-  maxAgeDays: 45,
+  halfLifeDays: DEFAULT_HALF_LIFE_DAYS,
+  maxAgeDays: HARD_CAP_DAYS,
 };
 
 export type IntervalWeaknessReason =
@@ -71,11 +79,13 @@ export interface IntervalWeaknessSignal {
   itemId: string;
   /** Interval size in semitones, 1..11. */
   semitones: number;
-  /** Answers counted in the recent window. */
+  /** Raw count of surviving rows (inside the 180-day cap) for this quality. */
   attempts: number;
-  /** Correct / attempts over the window, 0–1 (0 when attempts === 0). */
-  recentAccuracy: number;
-  /** Mean seconds of the correct answers in the window (0 if none). */
+  /** Recency-weighted accuracy, 0–1 (0 when there is no usable evidence). */
+  weightedAccuracy: number;
+  /** Effective sample size — Σ of the decay weights over the surviving rows. */
+  effectiveN: number;
+  /** Recency-weighted mean seconds of the correct answers (0 if none). */
   avgCorrectSeconds: number;
   /** Wrong + timeout answers within `mistakeLookback`. */
   recentMistakes: number;
@@ -88,8 +98,6 @@ export interface IntervalWeaknessSignal {
   /** Deterministic priority; higher = more urgent. */
   score: number;
 }
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 // A timeout is folded into `intervalHistory` as `correct: false` (spec §10.2),
 // so a miss is simply a non-correct row — no `null` case as in `HistoryEntry`.
@@ -112,8 +120,10 @@ export function analyzeIntervalWeakness(
   now: number,
   cfg: IntervalWeaknessConfig = DEFAULT_INTERVAL_WEAKNESS_CONFIG,
 ): IntervalWeaknessSignal[] {
-  // Group rows by quality, ignoring anything older than the recency horizon.
+  // Group rows by quality, dropping anything past the hard cap (a performance
+  // bound, not a data delete) before the decay model sees it.
   const cutoff = now - cfg.maxAgeDays * DAY_MS;
+  const halfLifeMs = cfg.halfLifeDays * DAY_MS;
   const byItem = new Map<string, IntervalHistoryRow[]>();
   for (const r of rows) {
     if (!(r.semitones >= 1 && r.semitones <= 11)) continue;
@@ -133,26 +143,36 @@ export function analyzeIntervalWeakness(
     if (semitones == null) continue;
 
     const sorted = (byItem.get(id) ?? []).slice().sort((a, b) => a.createdAt - b.createdAt);
-    const window = sorted.slice(-cfg.windowSize);
-    const attempts = window.length;
-    const correct = window.filter((r) => r.correct === true);
-    const recentAccuracy = attempts > 0 ? correct.length / attempts : 0;
-    const avgCorrectSeconds =
-      correct.length > 0
-        ? correct.reduce((s, r) => s + (Number.isFinite(r.seconds) ? r.seconds : 0), 0) /
-          correct.length
-        : 0;
-    const recentMistakes = window.slice(-cfg.mistakeLookback).filter(isMiss).length;
+    const attempts = sorted.length;
+    const { accuracy: weightedAcc, effectiveN } = weightedAccuracy(
+      sorted.map((r) => ({ correct: r.correct === true, atMs: r.createdAt })),
+      now,
+      halfLifeMs,
+    );
+    const correct = sorted.filter((r) => r.correct === true);
+    const avgCorrectSeconds = weightedMeanSeconds(
+      correct.map((r) => ({
+        seconds: Number.isFinite(r.seconds) ? r.seconds : 0,
+        atMs: r.createdAt,
+      })),
+      now,
+      halfLifeMs,
+    );
+    // The "repeated recent misses" trigger stays a raw, unweighted count over
+    // the last few chronological answers, so a quality the learner just bombed
+    // still surfaces immediately.
+    const recentMistakes = sorted.slice(-cfg.mistakeLookback).filter(isMiss).length;
 
     const srsItem: SrsItem | undefined = intervalSrs[id];
     const odMs = srsItem ? overdueByMs(srsItem, now) : 0;
     const overdue = odMs > 0;
 
     const reasons: IntervalWeaknessReason[] = [];
-    if (attempts >= cfg.minAttempts && recentAccuracy <= cfg.lowAccuracy) {
+    const hasEvidence = effectiveN >= cfg.minEffectiveN;
+    if (hasEvidence && weightedAcc <= cfg.lowAccuracy) {
       reasons.push('lowAccuracy');
     }
-    if (correct.length >= cfg.minAttempts && avgCorrectSeconds >= cfg.slowSeconds) {
+    if (hasEvidence && avgCorrectSeconds >= cfg.slowSeconds) {
       reasons.push('slow');
     }
     if (recentMistakes >= cfg.mistakeThreshold) {
@@ -169,7 +189,7 @@ export function analyzeIntervalWeakness(
     let score = 0;
     if (overdue) score += 100 + Math.min(odMs / DAY_MS, 30);
     if (reasons.includes('lowAccuracy')) {
-      score += (cfg.lowAccuracy - recentAccuracy) * 120 + 20;
+      score += (cfg.lowAccuracy - weightedAcc) * 120 + 20;
     }
     if (reasons.includes('recentMistakes')) score += recentMistakes * 15;
     if (reasons.includes('slow')) score += (avgCorrectSeconds - cfg.slowSeconds) * 8 + 8;
@@ -178,7 +198,8 @@ export function analyzeIntervalWeakness(
       itemId: id,
       semitones,
       attempts,
-      recentAccuracy,
+      weightedAccuracy: weightedAcc,
+      effectiveN,
       avgCorrectSeconds,
       recentMistakes,
       overdue,

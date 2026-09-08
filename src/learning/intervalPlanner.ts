@@ -372,12 +372,12 @@ function leastPractised(
 
 function averageRecentAccuracy(
   sizes: number[],
-  signalBySize: Map<number, { recentAccuracy: number; attempts: number }>,
+  signalBySize: Map<number, { weightedAccuracy: number; attempts: number }>,
 ): number | null {
   const accs: number[] = [];
   for (const size of sizes) {
     const s = signalBySize.get(size);
-    if (s && s.attempts > 0) accs.push(s.recentAccuracy);
+    if (s && s.attempts > 0) accs.push(s.weightedAccuracy);
   }
   if (accs.length === 0) return null;
   return accs.reduce((a, b) => a + b, 0) / accs.length;
