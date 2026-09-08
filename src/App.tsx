@@ -34,6 +34,7 @@ import { loadBest, saveBest } from './utils/personalBest';
 import { historyForInstrument, flattenHistory, fretMasteryMap, noteMasteryMap, applyMasteryWindow, DEFAULT_MASTERY_WINDOW, FREE_MASTERY_WINDOW, type MasteryStat, type MasteryWindow } from './utils/mastery';
 import { useAuth } from './hooks/useAuth';
 import { useCloudSync } from './hooks/useCloudSync';
+import { useVoiceProfileSummary } from './hooks/useVoiceProfileSummary';
 import { useSelector, type DerivedSettings } from './hooks/useSelector';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useDrillSession } from './hooks/useDrillSession';
@@ -74,9 +75,7 @@ import {
   type BadgeId, type SessionSnapshot, type LifetimeSnapshot, type Tier,
 } from './utils/badges';
 import type { SpeechNotation } from './utils/speechVocab';
-import { resetSpeechEngine, type VoiceEnginePref } from './utils/speech';
-import { getActiveProfile, isProfileReady, templateCounts } from './utils/voiceProfile';
-import { profileVocabId } from './utils/voiceProfileVocab';
+import { type VoiceEnginePref } from './utils/speech';
 import { useTranslation } from './i18n/useTranslation';
 import { mergeCelebrated } from './utils/badgeCelebration';
 
@@ -179,41 +178,16 @@ export default function App() {
   const safeGuitarString = Math.min(Math.max(guitarString, 1), instrument.stringCount);
   const [byString, setByString] = useState(() => loadSetting('pref_byString', true));
   const [notation, setNotation] = useState<NotationMode>(() => loadSetting('pref_notation', 'alpha'));
-  // Bumped when a personal voice-profile calibration finishes, so
-  // useVoiceAnswer re-selects the speech engine (on-device vs Web).
-  const [voiceEngineEpoch, setVoiceEngineEpoch] = useState(0);
   const [showVoiceCalibration, setShowVoiceCalibration] = useState(false);
-  // Summary of the stored personal voice profile, shown in Settings so it is
-  // obvious that recordings exist and can be extended.
-  const [voiceProfileStat, setVoiceProfileStat] = useState<
-    { enabled: boolean; count: number } | null
-  >(null);
   const [voiceEnginePref, setVoiceEnginePref] = useState<VoiceEnginePref>(
     () => loadSetting('pref_voiceEngine', 'auto'),
   );
-  const pickVoiceEngine = (p: VoiceEnginePref) => {
-    setVoiceEnginePref(p);
-    saveSetting('pref_voiceEngine', p);
-    resetSpeechEngine();
-    setVoiceEngineEpoch((n) => n + 1);
-  };
-  // Refresh the voice-profile summary on mount and whenever a calibration
-  // session ends or the engine preference changes.
-  useEffect(() => {
-    let alive = true;
-    void (async () => {
-      const active = getActiveProfile();
-      if (!active) { if (alive) setVoiceProfileStat({ enabled: false, count: 0 }); return; }
-      try {
-        const counts = await templateCounts(active, profileVocabId(notation as SpeechNotation), true);
-        const count = Object.values(counts).reduce((s, v) => s + v, 0);
-        if (alive) setVoiceProfileStat({ enabled: isProfileReady(), count });
-      } catch {
-        if (alive) setVoiceProfileStat(null);
-      }
-    })();
-    return () => { alive = false; };
-  }, [showVoiceCalibration, voiceEngineEpoch, notation]);
+  // Voice-engine calibration epoch + the stored-profile summary shown in
+  // Settings. `bumpVoiceEngineEpoch` re-selects the speech engine after a
+  // calibration or a restored cloud profile; useVoiceAnswer reads the epoch.
+  const {
+    voiceProfileStat, pickVoiceEngine, voiceEngineEpoch, bumpVoiceEngineEpoch,
+  } = useVoiceProfileSummary({ notation, showVoiceCalibration, setVoiceEnginePref });
   // How the player answers a question: tapping the circle/grid, or speaking the
   // note name / fret number aloud (WP-4). Voice needs a network connection and
   // is only offered where a recogniser is actually available.
@@ -315,7 +289,7 @@ export default function App() {
   // source of truth the UI reads from. All the auth.user-keyed sync effects
   // and the first-sign-in guest-merge prompt live in useCloudSync.
   const { pendingGuestMerge, finishGuestMerge, guestLocalRowCount } = useCloudSync({
-    auth, historyOps, bumpVoiceEngineEpoch: () => setVoiceEngineEpoch((n) => n + 1),
+    auth, historyOps, bumpVoiceEngineEpoch,
   });
 
   const derived = useDerivedNotes(
@@ -1717,7 +1691,7 @@ export default function App() {
           notation={notation}
           accidental={accidental}
           onClose={() => setShowVoiceCalibration(false)}
-          onProfileChanged={() => setVoiceEngineEpoch((n) => n + 1)}
+          onProfileChanged={bumpVoiceEngineEpoch}
         />
       )}
 
