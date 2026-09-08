@@ -946,7 +946,7 @@ export default function App() {
   }
 
   return (
-    <div className="app home-page">
+    <div className={`app home-page${gameActive ? ' playing' : ''}`}>
       {!onboardingDone && (
         <Onboarding
           onInstrument={applyInstrument}

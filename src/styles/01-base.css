@@ -81,6 +81,24 @@ body {
   margin-bottom: 0;
 }
 
+/* While a round is actually running the drill board is much taller than
+   the idle selector screen the bottom-anchor rule above was tuned for
+   (question prompt + speed bar + live score + feedback line + the full
+   NoteCircle + the Pause/Stop controls). Bottom-anchoring that taller
+   board dumps the surplus height as empty space under the title, pushes
+   the burger + title off the top, and still clips the lowest NoteCircle
+   notes off the bottom. Top-align the column during play instead so the
+   title stays put and the surplus space sits below the board — the
+   board itself is short enough to fit without scrolling. `overflow-y`
+   stays `hidden` (inherited from the rule above): no scrollbar. */
+.app.home-page.playing {
+  justify-content: flex-start;
+}
+
+.app.home-page.playing .game-row {
+  flex-shrink: 0;
+}
+
 /* On larger (desktop/tablet) screens, render the app at its native
    mobile size (--phone-w/--phone-h, set in index.html) inside #root,
    then uniformly scale that whole frame down to fit the window
