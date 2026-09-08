@@ -73,7 +73,12 @@ export default defineConfig({
     },
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt', not 'autoUpdate': we want the "is there a newer build?" check
+      // to land during the boot splash (src/main.tsx) and reload into the new
+      // version there, rather than the service worker swapping itself in
+      // silently mid-session. registerSW() is called by hand in main.tsx.
+      registerType: 'prompt',
+      injectRegister: false,
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,mp3}'],
         // The synthetic-voice template set (~280 KB) is a lazy import used
