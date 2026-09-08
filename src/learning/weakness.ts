@@ -9,10 +9,16 @@
 // the next session, and why?"
 //
 // Signals (any one is enough to make a position a candidate):
-//   • low recent accuracy   — over a recent window, not lifetime
-//   • slow correct answers   — mean time of recent correct answers is high
+//   • low recent accuracy   — a recency-weighted mean, not lifetime
+//   • slow correct answers   — recency-weighted mean time of correct answers is high
 //   • repeated recent misses — several wrong/timeouts in the last few tries
 //   • overdue SRS review     — its `dueAt` has passed
+//
+// "Recent" is an exponential time-decay, not a fixed-size window: every answer
+// gets a weight `w = 0.5 ** (ageMs / halfLifeMs)` (14-day half-life), a
+// position's accuracy is the weighted mean and its evidence weight is the
+// effective sample size `effectiveN = Σ w`. A 180-day hard cap still drops
+// older rows, but purely as a performance / storage bound. See `recency.ts`.
 //
 // The result is deterministic: same inputs → same ranked list, ties broken by
 // position id. Each row carries the numbers behind the decision so the
@@ -21,39 +27,44 @@
 import type { HistoryEntry } from '../utils/music';
 import { noteItemId, compareNoteItemId, parseNoteItemId, type NotePos } from './noteItem';
 import { overdueByMs, type SrsItem, type SrsMap } from './srs';
+import {
+  weightedAccuracy as computeWeightedAccuracy,
+  weightedMeanSeconds,
+  HARD_CAP_DAYS,
+  DAY_MS,
+} from './recency';
 
 export interface WeaknessConfig {
-  /** Only the most recent this-many answers per position are considered — a
-   *  recent window, never the whole lifetime history (task §1). */
-  windowSize: number;
-  /** Need at least this many answers in the window before accuracy / speed
-   *  are trusted, so a couple of unlucky answers can't brand a position weak. */
-  minAttempts: number;
-  /** Recent accuracy at or below this (with enough attempts) ⇒ weak. 0–1. */
+  /** Minimum effective sample size (`effectiveN = Σ` of the recency decay
+   *  weights) before recency-weighted accuracy / speed are trusted, so a
+   *  couple of unlucky answers — or a handful of stale ones — can't brand a
+   *  position weak. Replaces the old raw `minAttempts` gate. */
+  minEffectiveN: number;
+  /** Recency-weighted accuracy at or below this (with enough evidence) ⇒ weak. 0–1. */
   lowAccuracy: number;
-  /** Mean time (seconds) of recent CORRECT answers at or above this ⇒ weak. */
+  /** Recency-weighted mean time (seconds) of CORRECT answers at or above this ⇒ weak. */
   slowSeconds: number;
   /** How many of the most recent answers the "repeated misses" check looks at. */
   mistakeLookback: number;
   /** That many wrong/timeout answers within the lookback ⇒ weak. */
   mistakeThreshold: number;
-  /** History rows older than this many days are ignored entirely, so a rough
-   *  patch from months ago cannot stay a "current" weakness for ever. A
-   *  position with only stale history (and no live SRS row) drops off the
-   *  list; a genuinely due SRS item still surfaces via its schedule. Rows
-   *  with no `createdAt` (pre-timestamp localStorage) count as too old, the
-   *  same way `progress.ts` already skips them. */
-  maxAgeDays: number;
+  /** Half-life (days) of the exponential recency weight
+   *  `w = 0.5 ** (ageMs / halfLifeMs)`. An answer one half-life old counts
+   *  half as much as a brand-new one. */
+  halfLifeDays: number;
 }
 
+// The 180-day `HARD_CAP_DAYS` bound (rows older than that, and rows with no
+// `createdAt`, are dropped before the decay math sees them — the same way
+// `progress.ts` already skips undated rows) is a fixed performance / storage
+// guard, not a tuning knob, so it is not part of this config.
 export const DEFAULT_WEAKNESS_CONFIG: WeaknessConfig = {
-  windowSize: 12,
-  minAttempts: 3,
+  minEffectiveN: 3,
   lowAccuracy: 0.7,
   slowSeconds: 4,
   mistakeLookback: 4,
   mistakeThreshold: 2,
-  maxAgeDays: 45,
+  halfLifeDays: 14,
 };
 
 export type WeaknessReason =
@@ -66,13 +77,17 @@ export interface WeaknessSignal {
   itemId: string;
   string: number;
   fret: number;
-  /** Answers counted in the recent window. */
+  /** Raw count of history rows inside the 180-day hard cap (display only). */
   attempts: number;
-  /** Correct / attempts over the window, 0–1 (0 when attempts === 0). */
-  recentAccuracy: number;
-  /** Mean seconds of the correct answers in the window (0 if none). */
+  /** Recency-weighted correct ratio, 0–1 (0 when there is no usable history). */
+  weightedAccuracy: number;
+  /** Σ of the recency decay weights — the effective sample size behind
+   *  `weightedAccuracy`. The accuracy / speed signals are trusted only once
+   *  this reaches `minEffectiveN`. */
+  effectiveN: number;
+  /** Recency-weighted mean seconds of the correct answers (0 if none). */
   avgCorrectSeconds: number;
-  /** Wrong + timeout answers within `mistakeLookback`. */
+  /** Wrong + timeout answers within `mistakeLookback` — a raw, unweighted count. */
   recentMistakes: number;
   /** SRS `dueAt` has passed. */
   overdue: boolean;
@@ -84,11 +99,10 @@ export interface WeaknessSignal {
   score: number;
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-// Chronological order for a position's rows. `createdAt` may be missing on old
-// localStorage rows — those sort oldest (same rule as utils/mastery.ts), so
-// they are the first dropped when the window overflows.
+// Chronological order for a position's rows, used only for the "repeated recent
+// misses" lookback tail (the decay weight, not a slice, does the "recent counts
+// more" job for accuracy / speed). `createdAt` may be missing on old
+// localStorage rows — those sort oldest (same rule as utils/mastery.ts).
 function byCreatedAtAsc(a: HistoryEntry, b: HistoryEntry): number {
   return (a.createdAt ?? '').localeCompare(b.createdAt ?? '');
 }
@@ -117,9 +131,12 @@ export function analyzeWeakness(
   now: number,
   cfg: WeaknessConfig = DEFAULT_WEAKNESS_CONFIG,
 ): WeaknessSignal[] {
-  // Group rows by position, ignoring anything older than the recency horizon
-  // (and anything with no usable timestamp — treated as too old).
-  const cutoff = now - cfg.maxAgeDays * DAY_MS;
+  // Group rows by position, dropping anything past the 180-day hard cap (a
+  // performance / storage bound only) and anything with no usable timestamp
+  // (treated as too old). The recency weight — not this filter — is what makes
+  // months-old rows stop counting as a current weakness.
+  const cutoff = now - HARD_CAP_DAYS * DAY_MS;
+  const halfLifeMs = cfg.halfLifeDays * DAY_MS;
   const byItem = new Map<string, HistoryEntry[]>();
   for (const e of entries) {
     if (!Number.isInteger(e.string) || !Number.isInteger(e.fret)) continue;
@@ -139,27 +156,36 @@ export function analyzeWeakness(
     const pos = parseNoteItemId(id);
     if (!pos) continue;
 
+    // Every surviving row for this position (no fixed-size window any more —
+    // the decay weight does that job), sorted only for the mistake tail below.
     const rows = (byItem.get(id) ?? []).slice().sort(byCreatedAtAsc);
-    const window = rows.slice(-cfg.windowSize);
-    const attempts = window.length;
-    const correct = window.filter(isCorrect);
-    const recentAccuracy = attempts > 0 ? correct.length / attempts : 0;
-    const avgCorrectSeconds =
-      correct.length > 0
-        ? correct.reduce((s, e) => s + (Number.isFinite(e.seconds) ? e.seconds : 0), 0) /
-          correct.length
-        : 0;
-    const recentMistakes = window.slice(-cfg.mistakeLookback).filter(isMiss).length;
+    const attempts = rows.length;
+    const correct = rows.filter(isCorrect);
+
+    const { accuracy: weightedAcc, effectiveN } = computeWeightedAccuracy(
+      rows.map((e) => ({ correct: isCorrect(e), atMs: Date.parse(e.createdAt!) })),
+      now,
+      halfLifeMs,
+    );
+    const avgCorrectSeconds = weightedMeanSeconds(
+      correct.map((e) => ({
+        seconds: Number.isFinite(e.seconds) ? e.seconds : 0,
+        atMs: Date.parse(e.createdAt!),
+      })),
+      now,
+      halfLifeMs,
+    );
+    const recentMistakes = rows.slice(-cfg.mistakeLookback).filter(isMiss).length;
 
     const srsItem: SrsItem | undefined = srs[id];
     const odMs = srsItem ? overdueByMs(srsItem, now) : 0;
     const overdue = odMs > 0;
 
     const reasons: WeaknessReason[] = [];
-    if (attempts >= cfg.minAttempts && recentAccuracy <= cfg.lowAccuracy) {
+    if (effectiveN >= cfg.minEffectiveN && weightedAcc <= cfg.lowAccuracy) {
       reasons.push('lowAccuracy');
     }
-    if (correct.length >= cfg.minAttempts && avgCorrectSeconds >= cfg.slowSeconds) {
+    if (effectiveN >= cfg.minEffectiveN && avgCorrectSeconds >= cfg.slowSeconds) {
       reasons.push('slow');
     }
     if (recentMistakes >= cfg.mistakeThreshold) {
@@ -175,7 +201,7 @@ export function analyzeWeakness(
     let score = 0;
     if (overdue) score += 100 + Math.min(odMs / DAY_MS, 30);
     if (reasons.includes('lowAccuracy')) {
-      score += (cfg.lowAccuracy - recentAccuracy) * 120 + 20;
+      score += (cfg.lowAccuracy - weightedAcc) * 120 + 20;
     }
     if (reasons.includes('recentMistakes')) score += recentMistakes * 15;
     if (reasons.includes('slow')) score += (avgCorrectSeconds - cfg.slowSeconds) * 8 + 8;
@@ -185,7 +211,8 @@ export function analyzeWeakness(
       string: pos.string,
       fret: pos.fret,
       attempts,
-      recentAccuracy,
+      weightedAccuracy: weightedAcc,
+      effectiveN,
       avgCorrectSeconds,
       recentMistakes,
       overdue,

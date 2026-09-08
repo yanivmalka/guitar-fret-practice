@@ -174,23 +174,37 @@ function row(
     withSrs.length === 1 && withSrs[0].itemId === '2:9' && withSrs[0].overdue);
 }
 
-// ── Weakness recency: stale rows don't stay a current weakness ─────────
+// ── Weakness recency: stale rows don't stay a current accuracy weakness ──
+// With the exponential time-decay model, "recent" is a 14-day half-life, not a
+// fixed window. Months-old rows survive the 180-day hard cap but weigh almost
+// nothing, so their `effectiveN` falls below the gate and they are never
+// flagged on accuracy / speed; rows past 180 days are dropped outright.
 {
-  // 6 clearly-bad answers, but all ~100 days ago.
+  // 6 clearly-bad answers (alternating right/wrong), all ~100 days ago.
   const oldRow = (i: number) => ({
     note: 'X', string: 6, fret: 3, seconds: 2, skipped: false, correct: i % 2 === 0,
     createdAt: new Date(T0 - 100 * DAY + i * 1000).toISOString(),
   });
   const stale = Array.from({ length: 6 }, (_, i) => oldRow(i));
-  check('months-old bad performance is NOT a current weakness',
-    analyzeWeakness(stale, {}, T0).length === 0);
+  const staleSignals = analyzeWeakness(stale, {}, T0);
+  check('months-old poor accuracy fails the effectiveN gate (not flagged on accuracy/speed)',
+    staleSignals.every((s) =>
+      !s.reasons.includes('lowAccuracy') && !s.reasons.includes('slow')));
 
-  // The same pattern, but recent, still is.
+  // Rows past the 180-day hard cap are dropped entirely — no signal at all.
+  const ancient = Array.from({ length: 6 }, (_, i) => ({
+    ...oldRow(i), createdAt: new Date(T0 - 200 * DAY + i * 1000).toISOString(),
+  }));
+  check('history past the 180-day hard cap is dropped entirely',
+    analyzeWeakness(ancient, {}, T0).length === 0);
+
+  // The same bad pattern, but recent, still surfaces as an accuracy weakness.
   const fresh = Array.from({ length: 6 }, (_, i) => ({
     ...oldRow(i), createdAt: new Date(T0 - DAY + i * 1000).toISOString(),
   }));
   check('recent bad performance still surfaces as weak',
-    analyzeWeakness(fresh, {}, T0).some((s) => s.itemId === '6:3'));
+    analyzeWeakness(fresh, {}, T0).some(
+      (s) => s.itemId === '6:3' && s.reasons.includes('lowAccuracy')));
 
   // A stale row must not block a genuinely due SRS item from surfacing.
   const staleButDue = analyzeWeakness(

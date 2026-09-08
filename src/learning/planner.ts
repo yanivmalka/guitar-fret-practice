@@ -296,12 +296,12 @@ function coverageSpan(
 
 function averageRecentAccuracy(
   picked: PlannedItem[],
-  signalByItem: Map<string, { recentAccuracy: number; attempts: number }>,
+  signalByItem: Map<string, { weightedAccuracy: number; attempts: number }>,
 ): number | null {
   const accs: number[] = [];
   for (const p of picked) {
     const s = signalByItem.get(p.itemId);
-    if (s && s.attempts > 0) accs.push(s.recentAccuracy);
+    if (s && s.attempts > 0) accs.push(s.weightedAccuracy);
   }
   if (accs.length === 0) return null;
   return accs.reduce((a, b) => a + b, 0) / accs.length;
