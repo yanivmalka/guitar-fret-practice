@@ -12,7 +12,7 @@ Consolidated from `wishlist-requirements.md` (original Stage-based roadmap) and 
 ## 1. Fix Now
 Bugs or behavior the product already promises but doesn't deliver.
 
-- **Failed-note re-queue doesn't work.** — **RESOLVED, by removal.** `failedFretsRef` was dead code and has been deleted (`useGameEngine: drop dead failedFretsRef`); no code path claims a missed note comes back within the round anymore. This closes the bug but does **not** deliver the "missed notes come back once" behavior — if that's still wanted, it needs to be re-scoped as a new feature (it would pair naturally with the weakness-targeted-drills idea under Premium in §6), not assumed already fixed.
+- **Failed-note re-queue doesn't work.** — **RESOLVED, by removal.** `failedFretsRef` was dead code and has been deleted (`useGameEngine: drop dead failedFretsRef`); no code path claims a missed note comes back within the round anymore. This closes the bug but does **not** deliver the "missed notes come back once" behavior. **Product decision 2026-09-08: not wanted as an in-round mechanic.** The want is considered already served by the Premium personal-coach path (weakness detection + spaced repetition), which brings missed positions back across sessions rather than within one round. No further work here.
 - **Click sound missing on some buttons.** — **DONE.** The game-end "OK" button (and every other interactive control checked) now goes through the `click()` wrapper.
 - **Placement test result isn't applied.** — **DONE** (`Onboarding: apply placement result to Selector difficulty`). `Onboarding`'s `onPlacement` callback is wired to `selector.onDifficultySelect`, which persists the chosen difficulty via `saveSetting('sel_difficulty', …)` — the placement test now actually sets up the Selector, not just tells the user to.
 - **Dead/orphaned code: `src/components/Settings.tsx` and `src/design-preview/`.** A substantial alternate settings UI exists but is never imported or rendered by `App.tsx`. This isn't a user-facing bug, but it's misleading to anyone reading the codebase and should be resolved (finish it or remove it) rather than left in limbo. — `Settings.tsx` removed (nothing salvageable; its notation toggle and circle-order controls already live in `SelectorPanel`, and its manual time picker was deliberately replaced by `getTime()`). `design-preview/` is kept intentionally as a design lab.
@@ -143,7 +143,7 @@ Features from the old roadmap that are clearly still desired and map cleanly ont
 
 - **Scoring system** — **DONE.** Points, speed bonus, streak multiplier, live score counter all shipped (`useScoring.ts`).
 - **Session summary card on stop** — **DONE.** The `game-end-summary` card shows score, streak, accuracy vs. answered count, and feeds into the personal-best flow.
-- **Celebration tiers** (small win / milestone / major award pulses+haptics) — **NOT built beyond the original three.** `celebrateTier1`/`celebrateTier2`/`celebrateTier3` in `src/utils/feedback.ts` are unchanged; none of `CelebrationTier`, `celebrateMajor`, `playStreakTone`, or the tick/small/milestone/major split described in the implementation plan below exist yet. Still open as written.
+- **Celebration tiers** (small win / milestone / major award pulses+haptics) — **DROPPED (product decision 2026-09-08).** The escalation plan below is **not relevant** and will not be built. It is the opposite direction from the deliberate `cee6c30` "In-game feedback: drop streak celebrations, soften the correct chime" call — in-game feedback stays minimal (a small floating `+N` + haptic on a correct answer, nothing on a streak milestone). Only the existing end-of-round "new personal best" celebration is kept. `celebrateTier1`/`celebrateTier2`/`celebrateTier3` in `src/utils/feedback.ts` are unchanged; `CelebrationTier`, `celebrateMajor`, `playStreakTone` and the tick/small/milestone/major split were never built and now won't be. The implementation plan below is kept only as provenance.
 
   ### Implementation plan — Celebration tiers
 
@@ -540,8 +540,24 @@ Old-roadmap ideas that may still have value but were never re-affirmed under the
 - **Quick-switch affordance for recent/favorite Selector combinations** — distinct from reviving Stage navigation, but unconfirmed whether users need anything beyond directly editing the Selector Panel each time.
 - **Auth & cross-device sync** (Google sign-in, Supabase) — plausible long-term, but the app is intentionally backend-free today; no decision has been made to introduce a backend. — **OVERTAKEN BY EVENTS: this is now built and live.** `useAuth.ts` + Supabase back Google sign-in; `sync.ts`/`settingsSync.ts`/`voiceSync.ts` push and merge history, personal bests, settings and the voice profile across devices. The backend-free framing in the Ground Rules above no longer describes the shipped app — a backend (Supabase) is now a real, live dependency, not a hypothetical.
 - **Leaderboard, expertise tests (String Speed Test, Full Neck Sprint, Blind Ear Test), user profiles, admin dashboard** — all depend on the unconfirmed backend decision above. — **Partially overtaken:** the backend decision is made (see above). The **leaderboard itself has shipped** as a public, free, all-time-XP-ranked feature (`src/utils/leaderboard.ts`, `LeaderboardPanel.tsx` — see the Free tier in §6). A basic **admin role** also shipped (`public.admins`, `auth.admin`), gating the debug-log panel, an admin-only "Inbox" tab on the new Feedback Board (see the new §7 below), and an `admin` role-badge. Still not built: the named expertise tests (String Speed Test / Full Neck Sprint / Blind Ear Test), public user profiles beyond the leaderboard row, and any dedicated admin dashboard beyond the feedback inbox.
+  - **Named expertise tests — product decision 2026-09-08: parked, defer to a later decision.** Not rejected; revisit after the current build queue.
+  - **Dedicated admin dashboard — product decision 2026-09-08: parked; may be revisited.** The feedback inbox + debug panel cover current needs, but the product owner expects this could change as the tool grows.
+  - **Public user profiles — product decision 2026-09-08: parked, per recommendation.** Not before there is a user base to be social with. Rough build estimate for when it is picked up, reusing the existing Supabase + auth + RLS + leaderboard + badge-sync + feedback-board-moderation infrastructure:
+    - **A minimal read-only public profile** (tap a leaderboard row → that user's public badges, XP, lifetime accuracy, main instrument, join date): one migration + RLS (world-read / self-write), a write-through on the leaderboard/badge cadence, a `ProfilePanel` reached from a leaderboard row, RTL + Hebrew strings, guest/opt-out handling, display-name moderation, one `check-*.mts`. **≈ 1 – 1.5 weeks** for one developer.
+    - **A real social layer** (friends / follow, friend-scoped leaderboards, invite-accept flow, activity feed, per-friend daily challenges, notifications — none of which exist today): friends table + RLS, friend-scoped queries, an invite flow, a notifications channel from scratch, a privacy/blocking model. **≈ 4 – 8 weeks**, and it needs its own product decision — this is the "Daily challenge / friends" item still listed undone in §6.
+  - **Saved/named Selector presets — product decision 2026-09-08: build a lightweight version.** A bookmark of a string+range+mode+difficulty combo: a "save" button names the current combo, a short list recalls one in a single tap. The separate "Quick-switch for recent/favorite Selector combinations" bullet folds into this as *automatic* bookmarks (most-recent combos) — one mechanism, not two. No free-tier limit while there is no paid tier live.
+  - **Multi-string emphasis animations — product decision 2026-09-08: parked, opportunistic.** Can't be prioritised on data (no users, no analytics). It is also cheap and self-contained — a CSS keyframe on the string-number label plus a `haptic.tap()` in the multi-string question-advance branch, on the order of a few hours — so the call is: **do not schedule it as its own task; fold a minimal version in whenever the multi-string code is being touched for another reason.** Revisit as a deliberate feature only if usage telemetry (once it exists) shows multi-string mode gets real use.
 - **Monetization** (premium tier, ad-unlock, donations, community donation pool) — depends on both the backend decision and a separate, unmade business decision to monetize at all. The backend decision is now made (see above); the monetize-at-all decision is still open and is being actively drafted in §6.
-- **Walk Mode / hands-free voice drilling, ear training, additional instruments (bass, ukulele, mandolin, banjo), iOS port** — all plausible long-term directions from the later original roadmap, none rejected, none confirmed; each represents a significant scope commitment that hasn't been revisited under the current product direction. Bass has since shipped as a full second instrument (not "hands-free voice drilling," which remains unbuilt); the rest of this bullet is unchanged.
+- **Walk Mode / hands-free voice drilling, ear training, additional instruments (bass, ukulele, mandolin, banjo), iOS port** — all plausible long-term directions from the later original roadmap, none rejected, none confirmed; each represents a significant scope commitment that hasn't been revisited under the current product direction. Bass has since shipped as a full second instrument (not "hands-free voice drilling," which remains unbuilt).
+  - **Additional instruments (ukulele / mandolin) — product decision 2026-09-08: yes, later, low priority.** The admin-only placeholder tiles already signal intent; promotion to real instruments is wanted eventually but not near-term.
+  - **iOS port — product decision 2026-09-08: later.** Android has real traction (a signed debug APK is built and handed to developers). iOS is blocked on not having an iPhone to test on; it will be done further down the line.
+  - Walk Mode / hands-free voice drilling and ear training in this bullet are unchanged.
+
+- **Chromatic tuner.** A "is this string in tune?" screen — pluck an open string, see the detected note plus a cents-off needle, tune by ear against the target. Independent of the drill loop; it would live as its own **Tuner** drawer entry (or a tile in an eventual "tools" area) and be Free for everyone. **Not built** — no pitch-detection code exists (`useMicLevel.ts` is an amplitude meter for voice calibration, not a fundamental-frequency estimator). Technically the tuner is the same from-scratch monophonic pitch-detection DSP (a new `pitchDetect.ts` — autocorrelation / YIN / FFT-peak) that `premium-product-plan.md` §16.4 and the guitar-audio spike (§ "Spike — guitar-audio pitch detection") flag as an **unvalidated** problem: heavily exposed to the app's own note playback, string/room noise and nearby speech, the exact conditions that repeatedly defeated the voice path, plus the low-string octave-doubling failure mode. A tuner is its most forgiving application, though — one sustained note, a user-controlled quiet moment, no latency or attack-detection pressure, no scoring-correctness stakes — so it doubles as the low-risk **first step / go-no-go spike** for that Premium feature (the plan already asks "Offer a tuner first?" under its out-of-tune-guitar open question). Needs measurement in a real noisy room before it is a commitment, same caveat as the voice work.
+
+  **Priority estimate (Claude): medium-low.** On its own merits it sits *outside* the current core loop (fretboard note recognition) and the job is already well served by any of the free tuner apps on a learner's phone, so it ranks **below the remaining §3 "finish the current product" items** (adaptive timer, practice reminders, the B1/B2 audio refinements). It rises to **medium** when taken as the pitch-detection spike the Premium plan already wants run in parallel — shipping it here de-risks "play the note and let the app detect it" in a forgiving context before that becomes a Premium commitment, and delivers a genuinely useful standalone utility on the way. Suggested slot: after the open §3 items, or pulled earlier only if the product decides to open the guitar-audio track. Self-contained: `pitchDetect.ts` + a `TunerScreen` component + one drawer entry + Hebrew strings; no schema, no sync, no entitlement work.
+
+  **Product decision 2026-09-08: build it, as a free tool for everyone.** Rationale from the product owner: someone already inside the app to practise should not need a second app just to tune. It stays Free (not Pro/Premium-gated). It still doubles as the go/no-go pitch-detection spike, and still needs real-device noisy-room measurement before the DSP is trusted — but the decision to build the tuner itself is made.
 
 ---
 
@@ -658,8 +674,10 @@ carried here so they are not re-discovered.
   the schedule. The daily goal is still never ticked by free-drilling.
 - **Selector practice does not tick the prescribed daily goal.** By design —
   the daily goal is "do one Teacher session", and free-drilling must not
-  complete it. If the product wants "any note practice counts toward today",
-  that is a change to `recordPracticeAnswer`.
+  complete it. **Product decision 2026-09-08: confirmed, keep as-is.** Free
+  practice does not count toward the daily coach goal; the personal coach
+  builds a tailored session from the user's own mistakes, and that session is
+  what the daily goal tracks. No change to `recordPracticeAnswer`.
 - **Sign-out discards unsynced offline Teacher progress.** `clearLocalLearningState()`
   on sign-out drops the on-device blob so it can't be merged into the next
   account on a shared device; a user who runs a Teacher session offline and
@@ -688,6 +706,17 @@ carried here so they are not re-discovered.
   changes the rationale sentence the Today card shows, so it wants a product
   decision on wording before it is built — deliberately not taken in the
   by-note / coverage pass.
+
+  **Product decision 2026-09-08: approved — reclassify, and reword the Today
+  card.** When step 1 pulls in a due item that has no weakness signal and a
+  solid recent history, label it `consolidation`, not `overdue`. The drill
+  itself does not change; only the rationale copy does. Target wording (English
+  source string, Hebrew entry needed in `translations.ts`): the consolidation
+  bucket reads as *"refreshing a few notes you already know"* /
+  「מרעננים כמה תווים שאתה כבר יודע」, kept distinct from the weak-item copy
+  (*"notes you've been missing"*) and the genuinely-overdue copy
+  (*"reviews that are due"*). When a session mixes buckets the sentence lists
+  them together, e.g. 「היום נרענן כמה תווים שאתה כבר יודע, לצד כמה שצריכים עבודה」.
 - **Coverage fallback span is hardcoded to frets 0–5, all strings. — DONE**
   (`Premium Teacher: feed by-note practice into SRS; widen the coverage span`).
   `coverageSpan` now returns `fretTo = clamp(max(5, highestFretEverPlayed + 3),
@@ -780,7 +809,7 @@ re-discovered:
   change.
 
 ### Open decisions
-- **Premium shape** — a single higher-priced subscription tier, or one-time in-app purchases per game mode (a natural fit for chords / scales / intervals as separate unlocks). *Still open — the third tier is parked; only Free/Pro is modelled and built.*
+- **Premium shape** — ~~a single higher-priced subscription tier, or one-time in-app purchases per game mode~~. **DECIDED 2026-09-08: a single higher-priced subscription tier.** No per-mode one-time purchases. This matches `premium-product-plan.md`, which frames Premium as one adaptive learning system rather than a bundle of separately bought modes. The tier is still parked (not yet priced or sold); only Free/Pro is built.
 - **Cloud sync in Free** — ~~offer basic single-device backup for free and gate only multi-device restore behind Pro~~. **DECIDED: sync and multi-device restore both stay free** — the full history has to be present locally for scoring to stay correct, so restore cannot be gated.
 - **Free history limit** — ~~"current combination only" vs "last 7 days"~~. **DECIDED: last 7 days**, as a view filter over the Stats & Progress screen and mastery overlays only, never a data/sync cut.
 - **Ads in Free** — still open; the current build carries no ads and relies purely on the Pro upsell.
