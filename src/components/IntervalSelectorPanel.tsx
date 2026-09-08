@@ -14,7 +14,7 @@
 // Deliberately no Auto Advance toggle (§5.5).
 
 import type { InstrumentConfig } from '../utils/instruments';
-import type { AccidentalMode, OrderMode } from '../utils/music';
+import type { AccidentalMode, NotationMode, OrderMode } from '../utils/music';
 import type { DrillConfig } from '../drill/DrillConfig';
 import { INTERVALS, intervalBySemitones } from '../utils/intervals';
 import { intervalContentBySemitones } from '../learning/intervalContent';
@@ -32,6 +32,9 @@ interface Props {
   masteredSizes: number[];
   accidental: AccidentalMode;
   order: OrderMode;
+  /** Note-name notation — rides the built drill's `interval` spec so the
+   *  engine's interval feedback matches `IntervalPrompt`'s spelling (#6). */
+  notation: NotationMode;
   /** Distinct interval qualities the SRS schedule is tracking so far. */
   trackedCount: number;
   /** Disable the actions while a session is starting / running. */
@@ -59,6 +62,7 @@ export default function IntervalSelectorPanel({
   masteredSizes,
   accidental,
   order,
+  notation,
   trackedCount,
   busy,
   silentMode,
@@ -66,7 +70,7 @@ export default function IntervalSelectorPanel({
 }: Props) {
   const { t, lang } = useTranslation();
   const sel = useIntervalSelector({
-    instrument, masteredSizes, accidental, order, audioMuted: silentMode,
+    instrument, masteredSizes, accidental, order, notation, audioMuted: silentMode,
   });
   const { state, pool } = sel;
 
@@ -123,7 +127,9 @@ export default function IntervalSelectorPanel({
         {trackedCount > 0 && (
           <>
             {' — '}
-            {trackedCount} {t('intervals tracked')}
+            {trackedCount === 1
+              ? t('1 interval tracked')
+              : `${trackedCount} ${t('intervals tracked')}`}
           </>
         )}
       </p>

@@ -11,7 +11,7 @@
 
 import { useMemo } from 'react';
 import type { InstrumentConfig } from '../utils/instruments';
-import type { AccidentalMode, OrderMode } from '../utils/music';
+import type { AccidentalMode, NotationMode, OrderMode } from '../utils/music';
 import type { DrillConfig } from '../drill/DrillConfig';
 import type { IntervalBoardRow } from '../learning/intervalMastery';
 import IntervalSelectorPanel from './IntervalSelectorPanel';
@@ -27,11 +27,12 @@ interface Props {
   intervalBoard: IntervalBoardRow[];
   accidental: AccidentalMode;
   order: OrderMode;
+  /** Note-name notation — forwarded so the drill's interval feedback matches
+   *  the prompt's spelling (#6). */
+  notation: NotationMode;
   /** Distinct interval qualities the SRS schedule is tracking so far. */
   trackedCount: number;
   headerIcon?: string;
-  /** Disable the actions while a session is starting / running. */
-  busy?: boolean;
   /** Silent mode is on — forwarded so the Selector can hide the audio-only
    *  "Identify the interval" exercise. */
   silentMode?: boolean;
@@ -45,9 +46,9 @@ export default function IntervalPracticeScreen({
   intervalBoard,
   accidental,
   order,
+  notation,
   trackedCount,
   headerIcon,
-  busy,
   silentMode,
   onStart,
   onClose,
@@ -90,8 +91,8 @@ export default function IntervalPracticeScreen({
               masteredSizes={masteredSizes}
               accidental={accidental}
               order={order}
+              notation={notation}
               trackedCount={trackedCount}
-              busy={busy}
               silentMode={silentMode}
               onStart={onStart}
             />

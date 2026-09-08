@@ -33,7 +33,7 @@
 // and the current group is derived every call.
 
 import type { DrillConfig } from '../drill/DrillConfig';
-import type { AccidentalMode, OrderMode } from '../utils/music';
+import type { AccidentalMode, NotationMode, OrderMode } from '../utils/music';
 import type { IntervalHistoryRow } from './learningState';
 import { intervalItemId, parseIntervalItemId } from './intervalItem';
 import { dueItems, type SrsItem, type SrsMap } from './srs';
@@ -110,6 +110,9 @@ export interface IntervalPlannerOptions {
   allStrings: number[];
   accidental: AccidentalMode;
   order: OrderMode;
+  /** Note-name notation — rides the `interval` spec so the engine's interval
+   *  feedback matches `IntervalPrompt`'s spelling (#6). */
+  notation?: NotationMode;
   /** Which exercise the guided session runs (spec §13.1 / OD-7 — one exercise
    *  per session, chosen on the Today card). */
   exercise: IntervalExercise;
@@ -172,6 +175,7 @@ function build(
     allStrings,
     accidental,
     order,
+    notation,
     exercise,
     direction = 'both',
     sessionSize = DEFAULT_SESSION_SIZE,
@@ -322,6 +326,7 @@ function build(
       semitones,
       direction,
       exercise,
+      notation,
       optionCount: env.optionCount,
       firstNoteBias: env.firstNoteBias,
       registerSpread: env.registerSpread,

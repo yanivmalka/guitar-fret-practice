@@ -280,6 +280,7 @@ export default function App() {
     isPremium: can('premiumTeacher', auth.tier),
     accidental,
     order,
+    notation,
   });
   teacherRecordRef.current = learning.recordAnswer;
   practiceRecordRef.current = learning.recordPracticeAnswer;
@@ -873,8 +874,8 @@ export default function App() {
         intervalBoard={learning.intervalBoard}
         accidental={accidental}
         order={order}
+        notation={notation}
         trackedCount={learning.intervalTrackedCount}
-        busy={gameActive || countdown !== null}
         silentMode={silentMode}
         onStart={(config: DrillConfig) => setIntervalPlan(config)}
         onClose={backToLearnHub}

@@ -15,7 +15,7 @@
 // empty/null so a caller can mount it unconditionally.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { notes, type HistoryEntry, type AccidentalMode, type OrderMode } from '../utils/music';
+import { notes, type HistoryEntry, type AccidentalMode, type NotationMode, type OrderMode } from '../utils/music';
 import type { InstrumentConfig } from '../utils/instruments';
 import {
   loadLearningState,
@@ -150,10 +150,14 @@ export interface UseLearningOptions {
   isPremium: boolean;
   accidental: AccidentalMode;
   order: OrderMode;
+  /** Note-name notation — threaded into the interval planners / drill builder
+   *  so the guided "Today" interval session's feedback matches the prompt's
+   *  spelling (#6). */
+  notation: NotationMode;
 }
 
 export function useLearning(opts: UseLearningOptions): UseLearningResult {
-  const { instrument, entries, isPremium, accidental, order } = opts;
+  const { instrument, entries, isPremium, accidental, order, notation } = opts;
   const instrumentId = instrument.id;
 
   const [state, setState] = useState<LearningState>(() =>
@@ -299,10 +303,11 @@ export function useLearning(opts: UseLearningOptions): UseLearningResult {
         allStrings: Array.from({ length: instrument.stringCount }, (_, i) => i + 1),
         accidental,
         order,
+        notation,
         exercise,
       });
     },
-    [isPremium, instState.intervalSrs, instrument.maxFret, instrument.stringCount, accidental, order],
+    [isPremium, instState.intervalSrs, instrument.maxFret, instrument.stringCount, accidental, order, notation],
   );
 
   // ── Guided Interval Today answer (spec §13 / §14 / T9) ────────────────
@@ -358,10 +363,11 @@ export function useLearning(opts: UseLearningOptions): UseLearningResult {
       allStrings: Array.from({ length: instrument.stringCount }, (_, i) => i + 1),
       accidental,
       order,
+      notation,
     };
   }, [
     isPremium, instState.intervalSrs, instState.intervalHistory,
-    instrument.maxFret, instrument.stringCount, accidental, order,
+    instrument.maxFret, instrument.stringCount, accidental, order, notation,
   ]);
 
   const { intervalTodayPlan, intervalWeakSpotsPlan } = useMemo<{

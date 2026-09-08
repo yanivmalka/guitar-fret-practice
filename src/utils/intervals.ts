@@ -13,6 +13,7 @@
 // later refinements.
 
 import { notesMatch } from './music';
+import type { NotationMode } from './music';
 import { CHROMATIC } from './instruments';
 
 /** An ascending interval quality, m2 … M7. */
@@ -81,6 +82,12 @@ export interface IntervalDrillSpec {
   direction: 'up' | 'down' | 'both';
   /** Which exercise the session runs (§8.1). */
   exercise: IntervalExercise;
+  /** Note-name notation (♯/♭ vs superscript) the engine's interval feedback
+   *  must match so the prompt (`IntervalPrompt`) and the feedback line render
+   *  the target note the same way. Absent ⇒ the engine's `displayNote`
+   *  default. Rides the interval seam only — never the generic `DrillConfig`
+   *  fields or `drillConfigToGameSettings`. */
+  notation?: NotationMode;
   /** How many answer chips to offer. The §9 difficulty tiers set this;
    *  the engine falls back to a fixed 4 when it is absent. */
   optionCount?: number;

@@ -528,7 +528,7 @@ export function useGameEngine(
         onTimeout();
         const elapsed = (Date.now() - questionStartRef.current) / 1000;
         addEntry(tagInterval({ note: targetNote, fret: remainingFretsRef.current[0], string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null }));
-        setFeedback(`⏱ ${displayNote(targetNote, accidental)}`);
+        setFeedback(`⏱ ${displayNote(targetNote, accidental, interval?.notation)}`);
         playNoteSingle(qString, remainingFretsRef.current[0], questionPlaybackRate());
         advanceAfterSound(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
       });
@@ -646,12 +646,12 @@ export function useGameEngine(
       addEntry(tagInterval({ note, fret: selectedFret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: false, correct: false }));
       setFeedback(
         intervalPositionRef.current
-          ? `✗ ${displayNote(note, accidental)}`
+          ? `✗ ${displayNote(note, accidental, interval?.notation)}`
           : `✗ Correct: ${rem.join(', ')}`,
       );
       advanceAfterSound(() => { if (runningRef.current && sessionRef.current === mySession) nextByNote(); }, 1800);
     }
-  }, [paused, addEntry, nextByNote, onTimeout, onWrong, scoreCorrect, scheduleAdvance, advanceAfterSound, showScore, tagInterval, accidental]);
+  }, [paused, addEntry, nextByNote, onTimeout, onWrong, scoreCorrect, scheduleAdvance, advanceAfterSound, showScore, tagInterval, accidental, interval]);
 
   // ── BY FRET MODE ──────────────────────────────────────────────
   const next = useCallback(() => {
@@ -723,7 +723,7 @@ export function useGameEngine(
         const short = intervalBySemitones(iq.prompt.semitones)?.short ?? `+${iq.prompt.semitones}`;
         setFeedback(`⏱ ${short}`);
       } else if (iq) {
-        setFeedback(`⏱ ${displayNote(correctNote, accidental)}`);
+        setFeedback(`⏱ ${displayNote(correctNote, accidental, interval?.notation)}`);
       } else {
         const cof = getCofNotes(accidental, order, false);
         setCorrectCofNote(getCorrectCofNote(correctNote, cof));
@@ -759,7 +759,11 @@ export function useGameEngine(
     setCorrectCofNote(getCorrectCofNote(correctNote, cof));
     if (!isCorrect) setWrongCofNote(selectedNote);
     addEntry(tagInterval({ note: correctNote, fret: currentFret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: false, correct: isCorrect }));
-    setFeedback(isCorrect ? '✓ Correct!' : `✗ It was ${displayNote(correctNote, accidental)}`);
+    setFeedback(
+      isCorrect
+        ? '✓ Correct!'
+        : `✗ It was ${displayNote(correctNote, accidental, intervalPromptRef.current ? interval?.notation : undefined)}`,
+    );
 
     if (isCorrect) {
       // Wait for the success chime to finish before advancing so its tail does
@@ -777,7 +781,7 @@ export function useGameEngine(
     };
     scheduleAdvance(waitForSound, 800);
     return false;
-  }, [paused, currentFret, accidental, order, addEntry, next, onWrong, scoreCorrect, scheduleAdvance, advanceAfterSound, tagInterval]);
+  }, [paused, currentFret, accidental, order, addEntry, next, onWrong, scoreCorrect, scheduleAdvance, advanceAfterSound, tagInterval, interval]);
 
   // ── SELECT INTERVAL (identify-the-interval answer) ────────────
   // The chip-row answer for *identify the interval*: the learner picked an

@@ -19,7 +19,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { loadSetting, saveSetting } from '../utils/settings';
-import type { AccidentalMode, OrderMode } from '../utils/music';
+import type { AccidentalMode, NotationMode, OrderMode } from '../utils/music';
 import type { InstrumentConfig } from '../utils/instruments';
 import type { DrillConfig } from '../drill/DrillConfig';
 import {
@@ -103,6 +103,10 @@ export interface UseIntervalSelectorOptions {
   masteredSizes: number[];
   accidental: AccidentalMode;
   order: OrderMode;
+  /** Note-name notation (♯/♭ vs superscript). Rides the built drill's
+   *  `interval` spec so the engine's interval feedback line renders the target
+   *  note the same way `IntervalPrompt` does (#6). */
+  notation: NotationMode;
   /** Silent mode is on — drill-content audio is muted. "Identify the interval"
    *  is audio-only, so while this is true the effective exercise falls back to
    *  "find the target note". The learner's stored pick is untouched and comes
@@ -111,7 +115,7 @@ export interface UseIntervalSelectorOptions {
 }
 
 export function useIntervalSelector(opts: UseIntervalSelectorOptions) {
-  const { instrument, masteredSizes, accidental, order, audioMuted } = opts;
+  const { instrument, masteredSizes, accidental, order, notation, audioMuted } = opts;
 
   const [exerciseStored, setExerciseState] = useState<IntervalExercise>(
     () => loadOneOf('isel_exercise', EXERCISES, 'findTargetNote'),
@@ -250,6 +254,7 @@ export function useIntervalSelector(opts: UseIntervalSelectorOptions) {
         // `env.direction`, rides the spec here.
         direction,
         exercise,
+        notation,
         optionCount: env.optionCount,
         firstNoteBias: env.firstNoteBias,
         registerSpread: env.registerSpread,

@@ -9,7 +9,7 @@
 // by `intervalPlanner.ts` instead.
 
 import type { DrillConfig } from '../drill/DrillConfig';
-import type { AccidentalMode, OrderMode } from '../utils/music';
+import type { AccidentalMode, NotationMode, OrderMode } from '../utils/music';
 import type { SrsMap } from './srs';
 import { dueItems } from './srs';
 import {
@@ -122,6 +122,10 @@ export interface IntervalDrillOptions {
   allStrings: number[];
   accidental: AccidentalMode;
   order: OrderMode;
+  /** Note-name notation — rides the `interval` spec so the engine's interval
+   *  feedback matches `IntervalPrompt`'s spelling (#6). Default: engine's
+   *  `displayNote` default. */
+  notation?: NotationMode;
   /** Which exercise the session runs (§8.1). */
   exercise: IntervalExercise;
   /** Ascending, descending, or a per-question mix. Default `'both'` (§5.3). */
@@ -150,7 +154,7 @@ const DEFAULT_FRET_TO = 12;
  */
 export function buildIntervalDrill(opts: IntervalDrillOptions): DrillConfig {
   const {
-    intervalSrs, now, maxFret, allStrings, accidental, order, exercise,
+    intervalSrs, now, maxFret, allStrings, accidental, order, notation, exercise,
     direction = 'both',
     difficulty = 'mixed',
     masteredSizes = [],
@@ -188,6 +192,7 @@ export function buildIntervalDrill(opts: IntervalDrillOptions): DrillConfig {
       semitones,
       direction,
       exercise,
+      notation,
       optionCount: env.optionCount,
       firstNoteBias: env.firstNoteBias,
       registerSpread: env.registerSpread,
