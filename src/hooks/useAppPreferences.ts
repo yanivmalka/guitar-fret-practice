@@ -3,6 +3,7 @@ import { loadSetting, saveSetting } from '../utils/settings';
 import type { NotationMode, OrderMode } from '../utils/music';
 import type { VoiceEnginePref } from '../utils/speech';
 import type { Theme } from '../utils/theme';
+import type { NoteVolume } from '../utils/audio';
 import { DEFAULT_MASTERY_WINDOW, type MasteryWindow } from '../utils/mastery';
 
 type AnswerMode = 'tap' | 'voice';
@@ -27,6 +28,9 @@ export function useAppPreferences() {
     () => loadSetting('pref_masteryWindow', DEFAULT_MASTERY_WINDOW),
   );
   const [silentMode, setSilentMode] = useState(() => loadSetting('pref_silentMode', false));
+  const [noteVolume, setNoteVolume] = useState<NoteVolume>(
+    () => loadSetting('pref_noteVolume', 'normal'),
+  );
   const [leaderboardOptOut, setLeaderboardOptOut] = useState(() =>
     loadSetting('pref_leaderboardOptOut', false),
   );
@@ -46,6 +50,7 @@ export function useAppPreferences() {
     showMastery, setShowMastery,
     masteryWindow, setMasteryWindow,
     silentMode, setSilentMode,
+    noteVolume, setNoteVolume,
     leaderboardOptOut, setLeaderboardOptOut,
     theme, setTheme,
   };

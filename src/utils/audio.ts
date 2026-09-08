@@ -35,6 +35,44 @@ function getCtx(): AudioContext {
   return audioCtx;
 }
 
+// The soundfont MP3 samples are mastered quiet, so every drill note runs
+// through a shared makeup-gain stage: a boost (>1×) followed by a limiter that
+// catches the peaks the boost would otherwise clip. Route note playback into
+// masterOut() instead of ctx.destination.
+export type NoteVolume = 'low' | 'normal' | 'high' | 'max';
+const BOOST_BY_VOLUME: Record<NoteVolume, number> = {
+  low: 1.6,
+  normal: 2.6,
+  high: 3.6,
+  max: 4.8,
+};
+let _boost = BOOST_BY_VOLUME.normal;
+let masterGain: GainNode | null = null;
+
+/** Set the makeup-gain level for drill-note playback (persisted as `pref_noteVolume`). */
+export function setNoteVolume(v: NoteVolume): void {
+  _boost = BOOST_BY_VOLUME[v] ?? BOOST_BY_VOLUME.normal;
+  if (masterGain) {
+    const ctx = masterGain.context;
+    masterGain.gain.setTargetAtTime(_boost, ctx.currentTime, 0.02);
+  }
+}
+
+function masterOut(ctx: AudioContext): AudioNode {
+  if (masterGain && masterGain.context === ctx) return masterGain;
+  masterGain = ctx.createGain();
+  masterGain.gain.value = _boost;
+  const limiter = ctx.createDynamicsCompressor();
+  limiter.threshold.value = -6;
+  limiter.knee.value = 6;
+  limiter.ratio.value = 12;
+  limiter.attack.value = 0.003;
+  limiter.release.value = 0.25;
+  masterGain.connect(limiter);
+  limiter.connect(ctx.destination);
+  return masterGain;
+}
+
 /** Call on first user gesture to unlock the AudioContext */
 export function unlockAudio() {
   const ctx = getCtx();
@@ -110,7 +148,7 @@ export async function playNote(stringNum: number, fret: number, rate = 1) {
     src.buffer = buffer;
     src.playbackRate.value = rate;
     src.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(masterOut(ctx));
     const offset = t / rate;
     const dur = (i < lastIdx ? 0.4 : 0.8) / rate;
     gain.gain.setValueAtTime(0.7, ctx.currentTime + offset);
@@ -150,7 +188,7 @@ export async function playNoteSingle(stringNum: number, fret: number, rate = 1) 
   src.buffer = buffer;
   src.playbackRate.value = rate;
   src.connect(gain);
-  gain.connect(ctx.destination);
+  gain.connect(masterOut(ctx));
   gain.gain.setValueAtTime(0.6, ctx.currentTime);
   gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
   src.start();
@@ -175,7 +213,7 @@ export async function playNoteSequence(stringNum: number, frets: number[], total
     const gain = ctx.createGain();
     src.buffer = buffer;
     src.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(masterOut(ctx));
     gain.gain.setValueAtTime(0.6, ctx.currentTime + offset);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + offset + dur);
     src.start(ctx.currentTime + offset);

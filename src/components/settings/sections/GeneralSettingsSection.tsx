@@ -5,6 +5,7 @@ import { saveSetting } from '../../../utils/settings';
 import { LANGUAGES, type Lang } from '../../../i18n/translations';
 import { PRO_MASTERY_LASTN_CHOICES, type MasteryWindow } from '../../../utils/mastery';
 import type { Theme } from '../../../utils/theme';
+import type { NoteVolume } from '../../../utils/audio';
 import type { VoiceEnginePref } from '../../../utils/speech';
 
 type AnswerMode = 'tap' | 'voice';
@@ -23,6 +24,8 @@ export interface GeneralSettingsSectionProps {
   setShowScore: (v: boolean) => void;
   silentMode: boolean;
   setSilentMode: (v: boolean) => void;
+  noteVolume: NoteVolume;
+  setNoteVolume: (v: NoteVolume) => void;
   theme: Theme;
   setTheme: (t: Theme) => void;
   voiceSupported: boolean;
@@ -42,7 +45,7 @@ export interface GeneralSettingsSectionProps {
 
 export default function GeneralSettingsSection({
   t, lang, setLang, showScore, setShowScore, silentMode, setSilentMode,
-  theme, setTheme, voiceSupported, answerMode, setAnswerMode, askForMic,
+  noteVolume, setNoteVolume, theme, setTheme, voiceSupported, answerMode, setAnswerMode, askForMic,
   voiceEnginePref, pickVoiceEngine, voiceProfileStat, setSettingsOpen,
   setShowVoiceCalibration, showMastery, setShowMastery, masteryWindow, setMasteryWindow,
 }: GeneralSettingsSectionProps) {
@@ -74,6 +77,22 @@ export default function GeneralSettingsSection({
             { value: 'off', label: t('Off') },
           ]}
           onChange={(v) => { const on = v === 'on'; setSilentMode(on); saveSetting('pref_silentMode', on); }}
+        />
+      </SettingCard>
+      <SettingCard
+        label={t('Note volume')}
+        help={t('How loud the drill note samples play. Turn it up if the notes sound weak; the limiter keeps the loud levels from distorting.')}
+      >
+        <PickRow
+          ariaLabel={t('Note volume')}
+          value={noteVolume}
+          options={[
+            { value: 'low', label: t('Quiet') },
+            { value: 'normal', label: t('Normal') },
+            { value: 'high', label: t('Loud') },
+            { value: 'max', label: t('Maximum') },
+          ]}
+          onChange={(v) => { setNoteVolume(v); saveSetting('pref_noteVolume', v); }}
         />
       </SettingCard>
       <SettingCard
