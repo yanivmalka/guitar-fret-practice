@@ -15,7 +15,7 @@ import AdjustSuggestionBanner from './components/AdjustSuggestionBanner';
 import ProgressPanel from './components/ProgressPanel';
 import Onboarding from './components/Onboarding';
 import { setActiveInstrument } from './utils/music';
-import type { HistoryEntry, AccidentalMode, OrderMode, NotationMode } from './utils/music';
+import type { HistoryEntry, AccidentalMode } from './utils/music';
 import { getInstrument, type InstrumentId } from './utils/instruments';
 import { preloadAllSamples, unlockAudio, setAudioInstrument } from './utils/audio';
 import { App as CapacitorApp } from '@capacitor/app';
@@ -23,7 +23,6 @@ import { Capacitor } from '@capacitor/core';
 import { playClickSound, playToggleOnSound, playToggleOffSound, playStickClick, haptic, celebrateTier3 } from './utils/feedback';
 import { withClick as click } from './utils/withClick';
 import { loadSetting, saveSetting } from './utils/settings';
-import { type Theme } from './utils/theme';
 import { useThemeEffect } from './hooks/useThemeEffect';
 import { useSilentModeEffect } from './hooks/useSilentModeEffect';
 import { useBootReadyEvent } from './hooks/useBootReadyEvent';
@@ -31,11 +30,12 @@ import { useAutoPauseOnBackground } from './hooks/useAutoPauseOnBackground';
 import { useQuestionChangeAnimation } from './hooks/useQuestionChangeAnimation';
 import { useAdjustSuggestion } from './hooks/useAdjustSuggestion';
 import { loadBest, saveBest } from './utils/personalBest';
-import { historyForInstrument, flattenHistory, DEFAULT_MASTERY_WINDOW, type MasteryWindow } from './utils/mastery';
+import { historyForInstrument, flattenHistory } from './utils/mastery';
 import { useAuth } from './hooks/useAuth';
 import { useCloudSync } from './hooks/useCloudSync';
 import { useVoiceProfileSummary } from './hooks/useVoiceProfileSummary';
 import { useMasteryOverlay } from './hooks/useMasteryOverlay';
+import { useAppPreferences } from './hooks/useAppPreferences';
 import { useSelector, type DerivedSettings } from './hooks/useSelector';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
 import { useDrillSession } from './hooks/useDrillSession';
@@ -76,11 +76,8 @@ import {
   type BadgeId, type SessionSnapshot, type LifetimeSnapshot, type Tier,
 } from './utils/badges';
 import type { SpeechNotation } from './utils/speechVocab';
-import { type VoiceEnginePref } from './utils/speech';
 import { useTranslation } from './i18n/useTranslation';
 import { mergeCelebrated } from './utils/badgeCelebration';
-
-type AnswerMode = 'tap' | 'voice';
 
 // The learning domains, chosen from the "Learn" drawer page (<LearnHub>).
 // 'notes' is the Selector — the home screen and the default on every launch;
@@ -177,23 +174,21 @@ export default function App() {
   // now-shorter note table with it — an out-of-range index throws and blanks
   // the whole page.
   const safeGuitarString = Math.min(Math.max(guitarString, 1), instrument.stringCount);
-  const [byString, setByString] = useState(() => loadSetting('pref_byString', true));
-  const [notation, setNotation] = useState<NotationMode>(() => loadSetting('pref_notation', 'alpha'));
+  // Global display / behaviour preferences (each backed by its own pref_* key).
+  const {
+    byString, setByString, notation, setNotation, order, setOrder,
+    answerMode, setAnswerMode, voiceEnginePref, setVoiceEnginePref,
+    showScore, setShowScore, showMastery, setShowMastery,
+    masteryWindow, setMasteryWindow, silentMode, setSilentMode,
+    leaderboardOptOut, setLeaderboardOptOut, theme, setTheme,
+  } = useAppPreferences();
   const [showVoiceCalibration, setShowVoiceCalibration] = useState(false);
-  const [voiceEnginePref, setVoiceEnginePref] = useState<VoiceEnginePref>(
-    () => loadSetting('pref_voiceEngine', 'auto'),
-  );
   // Voice-engine calibration epoch + the stored-profile summary shown in
   // Settings. `bumpVoiceEngineEpoch` re-selects the speech engine after a
   // calibration or a restored cloud profile; useVoiceAnswer reads the epoch.
   const {
     voiceProfileStat, pickVoiceEngine, voiceEngineEpoch, bumpVoiceEngineEpoch,
   } = useVoiceProfileSummary({ notation, showVoiceCalibration, setVoiceEnginePref });
-  // How the player answers a question: tapping the circle/grid, or speaking the
-  // note name / fret number aloud (WP-4). Voice needs a network connection and
-  // is only offered where a recogniser is actually available.
-  const [answerMode, setAnswerMode] = useState<AnswerMode>(() => loadSetting('pref_answerMode', 'tap'));
-  const [order, setOrder] = useState<OrderMode>(() => loadSetting('pref_order', 'fifths'));
   // The engine always picks pitches from the sharp-spelled `notes` table, and
   // there is no user-facing sharp/flat spelling choice: the question note area
   // shows BOTH enharmonic names ("C♯ = D♭") via `displayNoteBothEnharmonics`,
@@ -201,41 +196,7 @@ export default function App() {
   // stays on the sharp spelling. Kept as a constant so the many call sites that
   // still take an `accidental` prop go on compiling unchanged.
   const accidental: AccidentalMode = 'sharps';
-  // Whether the on-screen score, streak multiplier and all score celebrations
-  // are shown. Off = "serious learning" mode: no score HUD or effects during
-  // play, but every answer is still scored into history and personal-best
-  // progress exactly as before.
-  const [showScore, setShowScore] = useState(() => loadSetting('pref_showScore', true));
-  // Whether the all-time per-note / per-fret mastery bars are drawn over the
-  // circle/grid while stopped or paused. Off = a clean fretboard at rest; every
-  // answer is still recorded and mastery keeps accumulating either way.
-  const [showMastery, setShowMastery] = useState(() => loadSetting('pref_showMastery', true));
-  // How much recent history the mastery bars are computed from. Free users are
-  // pinned to FREE_MASTERY_WINDOW (last 250); Pro users pick the count via the
-  // "questions counted" control in Settings. Persisted as a MasteryWindow object
-  // so the future date-range / specific-day variants slot in without a migration.
-  const [masteryWindow, setMasteryWindow] = useState<MasteryWindow>(
-    () => loadSetting('pref_masteryWindow', DEFAULT_MASTERY_WINDOW),
-  );
-  // Silent mode: mute the drill's content audio (question note + correct chime
-  // + celebration tones) while keeping UI clicks, haptics and every on-screen
-  // celebration. For practising with headphones off or a real guitar in hand.
-  const [silentMode, setSilentMode] = useState(() => loadSetting('pref_silentMode', false));
-  // Whether the signed-in user has hidden themselves from the public
-  // leaderboard. Default false = a signed-in player is listed automatically.
-  const [leaderboardOptOut, setLeaderboardOptOut] = useState(() =>
-    loadSetting('pref_leaderboardOptOut', false),
-  );
-
   useSilentModeEffect(silentMode);
-
-  // Theme: 'dark' (default, original look) / 'night' (warm, dimmer) / 'day'
-  // (light).
-  const [theme, setThemeState] = useState<Theme>(() => loadSetting<Theme>('pref_theme', 'dark'));
-  const setTheme = useCallback((t: Theme) => {
-    setThemeState(t);
-    saveSetting('pref_theme', t);
-  }, []);
   useThemeEffect(theme);
 
   useBootReadyEvent(auth.loading, auth.entitlementLoading);
