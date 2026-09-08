@@ -649,13 +649,13 @@ the P2 QA audit and the P2.1 pass and were deliberately **not** taken then —
 carried here so they are not re-discovered.
 
 **Open product decisions (P2.1 made a deliberate call that may want revisiting):**
-- **by-note Selector practice does not feed the SRS schedule.** Only by-fret
-  Selector answers and Teacher-session answers advance a NoteItem's SRS state
-  (`recordPracticeAnswer` is gated to by-fret because by-note wrong-tap history
-  rows carry the *wrong* fret). A Premium user who drills only in by-note mode
-  still seeds the schedule from Teacher sessions alone. Weakness detection from
-  history still covers them. Option: feed by-note in, filtered to
-  correct/timeout rows (which do carry a valid position).
+- **by-note Selector practice does not feed the SRS schedule. — DONE**
+  (`Premium Teacher: feed by-note practice into SRS; widen the coverage span`).
+  `addEntryWithKey` in `App.tsx` now feeds `recordPracticeAnswer` for by-note
+  rows too, except explicit wrong taps (`entry.correct === false`), which are
+  the only ones that record a fret other than a genuine match for the shown
+  note. Correct taps and timeouts both carry a valid position and now advance
+  the schedule. The daily goal is still never ticked by free-drilling.
 - **Selector practice does not tick the prescribed daily goal.** By design —
   the daily goal is "do one Teacher session", and free-drilling must not
   complete it. If the product wants "any note practice counts toward today",
@@ -674,23 +674,40 @@ carried here so they are not re-discovered.
   against real Premium cadence.
 
 **Medium items from the audit, out of P2.1 scope:**
-- **Consolidation rarely fires for a once-a-day user.** The planner's
-  consolidation pool is `bucket >= 2 && dueAt > now`; with Leitner intervals of
-  20 min / 2 h / 1 day, an item answered correctly yesterday is overdue again
-  today and never sits in that pool. So daily sessions are "weak spots +
-  least-practised coverage", not "weak spots + reinforcement" as intended
-  ("a session is not 100% struggle"). Consider loosening the pool (e.g.
-  `bucket >= 1`, or "answered correctly last time").
-- **Coverage fallback span is hardcoded to frets 0–5, all strings**
-  (`coverageSpan` in `planner.ts`). The "new ground" padding never reaches the
-  upper neck, so P2 on its own does not "widen the material" as the user
-  improves. P3 (Learning Path) is the intended home for progression, but if P3
-  slips, widen this.
+- **Consolidation rarely fires for a once-a-day user. — STILL OPEN, needs a
+  product call.** The consolidation pool is `bucket >= 2 && dueAt > now`; with
+  Leitner intervals of 20 min / 2 h / 1 day, an item answered correctly
+  yesterday is overdue today, so for a once-a-day user only `bucket >= 4` items
+  ever sit in the "healthy, not due" pool. Note that those overdue-but-healthy
+  items *do* still return in the session — via step 1 (`overdue`), not as
+  `consolidation` — so the session is not actually all-struggle; what is
+  missing is the *framing* of a reinforcement bucket distinct from "weak" and
+  "overdue reviews". A real fix is to **reclassify**: when step 1 pulls in a
+  due item that has no weakness signal and a solid recent history, label it
+  `consolidation` rather than `overdue` so the rationale reads honestly. That
+  changes the rationale sentence the Today card shows, so it wants a product
+  decision on wording before it is built — deliberately not taken in the
+  by-note / coverage pass.
+- **Coverage fallback span is hardcoded to frets 0–5, all strings. — DONE**
+  (`Premium Teacher: feed by-note practice into SRS; widen the coverage span`).
+  `coverageSpan` now returns `fretTo = clamp(max(5, highestFretEverPlayed + 3),
+  5, maxFret)`, so a cold-start user is unchanged (0–5) but a Teacher session
+  widens past the open position on its own as the learner works higher up. Full
+  neck-region *progression* still belongs to P3 (Learning Path); this is the
+  "if P3 slips, widen this" stopgap.
 - **`useLearning` rebuilds both full plans on every Teacher answer and every
-  60 s tick.** Each `buildDailyPlan` / `buildWeakSpotsPlan` runs `analyzeWeakness`
-  over the whole instrument history. Harmless today (the card is unmounted
-  during a session) but wasteful; memoise `analyzeWeakness` once and/or skip
-  plan rebuilds while a session is running.
+  60 s tick. — STILL OPEN, not a one-liner.** Each `buildDailyPlan` /
+  `buildWeakSpotsPlan` runs `analyzeWeakness` over the whole instrument
+  history, and the memo is keyed on `now` (60 s heartbeat + every answer). The
+  clean fix threads a pre-computed `WeaknessSignal[]` through `PlannerOptions`
+  so `build()` skips its internal `analyzeWeakness` call, with `useLearning`
+  memoising `analyzeWeakness` on `[entries, srs]` only. The wrinkle:
+  `analyzeWeakness` also takes `now` for the `maxAgeDays` cut-off and the
+  `overdue` flags, so a `now`-independent memo goes slightly stale between
+  ticks (negligible for a 45-day horizon; `overdue` is re-derived fresh by
+  `dueItems` in step 1 anyway). Harmless today because the card is unmounted
+  during a session — so this is a real perf/tidiness refactor for its own
+  pass, not part of the small-fixes batch.
 - **`learningSync.reconcile` does a full pull → merge → upsert per debounced
   push.** In a slow session that can be ~one Supabase round-trip per answer.
   Best-effort and non-blocking, but a coarser debounce or a dirty-flag gate
