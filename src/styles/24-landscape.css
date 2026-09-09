@@ -65,6 +65,17 @@
   .app.stats-page {
     max-width: 760px;
   }
+
+  /* The Learn hub tiles are a 2-col grid on a phone; with the extra
+     width give them a third column so the page isn't a tall stack. */
+  .learn-hub {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* Stats: the three hero tiles already sit in a row; let it breathe. */
+  .sp2-hero {
+    gap: 14px;
+  }
 }
 
 /* ── 2. Two-pane home screen ─────────────────────────────────────────
@@ -150,22 +161,66 @@
   }
 }
 
-/* ── 3. Comfortable spacing on a genuinely large screen ───────────── */
+/* ── 3. Grow the board so it has presence in the wider column ───────
+   The board components size themselves off fixed values that live in
+   their own source (NoteCircle's `size = 340`, `.fret-grid`'s
+   `width`), so here they are grown from the outside:
+
+     • the note wheel (and the interval choice row) — a `transform:
+       scale()` with a matching `margin` so the grown box still
+       reserves its own space and the Play button beside it keeps its
+       gap. A transform, so hit-testing still maps 1:1.
+     • the fret grid — its real `width` and button height, since a
+       CSS grid scales cleanly and stays crisp. */
+@media (min-width: 900px) {
+  .app.home-page .game-row > :last-child:not(.fret-grid) {
+    transform: scale(1.08);
+    transform-origin: center;
+    margin: 14px;
+  }
+  .app.home-page .fret-grid {
+    width: 340px;
+  }
+  .app.home-page .fret-grid .fret-btn {
+    height: 64px;
+  }
+}
+
 @media (min-width: 1200px) {
   .app.home-page {
     column-gap: 56px;
   }
+  .app.home-page:not(.playing) .game-row {
+    gap: 40px;
+  }
+  .app.home-page .game-row > :last-child:not(.fret-grid) {
+    transform: scale(1.18);
+    margin: 30px;
+  }
+  .app.home-page .fret-grid {
+    width: 380px;
+  }
+  .app.home-page .fret-grid .fret-btn {
+    height: 72px;
+  }
 }
 
 /* ── 4. Phone held in landscape: a short viewport ──────────────────
-   The board (note wheel / fret grid) is a fixed ~340px box, taller
-   than a rotated phone's ~380px viewport once the title and gaps are
-   counted, so it clips top and bottom. Scale it down to fit — a pure
-   transform, so hit-testing still maps 1:1. */
+   The board is a fixed ~340px box, taller than a rotated phone's
+   ~380px viewport once the title and gaps are counted, so it clips
+   top and bottom. Scale it down to fit; the fret grid shrinks via its
+   own width. */
 @media (orientation: landscape) and (max-height: 480px) {
-  .app.home-page .game-row > :last-child {
+  .app.home-page .game-row > :last-child:not(.fret-grid) {
     transform: scale(0.82);
     transform-origin: center;
+    margin: 0;
+  }
+  .app.home-page .fret-grid {
+    width: 240px;
+  }
+  .app.home-page .fret-grid .fret-btn {
+    height: 46px;
   }
   .app.home-page > h1 {
     font-size: 1.1rem;
