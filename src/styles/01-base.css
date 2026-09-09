@@ -81,6 +81,16 @@ body {
   margin-bottom: 0;
 }
 
+/* At rest the home screen shows only the Play button beneath the Selector.
+   Nothing sits between the difficulty road and the button anymore, so pull
+   the cluster up tight instead of leaving the old caption's gap. */
+.app.home-page:not(.playing) .game-row {
+  margin-top: 0;
+}
+.app.home-page:not(.playing) .controls {
+  margin: 2px 0 4px;
+}
+
 /* While a round is running the board is ~190px taller (question prompt,
    speed bar, live score, feedback line, the full NoteCircle, Pause/Stop).
    Keep the game-row from being squeezed so the whole board stays on
