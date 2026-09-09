@@ -94,20 +94,20 @@
   --text-0: #e1e9f3; --text-1: #bac6d6; --text-2: #8a97a9; --text-3: #5b6675;
   --accent: #83bcdb; --accent-rgb: 131, 188, 219; --accent-dim: #4c7f9a; --accent-ink: #0a1a23;
   --gold: #d8c88c; --gold-rgb: 216, 200, 140; --amber: #d98e5a;
-  --success: #82c08d; --success-rgb: 130, 192, 141;
+  --success: #6fc48d; --success-rgb: 111, 196, 141;
   --danger: #d9736e; --danger-rgb: 217, 115, 110;
-  --heat-unplayed: #1b2231; --pick-accent: var(--accent);
+  --heat-unplayed: #1b2231; --pick-accent: #a48ee0;
 }
 [data-theme='winter-day'] {
   color-scheme: light;
   --bg-0: #eef2f8; --bg-1: #ffffff; --bg-2: #e3eaf3; --bg-3: #d7e0ee;
   --bg-letterbox: #ccd6e6; --surface-border: #ccd8e7; --border-soft: #b2c1d7;
-  --text-0: #121b2e; --text-1: #333f5a; --text-2: #66738a; --text-3: #95a1b4;
+  --text-0: #121b2e; --text-1: #333f5a; --text-2: #66738a; --text-3: #7a8798;
   --accent: #0077a3; --accent-rgb: 0, 119, 163; --accent-dim: #0077a3; --accent-ink: #ffffff;
   --gold: #a8790b; --gold-rgb: 168, 121, 11; --amber: #b8600a;
   --success: #178a52; --success-rgb: 23, 138, 82;
   --danger: #cc3357; --danger-rgb: 204, 51, 87;
-  --heat-unplayed: #dde5f1; --pick-accent: var(--accent);
+  --heat-unplayed: #dde5f1; --pick-accent: #5a4fc4;
 }
 
 /* ── Spring — fresh leaf green, blossom pink ─────────────────── */
@@ -120,7 +120,7 @@
   --gold: #ebc95e; --gold-rgb: 235, 201, 94; --amber: #f2a35a;
   --success: #46d97a; --success-rgb: 70, 217, 122;
   --danger: #ff6f8b; --danger-rgb: 255, 111, 139;
-  --heat-unplayed: #1f3327; --pick-accent: #82d0a0;
+  --heat-unplayed: #1f3327; --pick-accent: #e394d6;
 }
 [data-theme='spring-night'] {
   color-scheme: dark;
@@ -128,21 +128,21 @@
   --bg-letterbox: #060804; --surface-border: #333a26; --border-soft: #454d33;
   --text-0: #eef0e0; --text-1: #d0d4bc; --text-2: #a2a789; --text-3: #71765c;
   --accent: #9dcf7b; --accent-rgb: 157, 207, 123; --accent-dim: #608f46; --accent-ink: #172207;
-  --gold: #d9c67f; --gold-rgb: 217, 198, 127; --amber: #d99e5a;
-  --success: #8fc46a; --success-rgb: 143, 196, 106;
+  --gold: #d9c67f; --gold-rgb: 217, 198, 127; --amber: #dd9046;
+  --success: #79c97e; --success-rgb: 121, 201, 126;
   --danger: #d97f82; --danger-rgb: 217, 127, 130;
-  --heat-unplayed: #22261a; --pick-accent: var(--accent);
+  --heat-unplayed: #22261a; --pick-accent: #c79ad4;
 }
 [data-theme='spring-day'] {
   color-scheme: light;
   --bg-0: #f1f7f0; --bg-1: #ffffff; --bg-2: #e7f1e6; --bg-3: #dae9d9;
   --bg-letterbox: #cfe0cd; --surface-border: #d0e0ce; --border-soft: #b6ccb3;
-  --text-0: #16241b; --text-1: #364a3c; --text-2: #67806b; --text-3: #97ab99;
-  --accent: #2f9e57; --accent-rgb: 47, 158, 87; --accent-dim: #2f9e57; --accent-ink: #ffffff;
+  --text-0: #16241b; --text-1: #364a3c; --text-2: #67806b; --text-3: #78907c;
+  --accent: #1c7d45; --accent-rgb: 28, 125, 69; --accent-dim: #1c7d45; --accent-ink: #ffffff;
   --gold: #a8820b; --gold-rgb: 168, 130, 11; --amber: #b8720a;
   --success: #1f9a52; --success-rgb: 31, 154, 82;
   --danger: #d43f6a; --danger-rgb: 212, 63, 106;
-  --heat-unplayed: #deeedc; --pick-accent: var(--accent);
+  --heat-unplayed: #deeedc; --pick-accent: #8c3fa8;
 }
 
 /* ── Summer — sea turquoise, sun gold, coral ─────────────────── */
