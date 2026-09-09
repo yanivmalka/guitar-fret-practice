@@ -179,7 +179,7 @@ export default function AccountSection({
         {__COMMIT_HASH__} · {__COMMIT_DATE__.slice(0, 16)}
         <button
           className="refresh-btn"
-          onClick={() => { void (window.__applyUpdate?.() ?? Promise.resolve(window.location.reload())); }}
+          onClick={() => { void (window.__applyUpdate?.() ?? window.location.reload()); }}
           title={t('Refresh')}
         >↻</button>
       </div>

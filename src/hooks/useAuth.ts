@@ -122,6 +122,10 @@ export function useAuth(): AuthState {
       setUser(data.session?.user ?? null);
       setSyncUser(data.session?.user?.id ?? null);
       setLoading(false);
+    }).catch(() => {
+      // Never leave the boot splash hanging on a rejected session read — the
+      // boot 'app-ready' event waits on this flag (see useBootReadyEvent).
+      setLoading(false);
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -194,6 +198,12 @@ export function useAuth(): AuthState {
       if (cancelled) return;
       setEntitlement(e);
       setEntitlementLoading(false);
+    }).catch(() => {
+      // `fetchEntitlement` is meant to fail open on its own, but never let a
+      // rejection here strand the boot splash — the boot 'app-ready' event
+      // waits on this flag (see useBootReadyEvent). Falls back to Free / the
+      // cached row until the next foreground refresh corrects it.
+      if (!cancelled) setEntitlementLoading(false);
     });
     return () => { cancelled = true; };
   }, [user]);

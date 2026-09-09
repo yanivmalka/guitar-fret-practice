@@ -18,10 +18,15 @@
     <title>Fretboard Practice</title>
     <!-- Boot splash: painted from the very first byte (inline, before the app
          bundle) so there is never a blank #root while React and the audio
-         samples warm up. The progress bar is a fixed ~1.6s CSS animation — a
-         reassurance cue, not a real load meter; src/main.tsx fades the whole
-         layer out once the app has mounted. Colours track the hamburger-drawer
-         palette: --bg-0 → --bg-1 gradient, cyan --accent bar. -->
+         samples warm up. The progress bar is a real milestone meter driven by
+         src/main.tsx (service-worker check → newer build install → first data
+         load); its width is set in JS, not animated on a fixed timer. There is
+         no hard time cap — the splash stays until that work genuinely finishes
+         (min 1.6s so it never flashes). `.boot-splash__msg` carries a "still
+         loading" note after a long wait, and on a load-blocking crash it shows
+         the error plus the `.boot-splash__retry` reload button. Colours track
+         the hamburger-drawer palette: --bg-0 → --bg-1 gradient, cyan --accent
+         bar. -->
     <style>
       #boot-splash {
         position: fixed;
@@ -31,7 +36,7 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 34px;
+        gap: 28px;
         background: linear-gradient(180deg, #1a1a2e 0%, #111122 100%);
         opacity: 1;
         transition: opacity 0.32s ease-out;
@@ -57,24 +62,38 @@
       }
       #boot-splash .boot-splash__bar {
         height: 100%;
-        width: 0;
+        width: 6%;
         border-radius: inherit;
         background: #0ff;
         box-shadow: 0 0 10px rgba(0, 255, 255, 0.55);
-        animation: boot-splash-fill 1.6s ease-out forwards;
+        transition: width 0.45s ease;
       }
+      #boot-splash .boot-splash__msg {
+        margin: 0;
+        max-width: 74vw;
+        color: rgba(255, 255, 255, 0.62);
+        font: 400 13px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        text-align: center;
+      }
+      #boot-splash .boot-splash__retry {
+        appearance: none;
+        border: 1px solid rgba(0, 255, 255, 0.5);
+        background: transparent;
+        color: #0ff;
+        font: 500 14px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        padding: 10px 22px;
+        border-radius: 999px;
+        cursor: pointer;
+      }
+      #boot-splash .boot-splash__msg[hidden],
+      #boot-splash .boot-splash__retry[hidden] { display: none !important; }
       @keyframes boot-splash-mark {
         from { opacity: 0; transform: scale(0.9); }
         to { opacity: 1; transform: scale(1); }
       }
-      @keyframes boot-splash-fill {
-        from { width: 0; }
-        to { width: 100%; }
-      }
       @media (prefers-reduced-motion: reduce) {
-        #boot-splash img,
-        #boot-splash .boot-splash__bar { animation-duration: 0.01ms; }
-        #boot-splash .boot-splash__bar { width: 100%; }
+        #boot-splash img { animation-duration: 0.01ms; }
+        #boot-splash .boot-splash__bar { transition: none; }
       }
     </style>
   </head>
@@ -83,6 +102,8 @@
     <div id="boot-splash">
       <img src="/splash-mark.png" alt="" />
       <div class="boot-splash__track"><div class="boot-splash__bar"></div></div>
+      <p class="boot-splash__msg" role="status" hidden></p>
+      <button class="boot-splash__retry" type="button" hidden></button>
     </div>
     <script>
       // Desktop/web only: emulate the mobile viewport by rendering the

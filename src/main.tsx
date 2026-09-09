@@ -21,29 +21,74 @@ createRoot(document.getElementById('root')!).render(
 //     resolved, so the UI never visibly flips from a guest/default state to
 //     the signed-in one after the splash has already gone.
 //
-//  2. Latest-version check — while the splash is up we ask the service worker
-//     to check for a newer deploy. If one is found we activate it and reload
-//     straight into it (still behind the splash), so a launch always runs the
-//     newest build instead of updating silently mid-session. A newer build
-//     that lands *after* boot is just picked up on the next launch; an hourly
-//     re-check covers very long-lived sessions.
+//  2. Latest-version check — on every launch we ask the service worker to
+//     check for a newer deploy *now*, and if one is found we hold the splash
+//     until it has installed and reload straight into it (still behind the
+//     splash), so a launch always runs the newest build.
 //
-// The splash still enforces its own minimum-visible and hard-cap timers, so a
-// guest build, a stalled network, or a silent service-worker failure can never
-// leave it stuck on screen.
+// There is deliberately NO hard time cap: the splash stays until that work
+// genuinely finishes, however long the network takes (min-visible 1.6s so it
+// never flashes). The progress bar is driven by real milestones. After a long
+// wait we show a "still loading" note but keep waiting. Non-blocking failures
+// (no service worker, an offline update check) are logged and skipped with no
+// UI — the app runs the build it already has. The one blocking failure, a
+// crash before the app is ready, shows the error and a reload button.
 {
   const splash = document.getElementById('boot-splash')
+  const bar = splash?.querySelector<HTMLElement>('.boot-splash__bar') ?? null
+  const msgEl = splash?.querySelector<HTMLElement>('.boot-splash__msg') ?? null
+  const retryEl = splash?.querySelector<HTMLButtonElement>('.boot-splash__retry') ?? null
+
   const MIN_VISIBLE_MS = 1600
-  const MAX_VISIBLE_MS = 10000
-  const UPDATE_CHECK_CAP_MS = 7000
+  const SLOW_NOTICE_MS = 20000
   const RECHECK_INTERVAL_MS = 60 * 60 * 1000
   const BOOT_RELOAD_KEY = 'pwa-boot-reloaded'
 
+  const lang: 'he' | 'en' = (() => {
+    try { return JSON.parse(localStorage.getItem('pref_language') || '""') === 'he' ? 'he' : 'en' }
+    catch { return 'en' }
+  })()
+  const COPY = {
+    slow: { he: 'עדיין טוען…', en: 'Still loading…' },
+    crash: { he: 'האפליקציה נתקלה בשגיאה בטעינה.', en: 'The app hit an error while loading.' },
+    retry: { he: 'נסה שוב', en: 'Try again' },
+  } as const
+  const say = (k: keyof typeof COPY) => COPY[k][lang]
+
+  // --- progress bar: milestone target + a slow asymptotic creep between them
+  let progress = 6
+  let creepTimer: ReturnType<typeof setInterval> | undefined
+  const paint = () => { if (bar) bar.style.width = `${progress}%` }
+  const stopCreep = () => {
+    if (creepTimer !== undefined) { clearInterval(creepTimer); creepTimer = undefined }
+  }
+  const setProgress = (pct: number) => {
+    if (pct <= progress) return
+    progress = Math.min(pct, 100)
+    paint()
+  }
+  const creepTo = (ceil: number) => {
+    stopCreep()
+    creepTimer = setInterval(() => {
+      if (progress >= ceil - 0.5) { stopCreep(); return }
+      progress += (ceil - progress) * 0.08
+      paint()
+    }, 400)
+  }
+  paint()
+  setProgress(15)
+
   const shownAt = performance.now()
-  let booting = true
   let appReady = false
   let updateSettled = false
   let dismissed = false
+  let fatal = false
+
+  const showMsg = (text: string) => { if (msgEl) { msgEl.textContent = text; msgEl.hidden = false } }
+  const clearMsg = () => {
+    if (msgEl) { msgEl.textContent = ''; msgEl.hidden = true }
+    if (retryEl) { retryEl.hidden = true; retryEl.onclick = null }
+  }
 
   const hideSplash = () => {
     if (!splash) return
@@ -54,88 +99,145 @@ createRoot(document.getElementById('root')!).render(
   }
 
   const maybeDismiss = () => {
-    if (dismissed || !appReady || !updateSettled) return
+    if (dismissed || fatal || !appReady || !updateSettled) return
     dismissed = true
-    booting = false
+    stopCreep()
+    setProgress(100)
+    const finish = () => { clearMsg(); hideSplash() }
     const held = performance.now() - shownAt
-    if (held >= MIN_VISIBLE_MS) hideSplash()
-    else setTimeout(hideSplash, MIN_VISIBLE_MS - held)
+    if (held >= MIN_VISIBLE_MS) finish()
+    else setTimeout(finish, MIN_VISIBLE_MS - held)
   }
 
   const markUpdateSettled = () => {
+    if (updateSettled) return
     updateSettled = true
+    setProgress(appReady ? 100 : 70)
     maybeDismiss()
   }
 
   window.addEventListener('app-ready', () => {
     appReady = true
+    // A crash message shown earlier was provisional — the app recovered.
+    if (fatal) { fatal = false; clearMsg() }
+    setProgress(updateSettled ? 100 : 92)
     maybeDismiss()
   }, { once: true })
 
-  // Hard caps: dismiss no matter what, and stop treating a late update as a
-  // boot-time reload once the splash is (or should be) gone.
-  setTimeout(markUpdateSettled, UPDATE_CHECK_CAP_MS)
-  setTimeout(() => {
-    booting = false
-    appReady = true
-    markUpdateSettled()
-  }, MAX_VISIBLE_MS)
+  // No time cap — just reassure the user the splash isn't dead after a while.
+  setTimeout(() => { if (!dismissed && !fatal) showMsg(say('slow')) }, SLOW_NOTICE_MS)
+
+  // The only blocking failure: an uncaught error before the app is ready. Show
+  // it with a reload button; if 'app-ready' still fires later, it clears itself.
+  const onBootError = (detail: string) => {
+    if (appReady || dismissed || fatal) return
+    fatal = true
+    stopCreep()
+    showMsg(detail ? `${say('crash')} (${detail})` : say('crash'))
+    if (retryEl) {
+      retryEl.textContent = say('retry')
+      retryEl.hidden = false
+      retryEl.onclick = () => window.location.reload()
+    }
+  }
+  window.addEventListener('error', (e) => onBootError(e.message || 'error'))
+  window.addEventListener('unhandledrejection', (e) => {
+    const r = e.reason as { message?: string } | string | undefined
+    onBootError((typeof r === 'string' ? r : r?.message) || 'promise rejection')
+  })
 
   let swRegistration: ServiceWorkerRegistration | undefined
 
-  const updateSW = registerSW({
-    immediate: true,
-    onNeedRefresh() {
-      // A newer build is installed and waiting. If we're still on the splash,
-      // swap to it now and reload; the sessionStorage guard prevents a loop if
-      // the reload somehow doesn't clear the waiting worker.
-      let alreadyReloaded = false
-      try {
-        alreadyReloaded = sessionStorage.getItem(BOOT_RELOAD_KEY) === '1'
-      } catch { /* storage blocked (private mode) — treat as first try */ }
-      if (booting && !alreadyReloaded) {
-        try { sessionStorage.setItem(BOOT_RELOAD_KEY, '1') } catch { /* ignore */ }
-        void updateSW(true)
-        return
-      }
-      markUpdateSettled()
-    },
-    onRegisteredSW(_swUrl, reg) {
+  // On every launch: check for a newer deploy now, and if one is found hold the
+  // splash until it has installed, then reload into it — the reload that
+  // vite-plugin-pwa fires from its own `activated` handler happens behind the
+  // splash. NB: `onNeedRefresh` is never called under registerType:'autoUpdate',
+  // so this lives in `onRegisteredSW`, not there.
+  async function applyNewestThenSettle(reg: ServiceWorkerRegistration) {
+    let bootReloaded = false
+    try { bootReloaded = sessionStorage.getItem(BOOT_RELOAD_KEY) === '1' } catch { /* private mode */ }
+
+    try {
+      await reg.update()
+    } catch (err) {
+      // Offline / server error — non-blocking, run the cached build. No UI.
+      console.warn('[pwa] update check failed', err)
       try { sessionStorage.removeItem(BOOT_RELOAD_KEY) } catch { /* ignore */ }
-      if (!reg) { markUpdateSettled(); return }
-      swRegistration = reg
-      // Kick an immediate check instead of waiting for the browser's own.
-      Promise.resolve(reg.update()).catch(() => {}).finally(() => {
-        // If nothing is installing, onNeedRefresh won't fire — settle now.
-        if (!reg.installing && !reg.waiting) markUpdateSettled()
+      markUpdateSettled()
+      return
+    }
+
+    const installing = reg.installing
+    if (installing && !reg.waiting) {
+      creepTo(60)
+      await new Promise<void>((resolve) => {
+        const settled = () => { if (installing.state !== 'installing') { resolve(); return true } return false }
+        installing.addEventListener('statechange', settled)
+        settled() // guard the race where it left 'installing' before this ran
       })
-      setInterval(() => { void reg.update() }, RECHECK_INTERVAL_MS)
-    },
-    onRegisterError() { markUpdateSettled() },
-  })
+      stopCreep()
+    }
+
+    // A newer build finished installing. Reload into it while the splash is
+    // still up — once per launch only, so a worker that fails to take over
+    // can't spin us in a reload loop.
+    if ((reg.installing || reg.waiting) && !bootReloaded) {
+      try { sessionStorage.setItem(BOOT_RELOAD_KEY, '1') } catch { /* ignore */ }
+      setProgress(66)
+      window.location.reload()
+      return
+    }
+
+    try { sessionStorage.removeItem(BOOT_RELOAD_KEY) } catch { /* ignore */ }
+    markUpdateSettled()
+  }
+
+  if (import.meta.env.DEV || !('serviceWorker' in navigator)) {
+    // Dev has no service worker (registerSW is a no-op that never calls back);
+    // neither do older browsers. Nothing to check — settle straight away.
+    markUpdateSettled()
+  } else {
+    registerSW({
+      immediate: true,
+      onRegisteredSW(_swUrl, reg) {
+        if (!reg) { markUpdateSettled(); return }
+        swRegistration = reg
+        setProgress(30)
+        void applyNewestThenSettle(reg)
+        setInterval(() => { void reg.update() }, RECHECK_INTERVAL_MS)
+      },
+      onRegisterError(err) {
+        // Non-blocking: the app runs fine without a service worker (no offline
+        // cache, no auto-update). Log and carry on — no UI.
+        console.warn('[pwa] service worker registration failed', err)
+        markUpdateSettled()
+      },
+    })
+  }
 
   // The build-info "↻" button calls this instead of a bare location.reload().
   // A plain reload just re-serves the cached build, so a fresh deploy only
   // showed up after the hourly re-check or a cold launch. Here we ask the
-  // service worker to check *now*, wait for any newer build to finish
-  // installing, then activate it and reload straight into it.
+  // service worker to check *now*. Under `registerType: 'autoUpdate'` the
+  // generated SW self-skips-waiting and vite-plugin-pwa reloads the page from
+  // its own `activated` handler once the new worker takes control — so we just
+  // wait briefly for that hand-over and otherwise fall back to a plain reload.
+  // (The `updateSW()` returned by registerSW() is a no-op in autoUpdate mode,
+  // so it must not be relied on here.)
   window.__applyUpdate = async () => {
     const reg = swRegistration
     if (!reg) { window.location.reload(); return }
     try { await reg.update() } catch { /* offline — fall through to a plain reload */ }
 
-    const installing = reg.installing
-    if (installing && !reg.waiting) {
-      await new Promise<void>((resolve) => {
-        const done = () => resolve()
-        installing.addEventListener('statechange', () => {
-          if (installing.state === 'installed' || installing.state === 'activated' || installing.state === 'redundant') done()
-        })
-        setTimeout(done, 8000)
+    if (reg.installing || reg.waiting) {
+      const handedOver = await new Promise<boolean>((resolve) => {
+        navigator.serviceWorker.addEventListener(
+          'controllerchange', () => resolve(true), { once: true },
+        )
+        setTimeout(() => resolve(false), 6000)
       })
+      if (handedOver) return // the plugin's `activated` handler is reloading us
     }
-
-    if (reg.waiting) await updateSW(true) // skipWaiting + auto-reload into the new build
-    else window.location.reload()
+    window.location.reload()
   }
 }
