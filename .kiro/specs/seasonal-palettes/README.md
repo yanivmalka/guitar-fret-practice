@@ -86,16 +86,54 @@ that is enough or whether it should be a combined swatch grid. Check it in
 **both** LTR and RTL (`he`) — `PickRow` already handles direction, but eyeball
 the 4-across Season row on a narrow phone.
 
-### 3. `--bg-0` ↔ `THEME_BG` sync
+### 3. `--bg-0` ↔ `THEME_BG` sync — **done, guarded by a script**
 `THEME_BG` in `theme.ts` is a hand-copy of each block's `--bg-0`. If you
-retune a `--bg-0`, update both. (Optional: a `scripts/check-*.mts` diff that
-parses the CSS and asserts equality.)
+retune a `--bg-0`, update both — and then run:
 
-### 4. Design labs on legacy names
-`src/design-preview/` and `src/stats-redesign/` still emit bare
-`data-theme="light"` / `"night"`. Left working via the retained legacy
-blocks. Migrate them to season-mode names only if you want the labs to
-exercise the new palettes; otherwise leave as-is.
+```
+node --experimental-strip-types scripts/check-theme-tokens.mts
+```
+
+`scripts/check-theme-tokens.mts` parses `src/styles/00-tokens.css`, pulls the
+`--bg-0` out of every `[data-theme='<season>-<mode>']` block, and asserts it
+equals the matching `THEME_BG` entry. It also asserts that both sides cover
+exactly the 12 pairs — no missing combination, no stray key. It exits non-zero
+and prints each mismatch as `key: css --bg-0 X ≠ THEME_BG Y`. Like every other
+`scripts/check-*.mts` it is a hand-run diagnostic, never part of `npm run build`.
+The retained legacy `night` / `day` blocks are skipped on purpose: they are not
+part of the two-axis matrix.
+
+### 4. Design labs on legacy names — **decided: leave them alone**
+
+`src/design-preview/` and `src/stats-redesign/` keep their own two-value
+`data-theme="dark"` / `"light"` axis. **Deliberate — do not migrate them to
+`<season>-<mode>` names.** Rationale:
+
+- **The labs share no tokens with the app.** Each lab defines its full token
+  set in its own local CSS (`design-preview.css` `:root` +
+  `[data-theme='light']`, and the same shape in `stats-redesign.css`, whose
+  header already states it is "self-contained: its own tokens"). Those local
+  blocks are the last ones in the cascade, so a lab renders from its own
+  palette whatever `00-tokens.css` says.
+- **They never used the legacy blocks anyway.** The retained legacy blocks are
+  `[data-theme='night']` / `[data-theme='day']`; the labs emit `dark` /
+  `light`, which those blocks do not match. (`stats-redesign` does not even
+  import `src/index.css`.) The earlier note in this file that the labs were
+  "left working via the retained legacy blocks" was wrong — nothing in the
+  repo emits a bare `night` / `day` any more, so those two blocks are now
+  unreferenced. Removing them is a separate, deliberate cleanup; this branch
+  leaves them in place.
+- **Migrating would mean duplicating 12 palettes into each lab**, by hand, and
+  keeping them in sync with `00-tokens.css` forever — a second copy of exactly
+  the duplication that section 3 above had to write a script to guard. The labs
+  are throwaway layout sandboxes for spacing and hierarchy, not colour review
+  surfaces; the real palette review happens in the app itself (`npm run dev`,
+  Settings → Season, or `document.documentElement.dataset.theme =
+  'summer-day'` in DevTools), which is what section 6 asks for.
+
+If a lab ever does need the seasonal palettes, the right move is to delete its
+local token block and let it inherit `00-tokens.css`, then switch its toggle to
+the 12 names — not to hand-copy the palettes across.
 
 ### 5. Supabase
 **No migration needed.** `user_settings.data` is a free-form JSON blob;
@@ -122,5 +160,9 @@ change for existing users) and that no DB migration is required.
 - New CSS goes in the matching numbered partial under `src/styles/`; theme
   tokens specifically live in `00-tokens.css`.
 - New user-facing copy needs a `he` entry in `src/i18n/translations.ts`.
-- There is no test runner. `scripts/check-*.mts` are hand-run; none covers
-  theming today.
+- There is no test runner. `scripts/check-*.mts` are hand-run;
+  `scripts/check-theme-tokens.mts` is the one that covers theming — it asserts
+  each block's `--bg-0` matches `THEME_BG`.
+- The design labs (`src/design-preview/`, `src/stats-redesign/`) are outside the
+  theming system on purpose — they carry their own local tokens and their own
+  `dark` / `light` axis. See section 4.
