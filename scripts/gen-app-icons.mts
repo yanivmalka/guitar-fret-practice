@@ -69,6 +69,19 @@ async function transparent(size: number, out: string): Promise<void> {
   console.log(`  ${out}  (${size}px, transparent)`);
 }
 
+/** The trimmed mark centred on a fixed transparent `canvas`×`canvas` square,
+ *  its longest side `markPx`. Used for the Android 12 system-splash icon,
+ *  whose slot has a fixed dp size and a circular safe zone. */
+async function centered(canvas: number, markPx: number, out: string): Promise<void> {
+  await sharp({
+    create: { width: canvas, height: canvas, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+  })
+    .composite([{ input: await mark(markPx), gravity: 'center' }])
+    .png()
+    .toFile(join(root, out));
+  console.log(`  ${out}  (${canvas}px canvas, ${markPx}px mark)`);
+}
+
 async function solid(size: number, out: string): Promise<void> {
   await sharp(await gradient(size)).png().toFile(join(root, out));
   console.log(`  ${out}  (${size}px, gradient only)`);
@@ -107,5 +120,14 @@ await solid(1024, 'assets/icon-background.png');
 // small — only the centre ~1200px is guaranteed visible on every device.
 await onGradient(2732, 0.3, 'assets/splash.png');
 await onGradient(2732, 0.3, 'assets/splash-dark.png');
+// Android 12+ system splash: the platform draws its own splash and ignores the
+// pre-12 full-screen `splash.png` above — it shows an icon in a fixed ~288dp
+// slot (logo inside the centre ~192dp circle). `capacitor-assets` doesn't emit
+// anything for this, so the OS falls back to the adaptive-launcher foreground,
+// which it generates at only 192px (xxxhdpi) and then up-scales → blurry. A
+// dedicated 1152px asset (crisp at xxxhdpi = 288dp × 4) wired up by the APK
+// workflow via android-overrides/values-v31/styles.xml. Mark ≈ 63% keeps it
+// inside the circular safe zone.
+await centered(1152, 720, 'assets/android12-splash-icon.png');
 
 console.log('done.');
