@@ -19,8 +19,15 @@
      collapses it horizontally and the settings below never shift down. */
   align-self: center;
   max-height: 96px;
+  /* Fixed footprint: the chips' width is content-driven and the "By String"
+     toggle (and Alpha/Fifths) switch to font-weight:bold when active, which
+     would otherwise widen this column and make the two flex:1 .mode-card
+     tiles either side resize as the toggle flips. Pin the width so the row
+     never reflows on a toggle. */
+  flex: 0 0 auto;
 }
 .mode-order-show {
+  width: 80px;
   max-width: 80px;
   opacity: 1;
   padding: 0 4px;
