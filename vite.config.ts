@@ -85,6 +85,17 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: false,
       workbox: {
+        // MUST be set by hand: vite-plugin-pwa only derives these two from
+        // registerType:'autoUpdate' when `injectRegister` is 'auto'/unset (see
+        // its `injectRegister === 'auto' || injectRegister == null` guard).
+        // With `injectRegister: false` the guard is skipped, so the generated
+        // SW came out prompt-shaped — it installed and then sat in `waiting`
+        // forever, because the client-side registerSW() in autoUpdate mode
+        // never sends the SKIP_WAITING message. The old worker kept serving
+        // the cached build across reloads and the new one only took over
+        // after every tab was closed.
+        skipWaiting: true,
+        clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,mp3}'],
         // The synthetic-voice template set (~280 KB) is a lazy import used
         // only by the "General" voice engine — keep it out of the precache

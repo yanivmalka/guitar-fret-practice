@@ -44,6 +44,10 @@ createRoot(document.getElementById('root')!).render(
   const SLOW_NOTICE_MS = 20000
   const RECHECK_INTERVAL_MS = 60 * 60 * 1000
   const BOOT_RELOAD_KEY = 'pwa-boot-reloaded'
+  // How long to wait for a freshly installed worker to take control before
+  // reloading anyway. With skipWaiting + clientsClaim the hand-over lands in
+  // well under a second; the cap only covers the case where it never comes.
+  const HANDOVER_WAIT_MS = 3000
 
   const lang: 'he' | 'en' = (() => {
     try { return JSON.parse(localStorage.getItem('pref_language') || '""') === 'he' ? 'he' : 'en' }
@@ -177,6 +181,26 @@ createRoot(document.getElementById('root')!).render(
 
   let swRegistration: ServiceWorkerRegistration | undefined
 
+  // Resolves once a *different* worker has taken control of this page, or when
+  // `ms` elapses (resolving false). Bounded on purpose: a hand-over that never
+  // comes must not hold the splash — or the refresh button — open forever.
+  function waitForControllerChange(ms: number) {
+    return new Promise<boolean>((resolve) => {
+      const done = (v: boolean) => { clearTimeout(timer); resolve(v) }
+      const timer = setTimeout(() => done(false), ms)
+      navigator.serviceWorker.addEventListener(
+        'controllerchange', () => done(true), { once: true },
+      )
+    })
+  }
+
+  // Belt-and-braces nudge for a worker parked in `waiting`. The generated SW
+  // keeps a SKIP_WAITING message listener regardless of registerType, so this
+  // is a no-op when the worker already skipped waiting on its own.
+  function nudgeWaiting(reg: ServiceWorkerRegistration) {
+    try { reg.waiting?.postMessage({ type: 'SKIP_WAITING' }) } catch { /* ignore */ }
+  }
+
   // On every launch: check for a newer deploy now, and if one is found hold the
   // splash until it has installed, then reload into it — the reload that
   // vite-plugin-pwa fires from its own `activated` handler happens behind the
@@ -213,6 +237,13 @@ createRoot(document.getElementById('root')!).render(
     if ((reg.installing || reg.waiting) && !bootReloaded) {
       try { sessionStorage.setItem(BOOT_RELOAD_KEY, '1') } catch { /* ignore */ }
       setProgress(66)
+      // Reloading while the new worker is still `installed`/`activating` would
+      // be served by the *old* worker's precache — the reload would land back
+      // on the stale build and BOOT_RELOAD_KEY would stop us retrying. Give the
+      // hand-over a short bounded window first; if it doesn't come we reload
+      // anyway, exactly as before.
+      nudgeWaiting(reg)
+      if (reg.waiting || reg.installing) await waitForControllerChange(HANDOVER_WAIT_MS)
       window.location.reload()
       return
     }
@@ -247,25 +278,24 @@ createRoot(document.getElementById('root')!).render(
   // The build-info "↻" button calls this instead of a bare location.reload().
   // A plain reload just re-serves the cached build, so a fresh deploy only
   // showed up after the hourly re-check or a cold launch. Here we ask the
-  // service worker to check *now*. Under `registerType: 'autoUpdate'` the
-  // generated SW self-skips-waiting and vite-plugin-pwa reloads the page from
-  // its own `activated` handler once the new worker takes control — so we just
-  // wait briefly for that hand-over and otherwise fall back to a plain reload.
-  // (The `updateSW()` returned by registerSW() is a no-op in autoUpdate mode,
-  // so it must not be relied on here.)
+  // service worker to check *now*, wait for the new worker to take control,
+  // and then reload ourselves.
+  //
+  // We deliberately do NOT hand the reload off to vite-plugin-pwa's own
+  // `activated` handler: workbox-window drops its `updatefound` listener after
+  // the first update it considers "external" (anything more than 60s after
+  // registration — i.e. every press of this button), so from the second press
+  // on in one page lifetime that handler never fires and nothing would reload.
+  // Reloading here unconditionally is safe: if the plugin does reload too, the
+  // page is being torn down either way.
   window.__applyUpdate = async () => {
     const reg = swRegistration
     if (!reg) { window.location.reload(); return }
     try { await reg.update() } catch { /* offline — fall through to a plain reload */ }
 
     if (reg.installing || reg.waiting) {
-      const handedOver = await new Promise<boolean>((resolve) => {
-        navigator.serviceWorker.addEventListener(
-          'controllerchange', () => resolve(true), { once: true },
-        )
-        setTimeout(() => resolve(false), 6000)
-      })
-      if (handedOver) return // the plugin's `activated` handler is reloading us
+      nudgeWaiting(reg)
+      await waitForControllerChange(HANDOVER_WAIT_MS)
     }
     window.location.reload()
   }
