@@ -56,74 +56,189 @@
   --pick-accent: #4af;
 }
 
-/* 'night' — warm-toned, dimmer surfaces for use in a dark room.
-   Shifts the base hue family from cool blue-purple to warm brown/
-   amber and lowers overall lightness relative to 'dark'. */
-[data-theme='night'] {
+/* ────────────────────────────────────────────────────────────────
+   Seasonal palettes — 12 blocks, one per (season × mode) pair.
+   `data-theme` is set to "<season>-<mode>" by src/hooks/useThemeEffect.ts
+   from the `pref_season` (winter | spring | summer | autumn) and
+   `pref_theme` (dark | night | day) settings.
+
+   - mode  sets the overall lightness family: dark = the original look,
+     night = warmer + dimmer for a dark room, day = light bg / dark text.
+   - season sets the hue personality (accent, warm/cool bias of the
+     surfaces, the functional gold/amber/success/danger tints), kept
+     legible in every mode.
+
+   'winter-dark' is byte-for-byte the pre-seasons `:root` dark palette,
+   so an existing user on the defaults sees no change. A crisper,
+   bluer winter-dark alternative lives in the design lab if we ever
+   want to refresh the default deliberately.
+   Keep each --bg-0 in sync with THEME_BG in src/utils/theme.ts.
+──────────────────────────────────────────────────────────────── */
+
+/* ── Winter — icy blue, cyan, slate ──────────────────────────── */
+[data-theme='winter-dark'] {
   color-scheme: dark;
-
-  --bg-0: #14100c;
-  --bg-1: #0d0a08;
-  --bg-2: #1a1410;
-  --bg-3: #241c15;
-  --bg-letterbox: #0a0806;
-  --surface-border: #3a2e22;
-  --border-soft: #4a3b2c;
-
-  --text-0: #f0e6d8;
-  --text-1: #d6c6b0;
-  --text-2: #ab9884;
-  --text-3: #786454;
-
-  --accent: #ffb454;
-  --accent-rgb: 255, 180, 84;
-  --accent-dim: #a06a1e;
-  --accent-ink: #2a1a06;
-  --gold: #ffcc66;
-  --gold-rgb: 255, 204, 102;
-  --amber: #ff8a3d;
-  --success: #7fbf6a;
-  --success-rgb: 127, 191, 106;
-  --danger: #e05a4e;
-  --danger-rgb: 224, 90, 78;
-
-  --heat-unplayed: #2a2015;
-
-  --pick-accent: var(--accent);
+  --bg-0: #1a1a2e; --bg-1: #111122; --bg-2: #15152a; --bg-3: #1c1c38;
+  --bg-letterbox: #0c0c18; --surface-border: #2a2a4a; --border-soft: #444;
+  --text-0: #f0f0f8; --text-1: #c8c8de; --text-2: #9a9ab8; --text-3: #6f6f8c;
+  --accent: #0ff; --accent-rgb: 0, 255, 255; --accent-dim: #0aa; --accent-ink: #06222a;
+  --gold: #ffd700; --gold-rgb: 255, 215, 0; --amber: #f90;
+  --success: #34e07a; --success-rgb: 52, 224, 122;
+  --danger: #ff5470; --danger-rgb: 255, 84, 112;
+  --heat-unplayed: #24244a; --pick-accent: #4af;
+}
+[data-theme='winter-night'] {
+  color-scheme: dark;
+  --bg-0: #0f1320; --bg-1: #090c16; --bg-2: #121826; --bg-3: #192131;
+  --bg-letterbox: #05070f; --surface-border: #253044; --border-soft: #374357;
+  --text-0: #e1e9f3; --text-1: #bac6d6; --text-2: #8a97a9; --text-3: #5b6675;
+  --accent: #83bcdb; --accent-rgb: 131, 188, 219; --accent-dim: #4c7f9a; --accent-ink: #0a1a23;
+  --gold: #d8c88c; --gold-rgb: 216, 200, 140; --amber: #d98e5a;
+  --success: #6fc48d; --success-rgb: 111, 196, 141;
+  --danger: #d9736e; --danger-rgb: 217, 115, 110;
+  --heat-unplayed: #1b2231; --pick-accent: #a48ee0;
+}
+[data-theme='winter-day'] {
+  color-scheme: light;
+  --bg-0: #eef2f8; --bg-1: #ffffff; --bg-2: #e3eaf3; --bg-3: #d7e0ee;
+  --bg-letterbox: #ccd6e6; --surface-border: #ccd8e7; --border-soft: #b2c1d7;
+  --text-0: #121b2e; --text-1: #333f5a; --text-2: #66738a; --text-3: #7a8798;
+  --accent: #0077a3; --accent-rgb: 0, 119, 163; --accent-dim: #0077a3; --accent-ink: #ffffff;
+  --gold: #a8790b; --gold-rgb: 168, 121, 11; --amber: #b8600a;
+  --success: #178a52; --success-rgb: 23, 138, 82;
+  --danger: #cc3357; --danger-rgb: 204, 51, 87;
+  --heat-unplayed: #dde5f1; --pick-accent: #5a4fc4;
 }
 
-/* 'day' — light background, dark text. Adapted from the light
-   palette already validated in the design-preview lab, extended to
-   this token set. */
+/* ── Spring — fresh leaf green, blossom pink ─────────────────── */
+[data-theme='spring-dark'] {
+  color-scheme: dark;
+  --bg-0: #14201a; --bg-1: #0d1510; --bg-2: #142019; --bg-3: #1c2b21;
+  --bg-letterbox: #070d09; --surface-border: #2a4537; --border-soft: #3b5946;
+  --text-0: #eef6ec; --text-1: #c6d8c2; --text-2: #94a992; --text-3: #667b66;
+  --accent: #58db8c; --accent-rgb: 88, 219, 140; --accent-dim: #2f9160; --accent-ink: #06251a;
+  --gold: #ebc95e; --gold-rgb: 235, 201, 94; --amber: #f2a35a;
+  --success: #46d97a; --success-rgb: 70, 217, 122;
+  --danger: #ff6f8b; --danger-rgb: 255, 111, 139;
+  --heat-unplayed: #1f3327; --pick-accent: #e394d6;
+}
+[data-theme='spring-night'] {
+  color-scheme: dark;
+  --bg-0: #12140d; --bg-1: #0c0e08; --bg-2: #171911; --bg-3: #202318;
+  --bg-letterbox: #060804; --surface-border: #333a26; --border-soft: #454d33;
+  --text-0: #eef0e0; --text-1: #d0d4bc; --text-2: #a2a789; --text-3: #71765c;
+  --accent: #9dcf7b; --accent-rgb: 157, 207, 123; --accent-dim: #608f46; --accent-ink: #172207;
+  --gold: #d9c67f; --gold-rgb: 217, 198, 127; --amber: #dd9046;
+  --success: #79c97e; --success-rgb: 121, 201, 126;
+  --danger: #d97f82; --danger-rgb: 217, 127, 130;
+  --heat-unplayed: #22261a; --pick-accent: #c79ad4;
+}
+[data-theme='spring-day'] {
+  color-scheme: light;
+  --bg-0: #f1f7f0; --bg-1: #ffffff; --bg-2: #e7f1e6; --bg-3: #dae9d9;
+  --bg-letterbox: #cfe0cd; --surface-border: #d0e0ce; --border-soft: #b6ccb3;
+  --text-0: #16241b; --text-1: #364a3c; --text-2: #67806b; --text-3: #78907c;
+  --accent: #1c7d45; --accent-rgb: 28, 125, 69; --accent-dim: #1c7d45; --accent-ink: #ffffff;
+  --gold: #a8820b; --gold-rgb: 168, 130, 11; --amber: #b8720a;
+  --success: #1f9a52; --success-rgb: 31, 154, 82;
+  --danger: #d43f6a; --danger-rgb: 212, 63, 106;
+  --heat-unplayed: #deeedc; --pick-accent: #8c3fa8;
+}
+
+/* ── Summer — sea turquoise, sun gold, coral ─────────────────── */
+[data-theme='summer-dark'] {
+  color-scheme: dark;
+  --bg-0: #0f1e26; --bg-1: #0a151b; --bg-2: #12222a; --bg-3: #1a2e37;
+  --bg-letterbox: #060f13; --surface-border: #234049; --border-soft: #34555f;
+  --text-0: #e9f5f6; --text-1: #bfd6d8; --text-2: #8ba7aa; --text-3: #5f797c;
+  --accent: #23d6c4; --accent-rgb: 35, 214, 196; --accent-dim: #159c8f; --accent-ink: #04231f;
+  --gold: #ffcf3d; --gold-rgb: 255, 207, 61; --amber: #ff9d3d;
+  --success: #34e0a0; --success-rgb: 52, 224, 160;
+  --danger: #ff6b5c; --danger-rgb: 255, 107, 92;
+  --heat-unplayed: #1a2e33; --pick-accent: #5fbfd9;
+}
+[data-theme='summer-night'] {
+  color-scheme: dark;
+  --bg-0: #16110b; --bg-1: #0e0a06; --bg-2: #1c150d; --bg-3: #271d12;
+  --bg-letterbox: #080503; --surface-border: #3d2f20; --border-soft: #4f3d29;
+  --text-0: #f4e8d6; --text-1: #dbc7ab; --text-2: #b0967d; --text-3: #7c6350;
+  --accent: #ffb454; --accent-rgb: 255, 180, 84; --accent-dim: #a06a1e; --accent-ink: #2a1a06;
+  --gold: #ffcc66; --gold-rgb: 255, 204, 102; --amber: #ff8a3d;
+  --success: #8ac26a; --success-rgb: 138, 194, 106;
+  --danger: #e8635a; --danger-rgb: 232, 99, 90;
+  --heat-unplayed: #2b2015; --pick-accent: #5fbfd9;
+}
+[data-theme='summer-day'] {
+  color-scheme: light;
+  --bg-0: #fbf6ec; --bg-1: #ffffff; --bg-2: #f4ecdb; --bg-3: #ebe1cb;
+  --bg-letterbox: #ded2b8; --surface-border: #e3d8c1; --border-soft: #ccbc9e;
+  --text-0: #241c10; --text-1: #4a3d2a; --text-2: #7f6f57; --text-3: #8b7a5e;
+  --accent: #b05a00; --accent-rgb: 176, 90, 0; --accent-dim: #b05a00; --accent-ink: #ffffff;
+  --gold: #b8860b; --gold-rgb: 184, 134, 11; --amber: #c8660a;
+  --success: #1f9a6a; --success-rgb: 31, 154, 106;
+  --danger: #d6425a; --danger-rgb: 214, 66, 90;
+  --heat-unplayed: #eee3cb; --pick-accent: #1197ac;
+}
+
+/* ── Autumn — rust, ember, oak ───────────────────────────────── */
+[data-theme='autumn-dark'] {
+  color-scheme: dark;
+  --bg-0: #201410; --bg-1: #170d0a; --bg-2: #24160f; --bg-3: #311d14;
+  --bg-letterbox: #0e0806; --surface-border: #47301f; --border-soft: #5c3f2a;
+  --text-0: #f6ece2; --text-1: #d9c3b2; --text-2: #a88d7a; --text-3: #7a5f4e;
+  --accent: #ff8a3d; --accent-rgb: 255, 138, 61; --accent-dim: #b35a1e; --accent-ink: #2b1405;
+  --gold: #f0b429; --gold-rgb: 240, 180, 41; --amber: #ff7a2e;
+  --success: #b6c24a; --success-rgb: 182, 194, 74;
+  --danger: #ff5c52; --danger-rgb: 255, 92, 82;
+  --heat-unplayed: #332016; --pick-accent: #c9a15a;
+}
+[data-theme='autumn-night'] {
+  color-scheme: dark;
+  --bg-0: #170e09; --bg-1: #0f0806; --bg-2: #1d110b; --bg-3: #281710;
+  --bg-letterbox: #090504; --surface-border: #3c2a1c; --border-soft: #4e3826;
+  --text-0: #f0e2d4; --text-1: #d4bda8; --text-2: #a78d78; --text-3: #7d6151;
+  --accent: #e8934f; --accent-rgb: 232, 147, 79; --accent-dim: #99551f; --accent-ink: #241105;
+  --gold: #d9b061; --gold-rgb: 217, 176, 97; --amber: #db7c3a;
+  --success: #9ca955; --success-rgb: 156, 169, 85;
+  --danger: #d96a55; --danger-rgb: 217, 106, 85;
+  --heat-unplayed: #241610; --pick-accent: #c9a15a;
+}
+[data-theme='autumn-day'] {
+  color-scheme: light;
+  --bg-0: #f8f1e6; --bg-1: #fffdf9; --bg-2: #f0e5d3; --bg-3: #e6d8c0;
+  --bg-letterbox: #d8c6a8; --surface-border: #ded0b8; --border-soft: #c7b295;
+  --text-0: #2a1c10; --text-1: #4f3a26; --text-2: #856b52; --text-3: #8d6f55;
+  --accent: #b5502a; --accent-rgb: 181, 80, 42; --accent-dim: #b5502a; --accent-ink: #ffffff;
+  --gold: #a5760b; --gold-rgb: 165, 118, 11; --amber: #b8600a;
+  --success: #6f8a1f; --success-rgb: 111, 138, 31;
+  --danger: #c23a48; --danger-rgb: 194, 58, 72;
+  --heat-unplayed: #ece0cb; --pick-accent: #637c14;
+}
+
+/* ── Legacy single-axis values ───────────────────────────────────
+   Kept so anything still emitting the bare `data-theme="night"` /
+   `data-theme="day"` (e.g. the design-preview / stats-redesign labs)
+   keeps working until it moves to the season-mode names. These mirror
+   summer-night and winter-day respectively. */
+[data-theme='night'] {
+  color-scheme: dark;
+  --bg-0: #14100c; --bg-1: #0d0a08; --bg-2: #1a1410; --bg-3: #241c15;
+  --bg-letterbox: #0a0806; --surface-border: #3a2e22; --border-soft: #4a3b2c;
+  --text-0: #f0e6d8; --text-1: #d6c6b0; --text-2: #ab9884; --text-3: #786454;
+  --accent: #ffb454; --accent-rgb: 255, 180, 84; --accent-dim: #a06a1e; --accent-ink: #2a1a06;
+  --gold: #ffcc66; --gold-rgb: 255, 204, 102; --amber: #ff8a3d;
+  --success: #7fbf6a; --success-rgb: 127, 191, 106;
+  --danger: #e05a4e; --danger-rgb: 224, 90, 78;
+  --heat-unplayed: #2a2015; --pick-accent: var(--accent);
+}
 [data-theme='day'] {
   color-scheme: light;
-
-  --bg-0: #f4f5fb;
-  --bg-1: #ffffff;
-  --bg-2: #eceef8;
-  --bg-3: #e2e5f4;
-  --bg-letterbox: #d8dbee;
-  --surface-border: #d8dbee;
-  --border-soft: #c3c7e0;
-
-  --text-0: #14162b;
-  --text-1: #34364f;
-  --text-2: #6b6d8a;
-  --text-3: #9799b3;
-
-  --accent: #0093ac;
-  --accent-rgb: 0, 147, 172;
-  --accent-dim: #0093ac;
-  --accent-ink: #ffffff;
-  --gold: #b8860b;
-  --gold-rgb: 184, 134, 11;
-  --amber: #c8660a;
-  --success: #189a55;
-  --success-rgb: 24, 154, 85;
-  --danger: #d6335a;
-  --danger-rgb: 214, 51, 90;
-
-  --heat-unplayed: #dfe1ee;
-
-  --pick-accent: var(--accent);
+  --bg-0: #f4f5fb; --bg-1: #ffffff; --bg-2: #eceef8; --bg-3: #e2e5f4;
+  --bg-letterbox: #d8dbee; --surface-border: #d8dbee; --border-soft: #c3c7e0;
+  --text-0: #14162b; --text-1: #34364f; --text-2: #6b6d8a; --text-3: #9799b3;
+  --accent: #0093ac; --accent-rgb: 0, 147, 172; --accent-dim: #0093ac; --accent-ink: #ffffff;
+  --gold: #b8860b; --gold-rgb: 184, 134, 11; --amber: #c8660a;
+  --success: #189a55; --success-rgb: 24, 154, 85;
+  --danger: #d6335a; --danger-rgb: 214, 51, 90;
+  --heat-unplayed: #dfe1ee; --pick-accent: var(--accent);
 }

@@ -1,0 +1,120 @@
+/* ────────────────────────────────────────────────────────────────
+   Appearance picker (Settings → General) — the mode × season theme
+   control (src/components/settings/AppearancePicker.tsx).
+
+   Two labelled rows of tiles inside one .set-card. Each tile holds a
+   swatch that sets its own `data-theme="<season>-<mode>"`, so the
+   token blocks in 00-tokens.css resolve inside it and the preview is
+   the real palette, never a hard-coded copy. Everything outside the
+   swatch (ring, label) uses the app's live theme as usual.
+
+   Direction-safe: the rows are grids whose columns follow the inline
+   direction, and all spacing is symmetric or logical, so nothing
+   needs flipping for RTL (he).
+──────────────────────────────────────────────────────────────── */
+
+.ap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.ap-axis {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.ap-axis-k {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.ap-row {
+  display: grid;
+  gap: 6px;
+}
+.ap-row-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ap-row-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+.ap-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 7px 4px 8px;
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  background: var(--bg-3);
+  color: var(--text-1);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.ap-tile-on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  color: var(--accent);
+}
+.ap-tile-l {
+  /* Shrinks on a 320px phone so the 4-across season row never wraps,
+     and grows to the settings pages' larger type on a roomy screen. */
+  font-size: clamp(0.62rem, 3vw, 0.85rem);
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* ── The palette miniature ─────────────────────────────────────── */
+.ap-swatch {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  height: 34px;
+  padding: 5px 4px 4px;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  background: var(--bg-0);
+  overflow: hidden;
+}
+.ap-swatch-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.ap-swatch-bars {
+  display: flex;
+  gap: 3px;
+  width: 100%;
+  justify-content: center;
+}
+.ap-swatch-bar {
+  height: 5px;
+  flex: 1 1 0;
+  max-width: 11px;
+  border-radius: 999px;
+}
+.ap-swatch-bar-a { background: var(--gold); }
+.ap-swatch-bar-b { background: var(--success); }
+.ap-swatch-bar-c { background: var(--pick-accent); }
+
+/* Roomier on the full-page settings screens, matching .settings-page
+   .set-card's larger scale. */
+.settings-page .ap { gap: 16px; }
+.settings-page .ap-axis-k { font-size: 0.72rem; }
+.settings-page .ap-swatch { height: 40px; }
+.settings-page .ap-tile { padding: 9px 5px 10px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ap-tile { transition: none; }
+}

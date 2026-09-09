@@ -4,13 +4,14 @@ import {
   NOTE_VOLUME_MIN, NOTE_VOLUME_MAX, NOTE_VOLUME_STEP, NOTE_VOLUME_DEFAULT,
 } from '../../../utils/audio';
 import { ProGate } from '../../ProGate';
+import AppearancePicker from '../AppearancePicker';
 import { withClick as click } from '../../../utils/withClick';
 import { saveSetting } from '../../../utils/settings';
 import { LANGUAGES, type Lang } from '../../../i18n/translations';
 import {
   PRO_MASTERY_LASTN_CHOICES, describeMasteryWindow, type MasteryWindow,
 } from '../../../utils/mastery';
-import type { Theme } from '../../../utils/theme';
+import type { Season, Theme } from '../../../utils/theme';
 import type { VoiceEnginePref } from '../../../utils/speech';
 
 type AnswerMode = 'tap' | 'voice';
@@ -59,6 +60,8 @@ export interface GeneralSettingsSectionProps {
   setNoteVolume: (v: number) => void;
   theme: Theme;
   setTheme: (t: Theme) => void;
+  season: Season;
+  setSeason: (s: Season) => void;
   voiceSupported: boolean;
   answerMode: AnswerMode;
   setAnswerMode: (m: AnswerMode) => void;
@@ -76,7 +79,7 @@ export interface GeneralSettingsSectionProps {
 
 export default function GeneralSettingsSection({
   t, lang, setLang, showScore, setShowScore, silentMode, setSilentMode,
-  noteVolume, setNoteVolume, theme, setTheme, voiceSupported, answerMode, setAnswerMode, askForMic,
+  noteVolume, setNoteVolume, theme, setTheme, season, setSeason, voiceSupported, answerMode, setAnswerMode, askForMic,
   voiceEnginePref, pickVoiceEngine, voiceProfileStat, setSettingsOpen,
   setShowVoiceCalibration, showMastery, setShowMastery, masteryWindow, setMasteryWindow,
 }: GeneralSettingsSectionProps) {
@@ -156,18 +159,15 @@ export default function GeneralSettingsSection({
         />
       </SettingCard>
       <SettingCard
-        label={t('Theme')}
-        help={t('Night is a warmer, dimmer palette for a dark room. Day is a light palette.')}
+        label={t('Appearance')}
+        help={t('Theme sets how light or dark the app is: Night is a warmer, dimmer palette for a dark room, Day is a light one. Season sets the colours layered over it — Winter is the original look. Each tile previews the palette you would get.')}
       >
-        <PickRow
-          ariaLabel={t('Theme')}
-          value={theme}
-          options={[
-            { value: 'dark', label: t('Dark') },
-            { value: 'night', label: t('Night') },
-            { value: 'day', label: t('Day') },
-          ]}
-          onChange={(v) => setTheme(v)}
+        <AppearancePicker
+          t={t}
+          mode={theme}
+          setMode={setTheme}
+          season={season}
+          setSeason={setSeason}
         />
       </SettingCard>
       <SettingCard label={t('Language')}>

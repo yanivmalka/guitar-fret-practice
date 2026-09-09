@@ -176,6 +176,7 @@ export default function App() {
     masteryWindow, setMasteryWindow, silentMode, setSilentMode,
     noteVolume, setNoteVolume,
     theme, setTheme,
+    season, setSeason,
   } = useAppPreferences();
   useEffect(() => { setAudioNoteVolume(noteVolume); }, [noteVolume]);
   const [showVoiceCalibration, setShowVoiceCalibration] = useState(false);
@@ -193,7 +194,7 @@ export default function App() {
   // still take an `accidental` prop go on compiling unchanged.
   const accidental: AccidentalMode = 'sharps';
   useSilentModeEffect(silentMode);
-  useThemeEffect(theme);
+  useThemeEffect(season, theme);
 
   useBootReadyEvent(auth.loading, auth.entitlementLoading);
 
@@ -688,6 +689,8 @@ export default function App() {
           setNoteVolume={setNoteVolume}
           theme={theme}
           setTheme={setTheme}
+          season={season}
+          setSeason={setSeason}
           voiceSupported={voice.supported}
           answerMode={answerMode}
           setAnswerMode={setAnswerMode}

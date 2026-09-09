@@ -30,7 +30,7 @@ const SYNCED_KEYS = new Set([
   'pref_accidental', 'pref_order', 'pref_notation', 'pref_byString',
   'pref_answerMode', 'pref_showScore', 'pref_showMastery', 'pref_masteryWindow',
   'pref_instrument', 'pref_voiceEngine', 'pref_noteVolume',
-  'pref_language', 'pref_pinnedBadges', 'pref_theme', 'pref_silentMode',
+  'pref_language', 'pref_pinnedBadges', 'pref_theme', 'pref_season', 'pref_silentMode',
   'onboardingDone', 'infoBubbleSeen',
 ]);
 const SYNCED_PREFIXES = ['sel_strings_', 'sel_multi_'];

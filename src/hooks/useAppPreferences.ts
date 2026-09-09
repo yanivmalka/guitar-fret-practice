@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { loadSetting, saveSetting } from '../utils/settings';
 import type { NotationMode, OrderMode } from '../utils/music';
 import type { VoiceEnginePref } from '../utils/speech';
-import type { Theme } from '../utils/theme';
+import type { Season, Theme } from '../utils/theme';
 import { NOTE_VOLUME_DEFAULT } from '../utils/audio';
 import { DEFAULT_MASTERY_WINDOW, type MasteryWindow } from '../utils/mastery';
 
@@ -41,6 +41,16 @@ export function useAppPreferences() {
     setThemeState(t);
     saveSetting('pref_theme', t);
   }, []);
+  // The seasonal palette axis, orthogonal to `theme` (the light/dim/dark
+  // mode). 'winter' reproduces the pre-seasons look. Persists internally,
+  // like setTheme.
+  const [season, setSeasonState] = useState<Season>(
+    () => loadSetting<Season>('pref_season', 'winter'),
+  );
+  const setSeason = useCallback((s: Season) => {
+    setSeasonState(s);
+    saveSetting('pref_season', s);
+  }, []);
 
   return {
     byString, setByString,
@@ -54,5 +64,6 @@ export function useAppPreferences() {
     silentMode, setSilentMode,
     noteVolume, setNoteVolume,
     theme, setTheme,
+    season, setSeason,
   };
 }
