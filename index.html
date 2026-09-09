@@ -94,6 +94,32 @@
       }
       #boot-splash .boot-splash__msg[hidden],
       #boot-splash .boot-splash__retry[hidden] { display: none !important; }
+      /* Musical-note glyphs spawned by src/main.tsx at the progress fill edge:
+         each rises, drifts sideways (`--drift`), spins a touch (`--spin`) and
+         fades as it climbs (`--rise`). */
+      #boot-splash .boot-splash__note {
+        position: fixed;
+        z-index: 1;
+        margin: 0;
+        line-height: 1;
+        color: rgba(0, 255, 255, 0.92);
+        text-shadow: 0 0 10px rgba(0, 255, 255, 0.55);
+        pointer-events: none;
+        transform: translate(-50%, 0);
+        will-change: transform, opacity;
+        animation: boot-splash-note 1400ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+      }
+      @keyframes boot-splash-note {
+        0% { opacity: 0; transform: translate(-50%, 0) scale(0.55) rotate(0deg); }
+        14% { opacity: 1; }
+        65% { opacity: 0.5; }
+        100% {
+          opacity: 0;
+          transform:
+            translate(calc(-50% + var(--drift, 0px)), calc(-1 * var(--rise, 80px)))
+            scale(1.15) rotate(var(--spin, 0deg));
+        }
+      }
       @keyframes boot-splash-mark {
         from { opacity: 0; transform: scale(0.9); }
         to { opacity: 1; transform: scale(1); }
@@ -101,6 +127,7 @@
       @media (prefers-reduced-motion: reduce) {
         #boot-splash img { animation-duration: 0.01ms; }
         #boot-splash .boot-splash__bar { transition: none; }
+        #boot-splash .boot-splash__note { display: none; }
       }
     </style>
   </head>

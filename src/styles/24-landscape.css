@@ -1,29 +1,33 @@
 /* ────────────────────────────────────────────────────────────────
    Wide / landscape layout.
 
-   The app is authored as a fixed 390×844 portrait column. Until now
-   any viewport ≥ 601px just rendered that column inside a gold
-   "phone in a frame" mock, uniformly scaled down (see the
-   `@media (min-width: 601px)` block in 01-base.css and index.html's
-   `--phone-scale`). On a real monitor that is a tiny toy floating in
-   a sea of letterbox; on a phone rotated to landscape it is scaled
-   even smaller.
+   The app is authored as a fixed 390×844 portrait column (01-base.css
+   + index.html's `--phone-scale`). This partial is loaded last, so at
+   equal specificity its rules win by source order.
 
-   This partial replaces that. It is loaded last, so its rules win
-   over 01-base.css by source order at equal specificity:
+   Everything here is progressive enhancement layered on that portrait
+   column, driven by two independent questions:
 
-     • from 601px up  — the app is a real, full-height, centred
-       responsive container (no phone mock, no scale()).
-     • from 900px up, and on a phone held in landscape — the home
-       screen splits into two panes: the drill board takes the main
-       column, the Selector becomes a sticky side rail.
-     • content-only sub-pages (Stats, settings, Learn) keep a
-       comfortable reading width instead of stretching edge to edge.
+     A. Is the viewport wide enough for the board AND a side rail?
+        → §2 turns the home screen into a two-pane grid.
+     B. How much vertical room does the board have?
+        → §3 scales the board (note wheel + fret grid) to fit.
 
-   Portrait phones (< 601px) match nothing here and are untouched.
+   §1 runs first only because both need a real viewport to work in: it
+   drops the desktop "phone in a gold frame" mock. §4 keeps the
+   text-heavy sub-pages readable instead of edge-to-edge.
+
+   Portrait phones (< 601px, upright) match nothing here — untouched.
 ──────────────────────────────────────────────────────────────── */
 
-/* ── 1. Drop the desktop phone-frame mock; use the whole viewport ── */
+
+/* ══ §1  Desktop shell — drop the phone-frame mock ═══════════════════
+   Before this block every viewport ≥ 601px rendered the 390px column
+   inside a gold phone mock, uniformly scaled down (the
+   `@media (min-width: 601px)` block in 01-base.css). On a monitor
+   that is a tiny toy in a sea of letterbox; rotate a phone to
+   landscape and it only shrinks further. Here the app becomes a real,
+   full-height, centred responsive container instead. */
 @media (min-width: 601px) {
   body {
     background: var(--bg-0);
@@ -59,28 +63,31 @@
     position: fixed;
   }
 
-  /* Keep text-heavy sub-pages readable rather than sprawling the full
-     1120px — they are still one narrow column of content. */
+  /* Text-heavy sub-pages stay one narrow column of content — cap them
+     rather than sprawling the full 1120px. */
   .app.settings-page,
   .app.stats-page {
     max-width: 760px;
   }
 
-  /* The Learn hub tiles are a 2-col grid on a phone; with the extra
-     width give them a third column so the page isn't a tall stack. */
+  /* The Learn hub is a 2-col grid on a phone; the extra width buys a
+     third column so the page isn't a tall stack. */
   .learn-hub {
     grid-template-columns: repeat(3, 1fr);
   }
 
-  /* Stats: the three hero tiles already sit in a row; let it breathe. */
+  /* Stats: the three hero tiles already sit in a row — let it breathe. */
   .sp2-hero {
     gap: 14px;
   }
 }
 
-/* ── 2. Two-pane home screen ─────────────────────────────────────────
-   Fires when there is genuinely room for a board plus a side rail:
-   a desktop / tablet ≥ 900px wide, or a phone in landscape. */
+
+/* ══ §2  Two-pane home — board + Selector side rail ═════════════════
+   Fires only when there is genuinely room for a board plus a rail:
+   a desktop / tablet ≥ 900px wide, or a phone held in landscape
+   (short viewport, ≥ 640px wide). The Selector moves from a stack
+   above the board to a rail beside it. */
 @media (min-width: 900px),
        (orientation: landscape) and (min-width: 640px) and (max-height: 600px) {
 
@@ -88,11 +95,12 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) clamp(280px, 30%, 360px);
     grid-template-rows: auto auto;
-    column-gap: clamp(20px, 4vw, 40px);
+    /* One continuous ramp rather than 40px plus a 56px step at 1200px. */
+    column-gap: clamp(20px, 4vw, 56px);
     row-gap: 8px;
     /* Centre the title + panes block in the viewport rather than
-       piling all the slack below it. The side rail can still be
-       taller than a short landscape phone — the screen scrolls then. */
+       piling all the slack below it. A tall rail on a short landscape
+       phone can still overflow — the screen scrolls then. */
     align-content: center;
     overflow-y: auto;
   }
@@ -111,7 +119,7 @@
     align-self: center;
   }
 
-  /* Selector — a side rail instead of a stack above the board. */
+  /* Selector — the side rail. */
   .app.home-page > .selector-panel {
     grid-column: 2;
     grid-row: 2;
@@ -120,35 +128,35 @@
     padding: 8px 4px;
   }
 
-  /* Everything else the home screen renders (the adaptive-difficulty
-     banner, sign-in nudges, guest-merge prompt, …) spans the full
-     width beneath the two columns so it never wedges into a track. */
+  /* Every other home-screen child (adaptive-difficulty banner, sign-in
+     nudge, guest-merge prompt, …) spans the full width beneath the two
+     columns so it never wedges into a track. */
   .app.home-page > *:not(h1):not(.selector-panel):not(.game-row):not(.burger-btn) {
     grid-column: 1 / -1;
   }
 
-  /* .app is now a wide container, so the `@container (max-width: 600px)`
-     rule in 08-mode-info.css no longer stacks .game-row — it reads as a
-     row again. Top-align the transport column beside the board. */
+  /* .app is now a wide container, so 08-mode-info.css's
+     `@container (max-width: 600px)` no longer stacks .game-row — it is
+     a row again. Top-align the transport column beside the board. */
   .game-row {
     align-items: flex-start;
   }
 
-  /* At rest the transport column holds only the Play button, but it
-     reserves `min-width: 200px` (needed during play for the prompt /
+  /* At rest the transport column holds only the Play button but still
+     reserves `min-width: 200px` (needed mid-round for the prompt /
      speed bar / score). That empty 200px shoves the board off-centre
-     here — collapse it while idle so the Play button sits next to the
-     board and the pair centres, with a little breathing room. */
+     here — collapse it while idle so Play sits next to the board and
+     the pair centres, with a little breathing room. */
   .app.home-page:not(.playing) .game-row .question-col {
     min-width: 0;
   }
   .app.home-page:not(.playing) .game-row {
-    gap: 32px;
+    gap: var(--board-idle-gap, 32px);
   }
 
-  /* During a round the burger and the whole Selector are already meant
-     to recede (App.tsx hides the burger). Drop the side rail too and
-     let the board + prompt sit as one centred, focused pair. */
+  /* During a round the burger and the Selector are meant to recede
+     (App.tsx hides the burger). Drop the rail too and let board +
+     prompt sit as one centred, focused pair. */
   .app.home-page.playing {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -161,72 +169,76 @@
   }
 }
 
-/* ── 3. Grow the board so it has presence in the wider column ───────
-   The board components size themselves off fixed values that live in
-   their own source (NoteCircle's `size = 340`, `.fret-grid`'s
-   `width`), so here they are grown from the outside:
 
-     • the note wheel (and the interval choice row) — a `transform:
-       scale()` with a matching `margin` so the grown box still
-       reserves its own space and the Play button beside it keeps its
-       gap. A transform, so hit-testing still maps 1:1.
-     • the fret grid — its real `width` and button height, since a
-       CSS grid scales cleanly and stays crisp. */
-@media (min-width: 900px) {
+/* ══ §3  Board size — set the variables, consume them once ══════════
+   The board sizes itself off fixed values in its own source
+   (NoteCircle's `size = 340`; `.fret-grid`'s `width: 280`;
+   `.fret-btn`'s `height: 56`). Rather than restate the grow / shrink
+   rules at each breakpoint, every breakpoint only sets these custom
+   properties on `.app.home-page`:
+
+     --board-scale     transform on the note wheel / interval row
+     --board-margin    matching margin so the scaled box still reserves
+                       its own space (a transform, so hit-testing stays
+                       1:1 and the Play button keeps its gap)
+     --fret-grid-w     the fret grid's real width — a CSS grid scales
+                       cleanly and stays crisp, so this is a true size
+     --fret-btn-h      fret-button height, to match
+     --board-idle-gap  gap between board and Play button at rest (§2)
+
+   The consumer block below is the only place these are read. It is
+   gated to the same envelope the breakpoints live in, so an upright
+   phone never picks up a no-op `transform: scale(1)`. */
+@media (min-width: 900px), (orientation: landscape) {
   .app.home-page .game-row > :last-child:not(.fret-grid) {
-    transform: scale(1.08);
+    transform: scale(var(--board-scale, 1));
     transform-origin: center;
-    margin: 14px;
+    margin: var(--board-margin, 0);
   }
   .app.home-page .fret-grid {
-    width: 340px;
+    width: var(--fret-grid-w, 280px);
   }
   .app.home-page .fret-grid .fret-btn {
-    height: 64px;
+    height: var(--fret-btn-h, 56px);
   }
 }
 
+/* Wide column (≥ 900px) — give the board presence. */
+@media (min-width: 900px) {
+  .app.home-page {
+    --board-scale: 1.08;
+    --board-margin: 14px;
+    --fret-grid-w: 340px;
+    --fret-btn-h: 64px;
+  }
+}
+
+/* Very wide (≥ 1200px) — a touch larger again, wider idle gap. */
 @media (min-width: 1200px) {
   .app.home-page {
-    column-gap: 56px;
-  }
-  .app.home-page:not(.playing) .game-row {
-    gap: 40px;
-  }
-  .app.home-page .game-row > :last-child:not(.fret-grid) {
-    transform: scale(1.18);
-    margin: 30px;
-  }
-  .app.home-page .fret-grid {
-    width: 380px;
-  }
-  .app.home-page .fret-grid .fret-btn {
-    height: 72px;
+    --board-scale: 1.18;
+    --board-margin: 30px;
+    --fret-grid-w: 380px;
+    --fret-btn-h: 72px;
+    --board-idle-gap: 40px;
   }
 }
 
-/* ── 4. Phone held in landscape: a short viewport ──────────────────
-   The board is a fixed ~340px box, taller than a rotated phone's
-   ~380px viewport once the title and gaps are counted, so it clips
-   top and bottom. Scale it down to fit; the fret grid shrinks via its
-   own width. */
+/* Phone in landscape, short viewport (≤ 480px tall) — the ~340px board
+   is taller than the viewport once the title and gaps are counted, so
+   it clips top and bottom. Scale it down and tighten the vertical
+   rhythm. The §2 two-pane grid still applies (it fires up to 600px
+   tall); the rail just scrolls if it runs long. */
 @media (orientation: landscape) and (max-height: 480px) {
-  .app.home-page .game-row > :last-child:not(.fret-grid) {
-    transform: scale(0.82);
-    transform-origin: center;
-    margin: 0;
-  }
-  .app.home-page .fret-grid {
-    width: 240px;
-  }
-  .app.home-page .fret-grid .fret-btn {
-    height: 46px;
+  .app.home-page {
+    --board-scale: 0.82;
+    --board-margin: 0;
+    --fret-grid-w: 240px;
+    --fret-btn-h: 46px;
+    row-gap: 2px;
   }
   .app.home-page > h1 {
     font-size: 1.1rem;
     margin-bottom: 0;
-  }
-  .app.home-page {
-    row-gap: 2px;
   }
 }

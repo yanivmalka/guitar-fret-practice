@@ -64,6 +64,15 @@ jobs:
       # native splash drawables into the fresh android/ project from the
       # committed source art in assets/ (produced by `npm run gen:icons`).
       - run: npx capacitor-assets generate --android
+      # Sharpen the Android 12+ system splash. `capacitor-assets` only emits the
+      # pre-12 full-screen splash.png, so on API 31+ the OS up-scales the
+      # low-res (192px at xxxhdpi) adaptive-launcher foreground into its ~288dp
+      # icon slot and it looks blurry. Point that slot at a dedicated 1152px
+      # mark instead, via a values-v31 launch-theme override.
+      - run: |
+          mkdir -p android/app/src/main/res/values-v31 android/app/src/main/res/drawable-nodpi
+          cp android-overrides/values-v31/styles.xml android/app/src/main/res/values-v31/styles.xml
+          cp assets/android12-splash-icon.png android/app/src/main/res/drawable-nodpi/android12_splash_icon.png
       # Swap in the immersive full-screen MainActivity (hides both system bars).
       - run: cp android-overrides/MainActivity.java android/app/src/main/java/com/guitarfretpractice/app/MainActivity.java
       # Swap in the manifest with the OAuth-callback deep-link intent-filter.
