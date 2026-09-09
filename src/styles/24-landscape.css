@@ -224,21 +224,64 @@
   }
 }
 
-/* Phone in landscape, short viewport (≤ 480px tall) — the ~340px board
-   is taller than the viewport once the title and gaps are counted, so
-   it clips top and bottom. Scale it down and tighten the vertical
-   rhythm. The §2 two-pane grid still applies (it fires up to 600px
-   tall); the rail just scrolls if it runs long. */
+/* Phone in landscape — a very wide but very short viewport. Height is
+   the only budget that matters here, so it drives everything: the page
+   title is dropped, the board is scaled to the room that's left, the
+   rail scrolls inside itself, and the grid top-anchors so the Play
+   button can never be clipped off the top edge.
+
+   The §2 two-pane grid still applies (it fires up to 600px tall). The
+   board scale is a short ladder keyed to `max-height`: each step is
+   roughly "wheel = (viewport height − ~40px of margins) ÷ 340px
+   natural size", with a matching fret-grid width. */
 @media (orientation: landscape) and (max-height: 480px) {
   .app.home-page {
-    --board-scale: 0.82;
+    --board-scale: 0.82;   /* ~360px of height to spend */
     --board-margin: 0;
     --fret-grid-w: 240px;
     --fret-btn-h: 46px;
     row-gap: 2px;
+    /* Centre the panes when they fit; if they don't, fall back to the
+       start edge and let the screen scroll DOWN — never overflow past
+       the top and swallow the Play button. */
+    align-content: safe center;
   }
+
+  /* No page title in this mode — it is chrome the drill doesn't need,
+     and it was the row that got pushed off the top and clipped. */
   .app.home-page > h1 {
-    font-size: 1.1rem;
-    margin-bottom: 0;
+    display: none;
+  }
+
+  /* The burger is `position: fixed` in the top-right corner (§1).
+     Reserve a strip at the top of the rail so the string pills clear
+     it instead of sitting under it. */
+  .app.home-page > .selector-panel {
+    padding-block-start: 44px;
+    /* A long Selector scrolls inside the rail rather than growing the
+       page and shoving the board around. */
+    max-height: 100svh;
+    overflow-y: auto;
+  }
+
+  /* Sit the Play button at the board's mid-height rather than pinned
+     to the top corner (§2's `flex-start`), which reads as clipped on
+     a short viewport. */
+  .game-row {
+    align-items: center;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 400px) {
+  .app.home-page {
+    --board-scale: 0.72;   /* ~290px of height to spend */
+    --fret-grid-w: 210px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 340px) {
+  .app.home-page {
+    --board-scale: 0.6;    /* ~240px of height to spend */
+    --fret-grid-w: 180px;
   }
 }
