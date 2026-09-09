@@ -10,7 +10,7 @@ import { LANGUAGES, type Lang } from '../../../i18n/translations';
 import {
   PRO_MASTERY_LASTN_CHOICES, describeMasteryWindow, type MasteryWindow,
 } from '../../../utils/mastery';
-import type { Theme } from '../../../utils/theme';
+import type { Season, Theme } from '../../../utils/theme';
 import type { VoiceEnginePref } from '../../../utils/speech';
 
 type AnswerMode = 'tap' | 'voice';
@@ -59,6 +59,8 @@ export interface GeneralSettingsSectionProps {
   setNoteVolume: (v: number) => void;
   theme: Theme;
   setTheme: (t: Theme) => void;
+  season: Season;
+  setSeason: (s: Season) => void;
   voiceSupported: boolean;
   answerMode: AnswerMode;
   setAnswerMode: (m: AnswerMode) => void;
@@ -76,7 +78,7 @@ export interface GeneralSettingsSectionProps {
 
 export default function GeneralSettingsSection({
   t, lang, setLang, showScore, setShowScore, silentMode, setSilentMode,
-  noteVolume, setNoteVolume, theme, setTheme, voiceSupported, answerMode, setAnswerMode, askForMic,
+  noteVolume, setNoteVolume, theme, setTheme, season, setSeason, voiceSupported, answerMode, setAnswerMode, askForMic,
   voiceEnginePref, pickVoiceEngine, voiceProfileStat, setSettingsOpen,
   setShowVoiceCalibration, showMastery, setShowMastery, masteryWindow, setMasteryWindow,
 }: GeneralSettingsSectionProps) {
@@ -168,6 +170,22 @@ export default function GeneralSettingsSection({
             { value: 'day', label: t('Day') },
           ]}
           onChange={(v) => setTheme(v)}
+        />
+      </SettingCard>
+      <SettingCard
+        label={t('Season')}
+        help={t('A seasonal colour palette layered over the theme. Winter is the original look.')}
+      >
+        <PickRow
+          ariaLabel={t('Season')}
+          value={season}
+          options={[
+            { value: 'winter', label: t('Winter') },
+            { value: 'spring', label: t('Spring') },
+            { value: 'summer', label: t('Summer') },
+            { value: 'autumn', label: t('Autumn') },
+          ]}
+          onChange={(v) => setSeason(v)}
         />
       </SettingCard>
       <SettingCard label={t('Language')}>
