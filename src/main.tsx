@@ -70,22 +70,37 @@ createRoot(document.getElementById('root')!).render(
   let tickTimer: ReturnType<typeof setInterval> | undefined
 
   // --- boot flourish ----------------------------------------------------------
-  // Greet each launch with a short *random* scale (Web Audio, best-effort:
-  // autoplay policy may hold the context suspended until the first gesture, so
-  // we also arm a one-shot resume) and, as the progress bar fills, let a
-  // musical-note glyph rise, drift sideways and fade out of the fill edge at
-  // every point it reaches. Purely decorative: the glyphs are skipped under
-  // prefers-reduced-motion, and everything is torn down when the splash goes
-  // (`flourishCleanups`, drained in `hideSplash`).
+  // Each launch greets the user with a short *random* one-octave scale, played
+  // at a fixed musical tempo (STEP_MS per note) that is deliberately DECOUPLED
+  // from how fast the progress bar fills: a cached, instant load would
+  // otherwise cross every milestone in a couple of frames and stack the whole
+  // scale into one chord. One rising / drifting / fading musical-note glyph is
+  // spawned along the track per note. The splash is held until the scale has
+  // finished (`flourish.done()` gates `maybeDismiss`) so it is always heard and
+  // seen even when the real data load beats it — the bar itself still tracks
+  // the load.
+  //
+  // Audio is best-effort: a browser keeps a fresh AudioContext suspended until
+  // a user gesture, so a plain reload (Ctrl+R) with no click/tap starts
+  // silent. We arm listeners that, on the first pointer/key/touch within ~60 s
+  // (independent of the splash, which is usually gone by then), resume the
+  // context and replay the whole scale from the top.
   const track = splash?.querySelector<HTMLElement>('.boot-splash__track') ?? null
   const flourishCleanups: (() => void)[] = []
-  const flourishOnProgress: (pct: number) => void = ((): ((pct: number) => void) => {
-    if (!splash) return () => { /* no splash — nothing to do */ }
+  const flourish = ((): { done: () => boolean; whenDone: (cb: () => void) => void } => {
+    let scaleDone = true
+    let doneCb: (() => void) | undefined
+    const api = {
+      done: () => scaleDone,
+      whenDone: (cb: () => void) => { doneCb = cb; if (scaleDone) cb() },
+    }
+    if (!splash) return api
 
     const rand = (n: number) => Math.floor(Math.random() * n)
 
     // A random one-octave run: random root (G3–G4), random mode, random
-    // direction (ascending or descending).
+    // direction (ascending or descending). All modes top out at 8 notes, so
+    // the scale lasts 8 * STEP_MS ≈ MIN_VISIBLE_MS and rarely delays boot.
     const MODES: number[][] = [
       [0, 2, 4, 5, 7, 9, 11, 12], // major
       [0, 2, 3, 5, 7, 8, 10, 12], // natural minor
@@ -105,6 +120,7 @@ createRoot(document.getElementById('root')!).render(
     }
     const freqs = degrees.map((d) => 440 * 2 ** ((root + d - 69) / 12))
     const N = freqs.length
+    const STEP_MS = 190
 
     // --- audio (best-effort) ---
     type WithWebkitAudio = typeof window & { webkitAudioContext?: typeof AudioContext }
@@ -127,35 +143,11 @@ createRoot(document.getElementById('root')!).render(
       osc.frequency.value = freq
       gain.gain.setValueAtTime(0.0001, t)
       gain.gain.exponentialRampToValueAtTime(0.16, t + 0.02)
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.55)
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.5)
       osc.connect(gain).connect(c.destination)
       osc.start(t)
-      osc.stop(t + 0.62)
+      osc.stop(t + 0.55)
     }
-
-    // If the context starts suspended, resume it on the first user gesture;
-    // and if the fill already finished in silence (and not long ago), run the
-    // whole scale once then, so the launch still gets its scale.
-    const bootStart = performance.now()
-    let allFired = false
-    ;(() => {
-      const c = getCtx()
-      if (!c || c.state === 'running') return
-      const kick = () => {
-        void c.resume().then(() => {
-          if (
-            c.state === 'running' && allFired && !heardAny &&
-            performance.now() - bootStart < 15000
-          ) {
-            freqs.forEach((f, i) => setTimeout(() => playFreq(f), i * 150))
-          }
-        })
-      }
-      const opts = { once: true, passive: true } as const
-      const evs: (keyof WindowEventMap)[] = ['pointerdown', 'touchstart', 'keydown']
-      evs.forEach((e) => window.addEventListener(e, kick, opts))
-      flourishCleanups.push(() => evs.forEach((e) => window.removeEventListener(e, kick)))
-    })()
 
     // --- glyphs ---
     const GLYPHS = ['♪', '♫', '♩', '♬', '♭', '♯']
@@ -177,25 +169,58 @@ createRoot(document.getElementById('root')!).render(
       flourishCleanups.push(() => { clearTimeout(gone); el.remove() })
     }
 
-    // Fire note + glyph `idx` once the fill passes its slot centre (spanning
-    // ~5%..95%); a jump past several slots flushes them in order.
-    let fired = 0
-    return (pct: number) => {
-      const step = 100 / N
-      while (fired < N && pct >= fired * step + step * 0.5) {
-        const idx = fired
-        fired += 1
-        playFreq(freqs[idx])
-        spawnGlyph(Math.min(0.98, Math.max(0.02, pct / 100)))
+    // --- the scale: one fixed-tempo sequence, note (+ optional glyph) per step.
+    let seqTimer: ReturnType<typeof setInterval> | undefined
+    const runScale = (withGlyphs: boolean) => {
+      if (seqTimer !== undefined) return
+      scaleDone = false
+      let i = 0
+      const stepOnce = () => {
+        if (i >= N) {
+          if (seqTimer !== undefined) { clearInterval(seqTimer); seqTimer = undefined }
+          scaleDone = true
+          doneCb?.()
+          return
+        }
+        playFreq(freqs[i])
+        if (withGlyphs) spawnGlyph((i + 0.5) / N)
+        i += 1
       }
-      if (fired >= N) allFired = true
+      stepOnce()
+      seqTimer = setInterval(stepOnce, STEP_MS)
+      flourishCleanups.push(() => {
+        if (seqTimer !== undefined) { clearInterval(seqTimer); seqTimer = undefined }
+      })
     }
+
+    // Kick the run now: glyphs animate regardless; audio rides along if the
+    // context is already live (it usually is not on a fresh load).
+    runScale(true)
+
+    // Gesture fallback: on the first interaction, resume a suspended context
+    // and — if nothing was audible yet — (re)start the scale from the top so
+    // the launch still gets its scale, even after the splash has gone.
+    const kick = () => {
+      detach()
+      const c = getCtx()
+      if (!c || heardAny) return
+      void c.resume().then(() => {
+        if (c.state !== 'running' || heardAny) return
+        if (seqTimer !== undefined) { clearInterval(seqTimer); seqTimer = undefined; scaleDone = true; doneCb?.() }
+        freqs.forEach((f, k) => setTimeout(() => playFreq(f), k * STEP_MS))
+      })
+    }
+    const evs: (keyof WindowEventMap)[] = ['pointerdown', 'touchstart', 'keydown']
+    const detach = () => evs.forEach((e) => window.removeEventListener(e, kick))
+    evs.forEach((e) => window.addEventListener(e, kick, { passive: true }))
+    setTimeout(detach, 60000)
+
+    return api
   })()
 
   const render = () => {
     if (bar) bar.style.width = `${displayed}%`
     if (pctEl) pctEl.textContent = `${Math.round(displayed)}%`
-    flourishOnProgress(displayed)
   }
   const tick = () => {
     const gap = progress - displayed
@@ -246,7 +271,9 @@ createRoot(document.getElementById('root')!).render(
   }
 
   const maybeDismiss = () => {
-    if (dismissed || fatal || !appReady || !updateSettled) return
+    // Also hold the splash until the intro scale has finished, so a fast data
+    // load never cuts it off — the bar still reflects the real load speed.
+    if (dismissed || fatal || !appReady || !updateSettled || !flourish.done()) return
     dismissed = true
     stopCreep()
     setProgress(100)
@@ -269,6 +296,10 @@ createRoot(document.getElementById('root')!).render(
     setProgress(appReady ? 100 : 70)
     maybeDismiss()
   }
+
+  // When the intro scale finishes it may be the last thing the splash was
+  // waiting on.
+  flourish.whenDone(maybeDismiss)
 
   window.addEventListener('app-ready', () => {
     appReady = true
