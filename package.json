@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "gen:icons": "node scripts/gen-app-icons.mts",
+    "retone:learn": "node scripts/retone-menu-icon.mts",
     "cap:sync": "npm run build && npx cap sync android",
     "android": "npm run cap:sync && npx cap open android"
   },
