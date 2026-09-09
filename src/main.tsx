@@ -36,6 +36,7 @@ createRoot(document.getElementById('root')!).render(
 {
   const splash = document.getElementById('boot-splash')
   const bar = splash?.querySelector<HTMLElement>('.boot-splash__bar') ?? null
+  const pctEl = splash?.querySelector<HTMLElement>('.boot-splash__pct') ?? null
   const msgEl = splash?.querySelector<HTMLElement>('.boot-splash__msg') ?? null
   const retryEl = splash?.querySelector<HTMLButtonElement>('.boot-splash__retry') ?? null
 
@@ -55,27 +56,43 @@ createRoot(document.getElementById('root')!).render(
   } as const
   const say = (k: keyof typeof COPY) => COPY[k][lang]
 
-  // --- progress bar: milestone target + a slow asymptotic creep between them
+  // --- progress bar: `progress` is the milestone target (jumps + a slow creep
+  // between milestones); `displayed` eases toward it on a ~60fps ticker so the
+  // bar and the "42%" readout visibly count up rather than snap.
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
   let progress = 6
+  let displayed = 6
   let creepTimer: ReturnType<typeof setInterval> | undefined
-  const paint = () => { if (bar) bar.style.width = `${progress}%` }
+  let tickTimer: ReturnType<typeof setInterval> | undefined
+  const render = () => {
+    if (bar) bar.style.width = `${displayed}%`
+    if (pctEl) pctEl.textContent = `${Math.round(displayed)}%`
+  }
+  const tick = () => {
+    const gap = progress - displayed
+    if (Math.abs(gap) < 0.1) { displayed = progress; render(); return }
+    displayed += reduceMotion ? gap : gap * 0.14
+    render()
+  }
+  const stopTicker = () => {
+    if (tickTimer !== undefined) { clearInterval(tickTimer); tickTimer = undefined }
+  }
   const stopCreep = () => {
     if (creepTimer !== undefined) { clearInterval(creepTimer); creepTimer = undefined }
   }
   const setProgress = (pct: number) => {
     if (pct <= progress) return
     progress = Math.min(pct, 100)
-    paint()
   }
   const creepTo = (ceil: number) => {
     stopCreep()
     creepTimer = setInterval(() => {
       if (progress >= ceil - 0.5) { stopCreep(); return }
       progress += (ceil - progress) * 0.08
-      paint()
     }, 400)
   }
-  paint()
+  render()
+  tickTimer = setInterval(tick, 16)
   setProgress(15)
 
   const shownAt = performance.now()
@@ -103,10 +120,17 @@ createRoot(document.getElementById('root')!).render(
     dismissed = true
     stopCreep()
     setProgress(100)
-    const finish = () => { clearMsg(); hideSplash() }
+    const finish = () => {
+      stopTicker()
+      displayed = 100
+      render()
+      clearMsg()
+      hideSplash()
+    }
+    // Give the readout ~450ms to visibly run up to 100 before the fade.
+    const runUp = 450
     const held = performance.now() - shownAt
-    if (held >= MIN_VISIBLE_MS) finish()
-    else setTimeout(finish, MIN_VISIBLE_MS - held)
+    setTimeout(finish, Math.max(runUp, MIN_VISIBLE_MS - held))
   }
 
   const markUpdateSettled = () => {
@@ -119,7 +143,11 @@ createRoot(document.getElementById('root')!).render(
   window.addEventListener('app-ready', () => {
     appReady = true
     // A crash message shown earlier was provisional — the app recovered.
-    if (fatal) { fatal = false; clearMsg() }
+    if (fatal) {
+      fatal = false
+      clearMsg()
+      if (tickTimer === undefined && !dismissed) tickTimer = setInterval(tick, 16)
+    }
     setProgress(updateSettled ? 100 : 92)
     maybeDismiss()
   }, { once: true })
@@ -133,6 +161,7 @@ createRoot(document.getElementById('root')!).render(
     if (appReady || dismissed || fatal) return
     fatal = true
     stopCreep()
+    stopTicker() // freeze the readout where it stalled
     showMsg(detail ? `${say('crash')} (${detail})` : say('crash'))
     if (retryEl) {
       retryEl.textContent = say('retry')

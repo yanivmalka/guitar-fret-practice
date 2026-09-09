@@ -68,6 +68,13 @@
         box-shadow: 0 0 10px rgba(0, 255, 255, 0.55);
         transition: width 0.45s ease;
       }
+      #boot-splash .boot-splash__pct {
+        margin-top: -14px;
+        color: rgba(0, 255, 255, 0.85);
+        font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.06em;
+      }
       #boot-splash .boot-splash__msg {
         margin: 0;
         max-width: 74vw;
@@ -102,6 +109,7 @@
     <div id="boot-splash">
       <img src="/splash-mark.png" alt="" />
       <div class="boot-splash__track"><div class="boot-splash__bar"></div></div>
+      <span class="boot-splash__pct">0%</span>
       <p class="boot-splash__msg" role="status" hidden></p>
       <button class="boot-splash__retry" type="button" hidden></button>
     </div>
