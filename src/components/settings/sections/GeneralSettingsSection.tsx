@@ -4,6 +4,7 @@ import {
   NOTE_VOLUME_MIN, NOTE_VOLUME_MAX, NOTE_VOLUME_STEP, NOTE_VOLUME_DEFAULT,
 } from '../../../utils/audio';
 import { ProGate } from '../../ProGate';
+import AppearancePicker from '../AppearancePicker';
 import { withClick as click } from '../../../utils/withClick';
 import { saveSetting } from '../../../utils/settings';
 import { LANGUAGES, type Lang } from '../../../i18n/translations';
@@ -158,34 +159,15 @@ export default function GeneralSettingsSection({
         />
       </SettingCard>
       <SettingCard
-        label={t('Theme')}
-        help={t('Night is a warmer, dimmer palette for a dark room. Day is a light palette.')}
+        label={t('Appearance')}
+        help={t('Theme sets how light or dark the app is: Night is a warmer, dimmer palette for a dark room, Day is a light one. Season sets the colours layered over it — Winter is the original look. Each tile previews the palette you would get.')}
       >
-        <PickRow
-          ariaLabel={t('Theme')}
-          value={theme}
-          options={[
-            { value: 'dark', label: t('Dark') },
-            { value: 'night', label: t('Night') },
-            { value: 'day', label: t('Day') },
-          ]}
-          onChange={(v) => setTheme(v)}
-        />
-      </SettingCard>
-      <SettingCard
-        label={t('Season')}
-        help={t('A seasonal colour palette layered over the theme. Winter is the original look.')}
-      >
-        <PickRow
-          ariaLabel={t('Season')}
-          value={season}
-          options={[
-            { value: 'winter', label: t('Winter') },
-            { value: 'spring', label: t('Spring') },
-            { value: 'summer', label: t('Summer') },
-            { value: 'autumn', label: t('Autumn') },
-          ]}
-          onChange={(v) => setSeason(v)}
+        <AppearancePicker
+          t={t}
+          mode={theme}
+          setMode={setTheme}
+          season={season}
+          setSeason={setSeason}
         />
       </SettingCard>
       <SettingCard label={t('Language')}>
