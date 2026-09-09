@@ -166,14 +166,14 @@
   --gold: #ffcc66; --gold-rgb: 255, 204, 102; --amber: #ff8a3d;
   --success: #8ac26a; --success-rgb: 138, 194, 106;
   --danger: #e8635a; --danger-rgb: 232, 99, 90;
-  --heat-unplayed: #2b2015; --pick-accent: var(--accent);
+  --heat-unplayed: #2b2015; --pick-accent: #5fbfd9;
 }
 [data-theme='summer-day'] {
   color-scheme: light;
   --bg-0: #fbf6ec; --bg-1: #ffffff; --bg-2: #f4ecdb; --bg-3: #ebe1cb;
   --bg-letterbox: #ded2b8; --surface-border: #e3d8c1; --border-soft: #ccbc9e;
-  --text-0: #241c10; --text-1: #4a3d2a; --text-2: #7f6f57; --text-3: #ab9c82;
-  --accent: #dd7a12; --accent-rgb: 221, 122, 18; --accent-dim: #dd7a12; --accent-ink: #ffffff;
+  --text-0: #241c10; --text-1: #4a3d2a; --text-2: #7f6f57; --text-3: #8b7a5e;
+  --accent: #b05a00; --accent-rgb: 176, 90, 0; --accent-dim: #b05a00; --accent-ink: #ffffff;
   --gold: #b8860b; --gold-rgb: 184, 134, 11; --amber: #c8660a;
   --success: #1f9a6a; --success-rgb: 31, 154, 106;
   --danger: #d6425a; --danger-rgb: 214, 66, 90;
@@ -196,23 +196,23 @@
   color-scheme: dark;
   --bg-0: #170e09; --bg-1: #0f0806; --bg-2: #1d110b; --bg-3: #281710;
   --bg-letterbox: #090504; --surface-border: #3c2a1c; --border-soft: #4e3826;
-  --text-0: #f0e2d4; --text-1: #d4bda8; --text-2: #a78d78; --text-3: #745948;
+  --text-0: #f0e2d4; --text-1: #d4bda8; --text-2: #a78d78; --text-3: #7d6151;
   --accent: #e8934f; --accent-rgb: 232, 147, 79; --accent-dim: #99551f; --accent-ink: #241105;
   --gold: #d9b061; --gold-rgb: 217, 176, 97; --amber: #db7c3a;
   --success: #9ca955; --success-rgb: 156, 169, 85;
   --danger: #d96a55; --danger-rgb: 217, 106, 85;
-  --heat-unplayed: #241610; --pick-accent: var(--accent);
+  --heat-unplayed: #241610; --pick-accent: #c9a15a;
 }
 [data-theme='autumn-day'] {
   color-scheme: light;
   --bg-0: #f8f1e6; --bg-1: #fffdf9; --bg-2: #f0e5d3; --bg-3: #e6d8c0;
   --bg-letterbox: #d8c6a8; --surface-border: #ded0b8; --border-soft: #c7b295;
-  --text-0: #2a1c10; --text-1: #4f3a26; --text-2: #856b52; --text-3: #ab9077;
+  --text-0: #2a1c10; --text-1: #4f3a26; --text-2: #856b52; --text-3: #8d6f55;
   --accent: #b5502a; --accent-rgb: 181, 80, 42; --accent-dim: #b5502a; --accent-ink: #ffffff;
   --gold: #a5760b; --gold-rgb: 165, 118, 11; --amber: #b8600a;
   --success: #6f8a1f; --success-rgb: 111, 138, 31;
   --danger: #c23a48; --danger-rgb: 194, 58, 72;
-  --heat-unplayed: #ece0cb; --pick-accent: var(--accent);
+  --heat-unplayed: #ece0cb; --pick-accent: #637c14;
 }
 
 /* ── Legacy single-axis values ───────────────────────────────────
