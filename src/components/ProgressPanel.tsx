@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import type { HistoryEntry, AccidentalMode, NotationMode } from '../utils/music';
 import { displayNote } from '../utils/music';
 import { historyForInstrument, fretMasteryMap, noteMasteryMap } from '../utils/mastery';
@@ -6,7 +6,6 @@ import {
   dailyStats, practiceStreak, lifetimeTotals, weakNotes, allBestsSummary, withinFreeWindow,
   type DayStat,
 } from '../utils/progress';
-import { loadBest, saveBest } from '../utils/personalBest';
 import type { InstrumentConfig } from '../utils/instruments';
 import { playClickSound, haptic } from '../utils/feedback';
 import { useTranslation } from '../i18n/useTranslation';
@@ -25,22 +24,11 @@ interface Props {
   // The metal 3D tab icon, so this page's hero matches every settings sub-page.
   headerIcon?: string;
   onClose: () => void;
-  // "This setup" scope: the history + session score for the current settings combination.
-  currentHistory: HistoryEntry[];
-  sessionScore?: number;
-  longestStreak?: number;
-  currentHistoryKey?: string;
-  // The strings / fret range the current setup actually drills — used to scope
-  // the "This setup" not-practiced-yet lists to what that setup can cover.
-  setupStrings: number[];
-  setupFretFrom: number;
-  setupFretTo: number;
-  onClearCurrent?: () => void; // clears just the current settings combination
-  onClearAll?: () => void;     // clears every combination
-  // Pro removes the 7-day view window (spec free-pro-tiering §5.1). A free user
-  // sees only the trailing FREE_HISTORY_DAYS of history in every stat here, and
-  // the all-combinations personal-bests list is locked. Data is never touched —
-  // this is presentation only.
+  onClearAll?: () => void; // clears every combination
+  // A free user sees only the trailing FREE_HISTORY_DAYS of history in every
+  // stat here, with no window toggle; Pro/Premium get a "Last 7 days" / "All
+  // time" toggle. The all-combinations personal-bests list is locked for free.
+  // Free-tier limits are presentation only — data is never touched.
   isPro?: boolean;
   // Premium interval-learning progress (spec §12 / §15.1). Omitted / empty for
   // a non-Premium user, in which case the "Intervals" section is hidden. This
@@ -50,7 +38,8 @@ interface Props {
   intervalStats?: IntervalStatsSummary | null;
 }
 
-type Scope = 'setup' | 'all';
+// The stats window: the free 7-day slice, or (Pro/Premium only) everything.
+type Scope = 'last7' | 'all';
 
 function pct(n: number) { return `${Math.round(n * 100)}%`; }
 
@@ -297,24 +286,15 @@ function Timeline({ history }: { history: HistoryEntry[] }) {
   );
 }
 
-// ── one scope's worth of stats ─────────────────────────────────
+// ── the stats body ─────────────────────────────────────────────
 function ScopeView({
-  scope, history, noteNames, accidental, notation, instrument,
-  sessionScore, longestStreak, currentHistoryKey,
-  setupStrings, setupFretFrom, setupFretTo, windowed,
+  history, noteNames, accidental, notation, instrument, windowed,
 }: {
-  scope: Scope;
   history: HistoryEntry[];
   noteNames: string[];
   accidental: AccidentalMode;
   notation?: NotationMode;
   instrument: InstrumentConfig;
-  sessionScore?: number;
-  longestStreak?: number;
-  currentHistoryKey?: string;
-  setupStrings: number[];
-  setupFretFrom: number;
-  setupFretTo: number;
   // The free 7-day window is in effect, so an empty view can just mean "nothing
   // in the last 7 days" rather than "nothing ever".
   windowed?: boolean;
@@ -358,21 +338,17 @@ function ScopeView({
       }));
   }, [history, instrument]);
 
-  // The strings / frets the active scope is allowed to cover. "All time" spans
-  // the whole neck; "This setup" is limited to what the current setup drills,
-  // so it never lists frets or strings that setup can't reach.
-  const scopeStrings = useMemo(() => (
-    scope === 'setup'
-      ? [...setupStrings].sort((a, b) => a - b)
-      : Array.from({ length: instrument.stringCount }, (_, i) => i + 1)
-  ), [scope, setupStrings, instrument.stringCount]);
+  // The whole neck is always in scope now — the stats span every string and
+  // fret the instrument has, never a single settings combination.
+  const scopeStrings = useMemo(
+    () => Array.from({ length: instrument.stringCount }, (_, i) => i + 1),
+    [instrument.stringCount],
+  );
 
-  const scopeFrets = useMemo(() => {
-    const [lo, hi] = scope === 'setup'
-      ? [setupFretFrom, setupFretTo]
-      : [0, instrument.maxFret];
-    return Array.from({ length: Math.max(0, hi - lo + 1) }, (_, i) => lo + i);
-  }, [scope, setupFretFrom, setupFretTo, instrument.maxFret]);
+  const scopeFrets = useMemo(
+    () => Array.from({ length: instrument.maxFret + 1 }, (_, i) => i),
+    [instrument.maxFret],
+  );
 
   // Strings in scope with no recorded answers yet.
   const unplayedStrings = useMemo(() => {
@@ -406,45 +382,20 @@ function ScopeView({
       <p className="encouragement">
         {windowed
           ? t('No practice in the last 7 days.')
-          : scope === 'setup'
-            ? t('No rounds recorded for this setup yet. Play a round and its stats show up here.')
-            : t('Play a few rounds and your all-time progress shows up here.')}
+          : t('Play a few rounds and your all-time progress shows up here.')}
       </p>
     );
   }
 
-  const bestStreak = Math.max(longestStreak ?? 0, currentHistoryKey ? loadBest(currentHistoryKey)?.streak ?? 0 : 0);
-
-  const heroTiles = scope === 'setup'
-    ? [
-        { v: pct(totals.accuracy), l: t('accuracy'), gold: true },
-        { v: <>🔥 {bestStreak}</>, l: t('best streak') },
-        { v: <>⚡ {totals.avgSeconds.toFixed(1)}s</>, l: t('avg speed') },
-      ]
-    : [
-        { v: pct(totals.accuracy), l: t('accuracy'), gold: true },
-        { v: <>🔥 {streak.current}</>, l: t('day streak') },
-        { v: totals.totalQuestions, l: t('answered') },
-      ];
+  const heroTiles = [
+    { v: pct(totals.accuracy), l: t('accuracy'), gold: true },
+    { v: <>🔥 {streak.current}</>, l: t('day streak') },
+    { v: totals.totalQuestions, l: t('answered') },
+  ];
 
   return (
     <>
       <HeroTiles tiles={heroTiles} />
-
-      {scope === 'setup' && (sessionScore ?? 0) > 0 && (
-        <div className="score-summary">
-          <div className="score-summary-line">
-            <span className="score-summary-label">{t('Last round')}</span>
-            <span className="score-summary-value score-gold">{sessionScore} {t('pts')}</span>
-          </div>
-          {totals.bestSeconds > 0 && (
-            <div className="score-summary-line">
-              <span className="score-summary-label">{t('Best speed')}</span>
-              <span className="score-summary-value">🏆 {totals.bestSeconds.toFixed(1)}s</span>
-            </div>
-          )}
-        </div>
-      )}
 
       <div className="stat-group">
         <p className="stat-group-title improving">🎯 {t('Weakest notes')}</p>
@@ -477,41 +428,38 @@ function ScopeView({
       <Expander label={t('Daily timeline')} open={open === 'time'} onToggle={toggle('time')}>
         <Timeline history={history} />
       </Expander>
-      {scope === 'all' && (
-        <ProGate
-          feature="allPersonalBests"
-          variant="overlay"
-          pitch={t('Browse your personal bests across every settings combination')}
-        >
-          <Expander label={t('Personal bests')} open={open === 'bests'} onToggle={toggle('bests')}>
-            <div className="string-bars">
-              {bests.length === 0 && <p className="encouragement">{t('No personal bests recorded yet.')}</p>}
-              {bests.slice(0, 8).map(b => (
-                <div key={b.key} className="string-bar-row">
-                  <span className="string-bar-label" style={{ minWidth: 0, flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'left' }}>
-                    {describeKey(b.key, t)}
-                  </span>
-                  <span className="string-bar-pct score-gold">{b.best.score}</span>
-                  <span className="string-bar-counts">🔥{b.best.streak} · {b.best.accuracy}%</span>
-                </div>
-              ))}
-            </div>
-          </Expander>
-        </ProGate>
-      )}
+      <ProGate
+        feature="allPersonalBests"
+        variant="overlay"
+        pitch={t('Browse your personal bests across every settings combination')}
+      >
+        <Expander label={t('Personal bests')} open={open === 'bests'} onToggle={toggle('bests')}>
+          <div className="string-bars">
+            {bests.length === 0 && <p className="encouragement">{t('No personal bests recorded yet.')}</p>}
+            {bests.slice(0, 8).map(b => (
+              <div key={b.key} className="string-bar-row">
+                <span className="string-bar-label" style={{ minWidth: 0, flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'left' }}>
+                  {describeKey(b.key, t)}
+                </span>
+                <span className="string-bar-pct score-gold">{b.best.score}</span>
+                <span className="string-bar-counts">🔥{b.best.streak} · {b.best.accuracy}%</span>
+              </div>
+            ))}
+          </div>
+        </Expander>
+      </ProGate>
     </>
   );
 }
 
 export default function ProgressPanel({
   allHistory, noteNames, accidental, notation, instrument, headerIcon, onClose,
-  currentHistory, sessionScore, longestStreak, currentHistoryKey,
-  setupStrings, setupFretFrom, setupFretTo, onClearCurrent, onClearAll,
-  isPro, intervalBoard, intervalStats,
+  onClearAll, isPro, intervalBoard, intervalStats,
 }: Props) {
   const { t, lang } = useTranslation();
-  const [scope, setScope] = useState<Scope>('setup');
-  const [confirm, setConfirm] = useState<null | Scope>(null);
+  // Pro/Premium can toggle the window; free is pinned to the 7-day slice.
+  const [scope, setScope] = useState<Scope>('all');
+  const [confirm, setConfirm] = useState(false);
   const [ivlOpen, setIvlOpen] = useState(false);
   const click = (fn: () => void) => () => { playClickSound(); haptic.tap(); fn(); };
 
@@ -520,29 +468,15 @@ export default function ProgressPanel({
     [allHistory, instrument.id],
   );
 
-  // Persist the current session's personal best, same as the old panel did.
-  const currentScore = sessionScore ?? 0;
-  const currentStreak = longestStreak ?? 0;
-  const currentCorrect = currentHistory.filter(h => h.correct === true).length;
-  const currentAccuracy = currentHistory.length === 0
-    ? 0 : Math.round((currentCorrect / currentHistory.length) * 100);
-  useEffect(() => {
-    if (!currentHistoryKey || currentScore === 0 || currentHistory.length === 0) return;
-    const prev = loadBest(currentHistoryKey);
-    if (!prev || currentScore > prev.score) {
-      saveBest(currentHistoryKey, { score: currentScore, streak: currentStreak, accuracy: currentAccuracy });
-    }
-  }, [currentHistoryKey, currentScore, currentStreak, currentAccuracy, currentHistory.length]);
-
-  // Free users see only the trailing 7 days in every stat on this screen, in
-  // both scopes (spec free-pro-tiering §5.1). The window is a view filter here
-  // and nowhere else — `baseHistory` is still the full set, synced and feeding
-  // XP / badges / the leaderboard, and the "Clear history" control below acts
-  // on all of it regardless of what the window shows.
-  const baseHistory = scope === 'setup' ? currentHistory : all;
+  // Free users see only the trailing 7 days in every stat on this screen (spec
+  // free-pro-tiering §5.1); Pro/Premium pick via the toggle. The window is a
+  // view filter here and nowhere else — `all` is still the full set, synced and
+  // feeding XP / badges / the leaderboard, and "Clear all history" below acts on
+  // all of it regardless of what the window shows.
+  const windowed = !isPro || scope === 'last7';
   const history = useMemo(
-    () => (isPro ? baseHistory : withinFreeWindow(baseHistory)),
-    [baseHistory, isPro],
+    () => (windowed ? withinFreeWindow(all) : all),
+    [all, windowed],
   );
 
   return (
@@ -558,44 +492,37 @@ export default function ProgressPanel({
       </header>
       <div className="settings-page-body">
 
-      <div className="sp2-scope">
-        <button
-          className={`sp2-scope-btn${scope === 'setup' ? ' sp2-scope-active' : ''}`}
-          onClick={click(() => setScope('setup'))}
-        >{t('This setup')}</button>
-        <button
-          className={`sp2-scope-btn${scope === 'all' ? ' sp2-scope-active' : ''}`}
-          onClick={click(() => setScope('all'))}
-        >{isPro ? t('All time') : t('Last 7 days')}</button>
-      </div>
+      {isPro && (
+        <div className="sp2-scope">
+          <button
+            className={`sp2-scope-btn${scope === 'last7' ? ' sp2-scope-active' : ''}`}
+            onClick={click(() => setScope('last7'))}
+          >{t('Last 7 days')}</button>
+          <button
+            className={`sp2-scope-btn${scope === 'all' ? ' sp2-scope-active' : ''}`}
+            onClick={click(() => setScope('all'))}
+          >{t('All time')}</button>
+        </div>
+      )}
       <p className="sp2-scope-cap">
-        {scope === 'setup'
-          ? (currentHistoryKey ? describeKey(currentHistoryKey, t) : t('the current settings'))
-          : `${t('across every')} ${lang === 'he' ? t(instrument.label) : instrument.label.toLowerCase()} ${t('settings combination')}`}
-        {!isPro && ` · ${t('Last 7 days')}`}
+        {`${t('across every')} ${lang === 'he' ? t(instrument.label) : instrument.label.toLowerCase()} ${t('settings combination')}`}
+        {windowed && ` · ${t('Last 7 days')}`}
       </p>
 
       <ScopeView
-        key={scope}
-        scope={scope}
+        key={windowed ? 'last7' : 'all'}
         history={history}
         noteNames={noteNames}
         accidental={accidental}
         notation={notation}
         instrument={instrument}
-        sessionScore={sessionScore}
-        longestStreak={longestStreak}
-        currentHistoryKey={currentHistoryKey}
-        setupStrings={setupStrings}
-        setupFretFrom={setupFretFrom}
-        setupFretTo={setupFretTo}
-        windowed={!isPro}
+        windowed={windowed}
       />
 
       {/* Intervals learning progress (spec §12 / §15.1) — a self-contained
-          read-only section, independent of the "This setup" / "All time"
-          scope above and of every note stat. Hidden entirely when there is
-          no interval data (non-Premium, or nothing drilled yet). */}
+          read-only section, independent of the window toggle above and of
+          every note stat. Hidden entirely when there is no interval data
+          (non-Premium, or nothing drilled yet). */}
       {intervalBoard && intervalBoard.length > 0 && intervalStats && (
         <Expander
           label={t('Intervals')}
@@ -606,38 +533,29 @@ export default function ProgressPanel({
         </Expander>
       )}
 
-      {baseHistory.length > 0 && (
-        <button className="sp2-danger" onClick={click(() => setConfirm(scope))}>
-          {scope === 'setup' ? t('Clear history for this setup') : t('Clear all history')}
+      {all.length > 0 && (
+        <button className="sp2-danger" onClick={click(() => setConfirm(true))}>
+          {t('Clear all history')}
         </button>
       )}
       </div>
 
       {confirm && (
-        <div className="mic-overlay" onClick={click(() => setConfirm(null))}>
+        <div className="mic-overlay" onClick={click(() => setConfirm(false))}>
           <div className="mic-card" onClick={e => e.stopPropagation()}>
-            <div className="mic-card-title">
-              {confirm === 'setup' ? t('Clear this setup’s history?') : t('Clear all stats?')}
-            </div>
+            <div className="mic-card-title">{t('Clear all stats?')}</div>
             <p className="mic-card-body">
-              {confirm === 'setup'
-                ? t('This erases the practice history for the current settings combination only. Other combinations and your personal bests are kept.')
-                : t('This permanently erases your entire practice history and resets the all-time mastery for every note, string and settings combination. Your personal bests are kept.')}
+              {t('This permanently erases your entire practice history and resets the all-time mastery for every note, string and settings combination. Your personal bests are kept.')}
               {' '}<strong>{t("This can't be undone.")}</strong>
             </p>
             <div className="mic-card-actions">
               <button
                 className="mic-btn mic-btn-danger"
-                onClick={click(() => {
-                  const which = confirm;
-                  setConfirm(null);
-                  if (which === 'setup') onClearCurrent?.();
-                  else onClearAll?.();
-                })}
+                onClick={click(() => { setConfirm(false); onClearAll?.(); })}
               >
                 {t('Delete anyway')}
               </button>
-              <button className="mic-btn mic-btn-ghost" onClick={click(() => setConfirm(null))}>
+              <button className="mic-btn mic-btn-ghost" onClick={click(() => setConfirm(false))}>
                 {t('Cancel')}
               </button>
             </div>

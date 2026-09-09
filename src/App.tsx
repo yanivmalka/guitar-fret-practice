@@ -812,14 +812,6 @@ export default function App() {
           accidental={accidental}
           notation={notation}
           instrument={instrument}
-          currentHistory={historyOps.getEntriesForKey(histKey)}
-          sessionScore={scoring.session.score}
-          longestStreak={scoring.session.longestStreak}
-          currentHistoryKey={histKey}
-          setupStrings={selector.state.selectedStrings}
-          setupFretFrom={derivedSettings.fretFrom}
-          setupFretTo={derivedSettings.fretTo}
-          onClearCurrent={() => { historyOps.clearHistory(histKey); }}
           onClearAll={() => { historyOps.clearAllHistory(); }}
           onClose={() => setShowStats(false)}
           isPro={auth.isPro}

@@ -286,17 +286,11 @@ const he: Record<string, string> = {
   'Not practiced yet': 'עדיין לא תורגל',
   'Older sessions have no date stamp, so the timeline is empty. New sessions fill it in.':
     'בסשנים ישנים לא נשמר תאריך, ולכן ציר הזמן ריק. סשנים חדשים יתווספו אליו.',
-  'No rounds recorded for this setup yet. Play a round and its stats show up here.':
-    'עדיין לא נרשמו סיבובים עבור ההגדרה הזו. שחק סיבוב והסטטיסטיקות שלו יופיעו כאן.',
   'Play a few rounds and your all-time progress shows up here.':
     'שחק כמה סיבובים וההתקדמות שלך לאורך זמן תופיע כאן.',
   'accuracy': 'דיוק',
-  'best streak': 'הרצף הטוב ביותר',
-  'avg speed': 'מהירות ממוצעת',
   'day streak': 'רצף יומי',
   'answered': 'נענו',
-  'Last round': 'הסיבוב האחרון',
-  'Best speed': 'המהירות הטובה ביותר',
   'Weakest notes': 'התווים שדורשים הכי הרבה תרגול',
   'Nothing below 70% — nice.': 'אין תווים מתחת ל־70% — מצוין.',
   'By note': 'לפי תו',
@@ -309,18 +303,12 @@ const he: Record<string, string> = {
   'Personal bests': 'שיאים אישיים',
   'No personal bests recorded yet.': 'עדיין לא נרשמו שיאים אישיים.',
   'No practice in the last 7 days.': 'אין תרגול ב-7 הימים האחרונים.',
-  'This setup': 'ההגדרה הזו',
   'All time': 'כל הזמנים',
   'Last 7 days': '7 הימים האחרונים',
-  'the current settings': 'ההגדרות הנוכחיות',
   'across every': 'בכל',
   'settings combination': 'שילוב הגדרות',
-  'Clear history for this setup': 'נקה את היסטוריית ההגדרה הזו',
   'Clear all history': 'נקה את כל ההיסטוריה',
-  'Clear this setup’s history?': 'לנקות את היסטוריית ההגדרה הזו?',
   'Clear all stats?': 'לנקות את כל הסטטיסטיקות?',
-  'This erases the practice history for the current settings combination only. Other combinations and your personal bests are kept.':
-    'פעולה זו תמחק רק את היסטוריית התרגול של שילוב ההגדרות הנוכחי. שילובים אחרים והשיאים האישיים שלך יישמרו.',
   'This permanently erases your entire practice history and resets the all-time mastery for every note, string and settings combination. Your personal bests are kept.':
     'פעולה זו תמחק לצמיתות את כל היסטוריית התרגול שלך ותאפס את מדד השליטה לאורך זמן עבור כל תו, מיתר ושילוב הגדרות. השיאים האישיים שלך יישמרו.',
   "This can't be undone.": 'אי אפשר לבטל פעולה זו.',
