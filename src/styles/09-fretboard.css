@@ -83,22 +83,6 @@
   transition: width 0.3s ease, color 0.3s ease;
 }
 
-/* Caption above the board when a Pro user has pointed the mastery overlay at a
-   past day / range (Settings › Mastery time window) — so a time-travelled
-   overlay is never mistaken for the live one. Forced LTR so the dates read
-   naturally in Hebrew too. */
-.mastery-window-caption {
-  display: inline-block;
-  margin: 2px auto 0;
-  padding: 2px 10px;
-  border-radius: 999px;
-  background: rgba(245, 166, 35, 0.14);
-  color: var(--amber, #f5a623);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-}
 .fret-glow {
   box-shadow: 0 0 14px 5px rgba(var(--accent-rgb), 0.7) !important;
   animation: fret-glow-fade 0.4s ease-out forwards;

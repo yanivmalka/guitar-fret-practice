@@ -31,7 +31,6 @@ import { useAuth } from './hooks/useAuth';
 import { useCloudSync } from './hooks/useCloudSync';
 import { useVoiceProfileSummary } from './hooks/useVoiceProfileSummary';
 import { useMasteryOverlay } from './hooks/useMasteryOverlay';
-import { describeMasteryWindow, isDefaultMasteryWindow } from './utils/mastery';
 import { useAppPreferences } from './hooks/useAppPreferences';
 import { useSelector, type DerivedSettings } from './hooks/useSelector';
 import { useDerivedNotes } from './hooks/useDerivedNotes';
@@ -268,7 +267,7 @@ export default function App() {
   // the badges read. Free vs Pro window handling lives in the hook.
   const {
     allHistoryEntries, everyInstrumentHistory, fretMastery, noteMastery,
-    masteryDenom, effectiveMasteryWindow,
+    masteryDenom,
   } = useMasteryOverlay({
       allHistory: historyOps.allHistory,
       instrument,
@@ -460,17 +459,6 @@ export default function App() {
   // appearance — no all-time mastery overlay, dots shown — instead of flashing
   // the at-rest page look for the three seconds before the first question.
   const boardLive = gameActive || countdown !== null;
-
-  // A Pro user can point the mastery overlay at a past day / range (Settings ›
-  // Mastery time window). When they have, the at-rest board gets a small
-  // "showing …" caption so a time-travelled overlay is never mistaken for the
-  // live one. `effectiveMasteryWindow` is already FREE_MASTERY_WINDOW for a
-  // non-Pro user, so this is inert for them.
-  const masteryOverlayCaption =
-    showMastery && !boardLive && !intervalPrompt &&
-    !isDefaultMasteryWindow(effectiveMasteryWindow)
-      ? describeMasteryWindow(effectiveMasteryWindow, t)
-      : null;
 
   // The end-of-round badge reveal list. Owned here rather than inside
   // useRoundEndCelebrations because useBackNavigation consumes it and the
@@ -1042,10 +1030,6 @@ export default function App() {
 
       {/* Countdown overlay */}
       {countdown !== null && <CountdownOverlay countdown={countdown} />}
-
-      {masteryOverlayCaption && (
-        <div className="mastery-window-caption" dir="ltr">{masteryOverlayCaption}</div>
-      )}
 
       <div className="game-row" ref={gameRowRef}>
         {stageTransition && <StageTransition stageTransition={stageTransition} t={t} />}
