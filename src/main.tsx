@@ -68,9 +68,134 @@ createRoot(document.getElementById('root')!).render(
   let displayed = 6
   let creepTimer: ReturnType<typeof setInterval> | undefined
   let tickTimer: ReturnType<typeof setInterval> | undefined
+
+  // --- boot flourish ----------------------------------------------------------
+  // Greet each launch with a short *random* scale (Web Audio, best-effort:
+  // autoplay policy may hold the context suspended until the first gesture, so
+  // we also arm a one-shot resume) and, as the progress bar fills, let a
+  // musical-note glyph rise, drift sideways and fade out of the fill edge at
+  // every point it reaches. Purely decorative: the glyphs are skipped under
+  // prefers-reduced-motion, and everything is torn down when the splash goes
+  // (`flourishCleanups`, drained in `hideSplash`).
+  const track = splash?.querySelector<HTMLElement>('.boot-splash__track') ?? null
+  const flourishCleanups: (() => void)[] = []
+  const flourishOnProgress: (pct: number) => void = ((): ((pct: number) => void) => {
+    if (!splash) return () => { /* no splash — nothing to do */ }
+
+    const rand = (n: number) => Math.floor(Math.random() * n)
+
+    // A random one-octave run: random root (G3–G4), random mode, random
+    // direction (ascending or descending).
+    const MODES: number[][] = [
+      [0, 2, 4, 5, 7, 9, 11, 12], // major
+      [0, 2, 3, 5, 7, 8, 10, 12], // natural minor
+      [0, 2, 3, 5, 7, 9, 10, 12], // Dorian
+      [0, 2, 4, 6, 7, 9, 11, 12], // Lydian
+      [0, 2, 4, 5, 7, 9, 10, 12], // Mixolydian
+      [0, 2, 3, 5, 7, 8, 11, 12], // harmonic minor
+      [0, 2, 4, 7, 9, 12], // major pentatonic
+      [0, 3, 5, 7, 10, 12], // minor pentatonic
+      [0, 3, 5, 6, 7, 10, 12], // blues
+    ]
+    const root = 55 + rand(13)
+    let degrees = MODES[rand(MODES.length)]
+    if (Math.random() < 0.5) {
+      const top = degrees[degrees.length - 1]
+      degrees = degrees.map((d) => top - d).reverse()
+    }
+    const freqs = degrees.map((d) => 440 * 2 ** ((root + d - 69) / 12))
+    const N = freqs.length
+
+    // --- audio (best-effort) ---
+    type WithWebkitAudio = typeof window & { webkitAudioContext?: typeof AudioContext }
+    const AC = window.AudioContext || (window as WithWebkitAudio).webkitAudioContext
+    let ctx: AudioContext | undefined
+    const getCtx = () => {
+      if (!AC) return undefined
+      if (!ctx) { try { ctx = new AC() } catch { return undefined } }
+      return ctx
+    }
+    let heardAny = false
+    const playFreq = (freq: number) => {
+      const c = getCtx()
+      if (!c || c.state !== 'running') return
+      heardAny = true
+      const t = c.currentTime
+      const osc = c.createOscillator()
+      const gain = c.createGain()
+      osc.type = 'triangle'
+      osc.frequency.value = freq
+      gain.gain.setValueAtTime(0.0001, t)
+      gain.gain.exponentialRampToValueAtTime(0.16, t + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.55)
+      osc.connect(gain).connect(c.destination)
+      osc.start(t)
+      osc.stop(t + 0.62)
+    }
+
+    // If the context starts suspended, resume it on the first user gesture;
+    // and if the fill already finished in silence (and not long ago), run the
+    // whole scale once then, so the launch still gets its scale.
+    const bootStart = performance.now()
+    let allFired = false
+    ;(() => {
+      const c = getCtx()
+      if (!c || c.state === 'running') return
+      const kick = () => {
+        void c.resume().then(() => {
+          if (
+            c.state === 'running' && allFired && !heardAny &&
+            performance.now() - bootStart < 15000
+          ) {
+            freqs.forEach((f, i) => setTimeout(() => playFreq(f), i * 150))
+          }
+        })
+      }
+      const opts = { once: true, passive: true } as const
+      const evs: (keyof WindowEventMap)[] = ['pointerdown', 'touchstart', 'keydown']
+      evs.forEach((e) => window.addEventListener(e, kick, opts))
+      flourishCleanups.push(() => evs.forEach((e) => window.removeEventListener(e, kick)))
+    })()
+
+    // --- glyphs ---
+    const GLYPHS = ['♪', '♫', '♩', '♬', '♭', '♯']
+    const spawnGlyph = (fraction: number) => {
+      if (reduceMotion || !track || !document.body.contains(track)) return
+      const r = track.getBoundingClientRect()
+      if (!r.width) return
+      const el = document.createElement('span')
+      el.className = 'boot-splash__note'
+      el.textContent = GLYPHS[rand(GLYPHS.length)]
+      el.style.left = `${r.left + r.width * fraction}px`
+      el.style.top = `${r.top + r.height / 2}px`
+      el.style.fontSize = `${16 + rand(10)}px`
+      el.style.setProperty('--drift', `${rand(37) - 18}px`)
+      el.style.setProperty('--rise', `${66 + rand(40)}px`)
+      el.style.setProperty('--spin', `${rand(31) - 15}deg`)
+      splash.appendChild(el)
+      const gone = setTimeout(() => el.remove(), 1400)
+      flourishCleanups.push(() => { clearTimeout(gone); el.remove() })
+    }
+
+    // Fire note + glyph `idx` once the fill passes its slot centre (spanning
+    // ~5%..95%); a jump past several slots flushes them in order.
+    let fired = 0
+    return (pct: number) => {
+      const step = 100 / N
+      while (fired < N && pct >= fired * step + step * 0.5) {
+        const idx = fired
+        fired += 1
+        playFreq(freqs[idx])
+        spawnGlyph(Math.min(0.98, Math.max(0.02, pct / 100)))
+      }
+      if (fired >= N) allFired = true
+    }
+  })()
+
   const render = () => {
     if (bar) bar.style.width = `${displayed}%`
     if (pctEl) pctEl.textContent = `${Math.round(displayed)}%`
+    flourishOnProgress(displayed)
   }
   const tick = () => {
     const gap = progress - displayed
@@ -113,6 +238,7 @@ createRoot(document.getElementById('root')!).render(
 
   const hideSplash = () => {
     if (!splash) return
+    flourishCleanups.forEach((fn) => { try { fn() } catch { /* ignore */ } })
     splash.classList.add('boot-splash--hide')
     splash.addEventListener('transitionend', () => splash.remove(), { once: true })
     // Fallback in case the transition never fires (e.g. reduced motion).
