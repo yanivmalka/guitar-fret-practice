@@ -3,7 +3,7 @@ import type { HistoryEntry } from '../utils/music';
 import type { InstrumentConfig } from '../utils/instruments';
 import {
   historyForInstrument, flattenHistory, fretMasteryMap, noteMasteryMap,
-  applyMasteryWindow, FREE_MASTERY_WINDOW,
+  applyMasteryWindow, masteryDenominator, FREE_MASTERY_WINDOW,
   type MasteryStat, type MasteryWindow,
 } from '../utils/mastery';
 
@@ -55,6 +55,9 @@ export function useMasteryOverlay({
     everyInstrumentHistory,
     fretMastery,
     noteMastery,
+    // The count that fills an overlay bar to 100% (null for an open-ended
+    // window — the bar is then always full-length and colour carries it).
+    masteryDenom: masteryDenominator(effectiveMasteryWindow),
     // The window actually in force after Free/Pro resolution — the overlay
     // caption is driven off this, so a Free user (always FREE_MASTERY_WINDOW)
     // never sees a caption.

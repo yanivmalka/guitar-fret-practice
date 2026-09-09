@@ -41,6 +41,8 @@ export interface DrillBoardProps {
   scoringSession: SessionScore;
   fretMastery: Record<number, MasteryStat>;
   noteMastery: Record<string, MasteryStat>;
+  /** Fills a mastery bar to 100% (null = open-ended window, bar always full). */
+  masteryDenominator: number | null;
   intervalPrompt: IntervalPromptState | null;
   questionDisplayRef: RefObject<HTMLDivElement | null>;
 
@@ -87,7 +89,7 @@ export interface DrillBoardProps {
 
 export default function DrillBoard({
   t, lang, accidental, notation, instrument, derived, eff, voice, scoringSession,
-  fretMastery, noteMastery, intervalPrompt, questionDisplayRef,
+  fretMastery, noteMastery, masteryDenominator, intervalPrompt, questionDisplayRef,
   gameActive, isStopped, gameEnded, stageExiting, isPlaying, boardLive, running, paused,
   answered, showScore, showMastery, byString, voiceActive, multiplierIcon, feedback,
   safeGuitarString, currentNote, currentFret, questionSeq, remaining, questionTime,
@@ -243,6 +245,7 @@ export default function DrillBoard({
             foundFrets={gameActive ? foundFrets : []}
             onSelect={selectFret}
             masteryByFret={fretMastery}
+            masteryDenominator={masteryDenominator}
             showMastery={!boardLive && showMastery}
             referenceFret={null}
           />
@@ -263,6 +266,7 @@ export default function DrillBoard({
             accidental={accidental}
             notation={notation}
             masteryByNote={noteMastery}
+            masteryDenominator={masteryDenominator}
             showMastery={!boardLive && showMastery}
           />
         )

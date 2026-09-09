@@ -49,16 +49,19 @@
   box-shadow: 0 0 8px 2px rgba(74, 170, 255, 0.5);
 }
 
-/* Mastery "equalizer" overlay: how well-known this fret/note is, all-time. */
+/* Mastery "equalizer" overlay: bar LENGTH = this fret/note's share of the
+   active mastery window, bar COLOUR = how those attempts went (set inline via
+   `color`; see utils/mastery.ts `masteryColor`). `background`/`box-shadow`
+   inherit that colour so the bar keeps its self-coloured glow. */
 .mastery-bar {
   position: absolute; right: 4px; bottom: 4px;
   width: 5px;
   border-radius: 2px;
   pointer-events: none;
-  transition: height 0.3s ease;
+  background: currentColor;
+  box-shadow: 0 0 4px currentColor;
+  transition: height 0.3s ease, color 0.3s ease;
 }
-.mastery-bar.mastery-known { background: #2ecc71; box-shadow: 0 0 4px rgba(46, 204, 113, 0.7); }
-.mastery-bar.mastery-needsWork { background: #f5a623; box-shadow: 0 0 4px rgba(245, 166, 35, 0.7); }
 
 .note-mastery-track {
   display: block;
@@ -70,11 +73,15 @@
      fill to read as a second, muddier shade of green on high-DPI screens.
      No overflow clip either, so the fill's glow reads like FretGrid's. */
 }
-.note-mastery-fill { display: block; height: 100%; border-radius: 2px; transition: width 0.3s ease; }
-/* Colour + glow kept in lockstep with .mastery-bar (the by-note FretGrid
-   equaliser) so both quiz modes read the exact same green/orange. */
-.note-mastery-fill.mastery-known { background: #2ecc71; box-shadow: 0 0 4px rgba(46, 204, 113, 0.7); }
-.note-mastery-fill.mastery-needsWork { background: #f5a623; box-shadow: 0 0 4px rgba(245, 166, 35, 0.7); }
+/* Length + colour driven exactly like .mastery-bar (the by-fret equaliser) so
+   both quiz modes read identically: inline `width` + inline `color`, with the
+   glow following that colour. */
+.note-mastery-fill {
+  display: block; height: 100%; border-radius: 2px;
+  background: currentColor;
+  box-shadow: 0 0 4px currentColor;
+  transition: width 0.3s ease, color 0.3s ease;
+}
 
 /* Caption above the board when a Pro user has pointed the mastery overlay at a
    past day / range (Settings › Mastery time window) — so a time-travelled

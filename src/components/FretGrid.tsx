@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { playNoteSingle } from '../utils/audio';
 import { notes, activeDotFrets } from '../utils/music';
-import type { MasteryStat } from '../utils/mastery';
+import { masteryFillPct, masteryColor, type MasteryStat } from '../utils/mastery';
 
 interface Props {
   fretFrom: number;
@@ -14,6 +14,8 @@ interface Props {
   foundFrets: number[];
   onSelect: (fret: number) => void;
   masteryByFret?: Record<number, MasteryStat>;
+  /** Count that fills a mastery bar to 100% (null = open-ended window). */
+  masteryDenominator?: number | null;
   showMastery?: boolean;
   /** Interval drill (P4): the reference fret the question is asked relative to
    *  ("a M6 above THIS"). Marked, non-interactive, never scored. */
@@ -23,7 +25,7 @@ interface Props {
 export default function FretGrid({
   fretFrom, fretTo, guitarString, validFrets,
   active, correctFrets, wrongFret, foundFrets, onSelect,
-  masteryByFret, showMastery, referenceFret,
+  masteryByFret, masteryDenominator = null, showMastery, referenceFret,
 }: Props) {
   const DOT_FRETS = new Set(activeDotFrets);
   const frets = Array.from({ length: fretTo - fretFrom + 1 }, (_, i) => fretFrom + i);
@@ -88,10 +90,15 @@ export default function FretGrid({
           >
             <span className="fret-btn-num">{f}</span>
             {dot && <span className="fret-btn-dot">{dot}</span>}
-            {mastery && mastery.level !== 'unplayed' && (
+            {mastery && mastery.attempts > 0 && (
               <span
-                className={`mastery-bar mastery-${mastery.level}`}
-                style={{ height: `${Math.round(3 + mastery.accuracy * 17)}px` }}
+                className="mastery-bar"
+                style={{
+                  // Length = this fret's share of the mastery window (0-20px);
+                  // colour = how those attempts went. See utils/mastery.ts.
+                  height: `${Math.max(2, Math.round(masteryFillPct(mastery, masteryDenominator) / 100 * 20))}px`,
+                  color: masteryColor(mastery),
+                }}
               />
             )}
           </button>

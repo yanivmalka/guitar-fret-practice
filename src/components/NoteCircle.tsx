@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { notesMatch, notes as allNotes, displayNote } from '../utils/music';
 import type { AccidentalMode, NotationMode } from '../utils/music';
 import { playNoteSequence, stopPlayback } from '../utils/audio';
-import type { MasteryStat } from '../utils/mastery';
+import { masteryFillPct, masteryColor, type MasteryStat } from '../utils/mastery';
 
 interface Props {
   notes: string[];
@@ -20,6 +20,8 @@ interface Props {
   accidental: AccidentalMode;
   notation: NotationMode;
   masteryByNote?: Record<string, MasteryStat>;
+  /** Count that fills a mastery bar to 100% (null = open-ended window). */
+  masteryDenominator?: number | null;
   showMastery?: boolean;
 }
 
@@ -27,7 +29,7 @@ function easeOut(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
-export default function NoteCircle({ notes, activeNotes, active, correctNote, wrongNote, onSelect, guitarString, fretDots, noteFrets, byString, startIndex, showDots, accidental, notation, masteryByNote, showMastery }: Props) {
+export default function NoteCircle({ notes, activeNotes, active, correctNote, wrongNote, onSelect, guitarString, fretDots, noteFrets, byString, startIndex, showDots, accidental, notation, masteryByNote, masteryDenominator = null, showMastery }: Props) {
   const size = 340;
   const cx = size / 2;
   const cy = size / 2;
@@ -199,16 +201,20 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
           if (isCorrect) { bg = '#0a0'; border = '#0f0'; textColor = '#fff'; }
           else if (isWrong) { bg = '#a00'; border = '#f00'; textColor = '#fff'; }
 
-          // A single solid bar whose length tracks accuracy — same visual
-          // language (and colour) as the by-note FretGrid equaliser, which is
-          // also a solid bar sized by accuracy with no track behind it. The
-          // 15% floor keeps a low-accuracy note readable as a bar rather than
-          // a sliver, mirroring FretGrid's non-zero minimum height.
-          const masteryBar = mastery && mastery.level !== 'unplayed' ? (
+          // A single solid bar: its LENGTH is this note's share of the active
+          // mastery window, its COLOUR how those attempts went (red→green on
+          // the correct/wrong split, greyed by the "didn't know" share). Same
+          // helpers — and so the same visual language — as the by-note
+          // FretGrid equaliser. No visible floor: a note barely touched in a
+          // large window all but vanishes, by design.
+          const masteryBar = mastery && mastery.attempts > 0 ? (
             <span className="note-mastery-track">
               <span
-                className={`note-mastery-fill mastery-${mastery.level}`}
-                style={{ width: `${Math.round(15 + mastery.accuracy * 85)}%` }}
+                className="note-mastery-fill"
+                style={{
+                  width: `${masteryFillPct(mastery, masteryDenominator)}%`,
+                  color: masteryColor(mastery),
+                }}
               />
             </span>
           ) : null;

@@ -4,22 +4,85 @@ import { notesMatch } from './music';
 // All-time, all-settings mastery used for the fretboard/note-circle
 // "equalizer" overlays — deliberately simpler than StatsPanel's 3-tier
 // mastered/solid/growing categories (see CLAUDE.md: this view favors a
-// glanceable known/needs-work read over StatsPanel's detailed breakdown).
+// glanceable read over StatsPanel's detailed breakdown).
+//
+// The overlay bar carries two signals: its LENGTH is how much of the active
+// mastery window landed on this position (`attempts / windowSize`, so 70 of
+// the last 100 questions ⇒ a 70%-length bar), and its COLOUR is how those
+// attempts went — a red→green ramp on the correct/wrong split, pulled toward
+// grey by the share that were "didn't know" (timeouts/skips). See
+// `masteryFillPct` / `masteryColor`. `level` + `accuracy` stay for the Stats
+// screen's fret heatmap and weak-note list (utils/progress.ts), which read a
+// coarse known/needs-work bucket, not the raw tallies.
 export type MasteryLevel = 'unplayed' | 'needsWork' | 'known';
 
 export interface MasteryStat {
   level: MasteryLevel;
-  accuracy: number; // 0-1, meaningful only when level !== 'unplayed'
+  accuracy: number; // 0-1 = correct / attempts; meaningful only when level !== 'unplayed'
+  // Raw outcome tallies within the window, for the overlay's coverage-length
+  // + tri-outcome colour. `attempts` = correct + wrong + unsure.
+  attempts: number;
+  correct: number;
+  wrong: number;
+  unsure: number; // timeouts / skips (`correct === null`, or `skipped`)
 }
 
 const KNOWN_THRESHOLD = 0.7;
-const UNPLAYED: MasteryStat = { level: 'unplayed', accuracy: 0 };
+const UNPLAYED: MasteryStat = {
+  level: 'unplayed', accuracy: 0, attempts: 0, correct: 0, wrong: 0, unsure: 0,
+};
+
+// A bar can never quite reach zero width or it would be indistinguishable from
+// an unplayed position; this is small enough that "touched once in 1000" still
+// all but vanishes, which is the intent.
+const MIN_FILL_PCT = 2;
 
 function toStat(entries: HistoryEntry[]): MasteryStat {
   if (entries.length === 0) return UNPLAYED;
-  const correct = entries.filter(e => e.correct === true).length;
-  const accuracy = correct / entries.length;
-  return { level: accuracy >= KNOWN_THRESHOLD ? 'known' : 'needsWork', accuracy };
+  let correct = 0, wrong = 0, unsure = 0;
+  for (const e of entries) {
+    if (e.correct === true) correct++;
+    else if (e.correct === false && !e.skipped) wrong++;
+    else unsure++; // timeout / skip: `correct === null`, or `skipped`
+  }
+  const attempts = correct + wrong + unsure;
+  const accuracy = correct / attempts;
+  return {
+    level: accuracy >= KNOWN_THRESHOLD ? 'known' : 'needsWork',
+    accuracy, attempts, correct, wrong, unsure,
+  };
+}
+
+// The count that fills an overlay bar to 100%. A fixed-size "last N" window
+// returns N — a position asked in every one of those questions is a full bar.
+// An open-ended window (onDay / dateRange / all-time `n <= 0`) has no such
+// count: it returns null, and the overlay then draws every played position at
+// full length so colour alone carries the signal.
+export function masteryDenominator(window: MasteryWindow): number | null {
+  return window.kind === 'lastN' && window.n > 0 ? window.n : null;
+}
+
+// The overlay bar's length, 0-100. `denom` is `masteryDenominator(window)`.
+export function masteryFillPct(stat: MasteryStat, denom: number | null): number {
+  if (stat.attempts === 0) return 0;
+  if (denom == null) return 100;
+  return Math.max(MIN_FILL_PCT, Math.min(100, (stat.attempts / denom) * 100));
+}
+
+// The overlay bar's colour. Hue rides the correct-vs-wrong split (red → green)
+// among the answers the player actually committed to; the "didn't know" share
+// then pulls the whole thing toward grey, so a position you keep timing out on
+// reads as unproven, not as confidently green or firmly failed. Returned via
+// `color` (not `background`) so the bar's self-coloured glow follows for free.
+export function masteryColor(stat: MasteryStat): string {
+  if (stat.attempts === 0) return 'transparent';
+  const decisive = stat.correct + stat.wrong;
+  const acc = decisive > 0 ? stat.correct / decisive : 0;
+  const base = `hsl(${Math.round(acc * 145)} 63% 47%)`; // 0=red … 145=green (~#2ecc71)
+  const greyPct = Math.round((stat.unsure / stat.attempts) * 70); // cap the pull at 70%
+  return greyPct > 0
+    ? `color-mix(in srgb, ${base}, hsl(0 0% 55%) ${greyPct}%)`
+    : base;
 }
 
 export function flattenHistory(allHistory: Record<string, HistoryEntry[]>): HistoryEntry[] {

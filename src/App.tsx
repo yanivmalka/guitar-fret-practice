@@ -268,7 +268,7 @@ export default function App() {
   // the badges read. Free vs Pro window handling lives in the hook.
   const {
     allHistoryEntries, everyInstrumentHistory, fretMastery, noteMastery,
-    effectiveMasteryWindow,
+    masteryDenom, effectiveMasteryWindow,
   } = useMasteryOverlay({
       allHistory: historyOps.allHistory,
       instrument,
@@ -1061,6 +1061,7 @@ export default function App() {
           scoringSession={scoring.session}
           fretMastery={fretMastery}
           noteMastery={noteMastery}
+          masteryDenominator={masteryDenom}
           intervalPrompt={intervalPrompt}
           questionDisplayRef={questionDisplayRef}
           gameActive={gameActive}
