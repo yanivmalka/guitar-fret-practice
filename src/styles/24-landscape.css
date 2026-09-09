@@ -1,0 +1,177 @@
+/* ────────────────────────────────────────────────────────────────
+   Wide / landscape layout.
+
+   The app is authored as a fixed 390×844 portrait column. Until now
+   any viewport ≥ 601px just rendered that column inside a gold
+   "phone in a frame" mock, uniformly scaled down (see the
+   `@media (min-width: 601px)` block in 01-base.css and index.html's
+   `--phone-scale`). On a real monitor that is a tiny toy floating in
+   a sea of letterbox; on a phone rotated to landscape it is scaled
+   even smaller.
+
+   This partial replaces that. It is loaded last, so its rules win
+   over 01-base.css by source order at equal specificity:
+
+     • from 601px up  — the app is a real, full-height, centred
+       responsive container (no phone mock, no scale()).
+     • from 900px up, and on a phone held in landscape — the home
+       screen splits into two panes: the drill board takes the main
+       column, the Selector becomes a sticky side rail.
+     • content-only sub-pages (Stats, settings, Learn) keep a
+       comfortable reading width instead of stretching edge to edge.
+
+   Portrait phones (< 601px) match nothing here and are untouched.
+──────────────────────────────────────────────────────────────── */
+
+/* ── 1. Drop the desktop phone-frame mock; use the whole viewport ── */
+@media (min-width: 601px) {
+  body {
+    background: var(--bg-0);
+    display: block;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  #root {
+    width: 100%;
+    height: 100%;
+    transform: none;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: hidden;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 1120px;
+    height: 100%;
+    outline: none;
+    box-shadow: none;
+  }
+
+  /* On desktop these were pinned to the phone box with position:absolute
+     (01-base.css). With the box gone they belong to the viewport again. */
+  .settings-overlay,
+  .burger-btn,
+  .onboarding,
+  .picker-overlay,
+  .countdown-overlay {
+    position: fixed;
+  }
+
+  /* Keep text-heavy sub-pages readable rather than sprawling the full
+     1120px — they are still one narrow column of content. */
+  .app.settings-page,
+  .app.stats-page {
+    max-width: 760px;
+  }
+}
+
+/* ── 2. Two-pane home screen ─────────────────────────────────────────
+   Fires when there is genuinely room for a board plus a side rail:
+   a desktop / tablet ≥ 900px wide, or a phone in landscape. */
+@media (min-width: 900px),
+       (orientation: landscape) and (min-width: 640px) and (max-height: 600px) {
+
+  .app.home-page {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(280px, 30%, 360px);
+    grid-template-rows: auto auto;
+    column-gap: clamp(20px, 4vw, 40px);
+    row-gap: 8px;
+    /* Centre the title + panes block in the viewport rather than
+       piling all the slack below it. The side rail can still be
+       taller than a short landscape phone — the screen scrolls then. */
+    align-content: center;
+    overflow-y: auto;
+  }
+
+  /* Title spans the top of both columns. */
+  .app.home-page > h1 {
+    grid-column: 1 / -1;
+    margin-bottom: 4px;
+  }
+
+  /* Board / play area — centred in the main column. */
+  .app.home-page > .game-row {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: center;
+    align-self: center;
+  }
+
+  /* Selector — a side rail instead of a stack above the board. */
+  .app.home-page > .selector-panel {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: start;
+    max-width: none;
+    padding: 8px 4px;
+  }
+
+  /* Everything else the home screen renders (the adaptive-difficulty
+     banner, sign-in nudges, guest-merge prompt, …) spans the full
+     width beneath the two columns so it never wedges into a track. */
+  .app.home-page > *:not(h1):not(.selector-panel):not(.game-row):not(.burger-btn) {
+    grid-column: 1 / -1;
+  }
+
+  /* .app is now a wide container, so the `@container (max-width: 600px)`
+     rule in 08-mode-info.css no longer stacks .game-row — it reads as a
+     row again. Top-align the transport column beside the board. */
+  .game-row {
+    align-items: flex-start;
+  }
+
+  /* At rest the transport column holds only the Play button, but it
+     reserves `min-width: 200px` (needed during play for the prompt /
+     speed bar / score). That empty 200px shoves the board off-centre
+     here — collapse it while idle so the Play button sits next to the
+     board and the pair centres, with a little breathing room. */
+  .app.home-page:not(.playing) .game-row .question-col {
+    min-width: 0;
+  }
+  .app.home-page:not(.playing) .game-row {
+    gap: 32px;
+  }
+
+  /* During a round the burger and the whole Selector are already meant
+     to recede (App.tsx hides the burger). Drop the side rail too and
+     let the board + prompt sit as one centred, focused pair. */
+  .app.home-page.playing {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .app.home-page.playing > .selector-panel {
+    display: none;
+  }
+  .app.home-page.playing > .game-row {
+    grid-column: 1;
+    gap: 10px;
+  }
+}
+
+/* ── 3. Comfortable spacing on a genuinely large screen ───────────── */
+@media (min-width: 1200px) {
+  .app.home-page {
+    column-gap: 56px;
+  }
+}
+
+/* ── 4. Phone held in landscape: a short viewport ──────────────────
+   The board (note wheel / fret grid) is a fixed ~340px box, taller
+   than a rotated phone's ~380px viewport once the title and gaps are
+   counted, so it clips top and bottom. Scale it down to fit — a pure
+   transform, so hit-testing still maps 1:1. */
+@media (orientation: landscape) and (max-height: 480px) {
+  .app.home-page .game-row > :last-child {
+    transform: scale(0.82);
+    transform-origin: center;
+  }
+  .app.home-page > h1 {
+    font-size: 1.1rem;
+    margin-bottom: 0;
+  }
+  .app.home-page {
+    row-gap: 2px;
+  }
+}
