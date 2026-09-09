@@ -4,9 +4,8 @@ name: Build Android APK
 on:
   workflow_dispatch:
 
-# 'write' so the first run can commit the generated debug keystore back.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -25,26 +24,24 @@ jobs:
 
       - uses: android-actions/setup-android@v4
 
-      # A stable signing key so every APK is signed identically and new builds
-      # install over the old app (data kept) instead of being rejected for a
-      # signature mismatch. The first run generates it and commits it back;
-      # later runs reuse the committed file. A debug keystore has a well-known
-      # password ("android") and is safe to keep in the repo.
-      - name: Ensure a stable debug keystore
+      # THE signing key. Every APK must be signed with this one file, or Android
+      # refuses to install the new build over the old one
+      # (INSTALL_FAILED_UPDATE_INCOMPATIBLE) and you have to uninstall first.
+      #
+      # This step used to generate a fresh keystore and commit it whenever the
+      # file was missing, which is exactly what kept breaking in-place updates:
+      # dispatching the workflow from a branch that predates the committed key
+      # minted a brand-new random one, so that APK installed only after an
+      # uninstall and the next build from main -- signed with the original key
+      # again -- was rejected. Never generate a key here. Fail loudly instead.
+      - name: Require the committed signing key
         run: |
-          if [ ! -f android-overrides/debug.keystore ]; then
-            keytool -genkeypair -v \
-              -keystore android-overrides/debug.keystore \
-              -storepass android -keypass android \
-              -alias androiddebugkey \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add -f android-overrides/debug.keystore
-            git commit -m "Add a stable debug keystore so APK updates install in place"
-            git push
-          fi
+          test -f android-overrides/debug.keystore || {
+            echo "::error::android-overrides/debug.keystore is missing on this branch."
+            echo "::error::Rebase on main (the key landed in 199c84a) and re-run."
+            echo "::error::Do NOT generate a new one -- a new key breaks in-place updates."
+            exit 1
+          }
 
       - run: npm install
 
@@ -93,18 +90,57 @@ jobs:
           grep -q "versionName \"1.0.${{ github.run_number }}\"" android/app/build.gradle
       - run: npx cap sync android
 
-      # Gradle's default debug signingConfig reads ~/.android/debug.keystore
-      # with password "android" / alias "androiddebugkey" — the same values the
-      # keystore above was created with — so overwriting that file is all it
-      # takes to sign every build with our stable key.
-      - run: mkdir -p ~/.android && cp android-overrides/debug.keystore ~/.android/debug.keystore
+      # Point the debug build type at the committed key explicitly. Relying on
+      # Gradle's default -- whatever happens to sit in ~/.android/debug.keystore
+      # on the runner -- makes the signature an accident of the environment.
+      # Naming the file here makes it a property of the repo instead.
+      - name: Sign with the committed key
+        run: |
+          cat >> android/app/build.gradle <<'GRADLE'
+
+          android {
+              signingConfigs {
+                  debug {
+                      storeFile file("$rootDir/../android-overrides/debug.keystore")
+                      storePassword "android"
+                      keyAlias "androiddebugkey"
+                      keyPassword "android"
+                  }
+              }
+          }
+          GRADLE
 
       - run: chmod +x android/gradlew
       - run: ./gradlew assembleDebug
         working-directory: android
 
+      # Last line of defence: prove the APK that is about to be published is
+      # signed with the committed key. If these two fingerprints ever diverge
+      # the build fails here, instead of the mismatch showing up as a failed
+      # install on the phone days later.
+      - name: Verify the APK signature
+        run: |
+          apk=android/app/build/outputs/apk/debug/app-debug.apk
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          expected=$(keytool -exportcert -alias androiddebugkey -storepass android             -keystore android-overrides/debug.keystore | sha256sum | cut -d' ' -f1)
+          actual=$("$apksigner" verify --print-certs "$apk"             | sed -n 's/.*SHA-256 digest: *//p' | head -1)
+          echo "expected $expected"
+          echo "actual   $actual"
+          [ "$expected" = "$actual" ] || {
+            echo "::error::APK is not signed with android-overrides/debug.keystore."
+            exit 1
+          }
+          {
+            echo "### APK ${{ github.run_number }}"
+            echo ""
+            echo "- versionCode \`${{ github.run_number }}\`, versionName \`1.0.${{ github.run_number }}\`"
+            echo "- signing key SHA-256 \`$actual\`"
+            echo ""
+            echo "Installs over any earlier build with the same key -- no uninstall."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - uses: actions/upload-artifact@v7
         with:
-          name: app-debug-apk
+          name: app-debug-apk-${{ github.run_number }}
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error

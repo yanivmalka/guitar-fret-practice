@@ -37,7 +37,7 @@ The `android/` project is generated, not committed (it's in `.gitignore`). Confi
 - `npx cap add android` — one-time, regenerates `android/`
 - `npm run cap:sync` — `npm run build` then `npx cap sync android`
 - `npm run android` — `cap:sync` then opens Android Studio
-- `.github/workflows/android.yml` — manual (`workflow_dispatch`) debug-APK build. Uses Node 22 + JDK 21, signs with the stable `android-overrides/debug.keystore` so updates install in place, and builds with `CAP_BUILD=1` so Vite uses a **relative `base`** (`./`) instead of the Pages sub-path.
+- `.github/workflows/android.yml` — manual (`workflow_dispatch`) debug-APK build. Uses Node 22 + JDK 21, signs with the stable `android-overrides/debug.keystore` so updates install in place (the build **fails** if that file is missing on the branch, and a post-build `apksigner` check fails it if the APK's cert does not match the keystore — never regenerate the key, a new one forces an uninstall on every device), and builds with `CAP_BUILD=1` so Vite uses a **relative `base`** (`./`) instead of the Pages sub-path.
 
 Native plugins: `@capacitor/app`, `@capacitor/browser` (deep-link OAuth callback so Google sign-in stays inside the APK), `@capacitor/splash-screen`, `@capacitor-community/speech-recognition`. The speech plugin's library manifest contributes `RECORD_AUDIO` + the `RecognitionService` `<queries>` entry through Gradle manifest merging.
 
