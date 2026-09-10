@@ -46,7 +46,7 @@ export const THEME_BG: Record<string, string> = {
   'winter-dark': '#1a1a2e', 'winter-night': '#0f1320', 'winter-day': '#eef2f8',
   'spring-dark': '#14201a', 'spring-night': '#12140d', 'spring-day': '#f1f7f0',
   'summer-dark': '#241009', 'summer-night': '#16110b', 'summer-day': '#f8f7f1',
-  'autumn-dark': '#201410', 'autumn-night': '#170e09', 'autumn-day': '#f8f1e6',
+  'autumn-dark': '#201410', 'autumn-night': '#170e09', 'autumn-day': '#f4e8d3',
 };
 
 export function themeBg(season: Season, mode: ThemeMode): string {

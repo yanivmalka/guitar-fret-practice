@@ -218,15 +218,17 @@
 }
 [data-theme='autumn-day'] {
   color-scheme: light;
-  --bg-0: #f8f1e6; --bg-1: #fffdf9; --bg-2: #f0e5d3; --bg-3: #e6d8c0;
-  --bg-letterbox: #d8c6a8; --surface-border: #ded0b8; --border-soft: #c7b295;
+  /* Ground leans camel / warm tan rather than a pale ashen cream, so the
+     light autumn mode still reads as autumn. */
+  --bg-0: #f4e8d3; --bg-1: #fdf8ee; --bg-2: #efe1c9; --bg-3: #e3d0af;
+  --bg-letterbox: #d0bb95; --surface-border: #dcc9a9; --border-soft: #c3aa83;
   --text-0: #2a1c10; --text-1: #4f3a26; --text-2: #856b52; --text-3: #8d6f55;
   --accent: #b5502a; --accent-rgb: 181, 80, 42; --accent-dim: #b5502a; --accent-ink: #ffffff;
   --gold: #a5760b; --gold-rgb: 165, 118, 11; --amber: #b8600a;
   --success: #6f8a1f; --success-rgb: 111, 138, 31;
   --danger: #c23a48; --danger-rgb: 194, 58, 72;
-  --heat-unplayed: #ece0cb; --pick-accent: #637c14;
-  --menu-bg: #f1e8d7;
+  --heat-unplayed: #ead9bd; --pick-accent: #637c14;
+  --menu-bg: #eee1ca;
 }
 
 /* ── Legacy single-axis values ───────────────────────────────────
