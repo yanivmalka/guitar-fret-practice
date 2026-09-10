@@ -2,11 +2,9 @@
    Appearance picker (Settings → General) — the mode × season theme
    control (src/components/settings/AppearancePicker.tsx).
 
-   Two labelled rows of tiles inside one .set-card. Each tile holds a
-   swatch that sets its own `data-theme="<season>-<mode>"`, so the
-   token blocks in 00-tokens.css resolve inside it and the preview is
-   the real palette, never a hard-coded copy. Everything outside the
-   swatch (ring, label) uses the app's live theme as usual.
+   Two labelled rows of tiles inside one .set-card. Tiles show only
+   their name — no colour preview — so a tile never spoils the look
+   of a combination you're not currently on.
 
    Direction-safe: the rows are grids whose columns follow the inline
    direction, and all spacing is symmetric or logical, so nothing
@@ -70,49 +68,10 @@
   max-width: 100%;
 }
 
-/* ── The palette miniature ─────────────────────────────────────── */
-.ap-swatch {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-  height: 34px;
-  padding: 5px 4px 4px;
-  border: 1px solid var(--surface-border);
-  border-radius: 8px;
-  background: var(--bg-0);
-  overflow: hidden;
-}
-.ap-swatch-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-.ap-swatch-bars {
-  display: flex;
-  gap: 3px;
-  width: 100%;
-  justify-content: center;
-}
-.ap-swatch-bar {
-  height: 5px;
-  flex: 1 1 0;
-  max-width: 11px;
-  border-radius: 999px;
-}
-.ap-swatch-bar-a { background: var(--gold); }
-.ap-swatch-bar-b { background: var(--success); }
-.ap-swatch-bar-c { background: var(--pick-accent); }
-
 /* Roomier on the full-page settings screens, matching .settings-page
    .set-card's larger scale. */
 .settings-page .ap { gap: 16px; }
 .settings-page .ap-axis-k { font-size: 0.72rem; }
-.settings-page .ap-swatch { height: 40px; }
 .settings-page .ap-tile { padding: 9px 5px 10px; }
 
 @media (prefers-reduced-motion: reduce) {
