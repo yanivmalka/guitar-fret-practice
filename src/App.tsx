@@ -954,37 +954,12 @@ export default function App() {
       </>
     );
   }
-  if (activeDomain === 'intervals' && can('intervalDrill', auth.tier)
-      && onboardingDone && !gameActive && !gameEnded) {
-    // Keep the Interval page mounted through the 3-2-1 count-in (with the
-    // shared overlay on top) so launching a session never flashes the note
-    // practice board — it goes straight from the Selector to the count-in to
-    // the interval question.
-    return (
-      <>
-        <IntervalPracticeScreen
-          instrument={instrument}
-          intervalBoard={learning.intervalBoard}
-          accidental={accidental}
-          order={order}
-          notation={notation}
-          trackedCount={learning.intervalTrackedCount}
-          silentMode={silentMode}
-          onStart={(config: DrillConfig) => setIntervalPlan(config)}
-          onClose={backToLearnHub}
-        />
-        {/* Quick Access is offered on the intervals page too — same rules as
-            the home screen: not while the hamburger drawer is open, not during
-            the count-in. */}
-        {!settingsOpen && countdown === null && renderQuickAccess()}
-        {countdown !== null && <CountdownOverlay countdown={countdown} />}
-      </>
-    );
-  }
-
   // The hamburger stays a side drawer that only lists the section titles.
   // Tapping a title opens that one section as its own full page (same
   // page-replacing treatment as "Stats & progress"), styled to match it.
+  // Checked before the Intervals page below so opening a drawer section from
+  // there (e.g. "Learn") replaces it with the sub-page, same as on the home
+  // screen.
   if (settingsOpen && drawerSection !== null) {
     const activeSection = settingsSections.find(s => s.id === drawerSection);
     if (activeSection && activeSection.body != null) {
@@ -1002,6 +977,45 @@ export default function App() {
         />
       );
     }
+  }
+
+  // The Intervals page is a second home screen: no Back button, reached and
+  // left through the hamburger drawer (rendered here as a sibling overlay).
+  // Kept mounted through the 3-2-1 count-in so launching a session never
+  // flashes the note practice board — it goes straight from the Selector to
+  // the count-in to the interval question.
+  if (activeDomain === 'intervals' && can('intervalDrill', auth.tier)
+      && onboardingDone && !gameActive && !gameEnded) {
+    return (
+      <>
+        <IntervalPracticeScreen
+          instrument={instrument}
+          intervalBoard={learning.intervalBoard}
+          accidental={accidental}
+          order={order}
+          notation={notation}
+          trackedCount={learning.intervalTrackedCount}
+          silentMode={silentMode}
+          showMenuButton={!settingsOpen && countdown === null}
+          onOpenMenu={() => { setDrawerSection(null); setSettingsOpen(true); }}
+          onStart={(config: DrillConfig) => setIntervalPlan(config)}
+        />
+        {settingsOpen && drawerSection === null && (
+          <SettingsDrawerNav
+            sections={settingsSections}
+            lang={lang}
+            t={t}
+            setSettingsOpen={setSettingsOpen}
+            setDrawerSection={setDrawerSection}
+          />
+        )}
+        {/* Quick Access is offered on the intervals page too — same rules as
+            the home screen: not while the hamburger drawer is open, not during
+            the count-in. */}
+        {!settingsOpen && countdown === null && renderQuickAccess()}
+        {countdown !== null && <CountdownOverlay countdown={countdown} />}
+      </>
+    );
   }
 
   return (

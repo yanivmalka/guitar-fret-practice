@@ -47,9 +47,6 @@ export interface IntervalSelectorState {
   multiMode: boolean;
   /** The interval sizes (semitones, 1..11) currently picked, ascending. */
   selectedSizes: number[];
-  /** The effective tier — clamped to `'focused'` while a single quality is
-   *  selected (a lone quality cannot be "mixed" / "full" — §5.4). */
-  difficulty: IntervalDifficulty;
   /** Derived from the two direction toggles below — `'both'` when both are on,
    *  otherwise the single one that is. Rides the built drill's `interval` spec
    *  unchanged. */
@@ -67,8 +64,11 @@ const EXERCISES: readonly IntervalExercise[] = [
   'findTargetNote',
   'findTargetPosition',
 ];
-const DIFFICULTIES: readonly IntervalDifficulty[] = ['focused', 'mixed', 'full'];
 const DIRECTIONS: readonly IntervalDirection[] = ['up', 'down', 'both'];
+
+// The per-question hardness tier is fixed: the Selector no longer exposes a
+// focused / mixed / full control, and every manual session runs at `'mixed'`.
+const FIXED_DIFFICULTY: IntervalDifficulty = 'mixed';
 
 // ── Persistence helpers ─────────────────────────────────────────────────
 // One key per field, mirroring `useSelector`'s `sel_*` convention.
@@ -137,11 +137,6 @@ export function useIntervalSelector(opts: UseIntervalSelectorOptions) {
   const [selectedSizes, setSelectedSizesState] = useState<number[]>(
     () => loadSelectedSizes(masteredSizes),
   );
-  const [difficultyStored, setDifficultyState] = useState<IntervalDifficulty>(
-    // A fresh learner starts gentle: a narrow register (`focused`) and
-    // ascending-only (`up`). Existing users keep whatever they saved (#8).
-    () => loadOneOf('isel_difficulty', DIFFICULTIES, 'focused'),
-  );
   // Direction is stored as one of 'up' | 'down' | 'both' (unchanged on disk),
   // but presented as two independent toggle tiles. Either or both may be on;
   // the last one on cannot be switched off (mirrors the strings selector).
@@ -154,12 +149,6 @@ export function useIntervalSelector(opts: UseIntervalSelectorOptions) {
     return d === 'down' || d === 'both';
   });
   const direction: IntervalDirection = dirUp && dirDown ? 'both' : dirDown ? 'down' : 'up';
-
-  // §5.4: a lone quality cannot be "mixed" or "full" — the tier is pinned to
-  // `focused` while exactly one chip is selected. The stored value is kept so
-  // widening the selection restores the learner's pick.
-  const singleQuality = selectedSizes.length <= 1;
-  const difficulty: IntervalDifficulty = singleQuality ? 'focused' : difficultyStored;
 
   const setExercise = (e: IntervalExercise) => {
     setExerciseState(e);
@@ -211,12 +200,6 @@ export function useIntervalSelector(opts: UseIntervalSelectorOptions) {
     }
   };
 
-  const setDifficulty = (d: IntervalDifficulty) => {
-    // Ignored while clamped to focused — the panel disables the other tiles too.
-    if (singleQuality) return;
-    setDifficultyState(d);
-    saveSetting('isel_difficulty', d);
-  };
   /** Flip one direction tile. Refuses to leave both off — at least one
    *  direction is always in play, so Start never has nothing to ask. */
   const toggleDirection = (which: 'up' | 'down') => {
@@ -238,24 +221,23 @@ export function useIntervalSelector(opts: UseIntervalSelectorOptions) {
     exercise,
     multiMode,
     selectedSizes,
-    difficulty,
     direction,
     dirUp,
     dirDown,
   };
 
   /** The manual-session `DrillConfig`. Every Selector control feeds this: the
-   *  exercise + direction ride the `interval` spec, the pool is the picked
-   *  quality set, and the difficulty tier drives the full §9 question envelope
-   *  (count / timer / option count + first-note / register / confuser rules)
-   *  through the shared `intervalDifficulty` function. */
+   *  exercise + direction ride the `interval` spec and the pool is the picked
+   *  quality set. The §9 question envelope (count / timer / option count +
+   *  first-note / register / confuser rules) is always the `'mixed'` tier —
+   *  there is no difficulty control any more (`FIXED_DIFFICULTY`). */
   const buildDrill = (): DrillConfig => {
     // Defensive: the panel disables Start on an empty pool, but never emit an
     // interval spec with no qualities.
     const effectivePool = pool.length > 0 ? pool : [...ALL_INTERVAL_SEMITONES];
     const group =
       INTERVAL_CURRICULUM[currentGroupIndex(new Set(masteredSizes))] ?? null;
-    const env = intervalDifficulty(difficulty, effectivePool, group, masteredSizes);
+    const env = intervalDifficulty(FIXED_DIFFICULTY, effectivePool, group, masteredSizes);
     const strings = Array.from({ length: instrument.stringCount }, (_, i) => i + 1);
     const fretTo = Math.max(3, Math.min(12, instrument.maxFret));
     return {
@@ -296,7 +278,6 @@ export function useIntervalSelector(opts: UseIntervalSelectorOptions) {
     setExercise,
     selectSize,
     toggleMulti,
-    setDifficulty,
     toggleDirection,
     buildDrill,
   };

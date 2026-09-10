@@ -1,13 +1,16 @@
-// ── IntervalPracticeScreen — the "Intervals" learning tab (full page) ───
+// ── IntervalPracticeScreen — the "Intervals" second home screen ─────────
 //
-// One of the learning-type tabs from the drawer's "Learn" group. It hosts the
-// free Interval Selector (intervals-learning-spec §5) as a full page instead
-// of a card stacked on the home screen. The guided "Today's intervals" card
-// is *not* here — anything daily-plan-shaped lives on the Daily practice tab
-// (<DailyPracticeScreen>). Premium-only: the host mounts it behind
-// `can('intervalDrill', tier)` and it is wrapped in <ProGate> as a second
-// line of defence. All copy through `t()`; the layout flips for Hebrew via
-// `dir`.
+// One of the learning-type tabs from the drawer's "Learn" group, but styled
+// as a *second home screen* rather than a settings sub-page: no Back row — the
+// centred title sits at the top like the Notes home screen's `<h1>`, and the
+// only way off the page is the hamburger drawer (the host renders the drawer
+// nav; this component renders just the hamburger button). It hosts the free
+// Interval Selector (intervals-learning-spec §5). The guided "Today's
+// intervals" card is *not* here — anything daily-plan-shaped lives on the
+// Daily practice tab (<DailyPracticeScreen>). Premium-only: the host mounts it
+// behind `can('intervalDrill', tier)` and it is wrapped in <ProGate> as a
+// second line of defence. All copy through `t()`; the layout flips for Hebrew
+// via `dir`.
 
 import { useMemo } from 'react';
 import type { InstrumentConfig } from '../utils/instruments';
@@ -16,7 +19,6 @@ import type { DrillConfig } from '../drill/DrillConfig';
 import type { IntervalBoardRow } from '../learning/intervalMastery';
 import IntervalSelectorPanel from './IntervalSelectorPanel';
 import { ProGate } from './ProGate';
-import { Chevron } from './Chevron';
 import { useTranslation } from '../i18n/useTranslation';
 import { playClickSound, haptic } from '../utils/feedback';
 
@@ -32,13 +34,16 @@ interface Props {
   notation: NotationMode;
   /** Distinct interval qualities the SRS schedule is tracking so far. */
   trackedCount: number;
-  headerIcon?: string;
   /** Silent mode is on — forwarded so the Selector can hide the audio-only
    *  "Identify the interval" exercise. */
   silentMode?: boolean;
+  /** Whether the hamburger button is shown — hidden while the drawer is
+   *  already open or during the pre-run count-in, matching the home screen. */
+  showMenuButton?: boolean;
+  /** Open the hamburger drawer (the host owns the drawer state + nav). */
+  onOpenMenu: () => void;
   /** Start a free Selector-configured session. */
   onStart: (config: DrillConfig) => void;
-  onClose: () => void;
 }
 
 export default function IntervalPracticeScreen({
@@ -48,10 +53,10 @@ export default function IntervalPracticeScreen({
   order,
   notation,
   trackedCount,
-  headerIcon,
   silentMode,
+  showMenuButton = true,
+  onOpenMenu,
   onStart,
-  onClose,
 }: Props) {
   const { t, lang } = useTranslation();
 
@@ -61,24 +66,23 @@ export default function IntervalPracticeScreen({
   );
 
   return (
-    <div className="app settings-page lp-page">
+    <div className="app settings-page lp-page interval-home">
+      {showMenuButton && (
+        <button
+          className="burger-btn"
+          onClick={() => { playClickSound(); haptic.tap(); onOpenMenu(); }}
+          aria-label={t('Open settings')}
+          title={t('Settings')}
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="2" rx="1" fill="currentColor" />
+            <rect x="3" y="11" width="18" height="2" rx="1" fill="currentColor" />
+            <rect x="3" y="17" width="18" height="2" rx="1" fill="currentColor" />
+          </svg>
+        </button>
+      )}
       <div className="sp2 settings-page-inner" dir={lang === 'he' ? 'rtl' : undefined}>
-        <div className="sp2-head settings-page-head">
-          <button
-            className="sp2-back"
-            onClick={() => { playClickSound(); haptic.tap(); onClose(); }}
-          >
-            <Chevron dir="back" /> {t('Back')}
-          </button>
-        </div>
-        <header className="settings-page-hero settings-page-hero--inline">
-          {headerIcon ? (
-            <img src={headerIcon} alt="" className="settings-page-icon-img" />
-          ) : (
-            <span className="settings-page-emoji" aria-hidden="true">🎸</span>
-          )}
-          <h2 className="settings-page-name">{t('Interval training')}</h2>
-        </header>
+        <h1 className="interval-home-title">🎸 {t('Interval training')}</h1>
 
         <div className="settings-page-body">
           <ProGate

@@ -1,30 +1,28 @@
 // ── IntervalSelectorPanel — the Interval Selector UI ───────────────────
 //
-// The body of the "Intervals" learning page (intervals-learning-spec §5, task
-// T6). Rebuilt to read as the *same surface* as the Notes `SelectorPanel`:
+// The body of the "Intervals" second home screen (intervals-learning-spec §5,
+// task T6). Rebuilt to read as the *same surface* as the Notes `SelectorPanel`,
+// top to bottom:
 //
 //   • Intervals pick through the strings-selector pills (`.string-pill`) with
 //     the same on/off lighting, and a dashed `Multi` toggle in the same row.
+//   • Exercise picks through the `.mode-card` squares.
 //   • Direction is two independent tiles (Ascending / Descending) on the
 //     difficulty-road track — either or both, but never neither, exactly like
 //     the neck half-picker.
-//   • Exercise picks through the `.mode-card` squares.
-//   • Difficulty is the `focused → mixed → full` road.
 //
-// No `.teacher-card` chrome and no bespoke design system. All copy through
-// `t()`; the layout flips for Hebrew via `dir`. Deliberately no Auto Advance
-// toggle (§5.5).
+// There is no Difficulty control any more — every manual session runs at the
+// `'mixed'` question envelope (see `useIntervalSelector`). No `.teacher-card`
+// chrome and no bespoke design system. All copy through `t()`; the layout
+// flips for Hebrew via `dir`. Deliberately no Auto Advance toggle (§5.5).
 
-import { Fragment, type ReactElement } from 'react';
+import { type ReactElement } from 'react';
 import type { InstrumentConfig } from '../utils/instruments';
 import type { AccidentalMode, NotationMode, OrderMode } from '../utils/music';
 import type { DrillConfig } from '../drill/DrillConfig';
 import { INTERVALS, intervalBySemitones, type IntervalExercise } from '../utils/intervals';
 import { intervalContentBySemitones } from '../learning/intervalContent';
-import {
-  useIntervalSelector,
-  type IntervalDifficulty,
-} from '../hooks/useIntervalSelector';
+import { useIntervalSelector } from '../hooks/useIntervalSelector';
 import { useLockHint } from './LockHint';
 import { useTranslation } from '../i18n/useTranslation';
 import {
@@ -49,18 +47,6 @@ interface Props {
   silentMode?: boolean;
   onStart: (config: DrillConfig) => void;
 }
-
-const DIFFICULTY_LABELS: Record<IntervalDifficulty, string> = {
-  focused: 'Focused',
-  mixed: 'Mixed',
-  full: 'Full',
-};
-const DIFFICULTY_ICONS: Record<IntervalDifficulty, string> = {
-  focused: '◎',
-  mixed: '◐',
-  full: '◍',
-};
-const DIFFICULTY_ORDER: IntervalDifficulty[] = ['focused', 'mixed', 'full'];
 
 // Exercise squares — one `.mode-card` each, a small glyph over the label,
 // mirroring the Notes mode selector's Note-by-Fret / Fret-by-Note cards.
@@ -152,8 +138,6 @@ export default function IntervalSelectorPanel({
     // "Practising: ." if the pool is somehow empty.
     (poolShorts ? ` ${t('Practising:')} ${poolShorts}.` : '');
 
-  const singleQuality = state.selectedSizes.length <= 1;
-
   return (
     <div
       className="selector-panel interval-selector"
@@ -232,38 +216,6 @@ export default function IntervalSelectorPanel({
         </div>
       </div>
 
-      {/* ── Direction (§5.3) — two on/off tiles, at least one lit, like the
-          neck half-picker ──────────────────────────────────────────── */}
-      <div className="interval-selector-group">
-        <span className="interval-selector-label">{t('Direction')}</span>
-        <div
-          className="difficulty-road interval-direction-road"
-          role="group"
-          aria-label={t('Direction')}
-        >
-          <button
-            type="button"
-            className={`diff-btn ${state.dirUp ? 'active' : ''}`}
-            aria-pressed={state.dirUp}
-            disabled={busy}
-            onClick={toggleClick(state.dirUp, () => sel.toggleDirection('up'))}
-          >
-            <span className="diff-icon">↑</span>
-            <span className="diff-label">{t('Ascending')}</span>
-          </button>
-          <button
-            type="button"
-            className={`diff-btn ${state.dirDown ? 'active' : ''}`}
-            aria-pressed={state.dirDown}
-            disabled={busy}
-            onClick={toggleClick(state.dirDown, () => sel.toggleDirection('down'))}
-          >
-            <span className="diff-icon">↓</span>
-            <span className="diff-label">{t('Descending')}</span>
-          </button>
-        </div>
-      </div>
-
       {/* ── Exercise (§5.1) — the `.mode-card` squares ──────────────── */}
       <div className="interval-selector-group">
         <span className="interval-selector-label">{t('Exercise')}</span>
@@ -317,29 +269,35 @@ export default function IntervalSelectorPanel({
         )}
       </div>
 
-      {/* ── Difficulty (§5.4 / §9.2) — the focused → mixed → full road ─ */}
+      {/* ── Direction (§5.3) — two on/off tiles, at least one lit, like the
+          neck half-picker ──────────────────────────────────────────── */}
       <div className="interval-selector-group">
-        <span className="interval-selector-label">{t('Difficulty')}</span>
-        <div className="difficulty-road" role="group" aria-label={t('Difficulty')}>
-          {DIFFICULTY_ORDER.map((d, i) => {
-            // A lone quality cannot be "mixed" / "full" — pinned to focused.
-            const locked = singleQuality && d !== 'focused';
-            return (
-              <Fragment key={d}>
-                {i > 0 && <span className="diff-arrow">→</span>}
-                <button
-                  type="button"
-                  className={`diff-btn ${state.difficulty === d ? 'active' : ''}${locked ? ' diff-btn-locked' : ''}`}
-                  disabled={busy || locked}
-                  title={locked ? t('Pick more than one interval to mix') : undefined}
-                  onClick={click(() => sel.setDifficulty(d))}
-                >
-                  <span className="diff-icon">{DIFFICULTY_ICONS[d]}</span>
-                  <span className="diff-label">{t(DIFFICULTY_LABELS[d])}</span>
-                </button>
-              </Fragment>
-            );
-          })}
+        <span className="interval-selector-label">{t('Direction')}</span>
+        <div
+          className="difficulty-road interval-direction-road"
+          role="group"
+          aria-label={t('Direction')}
+        >
+          <button
+            type="button"
+            className={`diff-btn ${state.dirUp ? 'active' : ''}`}
+            aria-pressed={state.dirUp}
+            disabled={busy}
+            onClick={toggleClick(state.dirUp, () => sel.toggleDirection('up'))}
+          >
+            <span className="diff-icon">↑</span>
+            <span className="diff-label">{t('Ascending')}</span>
+          </button>
+          <button
+            type="button"
+            className={`diff-btn ${state.dirDown ? 'active' : ''}`}
+            aria-pressed={state.dirDown}
+            disabled={busy}
+            onClick={toggleClick(state.dirDown, () => sel.toggleDirection('down'))}
+          >
+            <span className="diff-icon">↓</span>
+            <span className="diff-label">{t('Descending')}</span>
+          </button>
         </div>
       </div>
 

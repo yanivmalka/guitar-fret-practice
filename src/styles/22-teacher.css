@@ -229,13 +229,27 @@
    `<summary>` line plus `.interval-about`'s own top/bottom margin. */
 .interval-about-slot { min-height: 32px; }
 
+/* ── Interval practice — a second home screen ──────────────────────────
+   Not a settings sub-page: no Back row, and a centred title sized like the
+   Notes home screen's <h1> (01-base.css) rather than the left-aligned
+   `.settings-page-name` hero. The hamburger button is the only way off the
+   page, so `.settings-page` keeps its top padding trimmed for the title. */
+.settings-page.interval-home {
+  padding-top: 16px;
+}
+.interval-home-title {
+  margin: 0 0 12px;
+  font-size: 1.3rem;
+  text-align: center;
+}
+
 /* ── Interval Selector (§5 / T6) ───────────────────────────────────────
    The Interval practice page is the same surface as the Notes
    `SelectorPanel`: it reuses `.selector-panel` for the frame, the
    strings-selector pills (`.string-pill`) for the interval picks, the
    `.mode-card` squares for the exercise, and the `.difficulty-road` track
-   for Direction + Difficulty. These rules only add the group spacing, the
-   section labels, and the few overrides those shared controls need here.
+   for Direction. These rules only add the group spacing, the section
+   labels, and the few overrides those shared controls need here.
    Theme-token driven; RTL flips via the `dir` attribute the component sets. */
 .interval-selector-group {
   display: flex;
