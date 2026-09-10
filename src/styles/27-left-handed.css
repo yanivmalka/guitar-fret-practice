@@ -64,3 +64,17 @@
 [data-hand="left"] .chev--forward { transform: scaleX(-1); }
 [data-hand="left"] [dir="rtl"] .chev--back { transform: scaleX(-1); }
 [data-hand="left"] [dir="rtl"] .chev--forward { transform: scaleX(1); }
+
+/* The drawer sheet itself: dock it to the left edge and slide it in from
+   the left, with the border and drop shadow on the inner (right) side. */
+[data-hand="left"] .settings-overlay { justify-content: flex-start; }
+[data-hand="left"] .settings-panel {
+  border-inline-start: none;
+  border-inline-end: 1px solid var(--surface-border);
+  box-shadow: 10px 0 40px rgba(0, 0, 0, 0.55);
+  animation-name: settings-drawer-in-left;
+}
+@keyframes settings-drawer-in-left {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
