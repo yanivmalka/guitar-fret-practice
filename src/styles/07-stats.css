@@ -178,18 +178,18 @@
 .stat-group-title { font-size: 0.85rem; font-weight: bold; margin-bottom: 4px; }
 .note-stats { display: flex; flex-wrap: wrap; gap: 6px; }
 .note-stat {
-  background: var(--bg-0); border: 1px solid #333; border-radius: 10px;
-  padding: 4px 10px; font-size: 13px; color: #ddd;
+  background: var(--bg-0); border: 1px solid var(--surface-border); border-radius: 10px;
+  padding: 4px 10px; font-size: 13px; color: var(--text-1);
 }
 
 .note-stat-split {
   display: inline-flex; align-items: center; gap: 0;
-  background: var(--bg-0); border: 1px solid #333; border-radius: 10px;
+  background: var(--bg-0); border: 1px solid var(--surface-border); border-radius: 10px;
   overflow: hidden; font-size: 13px; padding: 0;
 }
-.note-stat-label { padding: 4px 7px; color: #ddd; }
-.note-stat-good { padding: 4px 7px; background: #0a3a0a; color: #0f0; border-left: 1px solid #333; }
-.note-stat-bad  { padding: 4px 7px; background: #3a0a0a; color: var(--danger); border-left: 1px solid #333; }
+.note-stat-label { padding: 4px 7px; color: var(--text-1); }
+.note-stat-good { padding: 4px 7px; background: rgba(var(--success-rgb), 0.16); color: var(--success); border-left: 1px solid var(--surface-border); }
+.note-stat-bad  { padding: 4px 7px; background: rgba(var(--danger-rgb), 0.16); color: var(--danger); border-left: 1px solid var(--surface-border); }
 
 .sp2-unplayed { margin-top: 10px; }
 .sp2-unplayed-title {
@@ -197,7 +197,7 @@
   margin: 0 0 5px;
 }
 .note-stat-muted {
-  background: var(--bg-2); border-color: var(--surface-border); color: #8a8aa2;
+  background: var(--bg-2); border-color: var(--surface-border); color: var(--text-2);
 }
 
 .solid { color: #7bf; }

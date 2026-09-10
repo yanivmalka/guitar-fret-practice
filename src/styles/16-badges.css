@@ -20,7 +20,7 @@
   gap: 9px;
   padding: 14px 16px;
   border-radius: 14px;
-  background: linear-gradient(180deg, #1a1a34, #131328);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-2));
   border: 1px solid var(--surface-border);
 }
 .badge-collection-top {
@@ -38,7 +38,7 @@
 .badge-collection-total {
   font-size: 0.95rem;
   font-weight: 800;
-  color: #6e6e90;
+  color: var(--text-2);
 }
 .badge-collection-label {
   margin-inline-start: auto;
@@ -52,7 +52,7 @@
   position: relative;
   height: 8px;
   border-radius: 999px;
-  background: #0e0e20;
+  background: var(--bg-1);
   overflow: hidden;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
 }
@@ -61,7 +61,7 @@
   inset-block: 0;
   inset-inline-start: 0;
   border-radius: 999px;
-  background: linear-gradient(90deg, #00b4d8, var(--accent));
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
   box-shadow: 0 0 10px rgba(0, 229, 255, 0.45);
   transition: width 0.4s ease;
 }
@@ -87,7 +87,7 @@
   padding: 13px 10px 11px;
   border-radius: 14px;
   text-align: center;
-  background: linear-gradient(180deg, #17172e, #121226);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-2));
   border: 1px solid var(--surface-border);
   overflow: hidden;
 }
@@ -160,9 +160,9 @@
     0 10px 30px -10px rgba(150, 205, 255, 0.55);
 }
 .badge-tile.locked {
-  background: #101020;
+  background: var(--bg-1);
   border-style: dashed;
-  border-color: #33395c;
+  border-color: var(--border-soft);
 }
 
 .badge-medal-frame {
@@ -201,7 +201,7 @@
    clearly "not yet earned" without reading as corroded or broken metal. */
 .badge-tile.locked .badge-medal-frame {
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 36%, #0b0b18, #15162c 72%);
+  background: radial-gradient(circle at 50% 36%, var(--bg-1), var(--bg-2) 72%);
   box-shadow:
     inset 0 2px 6px rgba(0, 0, 0, 0.6),
     inset 0 -1px 0 rgba(255, 255, 255, 0.05),
@@ -222,9 +222,9 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: #1d2340;
-  border: 1px solid #3d4a72;
-  color: #a6b6dd;
+  background: var(--bg-3);
+  border: 1px solid var(--surface-border);
+  color: var(--text-2);
 }
 @media (prefers-reduced-motion: reduce) {
   .badge-medal, .badge-tile.earned .badge-medal:hover,
@@ -257,7 +257,7 @@
   overflow: hidden;
   min-height: calc(2 * 1.24em);
 }
-.badge-tile.locked .badge-name { color: #babacf; }
+.badge-tile.locked .badge-name { color: var(--text-1); }
 
 /* Instrument identity — every fretboard-scoped medal (String Master, Neck
    Runner, Both Ends, Low End) shares its metal with its twin on the other
@@ -273,9 +273,9 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #8484a4;
+  color: var(--text-2);
   padding: 1px 7px;
-  border: 1px solid #303052;
+  border: 1px solid var(--surface-border);
   border-radius: 999px;
   white-space: nowrap;
 }
@@ -306,8 +306,8 @@
   width: 16px;
   height: 5px;
   border-radius: 999px;
-  background: #34344f;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  background: var(--bg-3);
+  box-shadow: inset 0 0 0 1px rgba(128, 128, 160, 0.28);
 }
 /* Locked: every rung is a clearly outlined empty slot waiting to be filled. */
 .badge-tile.locked .badge-tier-seg {
@@ -344,7 +344,7 @@
 .badge-tier-word.is-max        { color: var(--m-gold); }
 /* A platinum-capped family reads as its own metal at "Max", not gold. */
 .badge-tier-word.is-max.tier-platinum { color: var(--m-platinum); }
-.badge-tier-next { color: #62627e; letter-spacing: 0.05em; }
+.badge-tier-next { color: var(--text-3); letter-spacing: 0.05em; }
 
 .badge-blurb {
   font-size: 0.66rem;
@@ -360,7 +360,7 @@
      out of step with its neighbours. */
   min-height: calc(2 * 1.4 * 0.66rem);
 }
-.badge-tile.locked .badge-blurb { color: #a6a6c0; }
+.badge-tile.locked .badge-blurb { color: var(--text-2); }
 /* The Admin (role) tile carries a full sentence, not a one-line target — let it breathe. */
 .badge-tile.tier-onyx .badge-blurb {
   -webkit-line-clamp: unset;
@@ -379,7 +379,7 @@
   position: relative;
   flex: 1;
   height: 6px;
-  background: #1d1d38;
+  background: var(--bg-1);
   border-radius: 999px;
   overflow: hidden;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07), inset 0 1px 2px rgba(0, 0, 0, 0.45);
@@ -389,7 +389,7 @@
   inset-block: 0;
   inset-inline-start: 0;
   border-radius: 999px;
-  background: linear-gradient(90deg, #00b4d8, var(--accent));
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
 }
 .badge-progress-txt {
   flex: none;
@@ -474,7 +474,7 @@
   line-height: 1.45;
   color: var(--text-2);
   background: rgba(0, 0, 0, 0.2);
-  border: 1px dashed #3a3a5c;
+  border: 1px dashed var(--border-soft);
   border-radius: 10px;
 }
 .badge-admin-row {
@@ -493,13 +493,13 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-1);
-  background: #1d1d38;
-  border: 1px solid #3a3a5c;
+  background: var(--bg-3);
+  border: 1px solid var(--border-soft);
   border-radius: 7px;
   cursor: pointer;
 }
-.badge-admin-btn:hover:not(:disabled) { border-color: var(--accent); color: #fff; }
-.badge-admin-btn--reset:hover:not(:disabled) { border-color: #ff6b6b; color: #ffd7d7; }
+.badge-admin-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--text-0); }
+.badge-admin-btn--reset:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); }
 .badge-admin-btn:disabled { opacity: 0.38; cursor: default; }
 
 /* ── Pinned badge shelf (Account section) ──────────────────────────────────
@@ -513,15 +513,15 @@
   width: 100%;
   padding: 10px 12px;
   font: inherit;
-  color: #e8e8ff;
-  background: linear-gradient(180deg, #1a1a34, #131328);
+  color: var(--text-0);
+  background: linear-gradient(180deg, var(--bg-3), var(--bg-2));
   border: 1px solid var(--surface-border);
   border-radius: 14px;
   cursor: pointer;
   text-align: start;
 }
 .pinned-badges-strip:hover,
-.pinned-badges-empty:hover { border-color: #3a3a63; }
+.pinned-badges-empty:hover { border-color: var(--accent-dim); }
 
 .pinned-badges-medals {
   display: flex;
@@ -533,7 +533,7 @@
 }
 .pinned-badges-slot { display: inline-flex; }
 
-.pinned-badges-chev { color: #7a7a9c; font-size: 1rem; flex-shrink: 0; }
+.pinned-badges-chev { color: var(--text-2); font-size: 1rem; flex-shrink: 0; }
 
 .pinned-badges-empty-icon { font-size: 1.1rem; }
 .pinned-badges-empty-label { flex: 1; font-size: 0.82rem; font-weight: 700; }
@@ -561,8 +561,8 @@
   flex-direction: column;
   gap: 14px;
   padding: 18px;
-  background: linear-gradient(180deg, #1b1b36, #14142a);
-  border: 1px solid #33335a;
+  background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  border: 1px solid var(--surface-border);
   border-radius: 18px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
   animation: pinned-picker-pop 0.22s cubic-bezier(0.2, 0.8, 0.24, 1.1) both;
@@ -578,7 +578,7 @@
   justify-content: space-between;
   gap: 10px;
 }
-.pinned-picker-title { font-size: 0.92rem; font-weight: 800; color: #f0f0ff; }
+.pinned-picker-title { font-size: 0.92rem; font-weight: 800; color: var(--text-0); }
 .pinned-picker-counter { font-size: 0.8rem; font-weight: 800; color: var(--text-2); }
 
 .pinned-picker-grid {
@@ -595,20 +595,20 @@
   align-items: center;
   justify-content: center;
   padding: 8px;
-  background: #17172e;
-  border: 1px solid #2c2c4d;
+  background: var(--bg-3);
+  border: 1px solid var(--surface-border);
   border-radius: 12px;
   cursor: pointer;
   transition: border-color 0.14s ease, transform 0.14s ease, opacity 0.14s ease;
 }
-.pinned-picker-medal:hover { border-color: #45456e; }
+.pinned-picker-medal:hover { border-color: var(--accent-dim); }
 .pinned-picker-medal.is-pinned {
   border-color: #f5d270;
-  background: #23204a;
+  background: rgba(var(--gold-rgb), 0.14);
   box-shadow: 0 0 0 1px rgba(245, 210, 112, 0.4) inset;
 }
 .pinned-picker-medal.is-blocked { opacity: 0.4; cursor: not-allowed; }
-.pinned-picker-medal.is-blocked:hover { border-color: #2c2c4d; }
+.pinned-picker-medal.is-blocked:hover { border-color: var(--surface-border); }
 
 .pinned-picker-check {
   position: absolute;
@@ -630,7 +630,7 @@
 .pinned-picker-hint {
   margin: 0;
   font-size: 0.76rem;
-  color: #e0a878;
+  color: var(--amber);
   text-align: center;
 }
 
@@ -638,9 +638,9 @@
   margin: 0;
   border: 1px solid var(--surface-border);
   border-radius: 12px;
-  background: #17172e;
+  background: var(--bg-3);
 }
-.pinned-picker-foot:hover { border-color: #3a3a63; }
+.pinned-picker-foot:hover { border-color: var(--accent-dim); }
 
 @media (prefers-reduced-motion: reduce) {
   .pinned-picker-overlay,
