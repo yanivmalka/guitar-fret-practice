@@ -83,23 +83,19 @@ export default function PlayingSection({
           </div>
         )}
       </SettingCard>
-      {/* Note-name notation used to be its own drawer row; it's really a
-          display preference for the instrument, so it lives here now. The
-          helper line also carries the short Natural / Sharp / Flat primer,
-          worded with the vocabulary that matches the chosen notation
-          (A-B-C → "sharp / flat"; Do-Re-Mi → "dièse / bémol", i.e. Hebrew
-          "דיאז / במול"). The second row is the spelling toggle: an
-          enharmonic note (C♯ / D♭) is shown with whichever sign is picked
-          here — on the question, the note wheel and the feedback line. It
-          is display only; `notesMatch` keeps answer-checking sign-agnostic. */}
+      {/* Two display preferences, one tile each. Both are display-only —
+          `notesMatch` keeps answer-checking spelling-agnostic. "Note names"
+          is letters vs solfège syllables; "Sharps or flats" is which sign an
+          enharmonic note (C♯ / D♭) is shown with on the question, the note
+          wheel and the feedback line. The sharp/flat primer is worded with
+          the vocabulary that matches the chosen notation (A-B-C → "sharp /
+          flat"; Do-Re-Mi → "dièse / bémol", i.e. Hebrew "דיאז / במול"). */}
       <SettingCard
-        label={t('Notes')}
+        label={t('Note names')}
         help={
           <>
             {t("Display only — the drill itself doesn't change.")}{' '}
-            {notation === 'solfege'
-              ? t('A natural note has no sign (Do, Re, Mi…). A dièse (♯) is a half-step higher; a bémol (♭) is a half-step lower. The same pitch can be written either way — Do♯ and Re♭ are one note; the second row picks which sign you see.')
-              : t('A natural note has no sign (C, D, E…). A sharp (♯) is a half-step higher; a flat (♭) is a half-step lower. The same pitch can be written either way — C♯ and D♭ are one note; the second row picks which sign you see.')}
+            {t('Letters (A, B, C…) or solfège syllables (Do, Re, Mi…).')}
           </>
         }
       >
@@ -116,6 +112,18 @@ export default function PlayingSection({
             </button>
           ))}
         </div>
+      </SettingCard>
+      <SettingCard
+        label={t('Sharps or flats')}
+        help={
+          <>
+            {t("Display only — the drill itself doesn't change.")}{' '}
+            {notation === 'solfege'
+              ? t('A dièse (♯) is a half-step higher; a bémol (♭) is a half-step lower. The same pitch can be written either way — Do♯ and Re♭ are one note. Pick which sign you see.')
+              : t('A sharp (♯) is a half-step higher; a flat (♭) is a half-step lower. The same pitch can be written either way — C♯ and D♭ are one note. Pick which sign you see.')}
+          </>
+        }
+      >
         <div className="pick-row" role="group" aria-label={t('Sharps or flats')}>
           {([
             ['sharps', notation === 'solfege' ? t('Dièse (♯)') : t('Sharp (♯)')],
