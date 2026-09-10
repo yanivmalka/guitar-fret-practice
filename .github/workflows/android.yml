@@ -70,6 +70,17 @@ jobs:
           mkdir -p android/app/src/main/res/values-v31 android/app/src/main/res/drawable-nodpi
           cp android-overrides/values-v31/styles.xml android/app/src/main/res/values-v31/styles.xml
           cp assets/android12-splash-icon.png android/app/src/main/res/drawable-nodpi/android12_splash_icon.png
+      # Sharpen the adaptive launcher icon. `capacitor-assets` 3.0.5, given an
+      # explicit assets/icon-foreground.png, resizes it with the legacy icon
+      # table (192px at xxxhdpi), so Android upscales that layer onto the 108dp
+      # (= 432px) adaptive canvas and the mark looks soft. Point the foreground
+      # at a 512px nodpi asset instead, via an override ic_launcher.xml that
+      # also drops the generator's doubled inset="16.7%".
+      - run: |
+          mkdir -p android/app/src/main/res/mipmap-anydpi-v26 android/app/src/main/res/drawable-nodpi
+          cp android-overrides/mipmap-anydpi-v26/ic_launcher.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          cp android-overrides/mipmap-anydpi-v26/ic_launcher_round.xml android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+          cp assets/ic-adaptive-fg.png android/app/src/main/res/drawable-nodpi/ic_adaptive_fg.png
       # Swap in the immersive full-screen MainActivity (hides both system bars).
       - run: cp android-overrides/MainActivity.java android/app/src/main/java/com/guitarfretpractice/app/MainActivity.java
       # Swap in the manifest with the OAuth-callback deep-link intent-filter.

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  API 26+ (Android 8+) adaptive launcher icon override.
+
+  Replaces the ic_launcher.xml that `capacitor-assets generate --android`
+  writes, which is blurry for two stacked reasons:
+
+  1. Low-res foreground. `capacitor-assets` 3.0.5, given an explicit
+     assets/icon-foreground.png, resizes it with the *legacy* icon size table
+     (192px at xxxhdpi) instead of the adaptive one (432px). Android then
+     upscales that 192px layer onto the 108dp (= 432px at xxxhdpi) adaptive
+     canvas -> a visibly soft mark. This file points the foreground at
+     @drawable/ic_adaptive_fg instead: a 512px `nodpi` asset
+     (assets/ic-adaptive-fg.png from `npm run gen:icons`) that is already
+     crisp at adaptive-canvas size.
+
+  2. Doubled inset. The generated file wraps both layers in inset="16.7%".
+     The mark in ic-adaptive-fg.png is already sized (~58.6% of the canvas)
+     to sit inside the mask + parallax-zoom safe zone, so a second inset only
+     shrinks it further. This file uses the drawables directly, no inset.
+
+  The background layer stays `capacitor-assets`' generated gradient mipmap - a
+  smooth vertical gradient upscales invisibly, so it needs no override.
+
+  The APK workflow copies this file (and ic_launcher_round.xml) into
+  android/app/src/main/res/mipmap-anydpi-v26/ after `capacitor-assets
+  generate`, and copies assets/ic-adaptive-fg.png to
+  android/app/src/main/res/drawable-nodpi/ic_adaptive_fg.png.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@mipmap/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_adaptive_fg" />
+</adaptive-icon>

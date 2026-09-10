@@ -116,6 +116,17 @@ await sharp({
   .toFile(join(root, 'assets/icon-foreground.png'));
 console.log('  assets/icon-foreground.png  (1024px canvas, 600px mark)');
 await solid(1024, 'assets/icon-background.png');
+// Android adaptive-icon foreground, hi-res. `capacitor-assets` 3.0.5 has a bug:
+// given an explicit assets/icon-foreground.png it resizes with the *legacy*
+// icon table (192px at xxxhdpi), not the adaptive one (432px). Android then
+// upscales that 192px layer onto the 108dp (= 432px at xxxhdpi) adaptive
+// canvas and the mark comes out soft. This 512px `nodpi` copy — same 600/1024
+// ≈ 0.586 mark coverage as icon-foreground.png so the on-screen size is
+// unchanged, only the pixel density goes up — is wired up by the APK workflow
+// via android-overrides/mipmap-anydpi-v26/ic_launcher.xml, which points the
+// foreground at it and drops the generator's doubled inset. The mark stays
+// small so it survives the launcher's circular mask + ~1.4x parallax zoom.
+await centered(512, Math.round(512 * (600 / 1024)), 'assets/ic-adaptive-fg.png');
 // Splash: 2732² is the capacitor-assets canonical source size. Keep the mark
 // small — only the centre ~1200px is guaranteed visible on every device.
 await onGradient(2732, 0.3, 'assets/splash.png');
