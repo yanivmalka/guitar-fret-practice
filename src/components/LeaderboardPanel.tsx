@@ -235,7 +235,7 @@ export function LeaderboardPanel({
     <div className="lb-empty">
       <svg
         width="44" height="44" viewBox="0 0 24 24" fill="none"
-        stroke="#3a3a5c" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"
+        stroke="var(--text-3)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"
         aria-hidden="true"
       >
         <path d="M6 4h12v3a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5z" />

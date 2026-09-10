@@ -19,7 +19,7 @@
 .lb-standing-guest { border-color: var(--surface-border); padding: 18px 16px; }
 .lb-standing-k {
   font-size: 0.66rem; font-weight: 800; letter-spacing: 0.07em;
-  text-transform: uppercase; color: #7fe9f6;
+  text-transform: uppercase; color: var(--accent);
 }
 .lb-standing-guest .lb-standing-k { color: var(--text-2); }
 .lb-guest-copy { margin: 0; font-size: 0.9rem; line-height: 1.6; color: var(--text-2); }
@@ -29,10 +29,10 @@
 .lb-rankpill {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   width: 46px; height: 46px; flex-shrink: 0;
-  border-radius: 12px; background: #10233a; border: 1px solid var(--accent);
+  border-radius: 12px; background: rgba(var(--accent-rgb), 0.12); border: 1px solid var(--accent);
 }
 .lb-rankpill-n { font-size: 1.05rem; font-weight: 800; color: var(--accent); line-height: 1; }
-.lb-rankpill-l { font-size: 0.5rem; color: #7fe9f6; letter-spacing: 0.05em; }
+.lb-rankpill-l { font-size: 0.5rem; color: var(--accent); letter-spacing: 0.05em; }
 .lb-standing-id { flex: 1; min-width: 0; }
 .lb-standing-name { font-size: 1rem; font-weight: 700; color: var(--text-0); }
 .lb-standing-sub { font-size: 0.72rem; color: var(--text-2); margin-top: 2px; }
@@ -65,9 +65,9 @@
   display: flex; flex-direction: column; align-items: center; gap: 7px;
   padding: 14px 8px 12px; border: 1px solid var(--surface-border); border-radius: 12px; background: var(--bg-2);
 }
-.lb-pod-1 { padding-top: 20px; padding-bottom: 14px; border-color: var(--gold); background: #1c1a10; }
-.lb-pod-2 { border-color: #33384a; }
-.lb-pod-3 { border-color: #3a2c1c; }
+.lb-pod-1 { padding-top: 20px; padding-bottom: 14px; border-color: var(--gold); background: rgba(var(--gold-rgb), 0.12); }
+.lb-pod-2 { border-color: #c8d0e0; }
+.lb-pod-3 { border-color: #cd7f32; }
 .lb-pod-me { outline: 1px solid var(--accent); outline-offset: 1px; }
 .lb-pod-av {
   width: 44px; height: 44px; border-radius: 50%;
@@ -83,18 +83,18 @@
 }
 .lb-pod-1 .lb-pod-name { font-size: 0.86rem; font-weight: 800; }
 .lb-pod-xp { font-size: 0.82rem; font-weight: 800; color: var(--text-0); }
-.lb-pod-1 .lb-pod-xp { font-size: 0.92rem; color: #ffe680; }
+.lb-pod-1 .lb-pod-xp { font-size: 0.92rem; color: var(--gold); }
 .lb-pod-acc { font-size: 0.62rem; color: var(--text-3); }
-.lb-pod-1 .lb-pod-acc { color: #8a8266; }
+.lb-pod-1 .lb-pod-acc { color: var(--text-3); }
 
 /* The ranked list, from #4 down (or the whole board when it's under 3). */
 .lb-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .lb-item {
   display: flex; align-items: center; gap: 12px;
   padding: 10px 12px; min-height: 52px;
-  border: 1px solid var(--surface-border); border-radius: 10px; background: #14142a;
+  border: 1px solid var(--surface-border); border-radius: 10px; background: var(--bg-2);
 }
-.lb-item-me { border-color: var(--accent); background: #10233a; }
+.lb-item-me { border-color: var(--accent); background: rgba(var(--accent-rgb), 0.12); }
 .lb-rk {
   min-width: 1.6em; text-align: center; flex-shrink: 0;
   font-size: 0.86rem; font-weight: 800; color: var(--text-3);
@@ -103,20 +103,20 @@
 .lb-av {
   width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 0.78rem; font-weight: 700; color: #cfd0e6;
-  background: #23233f; border: 1px solid #34345a;
+  font-size: 0.78rem; font-weight: 700; color: var(--text-1);
+  background: var(--bg-3); border: 1px solid var(--surface-border);
 }
-.lb-item-me .lb-av { background: #10233a; border-color: var(--accent); color: #7fe9f6; }
+.lb-item-me .lb-av { background: rgba(var(--accent-rgb), 0.12); border-color: var(--accent); color: var(--accent); }
 .lb-name {
-  flex: 1; min-width: 0; font-size: 0.92rem; color: #e6e6f2;
+  flex: 1; min-width: 0; font-size: 0.92rem; color: var(--text-1);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .lb-item-me .lb-name { font-weight: 700; color: var(--text-0); }
-.lb-you { font-weight: 600; color: #7fe9f6; }
+.lb-you { font-weight: 600; color: var(--accent); }
 .lb-stat { text-align: right; flex-shrink: 0; }
 .lb-xp { font-size: 0.92rem; font-weight: 800; color: var(--text-0); }
 .lb-acc { display: block; font-size: 0.66rem; color: var(--text-3); margin-top: 1px; }
-.lb-item-me .lb-acc { color: #7f9fb5; }
+.lb-item-me .lb-acc { color: var(--text-2); }
 
 /* Empty board + "how is XP counted?" explainer. */
 .lb-empty {
