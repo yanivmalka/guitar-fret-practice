@@ -2,23 +2,33 @@
 //  - 'sound'   — note playback, chimes and UI click sounds; no vibration.
 //  - 'vibrate' — no sound at all; a haptic pulse on every button press and on
 //                right / wrong answers instead.
-//  - 'silent'  — neither: visual-only, on-screen celebrations still run.
+//  - 'silent'  — no sound and no per-button buzz, but a haptic pulse still
+//                fires on right / wrong answers (and achievements). On-screen
+//                celebrations always run.
 export type FeedbackMode = 'sound' | 'vibrate' | 'silent';
 
-// Whether haptic pulses fire. Off by default (the shipped mode is 'sound');
-// `useFeedbackModeEffect` turns it on only in 'vibrate' mode. Gating it here in
-// the one `vibrate()` chokepoint covers every `haptic.*` call site at once.
-let _hapticsOn = false;
-export function setHapticsEnabled(v: boolean) { _hapticsOn = v; }
+// How much haptic feedback fires, set by `useFeedbackModeEffect` from the mode:
+//  - 'off'    — nothing ('sound' mode).
+//  - 'events' — answer / achievement pulses only ('silent' mode).
+//  - 'all'    — those plus a pulse on every button press ('vibrate' mode).
+// Gating it here in the one `vibrate()` chokepoint covers every `haptic.*`
+// call site at once; `haptic.tap` (button presses) passes level 'all' so it
+// stays silent in 'events'.
+export type HapticLevel = 'off' | 'events' | 'all';
+let _hapticLevel: HapticLevel = 'off';
+export function setHapticLevel(v: HapticLevel) { _hapticLevel = v; }
 
 // Whether the small UI sounds (click / toggle / countdown stick) play. On for
 // 'sound' mode only; 'vibrate' and 'silent' both mute them.
 let _uiSoundsOn = true;
 export function setUiSoundsEnabled(v: boolean) { _uiSoundsOn = v; }
 
-// Haptic feedback via navigator.vibrate
-function vibrate(pattern: number | number[]) {
-  if (!_hapticsOn) return;
+// Haptic feedback via navigator.vibrate. `need` is the minimum level this
+// pulse requires: 'events' pulses fire in both 'events' and 'all'; 'all'
+// pulses (button taps) fire only in 'all'.
+function vibrate(pattern: number | number[], need: 'events' | 'all' = 'events') {
+  if (_hapticLevel === 'off') return;
+  if (need === 'all' && _hapticLevel !== 'all') return;
   try { navigator.vibrate?.(pattern); } catch { /* not supported */ }
 }
 
@@ -27,7 +37,7 @@ export const haptic = {
   wrong:       () => vibrate([30, 40, 30]),
   milestone:   () => vibrate([60, 40, 60]),
   stageChange: () => vibrate(60),
-  tap:         () => vibrate(10),
+  tap:         () => vibrate(10, 'all'),
 };
 
 // Mutes the drill's *content* audio — the correct-answer chime, the badge

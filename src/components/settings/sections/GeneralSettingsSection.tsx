@@ -142,7 +142,7 @@ export default function GeneralSettingsSection({
       <SettingCard
         label={t('Sound & vibration')}
         pin={<QuickAccessPinButton itemId="feedbackMode" />}
-        help={t('How the drill answers back. Sound: note playback, chimes and tap sounds. Vibrate: no sound — a buzz on every button press and on right / wrong answers instead. Silent: neither, just the on-screen celebrations. Vibrate and Silent are great for practising with headphones off or a guitar in hand.')}
+        help={t('How the drill answers back. Sound: note playback, chimes and tap sounds. Vibrate: no sound — a buzz on every button press and on right / wrong answers instead. Silent: no sound and no per-button buzz, just a buzz on right / wrong answers plus the on-screen celebrations. Vibrate and Silent are great for practising with headphones off or a guitar in hand.')}
       >
         <SegmentedControl
           ariaLabel={t('Sound & vibration')}

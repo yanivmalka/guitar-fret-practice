@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { setSilent as setAudioSilent } from '../utils/audio';
 import {
   setSilent as setFeedbackSilent,
-  setHapticsEnabled,
+  setHapticLevel,
   setUiSoundsEnabled,
   type FeedbackMode,
 } from '../utils/feedback';
@@ -11,8 +11,9 @@ import {
 //  - 'sound'   — question note, chimes and UI click sounds play; no vibration.
 //  - 'vibrate' — no sound at all; a haptic pulse on every button press and on
 //                right / wrong answers instead.
-//  - 'silent'  — neither sound nor vibration; visual-only. On-screen
-//                celebrations still run.
+//  - 'silent'  — no sound and no per-button buzz, but a haptic pulse still
+//                fires on right / wrong answers (and achievements). On-screen
+//                celebrations always run.
 // Mirrors the choice into the audio + feedback subsystems, which each keep
 // their own flag read from timer callbacks.
 export function useFeedbackModeEffect(mode: FeedbackMode) {
@@ -21,6 +22,6 @@ export function useFeedbackModeEffect(mode: FeedbackMode) {
     setAudioSilent(!soundOn);
     setFeedbackSilent(!soundOn);
     setUiSoundsEnabled(soundOn);
-    setHapticsEnabled(mode === 'vibrate');
+    setHapticLevel(mode === 'vibrate' ? 'all' : mode === 'silent' ? 'events' : 'off');
   }, [mode]);
 }
