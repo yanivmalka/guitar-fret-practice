@@ -20,7 +20,7 @@ import { setActiveInstrument } from './utils/music';
 import type { HistoryEntry } from './utils/music';
 import { getInstrument, type InstrumentId } from './utils/instruments';
 import { setAudioInstrument, setNoteVolume as setAudioNoteVolume } from './utils/audio';
-import { playClickSound, playToggleOnSound, playToggleOffSound, haptic } from './utils/feedback';
+import { playClickSound, playToggleOnSound, playToggleOffSound, haptic, soundLevelFromPrefs } from './utils/feedback';
 import { withClick as click } from './utils/withClick';
 import { loadSetting, saveSetting } from './utils/settings';
 import { useThemeEffect } from './hooks/useThemeEffect';
@@ -823,8 +823,9 @@ export default function App() {
         lang={lang}
         onBack={closeQuickAccessManager}
         values={{
-          notation, accidental, showScore, feedbackMode,
-          noteVolume, answerMode, showMastery,
+          notation, accidental, showScore,
+          soundLevel: soundLevelFromPrefs(feedbackMode, noteVolume),
+          answerMode, showMastery,
         }}
       />
     );

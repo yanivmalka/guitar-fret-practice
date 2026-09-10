@@ -1,5 +1,4 @@
 import type { QuickAccessId } from '../utils/quickAccess';
-import { noteVolumeStep } from '../utils/quickAccess';
 
 /**
  * The glyph shown inside a Quick Access circle (the summoned FAB and every
@@ -33,9 +32,8 @@ const CAP = {
 
 /**
  * A speaker cone plus `n` sound waves (n = 0 draws a mute cross instead).
- * Note volume runs 0…4 across the five loudness levels, so up to four wave
- * arcs are drawn; Sound & vibration reuses this at n = 3 for its 'sound'
- * state and n = 0 for 'silent'.
+ * The unified loudness ladder's five sound stops draw 1…5 arcs; the silent
+ * stop draws n = 0.
  */
 function speaker(waves: number) {
   return (
@@ -45,12 +43,23 @@ function speaker(waves: number) {
         <path d="M14 9.5l5 5M19 9.5l-5 5" {...CAP} />
       ) : (
         <>
-          {waves >= 1 && <path d="M13.5 9.5a4 4 0 0 1 0 5" {...CAP} />}
-          {waves >= 2 && <path d="M16 7.5a7.5 7.5 0 0 1 0 9" {...CAP} />}
-          {waves >= 3 && <path d="M18.5 5.5a11 11 0 0 1 0 13" {...CAP} />}
-          {waves >= 4 && <path d="M21 3.5a14.5 14.5 0 0 1 0 17" {...CAP} />}
+          {waves >= 1 && <path d="M13 9.5a3.5 3.5 0 0 1 0 5" {...CAP} />}
+          {waves >= 2 && <path d="M15.5 7.5a7 7 0 0 1 0 9" {...CAP} />}
+          {waves >= 3 && <path d="M18 5.5a10.5 10.5 0 0 1 0 13" {...CAP} />}
+          {waves >= 4 && <path d="M20.5 3.5a14 14 0 0 1 0 17" {...CAP} />}
+          {waves >= 5 && <path d="M23 1.5a17.5 17.5 0 0 1 0 21" {...CAP} />}
         </>
       )}
+    </>
+  );
+}
+
+/** The phone-with-motion-lines mark used for the ladder's 'vibrate' stop. */
+function vibrateMark() {
+  return (
+    <>
+      <rect x="8" y="3" width="8" height="18" rx="2" {...CAP} />
+      <path d="M4.5 8.5v7M19.5 8.5v7" {...CAP} />
     </>
   );
 }
@@ -97,20 +106,12 @@ function glyph(id: QuickAccessId, value: unknown) {
         : <path d={star} fill="currentColor" />;
     }
 
-    case 'feedbackMode':
-      if (value === 'vibrate') {
-        // A phone body with a motion line on each side.
-        return (
-          <>
-            <rect x="8" y="3" width="8" height="18" rx="2" {...CAP} />
-            <path d="M4.5 8.5v7M19.5 8.5v7" {...CAP} />
-          </>
-        );
-      }
-      return speaker(value === 'silent' ? 0 : 3);
-
-    case 'noteVolume':
-      return speaker(noteVolumeStep(value));
+    case 'soundLevel': {
+      // Ladder stop: 0 silent, 1 vibrate, 2..6 sound at 1..5 waves.
+      const stop = typeof value === 'number' ? value : 0;
+      if (stop === 1) return vibrateMark();
+      return speaker(stop === 0 ? 0 : stop - 1);
+    }
 
     case 'answerMode':
       return value === 'voice'

@@ -7,6 +7,47 @@
 //                celebrations always run.
 export type FeedbackMode = 'sound' | 'vibrate' | 'silent';
 
+// ── The unified loudness ladder ──────────────────────────────────────
+// The Settings screen and the Quick Access strip present "how the drill
+// answers back" as ONE control with seven ascending stops rather than a
+// mode picker plus a separate volume bar:
+//
+//   0  silent   1  vibrate   2..6  sound at loudness level 1..5
+//
+// It still writes the two long-standing prefs underneath — `pref_feedbackMode`
+// ('silent' | 'vibrate' | 'sound') and, for the five sound stops, the makeup
+// gain `pref_noteVolume` (one of NOTE_VOLUME_LEVELS). Nothing downstream
+// (audio.ts, useFeedbackModeEffect, settingsSync) changed; only the UI folds
+// the two into a single slider.
+import { NOTE_VOLUME_LEVELS, noteVolumeLevelIndex, NOTE_VOLUME_DEFAULT } from './audio';
+
+export const SOUND_LEVEL_COUNT = 2 + NOTE_VOLUME_LEVELS.length; // silent + vibrate + 5
+
+/** Ladder stop (0..SOUND_LEVEL_COUNT-1) for a given mode + stored gain. */
+export function soundLevelFromPrefs(mode: FeedbackMode, noteVolume: number): number {
+  if (mode === 'silent') return 0;
+  if (mode === 'vibrate') return 1;
+  return 2 + noteVolumeLevelIndex(noteVolume);
+}
+
+/** The two prefs a ladder stop maps to. `noteVolume` is omitted for the
+ *  silent / vibrate stops, which leave the stored gain untouched. */
+export function soundLevelToPrefs(level: number): { feedbackMode: FeedbackMode; noteVolume?: number } {
+  const n = Math.round(level);
+  if (n <= 0) return { feedbackMode: 'silent' };
+  if (n === 1) return { feedbackMode: 'vibrate' };
+  const idx = Math.min(NOTE_VOLUME_LEVELS.length - 1, n - 2);
+  return { feedbackMode: 'sound', noteVolume: NOTE_VOLUME_LEVELS[idx] ?? NOTE_VOLUME_DEFAULT };
+}
+
+/** Human label for a ladder stop: "Silent" / "Vibrate" / "Sound N". */
+export function soundLevelLabel(level: number, t: (s: string) => string): string {
+  const n = Math.round(level);
+  if (n <= 0) return t('Silent');
+  if (n === 1) return t('Vibrate');
+  return `${t('Sound')} ${n - 1}`;
+}
+
 // How much haptic feedback fires, set by `useFeedbackModeEffect` from the mode:
 //  - 'off'    — nothing ('sound' mode).
 //  - 'events' — answer / achievement pulses only ('silent' mode).

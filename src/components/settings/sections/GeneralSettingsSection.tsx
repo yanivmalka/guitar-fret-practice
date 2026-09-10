@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { SettingCard, SegmentedControl, PickRow, LevelBar } from '../../SettingCard';
 import {
-  NOTE_VOLUME_LEVELS, noteVolumeLevelIndex,
-} from '../../../utils/audio';
+  SOUND_LEVEL_COUNT, soundLevelFromPrefs, soundLevelToPrefs, soundLevelLabel,
+} from '../../../utils/feedback';
 import { ProGate } from '../../ProGate';
 import { QuickAccessEnableToggle, QuickAccessPinButton } from '../../QuickAccessPinButton';
 import AppearancePicker from '../AppearancePicker';
@@ -144,34 +144,22 @@ export default function GeneralSettingsSection({
       </SettingCard>
       <SettingCard
         label={t('Sound & vibration')}
-        pin={<QuickAccessPinButton itemId="feedbackMode" />}
-        help={t('How the drill answers back. Sound: note playback, chimes and tap sounds. Vibrate: no sound — a buzz on every button press and on right / wrong answers instead. Silent: no sound and no per-button buzz, just a buzz on right / wrong answers plus the on-screen celebrations. Vibrate and Silent are great for practising with headphones off or a guitar in hand.')}
-      >
-        <SegmentedControl
-          ariaLabel={t('Sound & vibration')}
-          value={feedbackMode}
-          options={[
-            { value: 'sound', label: t('Sound') },
-            { value: 'vibrate', label: t('Vibrate') },
-            { value: 'silent', label: t('Silent') },
-          ]}
-          onChange={(v) => { setFeedbackMode(v); saveSetting('pref_feedbackMode', v); }}
-        />
-      </SettingCard>
-      <SettingCard
-        label={t('Note volume')}
-        pin={<QuickAccessPinButton itemId="noteVolume" />}
-        help={t('How loud the drill note samples play. Tap a bar to set one of five levels if the notes sound weak; the limiter keeps even the loudest setting from distorting.')}
+        pin={<QuickAccessPinButton itemId="soundLevel" />}
+        help={t('How the drill answers back, on one ladder from quietest to loudest. Silent: no sound and no per-button buzz, just a buzz on right / wrong answers plus the on-screen celebrations. Vibrate: no sound — a buzz on every button press and on right / wrong answers instead. Sound 1–5: note playback, chimes and tap sounds, louder each step; the limiter keeps even the loudest from distorting. Silent and Vibrate are great for practising with headphones off or a guitar in hand.')}
       >
         <LevelBar
-          ariaLabel={t('Note volume')}
-          value={noteVolumeLevelIndex(noteVolume) + 1}
-          count={NOTE_VOLUME_LEVELS.length}
-          formatValue={(v) => `${v} / ${NOTE_VOLUME_LEVELS.length}`}
+          ariaLabel={t('Sound & vibration')}
+          value={soundLevelFromPrefs(feedbackMode, noteVolume) + 1}
+          count={SOUND_LEVEL_COUNT}
+          formatValue={() => soundLevelLabel(soundLevelFromPrefs(feedbackMode, noteVolume), t)}
           onChange={(v) => {
-            const gain = NOTE_VOLUME_LEVELS[v - 1];
-            setNoteVolume(gain);
-            saveSetting('pref_noteVolume', gain);
+            const { feedbackMode: fm, noteVolume: nv } = soundLevelToPrefs(v - 1);
+            setFeedbackMode(fm);
+            saveSetting('pref_feedbackMode', fm);
+            if (nv != null) {
+              setNoteVolume(nv);
+              saveSetting('pref_noteVolume', nv);
+            }
           }}
         />
       </SettingCard>

@@ -1,7 +1,10 @@
 import {
   useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore,
 } from 'react';
-import { playClickSound, haptic, type FeedbackMode } from '../utils/feedback';
+import {
+  playClickSound, haptic, type FeedbackMode,
+  soundLevelFromPrefs, soundLevelToPrefs,
+} from '../utils/feedback';
 import { saveSetting } from '../utils/settings';
 import type { AccidentalMode, NotationMode } from '../utils/music';
 import QuickAccessGlyph from './QuickAccessGlyph';
@@ -126,8 +129,7 @@ export default function QuickAccess(props: QuickAccessProps) {
     notation: props.notation,
     accidental: props.accidental,
     showScore: props.showScore,
-    feedbackMode: props.feedbackMode,
-    noteVolume: props.noteVolume,
+    soundLevel: soundLevelFromPrefs(props.feedbackMode, props.noteVolume),
     answerMode: props.answerMode,
     showMastery: props.showMastery,
   };
@@ -135,8 +137,16 @@ export default function QuickAccess(props: QuickAccessProps) {
     notation: (v) => props.setNotation(v as NotationMode),
     accidental: (v) => props.setAccidental(v as AccidentalMode),
     showScore: (v) => props.setShowScore(v as boolean),
-    feedbackMode: (v) => props.setFeedbackMode(v as FeedbackMode),
-    noteVolume: (v) => props.setNoteVolume(v as number),
+    // One stop of the unified ladder writes both underlying prefs.
+    soundLevel: (v) => {
+      const { feedbackMode, noteVolume } = soundLevelToPrefs(v as number);
+      props.setFeedbackMode(feedbackMode);
+      saveSetting('pref_feedbackMode', feedbackMode);
+      if (noteVolume != null) {
+        props.setNoteVolume(noteVolume);
+        saveSetting('pref_noteVolume', noteVolume);
+      }
+    },
     answerMode: (v) => props.setAnswerMode(v as AnswerMode),
     showMastery: (v) => props.setShowMastery(v as boolean),
   };
@@ -147,7 +157,7 @@ export default function QuickAccess(props: QuickAccessProps) {
     playClickSound();
     haptic.tap();
     applyValue[id](nextVal);
-    saveSetting(item.prefKey, nextVal);
+    if (item.prefKey) saveSetting(item.prefKey, nextVal);
     if (id === 'answerMode' && nextVal === 'voice') askForMic();
     setLastChangedId(id);
     armSink();

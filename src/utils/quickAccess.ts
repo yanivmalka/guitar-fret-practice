@@ -7,13 +7,13 @@
 // Settings pin buttons and the home-screen widget stay in sync within a
 // session without a reload.
 //
-// Exactly seven settings are pinnable and at most five can be pinned at once.
-// Every pinnable setting is a two-state toggle except Note volume, which cycles
-// through the five discrete loudness levels (`NOTE_VOLUME_LEVELS`), and Sound &
-// vibration, which cycles sound → vibrate → silent.
+// Six settings are pinnable and at most five can be pinned at once. Every
+// pinnable setting is a two-state toggle except Sound & vibration, which cycles
+// through the unified seven-stop loudness ladder (silent → vibrate → sound
+// 1..5 → silent); see `src/utils/feedback.ts`.
 
 import { loadSetting, saveSetting } from './settings';
-import { NOTE_VOLUME_LEVELS, noteVolumeLevelIndex } from './audio';
+import { SOUND_LEVEL_COUNT } from './feedback';
 
 export const ENABLED_KEY = 'pref_quickAccessEnabled';
 export const PINNED_KEY = 'pref_pinnedQuickAccess';
@@ -28,42 +28,36 @@ export const DEFAULT_QUICK_ENABLED = true;
 export const DEFAULT_PINNED_QUICK: readonly QuickAccessId[] = [
   'notation',
   'accidental',
-  'feedbackMode',
+  'soundLevel',
 ];
 
 export type QuickAccessId =
   | 'notation'
   | 'accidental'
   | 'showScore'
-  | 'feedbackMode'
-  | 'noteVolume'
+  | 'soundLevel'
   | 'answerMode'
   | 'showMastery';
 
+// Pre-ladder builds pinned 'feedbackMode' and/or 'noteVolume' as two separate
+// shortcuts; both now fold into the single 'soundLevel' stop.
+const LEGACY_ID_MAP: Record<string, QuickAccessId> = {
+  feedbackMode: 'soundLevel',
+  noteVolume: 'soundLevel',
+};
+
 export interface QuickAccessItem {
   id: QuickAccessId;
-  /** localStorage `pref_*` key the setting persists to. */
-  prefKey: string;
+  /** localStorage `pref_*` key the setting persists to. Omitted for
+   *  `soundLevel`, whose cycled value spans two prefs — `QuickAccess`
+   *  persists those itself. */
+  prefKey?: string;
   /** English label, run through `t()` for the aria-label. */
   label: string;
   /** Only offered / cyclable when voice input is supported. */
   voiceOnly?: boolean;
   /** Current raw pref value -> the next raw value in the cycle. */
   next: (cur: unknown) => unknown;
-}
-
-// ── Note volume: cycles through the five shared loudness levels ────────
-// Level 1 is the quietest the makeup gain allows, not true silence — that is
-// the separate Silent mode toggle.
-const VOL_STEPS = NOTE_VOLUME_LEVELS;
-
-/**
- * Which of the five discrete loudness levels a raw `pref_noteVolume` value
- * sits on (0 = quietest … 4 = loudest). Used by `QuickAccessGlyph` to pick
- * how many sound waves to draw.
- */
-export function noteVolumeStep(cur: unknown): number {
-  return noteVolumeLevelIndex(typeof cur === 'number' ? cur : NaN);
 }
 
 export const QUICK_ACCESS_ITEMS: readonly QuickAccessItem[] = [
@@ -86,17 +80,11 @@ export const QUICK_ACCESS_ITEMS: readonly QuickAccessItem[] = [
     next: (cur) => cur === false,
   },
   {
-    id: 'feedbackMode',
-    prefKey: 'pref_feedbackMode',
+    id: 'soundLevel',
     label: 'Sound & vibration',
-    // Cycles the phone-ringer switch: sound → vibrate → silent → sound.
-    next: (cur) => (cur === 'sound' ? 'vibrate' : cur === 'vibrate' ? 'silent' : 'sound'),
-  },
-  {
-    id: 'noteVolume',
-    prefKey: 'pref_noteVolume',
-    label: 'Note volume',
-    next: (cur) => VOL_STEPS[(noteVolumeStep(cur) + 1) % VOL_STEPS.length],
+    // `cur` is the ladder stop (0 silent, 1 vibrate, 2..6 sound 1..5); step up
+    // one and wrap back to silent past the top.
+    next: (cur) => ((typeof cur === 'number' ? cur : 0) + 1) % SOUND_LEVEL_COUNT,
   },
   {
     id: 'answerMode',
@@ -140,8 +128,10 @@ function sanitizePinned(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const x of raw) {
-    if (typeof x !== 'string' || !ITEM_IDS.has(x) || seen.has(x)) continue;
+  for (const raw_x of raw) {
+    if (typeof raw_x !== 'string') continue;
+    const x = LEGACY_ID_MAP[raw_x] ?? raw_x;
+    if (!ITEM_IDS.has(x) || seen.has(x)) continue;
     seen.add(x);
     out.push(x);
     if (out.length >= MAX_QUICK_PINNED) break;
