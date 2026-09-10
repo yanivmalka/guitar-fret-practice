@@ -288,7 +288,7 @@ function Timeline({ history }: { history: HistoryEntry[] }) {
 
 // ── the stats body ─────────────────────────────────────────────
 function ScopeView({
-  history, noteNames, accidental, notation, instrument, windowed,
+  history, noteNames, accidental, notation, instrument, windowed, open, toggle,
 }: {
   history: HistoryEntry[];
   noteNames: string[];
@@ -298,10 +298,13 @@ function ScopeView({
   // The free 7-day window is in effect, so an empty view can just mean "nothing
   // in the last 7 days" rather than "nothing ever".
   windowed?: boolean;
+  // The single-open accordion state is owned by ProgressPanel so that the
+  // Intervals section outside this component shares the same "only one open"
+  // group.
+  open: string | null;
+  toggle: (id: string) => () => void;
 }) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState<string | null>(null);
-  const toggle = (id: string) => () => { playClickSound(); haptic.tap(); setOpen(o => (o === id ? null : id)); };
 
   const days = useMemo(() => dailyStats(history), [history]);
   const streak = useMemo(() => practiceStreak(days), [days]);
@@ -462,7 +465,10 @@ export default function ProgressPanel({
   // Pro/Premium can toggle the window; free is pinned to the 7-day slice.
   const [scope, setScope] = useState<Scope>('all');
   const [confirm, setConfirm] = useState(false);
-  const [ivlOpen, setIvlOpen] = useState(false);
+  // One shared accordion group across every collapsible section on this screen,
+  // including the Intervals panel below — opening any one closes the others.
+  const [open, setOpen] = useState<string | null>(null);
+  const toggle = (id: string) => () => { playClickSound(); haptic.tap(); setOpen(o => (o === id ? null : id)); };
   const click = (fn: () => void) => () => { playClickSound(); haptic.tap(); fn(); };
 
   const all = useMemo(
@@ -519,6 +525,8 @@ export default function ProgressPanel({
         notation={notation}
         instrument={instrument}
         windowed={windowed}
+        open={open}
+        toggle={toggle}
       />
 
       {/* Intervals learning progress (spec §12 / §15.1) — a self-contained
@@ -528,8 +536,8 @@ export default function ProgressPanel({
       {intervalBoard && intervalBoard.length > 0 && intervalStats && (
         <Expander
           label={t('Intervals')}
-          open={ivlOpen}
-          onToggle={click(() => setIvlOpen(o => !o))}
+          open={open === 'intervals'}
+          onToggle={toggle('intervals')}
         >
           <IntervalStatsPanel board={intervalBoard} stats={intervalStats} />
         </Expander>
