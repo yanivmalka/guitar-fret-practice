@@ -145,17 +145,19 @@
   --heat-unplayed: #deeedc; --pick-accent: #8c3fa8;
 }
 
-/* ── Summer — sea turquoise, sun gold, coral ─────────────────── */
+/* ── Summer — sun heat: red-orange (dark), sunlit amber (night),
+   sunny yellow (day). Deliberately warm — a cool summer read as
+   winter, so the accent and the surface bias both lean hot. ──── */
 [data-theme='summer-dark'] {
   color-scheme: dark;
-  --bg-0: #0f1e26; --bg-1: #0a151b; --bg-2: #12222a; --bg-3: #1a2e37;
-  --bg-letterbox: #060f13; --surface-border: #234049; --border-soft: #34555f;
-  --text-0: #e9f5f6; --text-1: #bfd6d8; --text-2: #8ba7aa; --text-3: #5f797c;
-  --accent: #23d6c4; --accent-rgb: 35, 214, 196; --accent-dim: #159c8f; --accent-ink: #04231f;
-  --gold: #ffcf3d; --gold-rgb: 255, 207, 61; --amber: #ff9d3d;
-  --success: #34e0a0; --success-rgb: 52, 224, 160;
-  --danger: #ff6b5c; --danger-rgb: 255, 107, 92;
-  --heat-unplayed: #1a2e33; --pick-accent: #5fbfd9;
+  --bg-0: #241009; --bg-1: #190a06; --bg-2: #2b130c; --bg-3: #391c11;
+  --bg-letterbox: #0f0604; --surface-border: #4c2819; --border-soft: #613626;
+  --text-0: #fceee6; --text-1: #e6c8b8; --text-2: #b58c7a; --text-3: #815e4e;
+  --accent: #ff6a3d; --accent-rgb: 255, 106, 61; --accent-dim: #c24019; --accent-ink: #2b0d04;
+  --gold: #ffc247; --gold-rgb: 255, 194, 71; --amber: #ff8a33;
+  --success: #7ec857; --success-rgb: 126, 200, 87;
+  --danger: #ff4d70; --danger-rgb: 255, 77, 112;
+  --heat-unplayed: #341810; --pick-accent: #5fb6d9;
 }
 [data-theme='summer-night'] {
   color-scheme: dark;
@@ -170,14 +172,14 @@
 }
 [data-theme='summer-day'] {
   color-scheme: light;
-  --bg-0: #fbf6ec; --bg-1: #ffffff; --bg-2: #f4ecdb; --bg-3: #ebe1cb;
-  --bg-letterbox: #ded2b8; --surface-border: #e3d8c1; --border-soft: #ccbc9e;
-  --text-0: #241c10; --text-1: #4a3d2a; --text-2: #7f6f57; --text-3: #8b7a5e;
-  --accent: #b05a00; --accent-rgb: 176, 90, 0; --accent-dim: #b05a00; --accent-ink: #ffffff;
-  --gold: #b8860b; --gold-rgb: 184, 134, 11; --amber: #c8660a;
-  --success: #1f9a6a; --success-rgb: 31, 154, 106;
-  --danger: #d6425a; --danger-rgb: 214, 66, 90;
-  --heat-unplayed: #eee3cb; --pick-accent: #1197ac;
+  --bg-0: #fff2c9; --bg-1: #fffdf1; --bg-2: #ffe9a8; --bg-3: #f9dd8c;
+  --bg-letterbox: #ecca73; --surface-border: #f0d585; --border-soft: #d7b85f;
+  --text-0: #2c2205; --text-1: #4d3c11; --text-2: #75611f; --text-3: #86702b;
+  --accent: #bd5a00; --accent-rgb: 189, 90, 0; --accent-dim: #bd5a00; --accent-ink: #ffffff;
+  --gold: #9c6f08; --gold-rgb: 156, 111, 8; --amber: #bd5f0c;
+  --success: #1c8747; --success-rgb: 28, 135, 71;
+  --danger: #c62a49; --danger-rgb: 198, 42, 73;
+  --heat-unplayed: #fbe7a2; --pick-accent: #0f6d95;
 }
 
 /* ── Autumn — rust, ember, oak ───────────────────────────────── */
