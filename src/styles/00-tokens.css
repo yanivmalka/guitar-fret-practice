@@ -45,9 +45,17 @@
   --danger: #ff5470;
   --danger-rgb: 255, 84, 112;
 
-  /* Fretboard mastery heatmap (ProgressPanel) — functional, must stay
-     readable in every theme; needsWork/known reuse --amber/--success. */
+  /* Fretboard / interval mastery heatmaps + the fret-button equaliser bar —
+     functional, must stay readable and mutually distinct in every one of the
+     12 seasonal palettes. `--heat-needs-work` / `--heat-known` track
+     --amber / --success unless a palette retints them (autumn cools its
+     olive `--success` to a real green here so it separates from the orange
+     amber; summer-day darkens its amber so it clears the buttercream ground).
+     `--heat-unplayed` is retuned per palette so an all-unplayed grid never
+     sinks into the card ground. */
   --heat-unplayed: #24244a;
+  --heat-needs-work: var(--amber);
+  --heat-known: var(--success);
 
   /* Selection indicator for the string/mode/difficulty pick controls
      (SelectorPanel) — kept as its own token rather than reusing --accent
@@ -101,7 +109,7 @@
   --gold: #d8c88c; --gold-rgb: 216, 200, 140; --amber: #d98e5a;
   --success: #6fc48d; --success-rgb: 111, 196, 141;
   --danger: #d9736e; --danger-rgb: 217, 115, 110;
-  --heat-unplayed: #1b2231; --pick-accent: #a48ee0;
+  --heat-unplayed: #26314a; --pick-accent: #a48ee0;
 }
 [data-theme='winter-day'] {
   color-scheme: light;
@@ -112,7 +120,7 @@
   --gold: #a8790b; --gold-rgb: 168, 121, 11; --amber: #b8600a;
   --success: #178a52; --success-rgb: 23, 138, 82;
   --danger: #cc3357; --danger-rgb: 204, 51, 87;
-  --heat-unplayed: #dde5f1; --pick-accent: #5a4fc4;
+  --heat-unplayed: #cbd6e8; --pick-accent: #5a4fc4;
   --menu-bg: #e5ecf5;
 }
 
@@ -126,7 +134,7 @@
   --gold: #ebc95e; --gold-rgb: 235, 201, 94; --amber: #f2a35a;
   --success: #46d97a; --success-rgb: 70, 217, 122;
   --danger: #ff6f8b; --danger-rgb: 255, 111, 139;
-  --heat-unplayed: #1f3327; --pick-accent: #e394d6;
+  --heat-unplayed: #24402f; --pick-accent: #e394d6;
 }
 [data-theme='spring-night'] {
   color-scheme: dark;
@@ -137,7 +145,7 @@
   --gold: #d9c67f; --gold-rgb: 217, 198, 127; --amber: #dd9046;
   --success: #79c97e; --success-rgb: 121, 201, 126;
   --danger: #d97f82; --danger-rgb: 217, 127, 130;
-  --heat-unplayed: #22261a; --pick-accent: #c79ad4;
+  --heat-unplayed: #2d3320; --pick-accent: #c79ad4;
 }
 [data-theme='spring-day'] {
   color-scheme: light;
@@ -148,7 +156,7 @@
   --gold: #a8820b; --gold-rgb: 168, 130, 11; --amber: #b8720a;
   --success: #1f9a52; --success-rgb: 31, 154, 82;
   --danger: #d43f6a; --danger-rgb: 212, 63, 106;
-  --heat-unplayed: #deeedc; --pick-accent: #8c3fa8;
+  --heat-unplayed: #d0e2ce; --pick-accent: #8c3fa8;
   --menu-bg: #e7f1e6;
 }
 
@@ -164,7 +172,7 @@
   --gold: #ffc247; --gold-rgb: 255, 194, 71; --amber: #ff8a33;
   --success: #7ec857; --success-rgb: 126, 200, 87;
   --danger: #ff4d70; --danger-rgb: 255, 77, 112;
-  --heat-unplayed: #341810; --pick-accent: #5fb6d9;
+  --heat-unplayed: #452313; --pick-accent: #5fb6d9;
 }
 [data-theme='summer-night'] {
   color-scheme: dark;
@@ -175,7 +183,7 @@
   --gold: #ffcc66; --gold-rgb: 255, 204, 102; --amber: #ff8a3d;
   --success: #8ac26a; --success-rgb: 138, 194, 106;
   --danger: #e8635a; --danger-rgb: 232, 99, 90;
-  --heat-unplayed: #2b2015; --pick-accent: #5fbfd9;
+  --heat-unplayed: #352819; --pick-accent: #5fbfd9;
 }
 [data-theme='summer-day'] {
   color-scheme: light;
@@ -189,7 +197,7 @@
   --gold: #c99400; --gold-rgb: 201, 148, 0; --amber: #d98a1f;
   --success: #1c8747; --success-rgb: 28, 135, 71;
   --danger: #c62a49; --danger-rgb: 198, 42, 73;
-  --heat-unplayed: #efe9d2; --pick-accent: #10788f;
+  --heat-unplayed: #e4dabb; --heat-needs-work: #b87013; --pick-accent: #10788f;
   --menu-bg: #f2e9cf;
 }
 
@@ -203,7 +211,7 @@
   --gold: #f0b429; --gold-rgb: 240, 180, 41; --amber: #ff7a2e;
   --success: #b6c24a; --success-rgb: 182, 194, 74;
   --danger: #ff5c52; --danger-rgb: 255, 92, 82;
-  --heat-unplayed: #332016; --pick-accent: #c9a15a;
+  --heat-unplayed: #402a1c; --heat-known: #5cb45f; --pick-accent: #c9a15a;
 }
 [data-theme='autumn-night'] {
   color-scheme: dark;
@@ -214,7 +222,7 @@
   --gold: #d9b061; --gold-rgb: 217, 176, 97; --amber: #db7c3a;
   --success: #9ca955; --success-rgb: 156, 169, 85;
   --danger: #d96a55; --danger-rgb: 217, 106, 85;
-  --heat-unplayed: #241610; --pick-accent: #c9a15a;
+  --heat-unplayed: #332115; --heat-known: #63b066; --pick-accent: #c9a15a;
 }
 [data-theme='autumn-day'] {
   color-scheme: light;
@@ -227,7 +235,7 @@
   --gold: #a5760b; --gold-rgb: 165, 118, 11; --amber: #b8600a;
   --success: #6f8a1f; --success-rgb: 111, 138, 31;
   --danger: #c23a48; --danger-rgb: 194, 58, 72;
-  --heat-unplayed: #ead9bd; --pick-accent: #637c14;
+  --heat-unplayed: #dbc9a6; --heat-known: #3f8a3f; --pick-accent: #637c14;
   --menu-bg: #eee1ca;
 }
 

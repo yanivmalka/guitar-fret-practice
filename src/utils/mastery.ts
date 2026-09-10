@@ -9,8 +9,8 @@ import { notesMatch } from './music';
 // The overlay bar carries two signals: its LENGTH is how much of the active
 // mastery window landed on this position (`attempts / windowSize`, so 70 of
 // the last 100 questions ⇒ a 70%-length bar), and its COLOUR is how those
-// attempts went — a red→green ramp on the correct/wrong split, pulled toward
-// grey by the share that were "didn't know" (timeouts/skips). See
+// attempts went — a theme-aware danger→known ramp on the correct/wrong split,
+// pulled toward a muted neutral by the "didn't know" share (timeouts/skips). See
 // `masteryFillPct` / `masteryColor`. `level` + `accuracy` stay for the Stats
 // screen's fret heatmap and weak-note list (utils/progress.ts), which read a
 // coarse known/needs-work bucket, not the raw tallies.
@@ -69,19 +69,28 @@ export function masteryFillPct(stat: MasteryStat, denom: number | null): number 
   return Math.max(MIN_FILL_PCT, Math.min(100, (stat.attempts / denom) * 100));
 }
 
-// The overlay bar's colour. Hue rides the correct-vs-wrong split (red → green)
-// among the answers the player actually committed to; the "didn't know" share
-// then pulls the whole thing toward grey, so a position you keep timing out on
-// reads as unproven, not as confidently green or firmly failed. Returned via
+// The overlay bar's colour. Hue rides the correct-vs-wrong split among the
+// answers the player actually committed to; the "didn't know" share then pulls
+// the whole thing toward a muted neutral, so a position you keep timing out on
+// reads as unproven, not as confidently good or firmly failed. Returned via
 // `color` (not `background`) so the bar's self-coloured glow follows for free.
+//
+// Every endpoint is a theme token, not a fixed hsl: the old hard-coded
+// red→green ramp sat off-palette on the warm (summer / autumn) and light
+// (*-day) seasonal grounds. `--heat-known` is the same token the fret /
+// interval heatmaps use, so a season that retints "known" (autumn) retints
+// this bar to match; `--danger` is the shared wrong-answer red; `--text-2` is
+// a per-palette muted mid-tone that stays visible on dark and light grounds
+// alike.
 export function masteryColor(stat: MasteryStat): string {
   if (stat.attempts === 0) return 'transparent';
   const decisive = stat.correct + stat.wrong;
   const acc = decisive > 0 ? stat.correct / decisive : 0;
-  const base = `hsl(${Math.round(acc * 145)} 63% 47%)`; // 0=red … 145=green (~#2ecc71)
+  const okPct = Math.round(acc * 100); // 0 => --danger … 100 => --heat-known
+  const base = `color-mix(in srgb, var(--heat-known) ${okPct}%, var(--danger))`;
   const greyPct = Math.round((stat.unsure / stat.attempts) * 70); // cap the pull at 70%
   return greyPct > 0
-    ? `color-mix(in srgb, ${base}, hsl(0 0% 55%) ${greyPct}%)`
+    ? `color-mix(in srgb, ${base}, var(--text-2) ${greyPct}%)`
     : base;
 }
 
