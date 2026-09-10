@@ -20,6 +20,17 @@ export const PINNED_KEY = 'pref_pinnedQuickAccess';
 export const HINT_KEY = 'qaHintSeen';
 export const MAX_QUICK_PINNED = 5;
 
+// Quick Access is on out of the box, pre-pinned with the three settings players
+// flip most often: note names (A B C ↔ Do Re Mi), sharps-or-flats, and the
+// sound → vibrate → silent ringer switch. These are only fallbacks for a user
+// who has never touched the widget — any stored / cloud-synced choice wins.
+export const DEFAULT_QUICK_ENABLED = true;
+export const DEFAULT_PINNED_QUICK: readonly QuickAccessId[] = [
+  'notation',
+  'accidental',
+  'feedbackMode',
+];
+
 export type QuickAccessId =
   | 'notation'
   | 'accidental'
@@ -138,8 +149,10 @@ function sanitizePinned(raw: unknown): string[] {
   return out;
 }
 
-let enabled: boolean = loadSetting<boolean>(ENABLED_KEY, false);
-let pinned: string[] = sanitizePinned(loadSetting<unknown>(PINNED_KEY, []));
+let enabled: boolean = loadSetting<boolean>(ENABLED_KEY, DEFAULT_QUICK_ENABLED);
+let pinned: string[] = sanitizePinned(
+  loadSetting<unknown>(PINNED_KEY, DEFAULT_PINNED_QUICK),
+);
 let hintSeen: boolean = loadSetting<boolean>(HINT_KEY, false);
 
 export function getQuickAccessEnabled(): boolean {
