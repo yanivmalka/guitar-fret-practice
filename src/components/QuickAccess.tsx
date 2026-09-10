@@ -19,9 +19,10 @@ type AnswerMode = 'tap' | 'voice';
 type Phase = 'sunk' | 'revealed' | 'open';
 
 // Reveal / sink timing and gesture tolerances. The summon gesture is a
-// double-tap anywhere in the app's bottom-right quadrant; the two taps only
-// have to be reasonably close in time and place, so two calm taps work — not
-// just a fast, precise "double click".
+// double-tap on empty space in the app's bottom-right quadrant (taps on a
+// button or other control don't count); the two taps only have to be
+// reasonably close in time and place, so two calm taps work — not just a
+// fast, precise "double click".
 //
 // SINK_MS is measured from the *last* touch on any part of the control, not
 // from when it was revealed: every pointer-down on the circle or the strip
@@ -59,8 +60,9 @@ export interface QuickAccessProps {
 
 /**
  * The opt-in floating Quick Access control on the home screen: a double-tap
- * anywhere in the app's bottom-right quadrant reveals a glowing circle on the
- * right edge; tapping the circle opens a downward strip of the player's pinned
+ * on empty space in the app's bottom-right quadrant (not on a button or other
+ * control) reveals a glowing circle on the right edge; tapping the circle
+ * opens a downward strip of the player's pinned
  * settings, each a glowing icon that cycles that setting in place. It sinks
  * away on its own after {@link SINK_MS}, on another double-tap in the quadrant,
  * or when dragged aside.
