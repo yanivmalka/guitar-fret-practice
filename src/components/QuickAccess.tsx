@@ -29,6 +29,10 @@ type Phase = 'sunk' | 'revealed' | 'open';
 // genuine lull. Dragging the circle aside sinks it immediately.
 const SINK_MS = 5000;
 const HINT_MS = 6000;
+// How long the "Quick Access is off" / "no shortcuts pinned yet" notice stays
+// up when the summon gesture is made but there is nothing to reveal. Also
+// dismissed early by any tap on the screen.
+const NOTICE_MS = 3500;
 const DOUBLE_TAP_MS = 700;
 const DOUBLE_TAP_MOVE_PX = 80;
 const DRAG_ASIDE_PX = 24;
@@ -81,6 +85,21 @@ export default function QuickAccess(props: QuickAccessProps) {
 
   const [phase, setPhase] = useState<Phase>('sunk');
   const [lastChangedId, setLastChangedId] = useState<QuickAccessId | null>(null);
+  // Shown when the summon gesture lands but there is nothing to reveal:
+  // 'off'   — Quick Access is disabled in Settings.
+  // 'empty' — enabled, but the player has not pinned any shortcuts yet.
+  const [notice, setNotice] = useState<'off' | 'empty' | null>(null);
+
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showNotice = useCallback((kind: 'off' | 'empty') => {
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    setNotice(kind);
+    noticeTimer.current = setTimeout(() => setNotice(null), NOTICE_MS);
+  }, []);
+  const clearNotice = useCallback(() => {
+    if (noticeTimer.current) { clearTimeout(noticeTimer.current); noticeTimer.current = null; }
+    setNotice(null);
+  }, []);
 
   const sinkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTap = useRef<{ time: number; x: number; y: number } | null>(null);
@@ -127,10 +146,26 @@ export default function QuickAccess(props: QuickAccessProps) {
     armSink();
   };
 
-  // Tear down the sink timer on unmount.
+  // Tear down the outstanding timers on unmount.
   useEffect(() => () => {
     if (sinkTimer.current) clearTimeout(sinkTimer.current);
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
   }, []);
+
+  // While a notice is up, the next tap anywhere on the screen dismisses it.
+  // Deferred one tick so the second tap of the summon gesture (which raised
+  // the notice) doesn't immediately clear it.
+  useEffect(() => {
+    if (notice === null) return;
+    const onDown = () => clearNotice();
+    const id = window.setTimeout(
+      () => document.addEventListener('pointerdown', onDown, { once: true }), 0,
+    );
+    return () => {
+      window.clearTimeout(id);
+      document.removeEventListener('pointerdown', onDown);
+    };
+  }, [notice, clearNotice]);
 
   // First-run hint: shown once the player has pinned something but has never
   // revealed the widget. Auto-clears after HINT_MS so it never sticks.
@@ -165,7 +200,6 @@ export default function QuickAccess(props: QuickAccessProps) {
   // stopPropagation, so single taps still reach whatever is underneath — the
   // quadrant is far too large to be allowed to swallow taps.
   useEffect(() => {
-    if (!enabled || pinned.length === 0) return;
     const onUp = (e: PointerEvent) => {
       const app = document.querySelector('.app');
       const r = app?.getBoundingClientRect();
@@ -184,6 +218,13 @@ export default function QuickAccess(props: QuickAccessProps) {
 
       lastTap.current = null;
       haptic.tap();
+
+      // Nothing to reveal: acknowledge the gesture with a short-lived notice
+      // instead (same look as the first-run hint), then stop.
+      if (!enabled) { showNotice('off'); return; }
+      if (pinned.length === 0) { showNotice('empty'); return; }
+
+      clearNotice();
       setPhase((p) => {
         if (p === 'sunk') {
           armSink();
@@ -196,9 +237,19 @@ export default function QuickAccess(props: QuickAccessProps) {
     };
     document.addEventListener('pointerup', onUp);
     return () => document.removeEventListener('pointerup', onUp);
-  }, [enabled, pinned.length, hintSeen, armSink, clearSink]);
+  }, [enabled, pinned.length, hintSeen, armSink, clearSink, showNotice, clearNotice]);
 
-  if (!enabled || pinned.length === 0) return null;
+  if (!enabled || pinned.length === 0) {
+    return notice === null ? null : (
+      <div className="qa-root">
+        <div className="qa-hint" role="status">
+          {notice === 'off'
+            ? t('Quick access is off')
+            : t("You haven't pinned any quick access shortcuts yet")}
+        </div>
+      </div>
+    );
+  }
 
   const onFabPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     fabDown.current = { x: e.clientX, y: e.clientY, dragged: false };

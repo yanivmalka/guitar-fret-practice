@@ -932,6 +932,9 @@ const he: Record<string, string> = {
   'No': 'לא',
   'Double-tap the lower-right of the screen for quick access':
     'הקשה כפולה בחלק הימני-התחתון של המסך פותחת גישה מהירה',
+  'Quick access is off': 'הגישה המהירה כבויה',
+  "You haven't pinned any quick access shortcuts yet":
+    'עדיין לא הגדרתם קיצורי דרך לגישה המהירה',
 };
 
 const dictionaries: Record<Lang, Record<string, string>> = { en: {}, he };

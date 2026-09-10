@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { useAuth } from './useAuth';
 import type { useHistory } from './useHistory';
 import { bootstrapUser, reconcileUser, syncedUser, clearSyncedUser, cloudCaptureOrphans, restoreOnly } from '../utils/sync';
-import { bootstrapSettings, syncedSettingsUser, clearSyncedSettingsUser, cloudPushSettings } from '../utils/settingsSync';
+import { bootstrapSettings, clearSyncedSettingsUser, cloudPushSettings } from '../utils/settingsSync';
 import { bootstrapBadges, syncedBadgesUser, clearSyncedBadgesUser, cloudPushBadges } from '../utils/badgeSync';
 import {
   bootstrapLearning, syncedLearningUser, clearSyncedLearningUser, clearLocalLearningState, cloudPushLearning,
@@ -118,15 +118,21 @@ export function useCloudSync({ auth, historyOps, bumpVoiceEngineEpoch }: Params)
     return () => { cancelled = true; };
   }, [auth.user, replaceAllHistory, getAllHistory, finishGuestMerge]);
 
-  // Selector picks + UI preferences: once per sign-in on this device, adopt
-  // the account's settings blob if it's newer than what this device last
-  // synced. Applied by writing localStorage then reloading, so the settings
-  // hooks read the restored values at mount (they only read localStorage
-  // once). A no-op when the cloud blob isn't newer.
+  // Selector picks + UI preferences: adopt the account's settings blob if it's
+  // newer than what this device last synced. Applied by writing localStorage
+  // then reloading, so the settings hooks read the restored values at mount
+  // (they only read localStorage once). A no-op when the cloud blob isn't
+  // newer, in which case it pushes this device's snapshot up instead.
+  //
+  // This runs on every sign-in / app start, not just the first bootstrap on a
+  // device: `bootstrapSettings` is an idempotent pull→adopt-or-push reconcile
+  // (same cadence as the history / badges / learning / game effects), so a
+  // settings change made on another device — e.g. enabling Quick Access or
+  // pinning a shortcut — reaches this device on its next start without a
+  // sign-out/in.
   useEffect(() => {
     const user = auth.user;
     if (!user) { clearSyncedSettingsUser(); return; }
-    if (syncedSettingsUser() === user.id) return;
     let cancelled = false;
     (async () => {
       try {
@@ -239,9 +245,9 @@ export function useCloudSync({ auth, historyOps, bumpVoiceEngineEpoch }: Params)
 
   // A round played offline only reaches the cloud on the next app start:
   // write-through (cloudInsertEntry / cloudPushSettings) is dropped while
-  // navigator.onLine is false and nothing replays it, and the reconcile
-  // above runs only per sign-in. Re-run the idempotent reconcile — and
-  // re-arm the settings push — as soon as the network comes back.
+  // navigator.onLine is false and nothing replays it. Re-run the idempotent
+  // history + settings reconcile — and re-arm the other pushes — as soon as
+  // the network comes back.
   useEffect(() => {
     const user = auth.user;
     if (!user) return;
@@ -265,7 +271,10 @@ export function useCloudSync({ auth, historyOps, bumpVoiceEngineEpoch }: Params)
         } catch {
           /* transient — retried on the next reconnect / app start */
         }
-        cloudPushSettings();
+        try {
+          const { applied } = await bootstrapSettings(user.id);
+          if (applied && !cancelled) { window.location.reload(); return; }
+        } catch { cloudPushSettings(); }
         cloudPushBadges();
         cloudPushLearning();
         cloudPushGameProgress();
