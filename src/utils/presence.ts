@@ -21,7 +21,7 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import { verror } from './debugLog';
+import { vlog } from './debugLog';
 
 export interface PresenceCounts { users: number; guests: number }
 
@@ -81,10 +81,13 @@ export function startPresence(): void {
     .on('presence', { event: 'join' }, recompute)
     .on('presence', { event: 'leave' }, recompute)
     .subscribe((status) => {
+      // Log every status transition (not just failures) so the debug trail
+      // shows whether a CHANNEL_ERROR / TIMED_OUT is followed by a recovering
+      // SUBSCRIBED. Errors keep the 'error' level so they still stand out.
+      const level =
+        status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' ? 'error' : 'info';
+      vlog('[presence] channel status', status, level);
       if (status === 'SUBSCRIBED') trackSelf();
-      else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        verror('[presence] channel status', status);
-      }
     });
 }
 

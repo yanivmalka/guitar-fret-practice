@@ -143,7 +143,12 @@ function voiceVerbose(): boolean {
 export function debugLogAsText(): string {
   const verbose = voiceVerbose();
   return entries
-    .filter((e) => e.level === 'error' || (verbose && e.tag.startsWith('[voice]')))
+    .filter(
+      (e) =>
+        e.level === 'error' ||
+        e.tag.startsWith('[presence]') ||
+        (verbose && e.tag.startsWith('[voice]')),
+    )
     .map((e) => {
       const ts = new Date(e.t).toISOString().slice(11, 23);
       return e.data ? `${ts}  ${e.tag}  ${e.data}` : `${ts}  ${e.tag}`;
