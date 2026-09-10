@@ -4,18 +4,9 @@
    circle reuses the .icon-btn glow recipe. right/top are physical, so the
    control stays on the screen's right edge in Hebrew RTL too. */
 
-/* Transparent double-tap summon strip on the physical right edge, spanning a
-   thumb-comfortable middle band. */
-.qa-hotzone {
-  position: fixed;
-  right: 0;
-  top: 38%;
-  height: 24%;
-  width: 24px;
-  z-index: 70;
-  background: transparent;
-  touch-action: none;
-}
+/* The summon gesture is a double-tap anywhere in the app's bottom-right
+   quadrant, detected on a pass-through document listener (see QuickAccess.tsx)
+   — there is no hit-target element, so single taps still reach the UI. */
 
 /* The glowing circle. Fixed at a comfortable thumb height, independent of the
    Play button. */
@@ -96,11 +87,12 @@
   z-index: 71;
 }
 
-/* The pushpin pinned to a pinnable setting card's physical top-right corner. */
+/* The pushpin in a pinnable setting card's top trailing corner — the side
+   opposite the label, i.e. the left in the Hebrew RTL layout. */
 .set-card-pin {
   position: absolute;
   top: 8px;
-  right: 8px;
+  inset-inline-end: 8px;
   z-index: 2;
 }
 .qa-pin {

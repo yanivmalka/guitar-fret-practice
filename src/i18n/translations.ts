@@ -909,16 +909,16 @@ const he: Record<string, string> = {
   // Quick Access — the opt-in floating home-screen control and its Settings
   // enable row + per-card pushpins.
   'Quick access': 'גישה מהירה',
-  'A floating button on the home screen for the settings you flip most. Pin up to 5 with the pushpins below, then double-tap the screen’s right edge outside a drill to open it.':
-    'כפתור צף במסך הבית להגדרות שאתם מחליפים הכי הרבה. הצמידו עד 5 באמצעות הסיכות שלמטה, ואז הקישו הקשה כפולה על הקצה הימני של המסך מחוץ לתרגול כדי לפתוח אותו.',
+  'A floating button on the home screen for the settings you flip most. Pin up to 5 with the pushpins below, then double-tap the lower-right of the screen outside a drill to open it.':
+    'כפתור צף במסך הבית להגדרות שאתם מחליפים הכי הרבה. הצמידו עד 5 באמצעות הסיכות שלמטה, ואז הקישו הקשה כפולה בחלק הימני-התחתון של המסך מחוץ לתרגול כדי לפתוח אותו.',
   'Pin to quick access?': 'להצמיד לגישה מהירה?',
   'Remove from quick access?': 'להסיר מהגישה המהירה?',
   'You can pin up to {n} settings. Remove one first.':
     'אפשר להצמיד עד {n} הגדרות. הסירו קודם אחת.',
   'Yes': 'כן',
   'No': 'לא',
-  'Double-tap the edge to open quick access':
-    'הקשה כפולה על הקצה פותחת את הגישה המהירה',
+  'Double-tap the lower-right of the screen for quick access':
+    'הקשה כפולה בחלק הימני-התחתון של המסך פותחת גישה מהירה',
 };
 
 const dictionaries: Record<Lang, Record<string, string>> = { en: {}, he };

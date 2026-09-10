@@ -119,7 +119,7 @@ export default function GeneralSettingsSection({
     <>
       <SettingCard
         label={t('Quick access')}
-        help={t('A floating button on the home screen for the settings you flip most. Pin up to 5 with the pushpins below, then double-tap the screen’s right edge outside a drill to open it.')}
+        help={t('A floating button on the home screen for the settings you flip most. Pin up to 5 with the pushpins below, then double-tap the lower-right of the screen outside a drill to open it.')}
       >
         <QuickAccessEnableToggle />
       </SettingCard>

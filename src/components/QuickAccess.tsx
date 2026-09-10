@@ -1,5 +1,5 @@
 import {
-  useEffect, useMemo, useRef, useState, useSyncExternalStore,
+  useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore,
 } from 'react';
 import { playClickSound, haptic } from '../utils/feedback';
 import { saveSetting } from '../utils/settings';
@@ -18,11 +18,14 @@ import {
 type AnswerMode = 'tap' | 'voice';
 type Phase = 'sunk' | 'revealed' | 'open';
 
-// Reveal / sink timing and gesture tolerances (design §"Reveal / sink").
+// Reveal / sink timing and gesture tolerances. The summon gesture is a
+// double-tap anywhere in the app's bottom-right quadrant; the two taps only
+// have to be reasonably close in time and place, so two calm taps work — not
+// just a fast, precise "double click".
 const SINK_MS = 5000;
 const HINT_MS = 6000;
-const DOUBLE_TAP_MS = 300;
-const TAP_MOVE_PX = 10;
+const DOUBLE_TAP_MS = 700;
+const DOUBLE_TAP_MOVE_PX = 80;
 const DRAG_ASIDE_PX = 40;
 
 export interface QuickAccessProps {
@@ -46,12 +49,12 @@ export interface QuickAccessProps {
 }
 
 /**
- * The opt-in floating Quick Access control on the home screen: a transparent
- * double-tap zone on the physical right edge that reveals a glowing circle;
- * tapping the circle opens a downward strip of the player's pinned settings,
- * each a glowing icon that cycles that setting in place. It sinks away on its
- * own after {@link SINK_MS}, on another double-tap in the zone, or when dragged
- * aside.
+ * The opt-in floating Quick Access control on the home screen: a double-tap
+ * anywhere in the app's bottom-right quadrant reveals a glowing circle on the
+ * right edge; tapping the circle opens a downward strip of the player's pinned
+ * settings, each a glowing icon that cycles that setting in place. It sinks
+ * away on its own after {@link SINK_MS}, on another double-tap in the quadrant,
+ * or when dragged aside.
  *
  * Renders nothing unless Quick Access is enabled and at least one setting is
  * pinned. Mounted on the home screen only and only outside a running drill
@@ -78,13 +81,13 @@ export default function QuickAccess(props: QuickAccessProps) {
   const lastTap = useRef<{ time: number; x: number; y: number } | null>(null);
   const fabDown = useRef<{ x: number; dragged: boolean } | null>(null);
 
-  const clearSink = () => {
+  const clearSink = useCallback(() => {
     if (sinkTimer.current) { clearTimeout(sinkTimer.current); sinkTimer.current = null; }
-  };
-  const armSink = () => {
+  }, []);
+  const armSink = useCallback(() => {
     clearSink();
     sinkTimer.current = setTimeout(() => setPhase('sunk'), SINK_MS);
-  };
+  }, [clearSink]);
 
   // Current raw value + narrow-and-apply for each pinnable setting. Both are
   // rebuilt every render straight from props, so they always read current.
@@ -124,8 +127,8 @@ export default function QuickAccess(props: QuickAccessProps) {
     if (sinkTimer.current) clearTimeout(sinkTimer.current);
   }, []);
 
-  // First-run hint: shown by the edge once the player has pinned something but
-  // has never revealed the widget. Auto-clears after HINT_MS so it never sticks.
+  // First-run hint: shown once the player has pinned something but has never
+  // revealed the widget. Auto-clears after HINT_MS so it never sticks.
   useEffect(() => {
     if (hintSeen || pinned.length === 0 || phase !== 'sunk') return;
     const id = setTimeout(() => markQaHintSeen(), HINT_MS);
@@ -151,31 +154,46 @@ export default function QuickAccess(props: QuickAccessProps) {
     };
   }, [phase]);
 
-  if (!enabled || pinned.length === 0) return null;
+  // Summon gesture: a double-tap anywhere in the app's bottom-right quadrant
+  // reveals the control (and, while it is showing, sinks it again). A
+  // document-level `pointerup` listener that never calls preventDefault /
+  // stopPropagation, so single taps still reach whatever is underneath — the
+  // quadrant is far too large to be allowed to swallow taps.
+  useEffect(() => {
+    if (!enabled || pinned.length === 0) return;
+    const onUp = (e: PointerEvent) => {
+      const app = document.querySelector('.app');
+      const r = app?.getBoundingClientRect();
+      const midX = r ? r.left + r.width / 2 : window.innerWidth / 2;
+      const midY = r ? r.top + r.height / 2 : window.innerHeight / 2;
+      if (e.clientX < midX || e.clientY < midY) { lastTap.current = null; return; }
 
-  const onZonePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    // `e.timeStamp` (a monotonic DOM timestamp) rather than `Date.now()` so the
-    // handler stays pure by the react-hooks lint rules.
-    const now = e.timeStamp;
-    const prev = lastTap.current;
-    lastTap.current = { time: now, x: e.clientX, y: e.clientY };
-    if (
-      prev
-      && now - prev.time < DOUBLE_TAP_MS
-      && Math.hypot(e.clientX - prev.x, e.clientY - prev.y) < TAP_MOVE_PX
-    ) {
+      const now = e.timeStamp;
+      const prev = lastTap.current;
+      lastTap.current = { time: now, x: e.clientX, y: e.clientY };
+      if (
+        !prev
+        || now - prev.time > DOUBLE_TAP_MS
+        || Math.hypot(e.clientX - prev.x, e.clientY - prev.y) > DOUBLE_TAP_MOVE_PX
+      ) return;
+
       lastTap.current = null;
       haptic.tap();
-      if (phase === 'sunk') {
-        setPhase('revealed');
-        armSink();
-        if (!hintSeen) markQaHintSeen();
-      } else {
+      setPhase((p) => {
+        if (p === 'sunk') {
+          armSink();
+          if (!hintSeen) markQaHintSeen();
+          return 'revealed';
+        }
         clearSink();
-        setPhase('sunk');
-      }
-    }
-  };
+        return 'sunk';
+      });
+    };
+    document.addEventListener('pointerup', onUp);
+    return () => document.removeEventListener('pointerup', onUp);
+  }, [enabled, pinned.length, hintSeen, armSink, clearSink]);
+
+  if (!enabled || pinned.length === 0) return null;
 
   const onFabPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     fabDown.current = { x: e.clientX, dragged: false };
@@ -215,11 +233,9 @@ export default function QuickAccess(props: QuickAccessProps) {
 
   return (
     <div className="qa-root">
-      <div className="qa-hotzone" onPointerUp={onZonePointerUp} aria-hidden="true" />
-
       {!hintSeen && phase === 'sunk' && (
         <div className="qa-hint" role="status">
-          {t('Double-tap the edge to open quick access')}
+          {t('Double-tap the lower-right of the screen for quick access')}
         </div>
       )}
 

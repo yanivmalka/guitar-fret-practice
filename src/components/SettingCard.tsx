@@ -147,8 +147,9 @@ export function SettingCard({
   label: string;
   help?: ReactNode;
   children: ReactNode;
-  /** Optional affordance pinned to the physical top-right corner of the card
-   *  (the Quick Access pushpin on the seven pinnable settings). */
+  /** Optional affordance in the card's top trailing corner — left in the
+   *  Hebrew RTL layout (the Quick Access pushpin on the seven pinnable
+   *  settings). */
   pin?: ReactNode;
 }) {
   return (
