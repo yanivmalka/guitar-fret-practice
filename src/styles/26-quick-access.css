@@ -33,7 +33,7 @@
 
 .qa-fab {
   position: fixed;
-  right: 10px;
+  right: 22px;
   top: 46%;
   width: 52px;
   height: 52px;
@@ -42,13 +42,17 @@
   animation: qa-pop 0.16s ease-out;
 }
 
-/* Downward strip of pinned-setting icons. */
+/* Downward strip of pinned-setting icons. `right` is set so the 46px strip
+   buttons sit centred under the 52px circle — one straight vertical line,
+   circle included (circle centre = 22 + 26 = 48px from the right edge; strip
+   button centre = 25 + 23 = 48px). */
 .qa-menu {
   position: fixed;
-  right: 10px;
+  right: 25px;
   top: calc(46% + 62px);
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 8px;
   z-index: 71;
   animation: qa-pop 0.16s ease-out;
@@ -67,7 +71,7 @@
 /* One-time edge hint after the first successful pin. */
 .qa-hint {
   position: fixed;
-  right: 40px;
+  right: 52px;
   top: 50%;
   transform: translateY(-50%);
   max-width: 58vw;
@@ -109,6 +113,59 @@
   border-color: rgba(var(--accent-rgb), 0.5);
   background: rgba(var(--accent-rgb), 0.12);
 }
+
+/* The full-page "remove a Quick Access shortcut" manager (src/components/
+   QuickAccessManagePage.tsx) — reached only from the cap prompt on a pushpin.
+   Rides on the shared .settings-page / .sp2 shell; only the list is bespoke. */
+.qa-manage-intro { margin: 0 0 14px; }
+.qa-manage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.qa-manage-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--surface-border);
+  background: var(--bg-3);
+}
+.qa-manage-glyph {
+  display: inline-flex;
+  color: var(--accent);
+  flex: none;
+}
+.qa-manage-glyph svg { width: 22px; height: 22px; display: block; }
+.qa-manage-label {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-1);
+  font-size: 14px;
+}
+.qa-manage-del {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  border: 1px solid var(--surface-border);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.qa-manage-del:hover {
+  color: var(--danger, #e5484d);
+  border-color: var(--danger, #e5484d);
+}
+.qa-manage-del:active { transform: scale(0.92); }
 
 @keyframes qa-pop {
   from { transform: scale(0.9); opacity: 0; }

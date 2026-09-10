@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import {
+  useState, useEffect, useCallback, useRef, useMemo, useSyncExternalStore,
+} from 'react';
 import { SettingsDrawerNav, SettingsSubPage, type SettingsSection } from './components/settings/SettingsDrawer';
 import PlayingSection from './components/settings/sections/PlayingSection';
 import GeneralSettingsSection from './components/settings/sections/GeneralSettingsSection';
@@ -51,6 +53,10 @@ import { useScoring } from './hooks/useScoring';
 import { useVoiceAnswer } from './hooks/useVoiceAnswer';
 import ExitHintToast from './components/ExitHintToast';
 import QuickAccess from './components/QuickAccess';
+import QuickAccessManagePage from './components/QuickAccessManagePage';
+import {
+  subscribeQuickAccess, getQaManageOpen, closeQuickAccessManager,
+} from './utils/quickAccess';
 import MicPermissionCard from './components/MicPermissionCard';
 import SignInNudge from './components/SignInNudge';
 import CountdownOverlay from './components/drill/CountdownOverlay';
@@ -84,6 +90,10 @@ import { useRoundEndCelebrations } from './hooks/useRoundEndCelebrations';
 
 export default function App() {
   const { t, lang, setLang } = useTranslation();
+  // The full-page Quick Access shortcut manager, opened only from the cap
+  // prompt on a pushpin (see QuickAccessPinButton). Its own external store so
+  // the deep-nested prompt can raise it without threading state through.
+  const qaManageOpen = useSyncExternalStore(subscribeQuickAccess, getQaManageOpen);
   // Which instrument is being drilled. Chosen on first launch (Onboarding) and
   // switchable from the hamburger menu; everything tuning/string/fret/sample
   // related flows from this config (see utils/instruments.ts).
@@ -797,6 +807,49 @@ export default function App() {
     },
   ];
 
+  // The Quick Access shortcut manager is an explicit user navigation from the
+  // cap prompt on a pushpin, so it wins over every other screen. Back closes
+  // it and drops straight back to the settings sub-page it was raised from
+  // (settingsOpen / drawerSection are left untouched while it is open).
+  if (qaManageOpen) {
+    return (
+      <QuickAccessManagePage
+        t={t}
+        lang={lang}
+        onBack={closeQuickAccessManager}
+        values={{
+          notation, accidental, showScore, feedbackMode,
+          noteVolume, answerMode, showMastery,
+        }}
+      />
+    );
+  }
+
+  // A shared render of the opt-in floating Quick Access control, used on both
+  // the note Selector (home) and the Premium interval-practice screen. Caller
+  // decides when it may show.
+  const renderQuickAccess = () => (
+    <QuickAccess
+      t={t}
+      voiceSupported={voice.supported}
+      askForMic={askForMic}
+      notation={notation}
+      setNotation={setNotation}
+      accidental={accidental}
+      setAccidental={setAccidental}
+      showScore={showScore}
+      setShowScore={setShowScore}
+      feedbackMode={feedbackMode}
+      setFeedbackMode={setFeedbackMode}
+      noteVolume={noteVolume}
+      setNoteVolume={setNoteVolume}
+      answerMode={answerMode}
+      setAnswerMode={setAnswerMode}
+      showMastery={showMastery}
+      setShowMastery={setShowMastery}
+    />
+  );
+
   // F.1 spike: the Game is a full-screen takeover, mounted as its own
   // self-contained component so App gains no Game state beyond `gameOpen`.
   if (gameOpen) {
@@ -913,6 +966,10 @@ export default function App() {
           onStart={(config: DrillConfig) => setIntervalPlan(config)}
           onClose={backToLearnHub}
         />
+        {/* Quick Access is offered on the intervals page too — same rules as
+            the home screen: not while the hamburger drawer is open, not during
+            the count-in. */}
+        {!settingsOpen && countdown === null && renderQuickAccess()}
         {countdown !== null && <CountdownOverlay countdown={countdown} />}
       </>
     );
@@ -977,28 +1034,10 @@ export default function App() {
       )}
 
       {/* Opt-in floating Quick Access control — home screen only, and only
-          outside a running / paused / advancing drill or the pre-run countdown. */}
-      {!gameActive && countdown === null && onboardingDone && (
-        <QuickAccess
-          t={t}
-          voiceSupported={voice.supported}
-          askForMic={askForMic}
-          notation={notation}
-          setNotation={setNotation}
-          accidental={accidental}
-          setAccidental={setAccidental}
-          showScore={showScore}
-          setShowScore={setShowScore}
-          feedbackMode={feedbackMode}
-          setFeedbackMode={setFeedbackMode}
-          noteVolume={noteVolume}
-          setNoteVolume={setNoteVolume}
-          answerMode={answerMode}
-          setAnswerMode={setAnswerMode}
-          showMastery={showMastery}
-          setShowMastery={setShowMastery}
-        />
-      )}
+          outside a running / paused / advancing drill or the pre-run
+          countdown, and not while the hamburger drawer is open. */}
+      {!gameActive && countdown === null && onboardingDone && !settingsOpen
+        && renderQuickAccess()}
 
       <h1>{instrument.emoji} {t(instrument.label)} {t('Fret Practice')}</h1>
 

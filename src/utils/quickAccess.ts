@@ -180,6 +180,56 @@ export function togglePinnedQuick(id: QuickAccessId): void {
   emit();
 }
 
+// ── Manage / deletion page ───────────────────────────────────────────
+// The only way to reach the full-page "remove a Quick Access shortcut" view is
+// to already have MAX_QUICK_PINNED pinned and try to pin one more: the cap
+// prompt then offers to open this manager. `pendingPin` remembers the shortcut
+// that could not fit, so the moment a slot is freed here it is pinned
+// automatically and the user never has to walk back and re-tap the pushpin.
+
+let manageOpen = false;
+let pendingPin: QuickAccessId | null = null;
+
+export function getQaManageOpen(): boolean {
+  return manageOpen;
+}
+
+export function getPendingQuickPin(): QuickAccessId | null {
+  return pendingPin;
+}
+
+/** Open the manager, remembering the shortcut the user just failed to pin. */
+export function openQuickAccessManager(pending: QuickAccessId | null): void {
+  pendingPin = pending;
+  manageOpen = true;
+  emit();
+}
+
+export function closeQuickAccessManager(): void {
+  if (!manageOpen && pendingPin === null) return;
+  manageOpen = false;
+  pendingPin = null;
+  emit();
+}
+
+/**
+ * Remove a pinned shortcut from inside the manager. If that frees a slot and
+ * there is a shortcut still waiting to be pinned, pin it right away and clear
+ * the pending marker.
+ */
+export function removePinnedFromManager(id: QuickAccessId): void {
+  if (!pinned.includes(id)) return;
+  pinned = pinned.filter((x) => x !== id);
+  saveSetting(PINNED_KEY, pinned);
+  if (pendingPin && pendingPin !== id && !pinned.includes(pendingPin)
+      && pinned.length < MAX_QUICK_PINNED) {
+    pinned = [...pinned, pendingPin];
+    saveSetting(PINNED_KEY, pinned);
+    pendingPin = null;
+  }
+  emit();
+}
+
 export function hasSeenQaHint(): boolean {
   return hintSeen;
 }

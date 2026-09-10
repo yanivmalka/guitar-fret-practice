@@ -919,6 +919,15 @@ const he: Record<string, string> = {
   'Remove from quick access?': 'להסיר מהגישה המהירה?',
   'You can pin up to {n} settings. Remove one first.':
     'אפשר להצמיד עד {n} הגדרות. הסירו קודם אחת.',
+  'Quick access is full': 'הגישה המהירה מלאה',
+  'You already have {n} shortcuts. Remove one to make room?':
+    'כבר יש {n} קיצורים. להסיר אחד כדי לפנות מקום?',
+  'Remove one': 'להסיר אחד',
+  'Leave as is': 'להשאיר כמו שזה',
+  'Remove a quick access shortcut': 'הסרת קיצור מהגישה המהירה',
+  'Quick access holds five shortcuts. Remove one to make room.':
+    'הגישה המהירה מכילה חמישה קיצורים. הסירו אחד כדי לפנות מקום.',
+  'Remove {name} from quick access': 'הסרת {name} מהגישה המהירה',
   'Yes': 'כן',
   'No': 'לא',
   'Double-tap the lower-right of the screen for quick access':

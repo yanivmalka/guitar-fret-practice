@@ -22,11 +22,16 @@ type Phase = 'sunk' | 'revealed' | 'open';
 // double-tap anywhere in the app's bottom-right quadrant; the two taps only
 // have to be reasonably close in time and place, so two calm taps work — not
 // just a fast, precise "double click".
+//
+// SINK_MS is measured from the *last* touch on any part of the control, not
+// from when it was revealed: every pointer-down on the circle or the strip
+// (and every setting change) restarts the countdown, so it only sinks after a
+// genuine lull. Dragging the circle aside sinks it immediately.
 const SINK_MS = 5000;
 const HINT_MS = 6000;
 const DOUBLE_TAP_MS = 700;
 const DOUBLE_TAP_MOVE_PX = 80;
-const DRAG_ASIDE_PX = 40;
+const DRAG_ASIDE_PX = 24;
 
 export interface QuickAccessProps {
   t: (s: string) => string;
@@ -79,7 +84,7 @@ export default function QuickAccess(props: QuickAccessProps) {
 
   const sinkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTap = useRef<{ time: number; x: number; y: number } | null>(null);
-  const fabDown = useRef<{ x: number; dragged: boolean } | null>(null);
+  const fabDown = useRef<{ x: number; y: number; dragged: boolean } | null>(null);
 
   const clearSink = useCallback(() => {
     if (sinkTimer.current) { clearTimeout(sinkTimer.current); sinkTimer.current = null; }
@@ -196,13 +201,16 @@ export default function QuickAccess(props: QuickAccessProps) {
   if (!enabled || pinned.length === 0) return null;
 
   const onFabPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
-    fabDown.current = { x: e.clientX, dragged: false };
+    fabDown.current = { x: e.clientX, y: e.clientY, dragged: false };
     e.currentTarget.setPointerCapture?.(e.pointerId);
+    // Any touch on a part of the control keeps it alive: restart the sink
+    // countdown so it only disappears after a real lull in use.
+    armSink();
   };
   const onFabPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
     const d = fabDown.current;
     if (!d || d.dragged) return;
-    if (Math.abs(e.clientX - d.x) > DRAG_ASIDE_PX) {
+    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > DRAG_ASIDE_PX) {
       d.dragged = true;
       clearSink();
       setPhase('sunk');
@@ -254,7 +262,12 @@ export default function QuickAccess(props: QuickAccessProps) {
       )}
 
       {phase === 'open' && menuIds.length > 0 && (
-        <div className="qa-menu" role="group" aria-label={t('Quick access')}>
+        <div
+          className="qa-menu"
+          role="group"
+          aria-label={t('Quick access')}
+          onPointerDown={() => armSink()}
+        >
           {menuIds.map((id) => (
             <button
               key={id}

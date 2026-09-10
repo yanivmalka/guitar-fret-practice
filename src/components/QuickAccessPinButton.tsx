@@ -9,6 +9,7 @@ import {
   setQuickAccessEnabled,
   getPinnedQuick,
   togglePinnedQuick,
+  openQuickAccessManager,
   MAX_QUICK_PINNED,
 } from '../utils/quickAccess';
 
@@ -68,23 +69,41 @@ export function QuickAccessPinButton({ itemId }: { itemId: QuickAccessId }) {
           />
         </svg>
       </button>
-      {confirm && (
+      {confirm && atCap && (
+        // The strip is already full. Rather than a dead-end "remove one first"
+        // note, offer to jump to the full-page manager (the only way in) or
+        // leave things as they are.
+        <div className="mic-overlay" onClick={() => setConfirm(false)}>
+          <div className="mic-card" onClick={(e) => e.stopPropagation()}>
+            <div className="mic-card-title">{t('Quick access is full')}</div>
+            <p className="mic-card-body">
+              {t('You already have {n} shortcuts. Remove one to make room?')
+                .replace('{n}', String(MAX_QUICK_PINNED))}
+            </p>
+            <div className="mic-card-actions">
+              <button
+                className="mic-btn mic-btn-primary"
+                onClick={click(() => { setConfirm(false); openQuickAccessManager(itemId); })}
+              >
+                {t('Remove one')}
+              </button>
+              <button className="mic-btn mic-btn-ghost" onClick={click(() => setConfirm(false))}>
+                {t('Leave as is')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {confirm && !atCap && (
         <div className="mic-overlay" onClick={() => setConfirm(false)}>
           <div className="mic-card" onClick={(e) => e.stopPropagation()}>
             <div className="mic-card-title">
               {pinned ? t('Remove from quick access?') : t('Pin to quick access?')}
             </div>
-            {atCap && (
-              <p className="mic-card-body">
-                {t('You can pin up to {n} settings. Remove one first.')
-                  .replace('{n}', String(MAX_QUICK_PINNED))}
-              </p>
-            )}
             <div className="mic-card-actions">
               <button
                 className="mic-btn mic-btn-primary"
-                disabled={atCap}
-                onClick={click(() => { if (!atCap) togglePinnedQuick(itemId); setConfirm(false); })}
+                onClick={click(() => { togglePinnedQuick(itemId); setConfirm(false); })}
               >
                 {t('Yes')}
               </button>
