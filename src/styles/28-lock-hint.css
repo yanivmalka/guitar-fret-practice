@@ -1,0 +1,68 @@
+/* ── Lock hint: the transient "why is this locked" tile ───────────────────
+   Shown by `useLockHint` (src/components/LockHint.tsx) when a control that a
+   *setting* has disabled is tapped — e.g. "Identify the interval" while sound
+   is off. It rises next to the control, holds ~2s, then sinks away. This is
+   NOT the Pro/Premium upsell (see 21-pro-gate.css) — settings locks explain
+   themselves in place rather than routing to the upgrade drawer. */
+
+.lock-hint {
+  position: fixed;
+  z-index: 9999;
+  /* `top`/`left` anchor the tile to the control's top-centre; pull it up and
+     back over its own box so it sits just above, centred on that point. */
+  transform: translate(-50%, -100%);
+  max-width: min(15rem, calc(100vw - 24px));
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--surface-border);
+  background: var(--bg-3);
+  color: var(--text-0);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  font-size: 0.74rem;
+  line-height: 1.4;
+  font-weight: 600;
+  text-align: start;
+  pointer-events: none;
+  animation: lock-hint-rise 180ms ease-out both;
+}
+
+.lock-hint-icon { font-size: 0.9rem; line-height: 1.4; flex: none; }
+.lock-hint-text { color: var(--text-1); }
+
+/* little tail pointing down at the control */
+.lock-hint::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translateX(-50%) rotate(45deg);
+  background: var(--bg-3);
+  border-right: 1px solid var(--surface-border);
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.lock-hint--leaving {
+  animation: lock-hint-sink 260ms ease-in both;
+}
+
+@keyframes lock-hint-rise {
+  from { opacity: 0; transform: translate(-50%, calc(-100% + 8px)) scale(0.96); }
+  to   { opacity: 1; transform: translate(-50%, -100%) scale(1); }
+}
+
+@keyframes lock-hint-sink {
+  from { opacity: 1; transform: translate(-50%, -100%) scale(1); }
+  to   { opacity: 0; transform: translate(-50%, calc(-100% + 12px)) scale(0.94); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lock-hint { animation: lock-hint-fade-in 120ms ease-out both; }
+  .lock-hint--leaving { animation: lock-hint-fade-out 200ms ease-in both; }
+  @keyframes lock-hint-fade-in  { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes lock-hint-fade-out { from { opacity: 1; } to { opacity: 0; } }
+}

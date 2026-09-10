@@ -4,6 +4,7 @@ import { displayNote } from '../utils/music';
 import type { InstrumentConfig } from '../utils/instruments';
 import { playClickSound, playToggleOnSound, playToggleOffSound } from '../utils/feedback';
 import { useTranslation } from '../i18n/useTranslation';
+import { useLockHint } from './LockHint';
 import { openUpgrade } from '../utils/upgradeDrawer';
 import { FREE_MULTI_STRING_LIMIT } from '../utils/features';
 import {
@@ -50,6 +51,7 @@ export default function SelectorPanel({
   notationOnly, onInfo, showInfo,
 }: SelectorPanelProps) {
   const { t, lang } = useTranslation();
+  const { showLockHint, lockHintNode } = useLockHint();
   const maxFret = instrument.maxFret;
   const stringCount = instrument.stringCount;
   const dotFrets = instrument.dotFrets;
@@ -399,16 +401,24 @@ export default function SelectorPanel({
       <div className="difficulty-road">
         <button
           className={`diff-btn ${activeDiff === 'dots' ? 'active' : ''}${preciseActive ? ' diff-btn-locked' : ''}`}
-          disabled={preciseActive}
+          aria-disabled={preciseActive || undefined}
           title={preciseActive ? t('Full only while a precise fret window is on') : undefined}
-          onClick={() => { playClickSound(); onDifficultySelect('dots'); }}
+          onClick={(e) => {
+            playClickSound();
+            if (preciseActive) { showLockHint(e.currentTarget, t('Full only while a precise fret window is on')); return; }
+            onDifficultySelect('dots');
+          }}
         ><span className="diff-icon">●</span><span className="diff-label">{t('Dots')}</span></button>
         <span className="diff-arrow">→</span>
         <button
           className={`diff-btn ${activeDiff === 'naturals' ? 'active' : ''}${preciseActive ? ' diff-btn-locked' : ''}`}
-          disabled={preciseActive}
+          aria-disabled={preciseActive || undefined}
           title={preciseActive ? t('Full only while a precise fret window is on') : undefined}
-          onClick={() => { playClickSound(); onDifficultySelect('naturals'); }}
+          onClick={(e) => {
+            playClickSound();
+            if (preciseActive) { showLockHint(e.currentTarget, t('Full only while a precise fret window is on')); return; }
+            onDifficultySelect('naturals');
+          }}
         ><span className="diff-icon">♮</span><span className="diff-label">{t('Naturals')}</span></button>
         <span className="diff-arrow">→</span>
         <button className={`diff-btn ${activeDiff === 'full' ? 'active' : ''}`} onClick={() => { playClickSound(); onDifficultySelect('full'); }}><span className="diff-icon">♯♭</span><span className="diff-label">{t('Full')}</span></button>
@@ -425,6 +435,8 @@ export default function SelectorPanel({
           </button>
         )}
       </div>
+
+      {lockHintNode}
     </div>
   );
 }

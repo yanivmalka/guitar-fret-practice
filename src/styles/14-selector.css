@@ -87,6 +87,21 @@
   font-size: 0.85rem;
   font-weight: 600;
 }
+/* Locked by a setting (e.g. the audio-only interval exercise while sound is
+   off): still tappable so the tap can raise a lock hint, but shown as
+   unavailable with a small padlock. */
+.mode-card-locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.mode-card-locked::after {
+  content: '🔒';
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 0.7rem;
+  line-height: 1;
+}
 
 /* Fret neck */
 .fret-neck {
