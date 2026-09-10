@@ -53,11 +53,15 @@ const he: Record<string, string> = {
   'On': 'פעיל',
   'Off': 'כבוי',
   'Silent mode': 'מצב שקט',
-  'Visual-only questions — no note playback or chime. Haptics and on-screen celebrations stay on. Great for practising with headphones off or a guitar in hand.':
-    'שאלות חזותיות בלבד — ללא השמעת התו וללא צליל "נכון". הרטט והחגיגות על המסך נשארים פעילים. מצוין לתרגול בלי אוזניות או עם גיטרה אמיתית ביד.',
+  'Sound & vibration': 'צליל ורטט',
+  'Sound': 'קול',
+  'Vibrate': 'רטט',
+  'Silent': 'שקט',
+  'How the drill answers back. Sound: note playback, chimes and tap sounds. Vibrate: no sound — a buzz on every button press and on right / wrong answers instead. Silent: neither, just the on-screen celebrations. Vibrate and Silent are great for practising with headphones off or a guitar in hand.':
+    'איך התרגול מגיב. קול: השמעת התו, צלילי "נכון" וצלילי הקשה. רטט: בלי צליל — במקום זה רטט על כל לחיצת כפתור ועל תשובה נכונה / שגויה. שקט: כלום, רק החגיגות על המסך. רטט ושקט מצוינים לתרגול בלי אוזניות או עם גיטרה אמיתית ביד.',
   'Note volume': 'עוצמת התווים',
-  'How loud the drill note samples play. Pick one of five levels with − / + if the notes sound weak; the limiter keeps even the loudest setting from distorting.':
-    'עד כמה חזק מושמעים צלילי התווים בתרגול. בחר אחת מחמש רמות עם ־ / + אם התווים נשמעים חלשים; המגביל מונע עיוות גם ברמה החזקה ביותר.',
+  'How loud the drill note samples play. Tap a bar to set one of five levels if the notes sound weak; the limiter keeps even the loudest setting from distorting.':
+    'עד כמה חזק מושמעים צלילי התווים בתרגול. הקש על מלבן כדי לבחור אחת מחמש רמות אם התווים נשמעים חלשים; המגביל מונע עיוות גם ברמה החזקה ביותר.',
   'Theme': 'ערכת נושא',
   'Dark': 'כהה',
   'Night': 'לילה',

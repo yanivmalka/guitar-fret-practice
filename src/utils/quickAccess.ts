@@ -9,7 +9,8 @@
 //
 // Exactly seven settings are pinnable and at most five can be pinned at once.
 // Every pinnable setting is a two-state toggle except Note volume, which cycles
-// through the five discrete loudness levels (`NOTE_VOLUME_LEVELS`).
+// through the five discrete loudness levels (`NOTE_VOLUME_LEVELS`), and Sound &
+// vibration, which cycles sound → vibrate → silent.
 
 import { loadSetting, saveSetting } from './settings';
 import { NOTE_VOLUME_LEVELS, noteVolumeLevelIndex } from './audio';
@@ -23,7 +24,7 @@ export type QuickAccessId =
   | 'notation'
   | 'accidental'
   | 'showScore'
-  | 'silentMode'
+  | 'feedbackMode'
   | 'noteVolume'
   | 'answerMode'
   | 'showMastery';
@@ -74,10 +75,11 @@ export const QUICK_ACCESS_ITEMS: readonly QuickAccessItem[] = [
     next: (cur) => cur === false,
   },
   {
-    id: 'silentMode',
-    prefKey: 'pref_silentMode',
-    label: 'Silent mode',
-    next: (cur) => cur !== true,
+    id: 'feedbackMode',
+    prefKey: 'pref_feedbackMode',
+    label: 'Sound & vibration',
+    // Cycles the phone-ringer switch: sound → vibrate → silent → sound.
+    next: (cur) => (cur === 'sound' ? 'vibrate' : cur === 'vibrate' ? 'silent' : 'sound'),
   },
   {
     id: 'noteVolume',

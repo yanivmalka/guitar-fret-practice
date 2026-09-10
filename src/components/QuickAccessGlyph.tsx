@@ -34,7 +34,8 @@ const CAP = {
 /**
  * A speaker cone plus `n` sound waves (n = 0 draws a mute cross instead).
  * Note volume runs 0…4 across the five loudness levels, so up to four wave
- * arcs are drawn; Silent mode reuses this at n = 0 / 3.
+ * arcs are drawn; Sound & vibration reuses this at n = 3 for its 'sound'
+ * state and n = 0 for 'silent'.
  */
 function speaker(waves: number) {
   return (
@@ -96,8 +97,17 @@ function glyph(id: QuickAccessId, value: unknown) {
         : <path d={star} fill="currentColor" />;
     }
 
-    case 'silentMode':
-      return speaker(value === true ? 0 : 3);
+    case 'feedbackMode':
+      if (value === 'vibrate') {
+        // A phone body with a motion line on each side.
+        return (
+          <>
+            <rect x="8" y="3" width="8" height="18" rx="2" {...CAP} />
+            <path d="M4.5 8.5v7M19.5 8.5v7" {...CAP} />
+          </>
+        );
+      }
+      return speaker(value === 'silent' ? 0 : 3);
 
     case 'noteVolume':
       return speaker(noteVolumeStep(value));

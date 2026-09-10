@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { SettingCard, SegmentedControl, PickRow, StepperMeter } from '../../SettingCard';
+import { SettingCard, SegmentedControl, PickRow, LevelBar } from '../../SettingCard';
 import {
   NOTE_VOLUME_LEVELS, noteVolumeLevelIndex,
 } from '../../../utils/audio';
@@ -14,6 +14,7 @@ import {
 } from '../../../utils/mastery';
 import type { Season, Theme } from '../../../utils/theme';
 import type { VoiceEnginePref } from '../../../utils/speech';
+import type { FeedbackMode } from '../../../utils/feedback';
 
 type AnswerMode = 'tap' | 'voice';
 type WindowMode = MasteryWindow['kind'];
@@ -55,8 +56,8 @@ export interface GeneralSettingsSectionProps {
   setLang: (l: Lang) => void;
   showScore: boolean;
   setShowScore: (v: boolean) => void;
-  silentMode: boolean;
-  setSilentMode: (v: boolean) => void;
+  feedbackMode: FeedbackMode;
+  setFeedbackMode: (v: FeedbackMode) => void;
   noteVolume: number;
   setNoteVolume: (v: number) => void;
   theme: Theme;
@@ -79,7 +80,7 @@ export interface GeneralSettingsSectionProps {
 }
 
 export default function GeneralSettingsSection({
-  t, lang, setLang, showScore, setShowScore, silentMode, setSilentMode,
+  t, lang, setLang, showScore, setShowScore, feedbackMode, setFeedbackMode,
   noteVolume, setNoteVolume, theme, setTheme, season, setSeason, voiceSupported, answerMode, setAnswerMode, askForMic,
   voiceEnginePref, pickVoiceEngine, voiceProfileStat, setSettingsOpen,
   setShowVoiceCalibration, showMastery, setShowMastery, masteryWindow, setMasteryWindow,
@@ -139,34 +140,33 @@ export default function GeneralSettingsSection({
         />
       </SettingCard>
       <SettingCard
-        label={t('Silent mode')}
-        pin={<QuickAccessPinButton itemId="silentMode" />}
-        help={t('Visual-only questions — no note playback or chime. Haptics and on-screen celebrations stay on. Great for practising with headphones off or a guitar in hand.')}
+        label={t('Sound & vibration')}
+        pin={<QuickAccessPinButton itemId="feedbackMode" />}
+        help={t('How the drill answers back. Sound: note playback, chimes and tap sounds. Vibrate: no sound — a buzz on every button press and on right / wrong answers instead. Silent: neither, just the on-screen celebrations. Vibrate and Silent are great for practising with headphones off or a guitar in hand.')}
       >
         <SegmentedControl
-          ariaLabel={t('Silent mode')}
-          value={silentMode ? 'on' : 'off'}
+          ariaLabel={t('Sound & vibration')}
+          value={feedbackMode}
           options={[
-            { value: 'on', label: t('On') },
-            { value: 'off', label: t('Off') },
+            { value: 'sound', label: t('Sound') },
+            { value: 'vibrate', label: t('Vibrate') },
+            { value: 'silent', label: t('Silent') },
           ]}
-          onChange={(v) => { const on = v === 'on'; setSilentMode(on); saveSetting('pref_silentMode', on); }}
+          onChange={(v) => { setFeedbackMode(v); saveSetting('pref_feedbackMode', v); }}
         />
       </SettingCard>
       <SettingCard
         label={t('Note volume')}
         pin={<QuickAccessPinButton itemId="noteVolume" />}
-        help={t('How loud the drill note samples play. Pick one of five levels with − / + if the notes sound weak; the limiter keeps even the loudest setting from distorting.')}
+        help={t('How loud the drill note samples play. Tap a bar to set one of five levels if the notes sound weak; the limiter keeps even the loudest setting from distorting.')}
       >
-        <StepperMeter
+        <LevelBar
           ariaLabel={t('Note volume')}
           value={noteVolumeLevelIndex(noteVolume) + 1}
-          min={1}
-          max={NOTE_VOLUME_LEVELS.length}
-          step={1}
+          count={NOTE_VOLUME_LEVELS.length}
           formatValue={(v) => `${v} / ${NOTE_VOLUME_LEVELS.length}`}
           onChange={(v) => {
-            const gain = NOTE_VOLUME_LEVELS[Math.round(v) - 1];
+            const gain = NOTE_VOLUME_LEVELS[v - 1];
             setNoteVolume(gain);
             saveSetting('pref_noteVolume', gain);
           }}

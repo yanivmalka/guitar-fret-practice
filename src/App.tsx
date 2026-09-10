@@ -22,7 +22,7 @@ import { playClickSound, playToggleOnSound, playToggleOffSound, haptic } from '.
 import { withClick as click } from './utils/withClick';
 import { loadSetting, saveSetting } from './utils/settings';
 import { useThemeEffect } from './hooks/useThemeEffect';
-import { useSilentModeEffect } from './hooks/useSilentModeEffect';
+import { useFeedbackModeEffect } from './hooks/useFeedbackModeEffect';
 import { useBootReadyEvent } from './hooks/useBootReadyEvent';
 import { useAutoPauseOnBackground } from './hooks/useAutoPauseOnBackground';
 import { useQuestionChangeAnimation } from './hooks/useQuestionChangeAnimation';
@@ -175,7 +175,7 @@ export default function App() {
     byString, setByString, notation, setNotation, accidental, setAccidental, order, setOrder,
     answerMode, setAnswerMode, voiceEnginePref, setVoiceEnginePref,
     showScore, setShowScore, showMastery, setShowMastery,
-    masteryWindow, setMasteryWindow, silentMode, setSilentMode,
+    masteryWindow, setMasteryWindow, feedbackMode, setFeedbackMode,
     noteVolume, setNoteVolume,
     theme, setTheme,
     season, setSeason,
@@ -193,7 +193,11 @@ export default function App() {
   // note is *spelled* on screen — the question note, the note wheel and the
   // feedback line all follow it. Answer matching stays enharmonic-agnostic
   // (`notesMatch`), so the choice never changes which answer is correct.
-  useSilentModeEffect(silentMode);
+  useFeedbackModeEffect(feedbackMode);
+  // Anything that only cares "is the drill's audio muted?" (e.g. the interval
+  // screen's audio-only exercise) keys off this — true in both 'vibrate' and
+  // 'silent'.
+  const silentMode = feedbackMode !== 'sound';
   useThemeEffect(season, theme);
 
   useBootReadyEvent(auth.loading, auth.entitlementLoading);
@@ -691,8 +695,8 @@ export default function App() {
           setLang={setLang}
           showScore={showScore}
           setShowScore={setShowScore}
-          silentMode={silentMode}
-          setSilentMode={setSilentMode}
+          feedbackMode={feedbackMode}
+          setFeedbackMode={setFeedbackMode}
           noteVolume={noteVolume}
           setNoteVolume={setNoteVolume}
           theme={theme}
@@ -985,8 +989,8 @@ export default function App() {
           setAccidental={setAccidental}
           showScore={showScore}
           setShowScore={setShowScore}
-          silentMode={silentMode}
-          setSilentMode={setSilentMode}
+          feedbackMode={feedbackMode}
+          setFeedbackMode={setFeedbackMode}
           noteVolume={noteVolume}
           setNoteVolume={setNoteVolume}
           answerMode={answerMode}

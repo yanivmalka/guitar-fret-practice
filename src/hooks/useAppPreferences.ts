@@ -4,6 +4,7 @@ import type { AccidentalMode, NotationMode, OrderMode } from '../utils/music';
 import type { VoiceEnginePref } from '../utils/speech';
 import type { Season, Theme } from '../utils/theme';
 import { NOTE_VOLUME_DEFAULT } from '../utils/audio';
+import type { FeedbackMode } from '../utils/feedback';
 import { DEFAULT_MASTERY_WINDOW, type MasteryWindow } from '../utils/mastery';
 
 type AnswerMode = 'tap' | 'voice';
@@ -33,7 +34,16 @@ export function useAppPreferences() {
   const [masteryWindow, setMasteryWindow] = useState<MasteryWindow>(
     () => loadSetting('pref_masteryWindow', DEFAULT_MASTERY_WINDOW),
   );
-  const [silentMode, setSilentMode] = useState(() => loadSetting('pref_silentMode', false));
+  // How the drill answers back: 'sound' (note + chimes + UI clicks), 'vibrate'
+  // (no sound; a haptic pulse on every tap and on right/wrong instead), or
+  // 'silent' (visual only). Ships as 'sound'. Falls back to the pre-3-mode
+  // `pref_silentMode` boolean once: a device that had it on lands on 'vibrate'
+  // (its old behaviour — muted audio, haptics kept).
+  const [feedbackMode, setFeedbackMode] = useState<FeedbackMode>(() => {
+    const stored = loadSetting<FeedbackMode | null>('pref_feedbackMode', null);
+    if (stored === 'sound' || stored === 'vibrate' || stored === 'silent') return stored;
+    return loadSetting('pref_silentMode', false) ? 'vibrate' : 'sound';
+  });
   // A plain makeup-gain multiplier. Earlier builds briefly stored a string
   // enum ('low'|'normal'|'high'|'max'); map those forward so a device that set
   // it then isn't stuck on the default.
@@ -68,7 +78,7 @@ export function useAppPreferences() {
     showScore, setShowScore,
     showMastery, setShowMastery,
     masteryWindow, setMasteryWindow,
-    silentMode, setSilentMode,
+    feedbackMode, setFeedbackMode,
     noteVolume, setNoteVolume,
     theme, setTheme,
     season, setSeason,

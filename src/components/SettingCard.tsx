@@ -141,6 +141,53 @@ export function StepperMeter({
   );
 }
 
+/**
+ * A discrete numeric setting shown as a row of `count` rectangular segments
+ * that fill up to the current level. Tapping a segment sets that level (min 1);
+ * each tap carries the same click sound + haptic as the other settings
+ * controls. Used for Note volume — five clearly-separated loudness steps.
+ */
+export function LevelBar({
+  value, count, onChange, ariaLabel, formatValue,
+}: {
+  value: number;
+  count: number;
+  onChange: (v: number) => void;
+  ariaLabel?: string;
+  formatValue?: (v: number) => string;
+}) {
+  const pick = (level: number) => {
+    if (level === value) return;
+    playClickSound();
+    haptic.tap();
+    onChange(level);
+  };
+  return (
+    <div
+      className="level-bar"
+      role="slider"
+      aria-label={ariaLabel}
+      aria-valuemin={1}
+      aria-valuemax={count}
+      aria-valuenow={value}
+    >
+      {Array.from({ length: count }, (_, i) => {
+        const level = i + 1;
+        return (
+          <button
+            key={level}
+            type="button"
+            className={`level-seg${level <= value ? ' level-seg-on' : ''}`}
+            aria-label={`${ariaLabel ?? ''} ${level}`.trim()}
+            onClick={() => pick(level)}
+          />
+        );
+      })}
+      {formatValue && <span className="level-bar-val">{formatValue(value)}</span>}
+    </div>
+  );
+}
+
 export function SettingCard({
   label, help, children, pin,
 }: {

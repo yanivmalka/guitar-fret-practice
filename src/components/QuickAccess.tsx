@@ -1,7 +1,7 @@
 import {
   useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore,
 } from 'react';
-import { playClickSound, haptic } from '../utils/feedback';
+import { playClickSound, haptic, type FeedbackMode } from '../utils/feedback';
 import { saveSetting } from '../utils/settings';
 import type { AccidentalMode, NotationMode } from '../utils/music';
 import QuickAccessGlyph from './QuickAccessGlyph';
@@ -38,8 +38,8 @@ export interface QuickAccessProps {
   setAccidental: (a: AccidentalMode) => void;
   showScore: boolean;
   setShowScore: (v: boolean) => void;
-  silentMode: boolean;
-  setSilentMode: (v: boolean) => void;
+  feedbackMode: FeedbackMode;
+  setFeedbackMode: (v: FeedbackMode) => void;
   noteVolume: number;
   setNoteVolume: (v: number) => void;
   answerMode: AnswerMode;
@@ -95,7 +95,7 @@ export default function QuickAccess(props: QuickAccessProps) {
     notation: props.notation,
     accidental: props.accidental,
     showScore: props.showScore,
-    silentMode: props.silentMode,
+    feedbackMode: props.feedbackMode,
     noteVolume: props.noteVolume,
     answerMode: props.answerMode,
     showMastery: props.showMastery,
@@ -104,7 +104,7 @@ export default function QuickAccess(props: QuickAccessProps) {
     notation: (v) => props.setNotation(v as NotationMode),
     accidental: (v) => props.setAccidental(v as AccidentalMode),
     showScore: (v) => props.setShowScore(v as boolean),
-    silentMode: (v) => props.setSilentMode(v as boolean),
+    feedbackMode: (v) => props.setFeedbackMode(v as FeedbackMode),
     noteVolume: (v) => props.setNoteVolume(v as number),
     answerMode: (v) => props.setAnswerMode(v as AnswerMode),
     showMastery: (v) => props.setShowMastery(v as boolean),

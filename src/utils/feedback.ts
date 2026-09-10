@@ -1,5 +1,24 @@
+// The three-way feedback preference, modelled on a phone's ringer switch:
+//  - 'sound'   — note playback, chimes and UI click sounds; no vibration.
+//  - 'vibrate' — no sound at all; a haptic pulse on every button press and on
+//                right / wrong answers instead.
+//  - 'silent'  — neither: visual-only, on-screen celebrations still run.
+export type FeedbackMode = 'sound' | 'vibrate' | 'silent';
+
+// Whether haptic pulses fire. Off by default (the shipped mode is 'sound');
+// `useFeedbackModeEffect` turns it on only in 'vibrate' mode. Gating it here in
+// the one `vibrate()` chokepoint covers every `haptic.*` call site at once.
+let _hapticsOn = false;
+export function setHapticsEnabled(v: boolean) { _hapticsOn = v; }
+
+// Whether the small UI sounds (click / toggle / countdown stick) play. On for
+// 'sound' mode only; 'vibrate' and 'silent' both mute them.
+let _uiSoundsOn = true;
+export function setUiSoundsEnabled(v: boolean) { _uiSoundsOn = v; }
+
 // Haptic feedback via navigator.vibrate
 function vibrate(pattern: number | number[]) {
+  if (!_hapticsOn) return;
   try { navigator.vibrate?.(pattern); } catch { /* not supported */ }
 }
 
@@ -11,11 +30,11 @@ export const haptic = {
   tap:         () => vibrate(10),
 };
 
-// Silent mode: mutes the drill's *content* audio — the correct-answer chime,
-// the badge fanfare and the ascending tone inside the tier-3 celebration. UI
-// sounds (click / toggle / stick click), haptics and every on-screen
-// celebration keep working. Toggled from App.tsx; audio.ts carries its own
-// copy of this flag for the question note.
+// Mutes the drill's *content* audio — the correct-answer chime, the badge
+// fanfare and the ascending tone inside the tier-3 celebration. Set whenever
+// the feedback mode is not 'sound' (i.e. 'vibrate' or 'silent'). On-screen
+// celebrations keep running; audio.ts carries its own copy of this flag for
+// the question note, and UI sounds are gated separately by `_uiSoundsOn`.
 let _silent = false;
 export function setSilent(v: boolean) { _silent = v; }
 
@@ -40,6 +59,7 @@ export function getFeedbackAudioCtx(): AudioContext | null {
 }
 
 export function playClickSound() {
+  if (!_uiSoundsOn) return;
   const ctx = getCtx();
   if (!ctx) return;
   if (ctx.state === 'suspended') ctx.resume();
@@ -78,6 +98,7 @@ async function loadStickClickBuffer(ctx: AudioContext): Promise<AudioBuffer | nu
 }
 
 export function playStickClick() {
+  if (!_uiSoundsOn) return;
   const ctx = getCtx();
   if (!ctx) return;
   if (ctx.state === 'suspended') ctx.resume();
@@ -97,6 +118,7 @@ export function playStickClick() {
 }
 
 export function playToggleOnSound() {
+  if (!_uiSoundsOn) return;
   const ctx = getCtx();
   if (!ctx) return;
   if (ctx.state === 'suspended') ctx.resume();
@@ -112,6 +134,7 @@ export function playToggleOnSound() {
 }
 
 export function playToggleOffSound() {
+  if (!_uiSoundsOn) return;
   const ctx = getCtx();
   if (!ctx) return;
   if (ctx.state === 'suspended') ctx.resume();
