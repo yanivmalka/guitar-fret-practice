@@ -14,7 +14,7 @@
   overscroll-behavior: contain;
 }
 .settings-panel {
-  background: var(--bg-1);
+  background: var(--menu-bg);
   border: none;
   border-inline-start: 1px solid var(--surface-border);
   border-radius: 0;

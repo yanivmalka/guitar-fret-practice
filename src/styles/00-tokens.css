@@ -54,6 +54,11 @@
      so 'dark' preserves its original, pre-theme sky-blue exactly; 'night'
      and 'day' point it at their own --accent instead. */
   --pick-accent: #4af;
+
+  /* Hamburger (settings) drawer sheet. Defaults to --bg-1 in every dark /
+     night palette; the light 'day' palettes override it a step darker than
+     their near-white --bg-1 so the drawer reads as a surface, not a glare. */
+  --menu-bg: var(--bg-1);
 }
 
 /* ────────────────────────────────────────────────────────────────
@@ -108,6 +113,7 @@
   --success: #178a52; --success-rgb: 23, 138, 82;
   --danger: #cc3357; --danger-rgb: 204, 51, 87;
   --heat-unplayed: #dde5f1; --pick-accent: #5a4fc4;
+  --menu-bg: #e5ecf5;
 }
 
 /* ── Spring — fresh leaf green, blossom pink ─────────────────── */
@@ -143,6 +149,7 @@
   --success: #1f9a52; --success-rgb: 31, 154, 82;
   --danger: #d43f6a; --danger-rgb: 212, 63, 106;
   --heat-unplayed: #deeedc; --pick-accent: #8c3fa8;
+  --menu-bg: #e7f1e6;
 }
 
 /* ── Summer — sun heat: red-orange (dark), sunlit amber (night),
@@ -183,6 +190,7 @@
   --success: #1c8747; --success-rgb: 28, 135, 71;
   --danger: #c62a49; --danger-rgb: 198, 42, 73;
   --heat-unplayed: #ecebe2; --pick-accent: #10788f;
+  --menu-bg: #f4edd6;
 }
 
 /* ── Autumn — rust, ember, oak ───────────────────────────────── */
@@ -220,6 +228,7 @@
   --success: #6f8a1f; --success-rgb: 111, 138, 31;
   --danger: #c23a48; --danger-rgb: 194, 58, 72;
   --heat-unplayed: #ead9bd; --pick-accent: #637c14;
+  --menu-bg: #eee1ca;
 }
 
 /* ── Legacy single-axis values ───────────────────────────────────
@@ -248,4 +257,5 @@
   --success: #189a55; --success-rgb: 24, 154, 85;
   --danger: #d6335a; --danger-rgb: 214, 51, 90;
   --heat-unplayed: #dfe1ee; --pick-accent: var(--accent);
+  --menu-bg: #ebedf7;
 }
