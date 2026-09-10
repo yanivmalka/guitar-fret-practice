@@ -179,18 +179,18 @@
 }
 [data-theme='summer-day'] {
   color-scheme: light;
-  /* Sunny-yellow lives on the keys, frets and borders — the ground stays a
-     light, near-neutral warm off-white so the accent reads as sunlight on
-     the instrument, not a wash over the whole screen. */
-  --bg-0: #f8f7f1; --bg-1: #ffffff; --bg-2: #f2f1ea; --bg-3: #fdf7e2;
-  --bg-letterbox: #e7e1cf; --surface-border: #ecdca6; --border-soft: #dcc474;
+  /* Sunny-yellow lives on the keys, frets and borders; the ground is a soft
+     buttercream — warm and yellow-tinted, but well short of a full wash so
+     the accent still reads as sunlight on the instrument. */
+  --bg-0: #fbf5df; --bg-1: #fffdf3; --bg-2: #f6efd7; --bg-3: #f2e8c6;
+  --bg-letterbox: #e3d7b2; --surface-border: #ecdca6; --border-soft: #dcc474;
   --text-0: #26231a; --text-1: #47412f; --text-2: #635a42; --text-3: #7d7358;
   --accent: #f5c518; --accent-rgb: 245, 197, 24; --accent-dim: #caa011; --accent-ink: #3a2b00;
   --gold: #c99400; --gold-rgb: 201, 148, 0; --amber: #d98a1f;
   --success: #1c8747; --success-rgb: 28, 135, 71;
   --danger: #c62a49; --danger-rgb: 198, 42, 73;
-  --heat-unplayed: #ecebe2; --pick-accent: #10788f;
-  --menu-bg: #f4edd6;
+  --heat-unplayed: #efe9d2; --pick-accent: #10788f;
+  --menu-bg: #f2e9cf;
 }
 
 /* ── Autumn — rust, ember, oak ───────────────────────────────── */

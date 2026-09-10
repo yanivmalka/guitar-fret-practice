@@ -45,7 +45,7 @@ export const MODE_COLOR_SCHEME: Record<ThemeMode, 'dark' | 'light'> = {
 export const THEME_BG: Record<string, string> = {
   'winter-dark': '#1a1a2e', 'winter-night': '#0f1320', 'winter-day': '#eef2f8',
   'spring-dark': '#14201a', 'spring-night': '#12140d', 'spring-day': '#f1f7f0',
-  'summer-dark': '#241009', 'summer-night': '#16110b', 'summer-day': '#f8f7f1',
+  'summer-dark': '#241009', 'summer-night': '#16110b', 'summer-day': '#fbf5df',
   'autumn-dark': '#201410', 'autumn-night': '#170e09', 'autumn-day': '#f4e8d3',
 };
 
