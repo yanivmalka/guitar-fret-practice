@@ -46,8 +46,12 @@ export function PinnedBadges({
   );
 
   const [pinned, setPinned] = useState<string[]>(() => loadPinned());
-  // Keys whose badge is no longer held (admin Reset, cleared history) are just
-  // skipped here; storage is tidied the next time the player edits the set.
+  // Pins whose badge is no longer held (admin Reset, cleared history) are
+  // filtered out for every read below — the strip, the picker counter, and the
+  // "full" limit all work off `livePinned`, never the raw `pinned`, so a dead
+  // key can't keep eating one of the five slots and blocking a replacement.
+  // Stored `pref_pinnedBadges` is tidied to the live set the next time `toggle`
+  // edits it.
   const livePinned = useMemo(
     () => pinned.filter(k => earnedByKey.has(k)),
     [pinned, earnedByKey],
@@ -67,18 +71,20 @@ export function PinnedBadges({
     playClickSound();
     haptic.tap();
     setPinned(prev => {
+      // Drop any dead keys as we go, so the stored set self-heals on edit.
+      const base = prev.filter(k => earnedByKey.has(k));
       let next: string[];
-      if (prev.includes(key)) {
-        next = prev.filter(k => k !== key);
-      } else if (prev.length >= MAX_PINNED) {
+      if (base.includes(key)) {
+        next = base.filter(k => k !== key);
+      } else if (base.length >= MAX_PINNED) {
         return prev; // full — blocked, the picker shows the hint
       } else {
-        next = [...prev, key];
+        next = [...base, key];
       }
       savePinned(next);
       return next;
     });
-  }, []);
+  }, [earnedByKey]);
 
   // Nothing earned yet — no shelf at all.
   if (earned.length === 0) return null;
@@ -125,7 +131,7 @@ export function PinnedBadges({
       {pickerOpen && (
         <PinnedBadgePicker
           earned={earned}
-          pinned={pinned}
+          pinned={livePinned}
           onToggle={toggle}
           onClose={closePicker}
           onOpenBadges={() => { closePicker(); onOpenBadges(); }}
