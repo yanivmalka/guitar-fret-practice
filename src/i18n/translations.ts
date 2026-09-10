@@ -33,10 +33,15 @@ const he: Record<string, string> = {
   'Written as': 'מוצגים כ־',
   "Display only — the drill itself doesn't change.":
     'שינוי התצוגה בלבד — התרגול עצמו אינו משתנה.',
-  'A natural note has no sign (C, D, E…). A sharp (♯) is a half-step higher; a flat (♭) is a half-step lower. The same pitch can be written either way — C♯ and D♭ are one note, and a question shows both.':
-    'תו טבעי הוא תו ללא סימן (C, D, E…). שארפ (♯) גבוה בחצי טון; פלט (♭) נמוך בחצי טון. אפשר לכתוב את אותו גובה צליל בשתי הצורות — ‏C♯ ו־D♭ הם אותו תו, ובשאלה מוצגות שתיהן.',
-  'A natural note has no sign (Do, Re, Mi…). A dièse (♯) is a half-step higher; a bémol (♭) is a half-step lower. The same pitch can be written either way — Do♯ and Re♭ are one note, and a question shows both.':
-    'תו טבעי הוא תו ללא סימן (דו, רה, מי…). דיאז (♯) גבוה בחצי טון; במול (♭) נמוך בחצי טון. אפשר לכתוב את אותו גובה צליל בשתי הצורות — ‏Do♯ ו־Re♭ הם אותו תו, ובשאלה מוצגות שתיהן.',
+  'A natural note has no sign (C, D, E…). A sharp (♯) is a half-step higher; a flat (♭) is a half-step lower. The same pitch can be written either way — C♯ and D♭ are one note; the second row picks which sign you see.':
+    'תו טבעי הוא תו ללא סימן (C, D, E…). שארפ (♯) גבוה בחצי טון; פלט (♭) נמוך בחצי טון. אפשר לכתוב את אותו גובה צליל בשתי הצורות — ‏C♯ ו־D♭ הם אותו תו; השורה השנייה קובעת באיזה סימן רואים אותו.',
+  'A natural note has no sign (Do, Re, Mi…). A dièse (♯) is a half-step higher; a bémol (♭) is a half-step lower. The same pitch can be written either way — Do♯ and Re♭ are one note; the second row picks which sign you see.':
+    'תו טבעי הוא תו ללא סימן (דו, רה, מי…). דיאז (♯) גבוה בחצי טון; במול (♭) נמוך בחצי טון. אפשר לכתוב את אותו גובה צליל בשתי הצורות — ‏Do♯ ו־Re♭ הם אותו תו; השורה השנייה קובעת באיזה סימן רואים אותו.',
+  'Sharps or flats': 'שארפ או פלט',
+  'Sharp (♯)': 'שארפ (♯)',
+  'Flat (♭)': 'פלט (♭)',
+  'Dièse (♯)': 'דיאז (♯)',
+  'Bémol (♭)': 'במול (♭)',
   'Score': 'ניקוד',
   'Score & celebrations': 'ניקוד וחגיגות',
   'Live score, streak multiplier and celebrations are shown.':

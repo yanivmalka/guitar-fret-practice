@@ -5,7 +5,7 @@ import FretRangeNeck from '../../FretRangeNeck';
 import { withClick as click } from '../../../utils/withClick';
 import { saveSetting } from '../../../utils/settings';
 import { COMING_SOON_INSTRUMENTS, type InstrumentId, type InstrumentConfig } from '../../../utils/instruments';
-import type { NotationMode } from '../../../utils/music';
+import type { AccidentalMode, NotationMode } from '../../../utils/music';
 
 /**
  * The "Playing" drawer section body (instrument picker + note-name notation +
@@ -24,6 +24,8 @@ export interface PlayingSectionProps {
   setPreloaded: (v: boolean) => void;
   notation: NotationMode;
   setNotation: (n: NotationMode) => void;
+  accidental: AccidentalMode;
+  setAccidental: (a: AccidentalMode) => void;
   fretRange: {
     useFretRange: boolean;
     fretLo: number;
@@ -35,7 +37,7 @@ export interface PlayingSectionProps {
 
 export default function PlayingSection({
   t, instrument, instrumentId, admin, running, paused, stop,
-  applyInstrument, setPreloaded, notation, setNotation, fretRange,
+  applyInstrument, setPreloaded, notation, setNotation, accidental, setAccidental, fretRange,
 }: PlayingSectionProps) {
   return (
     <>
@@ -86,20 +88,22 @@ export default function PlayingSection({
           helper line also carries the short Natural / Sharp / Flat primer,
           worded with the vocabulary that matches the chosen notation
           (A-B-C → "sharp / flat"; Do-Re-Mi → "dièse / bémol", i.e. Hebrew
-          "דיאז / במול"). No standalone spelling toggle: a question shows
-          both enharmonic names side by side ("C♯ = D♭"). */}
+          "דיאז / במול"). The second row is the spelling toggle: an
+          enharmonic note (C♯ / D♭) is shown with whichever sign is picked
+          here — on the question, the note wheel and the feedback line. It
+          is display only; `notesMatch` keeps answer-checking sign-agnostic. */}
       <SettingCard
         label={t('Notes')}
         help={
           <>
             {t("Display only — the drill itself doesn't change.")}{' '}
             {notation === 'solfege'
-              ? t('A natural note has no sign (Do, Re, Mi…). A dièse (♯) is a half-step higher; a bémol (♭) is a half-step lower. The same pitch can be written either way — Do♯ and Re♭ are one note, and a question shows both.')
-              : t('A natural note has no sign (C, D, E…). A sharp (♯) is a half-step higher; a flat (♭) is a half-step lower. The same pitch can be written either way — C♯ and D♭ are one note, and a question shows both.')}
+              ? t('A natural note has no sign (Do, Re, Mi…). A dièse (♯) is a half-step higher; a bémol (♭) is a half-step lower. The same pitch can be written either way — Do♯ and Re♭ are one note; the second row picks which sign you see.')
+              : t('A natural note has no sign (C, D, E…). A sharp (♯) is a half-step higher; a flat (♭) is a half-step lower. The same pitch can be written either way — C♯ and D♭ are one note; the second row picks which sign you see.')}
           </>
         }
       >
-        <div className="pick-row" role="group" aria-label={t('Notes')}>
+        <div className="pick-row" role="group" aria-label={t('Note names')}>
           {([['alpha', 'A B C'], ['solfege', 'Do Re Mi']] as const).map(([val, label]) => (
             <button
               key={val}
@@ -107,6 +111,22 @@ export default function PlayingSection({
               className={`pick-btn${notation === val ? ' pick-btn-on' : ''}`}
               aria-pressed={notation === val}
               onClick={click(() => { setNotation(val); saveSetting('pref_notation', val); })}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="pick-row" role="group" aria-label={t('Sharps or flats')}>
+          {([
+            ['sharps', notation === 'solfege' ? t('Dièse (♯)') : t('Sharp (♯)')],
+            ['flats', notation === 'solfege' ? t('Bémol (♭)') : t('Flat (♭)')],
+          ] as const).map(([val, label]) => (
+            <button
+              key={val}
+              type="button"
+              className={`pick-btn${accidental === val ? ' pick-btn-on' : ''}`}
+              aria-pressed={accidental === val}
+              onClick={click(() => { setAccidental(val); saveSetting('pref_accidental', val); })}
             >
               {label}
             </button>

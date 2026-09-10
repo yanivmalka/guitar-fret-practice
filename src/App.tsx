@@ -15,7 +15,7 @@ import AdjustSuggestionBanner from './components/AdjustSuggestionBanner';
 import ProgressPanel from './components/ProgressPanel';
 import Onboarding from './components/Onboarding';
 import { setActiveInstrument } from './utils/music';
-import type { HistoryEntry, AccidentalMode } from './utils/music';
+import type { HistoryEntry } from './utils/music';
 import { getInstrument, type InstrumentId } from './utils/instruments';
 import { setAudioInstrument, setNoteVolume as setAudioNoteVolume } from './utils/audio';
 import { playClickSound, playToggleOnSound, playToggleOffSound, haptic } from './utils/feedback';
@@ -170,7 +170,7 @@ export default function App() {
   const safeGuitarString = Math.min(Math.max(guitarString, 1), instrument.stringCount);
   // Global display / behaviour preferences (each backed by its own pref_* key).
   const {
-    byString, setByString, notation, setNotation, order, setOrder,
+    byString, setByString, notation, setNotation, accidental, setAccidental, order, setOrder,
     answerMode, setAnswerMode, voiceEnginePref, setVoiceEnginePref,
     showScore, setShowScore, showMastery, setShowMastery,
     masteryWindow, setMasteryWindow, silentMode, setSilentMode,
@@ -186,13 +186,11 @@ export default function App() {
   const {
     voiceProfileStat, pickVoiceEngine, voiceEngineEpoch, bumpVoiceEngineEpoch,
   } = useVoiceProfileSummary({ notation, showVoiceCalibration, setVoiceEnginePref });
-  // The engine always picks pitches from the sharp-spelled `notes` table, and
-  // there is no user-facing sharp/flat spelling choice: the question note area
-  // shows BOTH enharmonic names ("C♯ = D♭") via `displayNoteBothEnharmonics`,
-  // and every other single-spelled surface (feedback line, stats, wheel base)
-  // stays on the sharp spelling. Kept as a constant so the many call sites that
-  // still take an `accidental` prop go on compiling unchanged.
-  const accidental: AccidentalMode = 'sharps';
+  // The engine always picks pitches from the sharp-spelled `notes` table; the
+  // `accidental` preference (Playing → Notes) only decides how an enharmonic
+  // note is *spelled* on screen — the question note, the note wheel and the
+  // feedback line all follow it. Answer matching stays enharmonic-agnostic
+  // (`notesMatch`), so the choice never changes which answer is correct.
   useSilentModeEffect(silentMode);
   useThemeEffect(season, theme);
 
@@ -658,6 +656,8 @@ export default function App() {
           setPreloaded={setPreloaded}
           notation={notation}
           setNotation={setNotation}
+          accidental={accidental}
+          setAccidental={setAccidental}
           fretRange={{
             useFretRange: selector.state.useFretRange,
             fretLo: selector.state.fretLo,

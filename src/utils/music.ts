@@ -44,8 +44,8 @@ export const flatToSharp: Record<string, string> = {'Db':'C#','Eb':'D#','Gb':'F#
 
 // Solfege mapping (using Italian/Spanish standard: Do Re Mi Fa Sol La Si).
 // Each flat spelling maps to its OWN degree with a flat sign (Db → Re♭, not
-// Do♭): the flat row must stay the exact enharmonic partner of the sharp on
-// the same pitch, so `displayNoteBothEnharmonics` renders "Do♯ = Re♭".
+// Do♭), so a flat-spelled enharmonic in solfège reads as "Re♭" once the
+// `accidental` preference is set to flats.
 const alphaToSolfege: Record<string, string> = {
   'C':'Do', 'C#':'Do#', 'Db':'Re♭',
   'D':'Re', 'D#':'Re#', 'Eb':'Mi♭',
@@ -122,17 +122,6 @@ export function displayNote(note: string, mode: AccidentalMode, notation: Notati
   const named = notation === 'solfege' ? (alphaToSolfege[resolved] || resolved) : resolved;
   // Finally swap ASCII #/b for the ♯/♭ signs.
   return withAccidentalGlyphs(named);
-}
-
-// Both enharmonic spellings of a pitch, joined for the question display, e.g.
-// "C♯ = D♭" (or "Do♯ = Re♭" in solfège). A natural note has only one spelling
-// and is returned plain ("C"). Used only where the player is shown the note
-// they're being asked about — never for answer matching, history, or the
-// feedback line, which stay single-spelled.
-export function displayNoteBothEnharmonics(note: string, notation: NotationMode = 'alpha'): string {
-  const sharp = displayNote(note, 'sharps', notation);
-  const flat = displayNote(note, 'flats', notation);
-  return sharp === flat ? sharp : `${sharp} = ${flat}`;
 }
 
 export function notesMatch(a: string, b: string): boolean {

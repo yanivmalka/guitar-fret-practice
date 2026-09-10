@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { loadSetting, saveSetting } from '../utils/settings';
-import type { NotationMode, OrderMode } from '../utils/music';
+import type { AccidentalMode, NotationMode, OrderMode } from '../utils/music';
 import type { VoiceEnginePref } from '../utils/speech';
 import type { Season, Theme } from '../utils/theme';
 import { NOTE_VOLUME_DEFAULT } from '../utils/audio';
@@ -17,6 +17,12 @@ type AnswerMode = 'tap' | 'voice';
 export function useAppPreferences() {
   const [byString, setByString] = useState(() => loadSetting('pref_byString', true));
   const [notation, setNotation] = useState<NotationMode>(() => loadSetting('pref_notation', 'alpha'));
+  // Which spelling the enharmonic notes are shown with everywhere the player
+  // reads a note (question, note wheel, feedback line). Display-only — answer
+  // matching stays enharmonic-agnostic via `notesMatch`.
+  const [accidental, setAccidental] = useState<AccidentalMode>(
+    () => loadSetting('pref_accidental', 'sharps'),
+  );
   const [order, setOrder] = useState<OrderMode>(() => loadSetting('pref_order', 'fifths'));
   const [answerMode, setAnswerMode] = useState<AnswerMode>(() => loadSetting('pref_answerMode', 'tap'));
   const [voiceEnginePref, setVoiceEnginePref] = useState<VoiceEnginePref>(
@@ -55,6 +61,7 @@ export function useAppPreferences() {
   return {
     byString, setByString,
     notation, setNotation,
+    accidental, setAccidental,
     order, setOrder,
     answerMode, setAnswerMode,
     voiceEnginePref, setVoiceEnginePref,

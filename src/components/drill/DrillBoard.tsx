@@ -8,7 +8,7 @@ import IntervalPrompt from '../IntervalPrompt';
 import VoiceLevelMeter from '../VoiceLevelMeter';
 import VoiceStatusRow from './VoiceStatusRow';
 import { withClick as click } from '../../utils/withClick';
-import { displayNote, displayNoteBothEnharmonics } from '../../utils/music';
+import { displayNote } from '../../utils/music';
 import type { AccidentalMode, NotationMode } from '../../utils/music';
 import { intervalBySemitones } from '../../utils/intervals';
 import { intervalContentBySemitones } from '../../learning/intervalContent';
@@ -113,7 +113,7 @@ export default function DrillBoard({
                   <IntervalPrompt prompt={intervalPrompt} accidental={accidental} notation={notation} onReplay={replayIntervalQuestion} />
                 </div>
               : eff.byNote
-              ? <div className={`note-display${currentNote && displayNoteBothEnharmonics(currentNote, notation).includes('=') ? ' note-display-both' : ''}${stageExiting ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>{currentNote ? displayNoteBothEnharmonics(currentNote, notation) : '—'}</div>
+              ? <div className={`note-display${stageExiting ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>{currentNote ? displayNote(currentNote, accidental, notation) : '—'}</div>
               : <div className={`fret-display${stageExiting ? ' stage-exiting' : ''}`} ref={questionDisplayRef}>{currentFret !== null ? currentFret : '—'}</div>
             }
             <SpeedBar key={`sb-${questionSeq}`} remaining={remaining} total={questionTime} startAt={questionStart} answered={answered} paused={paused} />

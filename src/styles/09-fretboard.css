@@ -3,7 +3,6 @@
 .note-display { font-size: 4rem; color: var(--accent); line-height: 1; text-shadow: 0 0 16px rgba(var(--accent-rgb), 0.5); }
 /* "C♯ = D♭" — both enharmonic spellings on one line needs a smaller size so
    it never overflows a narrow phone; keep it on one line. */
-.note-display.note-display-both { font-size: clamp(1.6rem, 8vw, 2.6rem); white-space: nowrap; }
 
 .fret-grid {
   display: grid;
