@@ -50,6 +50,7 @@ import { useHistory } from './hooks/useHistory';
 import { useScoring } from './hooks/useScoring';
 import { useVoiceAnswer } from './hooks/useVoiceAnswer';
 import ExitHintToast from './components/ExitHintToast';
+import QuickAccess from './components/QuickAccess';
 import MicPermissionCard from './components/MicPermissionCard';
 import SignInNudge from './components/SignInNudge';
 import CountdownOverlay from './components/drill/CountdownOverlay';
@@ -969,6 +970,30 @@ export default function App() {
             <rect x="3" y="17" width="18" height="2" rx="1" fill="currentColor" />
           </svg>
         </button>
+      )}
+
+      {/* Opt-in floating Quick Access control — home screen only, and only
+          outside a running / paused / advancing drill or the pre-run countdown. */}
+      {!gameActive && countdown === null && onboardingDone && (
+        <QuickAccess
+          t={t}
+          voiceSupported={voice.supported}
+          askForMic={askForMic}
+          notation={notation}
+          setNotation={setNotation}
+          accidental={accidental}
+          setAccidental={setAccidental}
+          showScore={showScore}
+          setShowScore={setShowScore}
+          silentMode={silentMode}
+          setSilentMode={setSilentMode}
+          noteVolume={noteVolume}
+          setNoteVolume={setNoteVolume}
+          answerMode={answerMode}
+          setAnswerMode={setAnswerMode}
+          showMastery={showMastery}
+          setShowMastery={setShowMastery}
+        />
       )}
 
       <h1>{instrument.emoji} {t(instrument.label)} {t('Fret Practice')}</h1>

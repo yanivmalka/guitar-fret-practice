@@ -4,6 +4,7 @@ import {
   NOTE_VOLUME_MIN, NOTE_VOLUME_MAX, NOTE_VOLUME_STEP, NOTE_VOLUME_DEFAULT,
 } from '../../../utils/audio';
 import { ProGate } from '../../ProGate';
+import { QuickAccessEnableToggle, QuickAccessPinButton } from '../../QuickAccessPinButton';
 import AppearancePicker from '../AppearancePicker';
 import { withClick as click } from '../../../utils/withClick';
 import { saveSetting } from '../../../utils/settings';
@@ -117,7 +118,14 @@ export default function GeneralSettingsSection({
   return (
     <>
       <SettingCard
+        label={t('Quick access')}
+        help={t('A floating button on the home screen for the settings you flip most. Pin up to 5 with the pushpins below, then double-tap the screen’s right edge outside a drill to open it.')}
+      >
+        <QuickAccessEnableToggle />
+      </SettingCard>
+      <SettingCard
         label={t('Score & celebrations')}
+        pin={<QuickAccessPinButton itemId="showScore" />}
         help={<>{t('Live score, streak multiplier and celebrations are shown.')} <em>{t('Every answer is still recorded to your stats and personal bests either way.')}</em></>}
       >
         <SegmentedControl
@@ -132,6 +140,7 @@ export default function GeneralSettingsSection({
       </SettingCard>
       <SettingCard
         label={t('Silent mode')}
+        pin={<QuickAccessPinButton itemId="silentMode" />}
         help={t('Visual-only questions — no note playback or chime. Haptics and on-screen celebrations stay on. Great for practising with headphones off or a guitar in hand.')}
       >
         <SegmentedControl
@@ -146,6 +155,7 @@ export default function GeneralSettingsSection({
       </SettingCard>
       <SettingCard
         label={t('Note volume')}
+        pin={<QuickAccessPinButton itemId="noteVolume" />}
         help={t('How loud the drill note samples play. Drag the slider or use − / + to boost it if the notes sound weak; the limiter keeps even the loudest setting from distorting.')}
       >
         <StepperMeter
@@ -182,6 +192,7 @@ export default function GeneralSettingsSection({
         <>
           <SettingCard
             label={t('How you answer')}
+            pin={<QuickAccessPinButton itemId="answerMode" />}
             help={t('Voice mode asks for microphone permission the first time.')}
           >
             <PickRow
@@ -252,6 +263,7 @@ export default function GeneralSettingsSection({
       )}
       <SettingCard
         label={t('Mastery on the fretboard')}
+        pin={<QuickAccessPinButton itemId="showMastery" />}
         help={<>{t('The per-note / per-fret accuracy bars drawn over the circle and grid while stopped or paused.')} <em>{t('Mastery keeps being tracked and shows on the Stats screen either way.')}</em></>}
       >
         <SegmentedControl

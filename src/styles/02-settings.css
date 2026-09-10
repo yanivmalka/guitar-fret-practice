@@ -234,6 +234,8 @@
   border: 1px solid var(--surface-border);
   border-radius: 12px;
   text-align: start;
+  /* Anchor for the Quick Access pushpin (.set-card-pin) on pinnable cards. */
+  position: relative;
 }
 .set-card-k {
   font-size: 0.62rem;

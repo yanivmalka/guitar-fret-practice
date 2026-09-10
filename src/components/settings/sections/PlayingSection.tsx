@@ -1,5 +1,6 @@
 import { SettingCard, SegmentedControl } from '../../SettingCard';
 import { ProGate } from '../../ProGate';
+import { QuickAccessPinButton } from '../../QuickAccessPinButton';
 import FretRangeControl from '../../FretRangeControl';
 import FretRangeNeck from '../../FretRangeNeck';
 import { withClick as click } from '../../../utils/withClick';
@@ -92,6 +93,7 @@ export default function PlayingSection({
           flat"; Do-Re-Mi → "dièse / bémol", i.e. Hebrew "דיאז / במול"). */}
       <SettingCard
         label={t('Note names')}
+        pin={<QuickAccessPinButton itemId="notation" />}
         help={
           <>
             {t("Display only — the drill itself doesn't change.")}{' '}
@@ -115,6 +117,7 @@ export default function PlayingSection({
       </SettingCard>
       <SettingCard
         label={t('Sharps or flats')}
+        pin={<QuickAccessPinButton itemId="accidental" />}
         help={
           <>
             {t("Display only — the drill itself doesn't change.")}{' '}

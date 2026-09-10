@@ -142,14 +142,18 @@ export function StepperMeter({
 }
 
 export function SettingCard({
-  label, help, children,
+  label, help, children, pin,
 }: {
   label: string;
   help?: ReactNode;
   children: ReactNode;
+  /** Optional affordance pinned to the physical top-right corner of the card
+   *  (the Quick Access pushpin on the seven pinnable settings). */
+  pin?: ReactNode;
 }) {
   return (
     <div className="set-card">
+      {pin && <div className="set-card-pin">{pin}</div>}
       <span className="set-card-k">{label}</span>
       {children}
       {help && <p className="set-card-help">{help}</p>}
