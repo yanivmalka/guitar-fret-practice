@@ -172,12 +172,10 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
           const dotInfo = hasDot(note);
           const isGlowing = !isCorrect && !isWrong && glowNote === note;
           const mastery = showMastery ? masteryByNote?.[note] : undefined;
-          // Both enharmonic spellings on the button — the primary name on top,
-          // its partner in a smaller line below (nothing extra for a natural
-          // note). Mirrors the "C♯ = D♭" question prompt; `accidental` is
-          // 'sharps' app-wide but this stays correct either way.
+          // One spelling per button — sharp when the app is in sharps mode,
+          // flat when it's in flats mode. `displayNote` already resolves the
+          // enharmonic to match `accidental`, so no second line is drawn.
           const primaryLabel = displayNote(note, accidental, notation);
-          const altLabel = displayNote(note, accidental === 'sharps' ? 'flats' : 'sharps', notation);
 
           // The note button dims at rest, but the mastery bar must stay
           // full-strength so its green/orange matches the by-note FretGrid
@@ -245,9 +243,6 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
                 }}>
                   <span style={{ lineHeight: 1.1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <span>{primaryLabel}</span>
-                    {altLabel !== primaryLabel && (
-                      <span style={{ fontSize: '0.68em', fontWeight: 400, opacity: 0.75, lineHeight: 1 }}>{altLabel}</span>
-                    )}
                   </span>
                   {showDots && dotInfo && <span className="fret-dot" style={{ color: dotInfo.color }}>{dotInfo.dots}</span>}
                 </span>
