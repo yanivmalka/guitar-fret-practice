@@ -1,5 +1,6 @@
 import { SettingCard, SegmentedControl } from '../../SettingCard';
 import { PinnedBadges } from '../../PinnedBadges';
+import AboutCard from './AboutCard';
 import { withClick as click } from '../../../utils/withClick';
 import { setOwnEntitlement } from '../../../utils/entitlement';
 import { verror } from '../../../utils/debugLog';
@@ -173,6 +174,9 @@ export default function AccountSection({
           {auth.entitlementLoading ? ' …' : ''}
         </p>
       )}
+      {/* About the app + live community counts (registered accounts, users /
+          guests active right now). Self-contained — does its own fetching. */}
+      <AboutCard />
       {/* App version — moved here from the bottom of the main screen so the
           footer stays clean; this is the one place it now lives. */}
       <div className="build-info account-build-info">

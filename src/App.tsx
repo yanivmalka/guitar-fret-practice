@@ -29,6 +29,7 @@ import { useQuestionChangeAnimation } from './hooks/useQuestionChangeAnimation';
 import { useAdjustSuggestion } from './hooks/useAdjustSuggestion';
 import { useAuth } from './hooks/useAuth';
 import { useCloudSync } from './hooks/useCloudSync';
+import { startPresence, stopPresence, setPresenceIdentity } from './utils/presence';
 import { useVoiceProfileSummary } from './hooks/useVoiceProfileSummary';
 import { useMasteryOverlay } from './hooks/useMasteryOverlay';
 import { useAppPreferences } from './hooks/useAppPreferences';
@@ -252,6 +253,12 @@ export default function App() {
   const { pendingGuestMerge, finishGuestMerge, guestLocalRowCount } = useCloudSync({
     auth, historyOps, bumpVoiceEngineEpoch,
   });
+
+  // Live community presence: one app-wide Realtime channel so the Account
+  // screen's "About" tile can show who's using the app right now. No-op on a
+  // config-less guest build. Re-announce this tab whenever sign-in state flips.
+  useEffect(() => { startPresence(); return () => stopPresence(); }, []);
+  useEffect(() => { setPresenceIdentity(auth.user); }, [auth.user]);
 
   const derived = useDerivedNotes(
     safeGuitarString, eff.fretFrom, eff.fretTo,

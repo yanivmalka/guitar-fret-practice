@@ -128,6 +128,14 @@ const he: Record<string, string> = {
   'Sign in with Google to keep your preferences and data across devices.':
     'התחבר באמצעות Google כדי לשמור על ההעדפות והנתונים שלך מסונכרנים בין המכשירים.',
   'Sign in with Google': 'התחברות באמצעות Google',
+
+  // Account → About tile + live community counts
+  'About': 'אודות',
+  'Guitar Fret Practice is a small labor of love — built to turn learning the fretboard into a game instead of a chore. Made by an independent developer, with patient help from family and friends.':
+    'תרגול פריטות בגיטרה נבנה מתוך אהבה — כדי להפוך את לימוד הגריף למשחק ולא למטלה. פותח באופן עצמאי, בעזרתם הסבלנית של משפחה וחברים.',
+  'Registered users': 'משתמשים רשומים',
+  'Active now': 'פעילים כעת',
+  'Guests online': 'אורחים מחוברים',
   'See the full list and what earns each one': 'לצפייה ברשימה המלאה ובדרכים לזכות בכל תג',
   'Badges': 'תגים',
   'Language': 'שפה',

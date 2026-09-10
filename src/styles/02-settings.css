@@ -703,6 +703,22 @@
 .account-row-in .account-btn {
   width: 100%;
 }
+
+/* "About" tile: a short blurb about the makers, plus a row of live community
+   counters (reusing the Stats screen's .sp2-hero / .sp2-tile primitives).
+   Direction-agnostic — the flex row flips with the document. */
+.account-about-copy {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+.account-community {
+  margin-top: 10px;
+}
+.account-community .sp2-tile-l {
+  text-align: center;
+}
 .account-btn {
   display: inline-flex;
   align-items: center;
