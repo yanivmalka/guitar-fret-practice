@@ -101,6 +101,11 @@ export default function QuickAccess(props: QuickAccessProps) {
     setNotice(null);
   }, []);
 
+  // Left-handed mode mirrors the summon quadrant (and this hint) to the
+  // bottom-left. Read live from <html data-hand> — it only changes with the
+  // preference, which re-renders this component through App.
+  const leftHanded = document.documentElement.dataset.hand === 'left';
+
   const sinkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTap = useRef<{ time: number; x: number; y: number } | null>(null);
   const fabDown = useRef<{ x: number; y: number; dragged: boolean } | null>(null);
@@ -194,18 +199,31 @@ export default function QuickAccess(props: QuickAccessProps) {
     };
   }, [phase]);
 
-  // Summon gesture: a double-tap anywhere in the app's bottom-right quadrant
-  // reveals the control (and, while it is showing, sinks it again). A
+  // Summon gesture: a double-tap on empty space in the app's bottom-right
+  // quadrant reveals the control (and, while it is showing, sinks it again). A
   // document-level `pointerup` listener that never calls preventDefault /
   // stopPropagation, so single taps still reach whatever is underneath — the
   // quadrant is far too large to be allowed to swallow taps.
+  //
+  // Taps that land on an actual interactive element (a button, link, form
+  // control, or the Quick Access widget itself) are ignored for the gesture:
+  // the player is using that control, not summoning Quick Access, and a
+  // double-tap there — e.g. quickly changing a setting twice — must not also
+  // pop the widget open.
   useEffect(() => {
     const onUp = (e: PointerEvent) => {
+      const el = e.target as Element | null;
+      if (el?.closest('button, a, input, select, textarea, label, [role="button"]')) {
+        lastTap.current = null;
+        return;
+      }
+
       const app = document.querySelector('.app');
       const r = app?.getBoundingClientRect();
       const midX = r ? r.left + r.width / 2 : window.innerWidth / 2;
       const midY = r ? r.top + r.height / 2 : window.innerHeight / 2;
-      if (e.clientX < midX || e.clientY < midY) { lastTap.current = null; return; }
+      const outsideX = leftHanded ? e.clientX > midX : e.clientX < midX;
+      if (outsideX || e.clientY < midY) { lastTap.current = null; return; }
 
       const now = e.timeStamp;
       const prev = lastTap.current;
@@ -237,7 +255,7 @@ export default function QuickAccess(props: QuickAccessProps) {
     };
     document.addEventListener('pointerup', onUp);
     return () => document.removeEventListener('pointerup', onUp);
-  }, [enabled, pinned.length, hintSeen, armSink, clearSink, showNotice, clearNotice]);
+  }, [enabled, pinned.length, hintSeen, leftHanded, armSink, clearSink, showNotice, clearNotice]);
 
   if (!enabled || pinned.length === 0) {
     return notice === null ? null : (
@@ -294,7 +312,9 @@ export default function QuickAccess(props: QuickAccessProps) {
     <div className="qa-root">
       {!hintSeen && phase === 'sunk' && (
         <div className="qa-hint" role="status">
-          {t('Double-tap the lower-right of the screen for quick access')}
+          {leftHanded
+            ? t('Double-tap the lower-left of the screen for quick access')
+            : t('Double-tap the lower-right of the screen for quick access')}
         </div>
       )}
 

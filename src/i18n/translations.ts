@@ -935,6 +935,8 @@ const he: Record<string, string> = {
   'No': 'לא',
   'Double-tap the lower-right of the screen for quick access':
     'הקשה כפולה בחלק הימני-התחתון של המסך פותחת גישה מהירה',
+  'Double-tap the lower-left of the screen for quick access':
+    'הקשה כפולה בחלק השמאלי-התחתון של המסך פותחת גישה מהירה',
   'Quick access is off': 'הגישה המהירה כבויה',
   "You haven't pinned any quick access shortcuts yet":
     'עדיין לא הגדרתם קיצורי דרך לגישה המהירה',

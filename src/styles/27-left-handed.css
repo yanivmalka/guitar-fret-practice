@@ -25,3 +25,42 @@
   transform-box: fill-box;
   transform-origin: center;
 }
+
+/* ── Chrome side-swap ─────────────────────────────────────────────────
+   Everything that sits on the right for a right-handed player (in both
+   languages — the app has no global `dir`, so these are physically
+   right today) moves to the left; the two things pinned left move right.
+   Physical left/right, not logical, so language never enters into it. */
+
+/* Top-corner buttons: hamburger + the stats shortcut beside it. */
+[data-hand="left"] .burger-btn { inset-inline-end: auto; right: auto; left: 12px; }
+[data-hand="left"] .stats-burger-btn { inset-inline-end: auto; right: auto; left: 58px; }
+
+/* Quick Access — the floating circle, its open strip and the first-run hint. */
+[data-hand="left"] .qa-fab { right: auto; left: 22px; }
+[data-hand="left"] .qa-menu { right: auto; left: 25px; }
+[data-hand="left"] .qa-hint { right: auto; left: 52px; }
+
+/* Pinned-left widgets go the other way. */
+[data-hand="left"] .debuglog-fab { left: auto; right: 8px; }
+[data-hand="left"] .debuglog-fab-count { right: auto; left: -4px; }
+[data-hand="left"] .mode-card-info { left: auto; right: 6px; }
+
+/* Back buttons + tap-through rows in the Settings drawer. These flip with
+   the language today (`dir="rtl"` on the panel root), so left-handed is a
+   mirror *relative to* that: reversed from the language default, and
+   reversed again inside an RTL panel so Hebrew + left-handed lands back
+   where Hebrew alone would put it. `direction` on the row flips the flex
+   order and the logical `text-align: start` / `margin-inline` together;
+   the label text stays correct via the browser's bidi handling. */
+[data-hand="left"] .settings-menu,
+[data-hand="left"] .sp2-head { direction: rtl; }
+[data-hand="left"] [dir="rtl"] .settings-menu,
+[data-hand="left"] [dir="rtl"] .sp2-head { direction: ltr; }
+
+/* The <Chevron> glyph is drawn as ">" and pointed by CSS. Add one flip on
+   top of whatever the language already applied, and one more inside RTL. */
+[data-hand="left"] .chev--back { transform: scaleX(1); }
+[data-hand="left"] .chev--forward { transform: scaleX(-1); }
+[data-hand="left"] [dir="rtl"] .chev--back { transform: scaleX(-1); }
+[data-hand="left"] [dir="rtl"] .chev--forward { transform: scaleX(1); }
