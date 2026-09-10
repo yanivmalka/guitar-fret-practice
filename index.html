@@ -25,8 +25,11 @@
          (min 1.6s so it never flashes). `.boot-splash__msg` carries a "still
          loading" note after a long wait, and on a load-blocking crash it shows
          the error plus the `.boot-splash__retry` reload button. Colours track
-         the hamburger-drawer palette: --bg-0 → --bg-1 gradient, cyan --accent
-         bar. -->
+         the active theme's tokens (src/styles/00-tokens.css): --bg-0 → --bg-1
+         gradient, --accent bar. The inline boot script below sets `data-theme`
+         from `pref_theme`/`pref_season` before first paint, so these `var()`s
+         resolve to the user's palette; the fallbacks are the winter-dark
+         values, matched for a config-less / pre-token-CSS first frame. -->
     <style>
       #boot-splash {
         position: fixed;
@@ -37,7 +40,11 @@
         align-items: center;
         justify-content: center;
         gap: 28px;
-        background: linear-gradient(180deg, #1a1a2e 0%, #111122 100%);
+        background: linear-gradient(
+          180deg,
+          var(--bg-0, var(--boot-splash-bg, #1a1a2e)) 0%,
+          var(--bg-1, #111122) 100%
+        );
         opacity: 1;
         transition: opacity 0.32s ease-out;
       }
@@ -57,22 +64,22 @@
         max-width: 240px;
         height: 4px;
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.08);
+        background: var(--surface-border, rgba(255, 255, 255, 0.08));
         overflow: hidden;
       }
       #boot-splash .boot-splash__bar {
         height: 100%;
         width: 6%;
         border-radius: inherit;
-        background: #0ff;
-        box-shadow: 0 0 10px rgba(0, 255, 255, 0.55);
+        background: var(--accent, #0ff);
+        box-shadow: 0 0 10px rgba(var(--accent-rgb, 0, 255, 255), 0.55);
         /* No CSS transition: main.tsx eases the width itself every ~16ms and
            sounds a note as the bar's head crosses each step, so a transition
            on top would leave the bar trailing its own note glyphs. */
       }
       #boot-splash .boot-splash__pct {
         margin-top: -14px;
-        color: rgba(0, 255, 255, 0.85);
+        color: rgba(var(--accent-rgb, 0, 255, 255), 0.85);
         font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
         font-variant-numeric: tabular-nums;
         letter-spacing: 0.06em;
@@ -80,15 +87,15 @@
       #boot-splash .boot-splash__msg {
         margin: 0;
         max-width: 74vw;
-        color: rgba(255, 255, 255, 0.62);
+        color: var(--text-2, rgba(255, 255, 255, 0.62));
         font: 400 13px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
         text-align: center;
       }
       #boot-splash .boot-splash__retry {
         appearance: none;
-        border: 1px solid rgba(0, 255, 255, 0.5);
+        border: 1px solid rgba(var(--accent-rgb, 0, 255, 255), 0.5);
         background: transparent;
-        color: #0ff;
+        color: var(--accent, #0ff);
         font: 500 14px/1 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
         padding: 10px 22px;
         border-radius: 999px;
@@ -104,8 +111,8 @@
         z-index: 1;
         margin: 0;
         line-height: 1;
-        color: rgba(0, 255, 255, 0.92);
-        text-shadow: 0 0 10px rgba(0, 255, 255, 0.55);
+        color: rgba(var(--accent-rgb, 0, 255, 255), 0.92);
+        text-shadow: 0 0 10px rgba(var(--accent-rgb, 0, 255, 255), 0.55);
         pointer-events: none;
         transform: translate(-50%, 0);
         will-change: transform, opacity;
@@ -158,6 +165,37 @@
               ? 'left'
               : 'right';
         } catch (e) { root.dataset.hand = 'right'; }
+        // Resolve the chosen theme before first paint so the boot splash (and
+        // the app's first frame) render in the user's palette, not the
+        // hardcoded winter-dark default. Mirrors src/hooks/useThemeEffect.ts;
+        // THEME_BG must stay in sync with THEME_BG in src/utils/theme.ts.
+        (function () {
+          var MODES = { dark: 1, night: 1, day: 1 };
+          var SEASONS = { winter: 1, spring: 1, summer: 1, autumn: 1 };
+          var THEME_BG = {
+            'winter-dark': '#1a1a2e', 'winter-night': '#0f1320', 'winter-day': '#eef2f8',
+            'spring-dark': '#14201a', 'spring-night': '#12140d', 'spring-day': '#f1f7f0',
+            'summer-dark': '#241009', 'summer-night': '#16110b', 'summer-day': '#fbf5df',
+            'autumn-dark': '#201410', 'autumn-night': '#170e09', 'autumn-day': '#f4e8d3'
+          };
+          var mode = 'dark', season = 'winter';
+          try {
+            var m = JSON.parse(localStorage.getItem('pref_theme') || '""');
+            if (MODES[m]) mode = m;
+          } catch (e) {}
+          try {
+            var s = JSON.parse(localStorage.getItem('pref_season') || '""');
+            if (SEASONS[s]) season = s;
+          } catch (e) {}
+          var attr = season + '-' + mode;
+          root.dataset.theme = attr;
+          var bg = THEME_BG[attr] || THEME_BG['winter-dark'];
+          root.style.setProperty('--boot-splash-bg', bg);
+          var themeColor = document.querySelector('meta[name="theme-color"]');
+          if (themeColor) themeColor.setAttribute('content', bg);
+          var colorScheme = document.querySelector('meta[name="color-scheme"]');
+          if (colorScheme) colorScheme.setAttribute('content', mode === 'day' ? 'light' : 'dark');
+        })();
         root.style.setProperty('--phone-w', PHONE_W + 'px');
         root.style.setProperty('--phone-h', PHONE_H + 'px');
         function updateScale() {

@@ -41,7 +41,9 @@ export const MODE_COLOR_SCHEME: Record<ThemeMode, 'dark' | 'light'> = {
 // Primary background per (season, mode), kept here so App.tsx can push it
 // into <meta name="theme-color"> without re-reading the CSS tokens. Each
 // value mirrors the `--bg-0` of the matching block in
-// src/styles/00-tokens.css — keep the two in sync.
+// src/styles/00-tokens.css — keep the two in sync. A trimmed copy also
+// lives in the inline boot script in index.html (for the pre-mount splash);
+// keep that in sync too.
 export const THEME_BG: Record<string, string> = {
   'winter-dark': '#1a1a2e', 'winter-night': '#0f1320', 'winter-day': '#eef2f8',
   'spring-dark': '#14201a', 'spring-night': '#12140d', 'spring-day': '#f1f7f0',
