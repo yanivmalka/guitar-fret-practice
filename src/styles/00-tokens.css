@@ -179,15 +179,18 @@
 }
 [data-theme='summer-day'] {
   color-scheme: light;
-  --bg-0: #fff2c9; --bg-1: #fffdf1; --bg-2: #ffe9a8; --bg-3: #f9dd8c;
-  --bg-letterbox: #ecca73; --surface-border: #f0d585; --border-soft: #d7b85f;
-  --text-0: #2c2205; --text-1: #4d3c11; --text-2: #75611f; --text-3: #86702b;
-  --accent: #bd5a00; --accent-rgb: 189, 90, 0; --accent-dim: #bd5a00; --accent-ink: #ffffff;
-  --gold: #9c6f08; --gold-rgb: 156, 111, 8; --amber: #bd5f0c;
+  /* Sunny-yellow lives on the keys, frets and borders — the ground stays a
+     light, near-neutral warm off-white so the accent reads as sunlight on
+     the instrument, not a wash over the whole screen. */
+  --bg-0: #f8f7f1; --bg-1: #ffffff; --bg-2: #f2f1ea; --bg-3: #fdf7e2;
+  --bg-letterbox: #e7e1cf; --surface-border: #ecdca6; --border-soft: #dcc474;
+  --text-0: #26231a; --text-1: #47412f; --text-2: #635a42; --text-3: #7d7358;
+  --accent: #f5c518; --accent-rgb: 245, 197, 24; --accent-dim: #caa011; --accent-ink: #3a2b00;
+  --gold: #c99400; --gold-rgb: 201, 148, 0; --amber: #d98a1f;
   --success: #1c8747; --success-rgb: 28, 135, 71;
   --danger: #c62a49; --danger-rgb: 198, 42, 73;
-  --heat-unplayed: #fbe7a2; --pick-accent: #0f6d95;
-  --menu-bg: #fceeb6;
+  --heat-unplayed: #ecebe2; --pick-accent: #10788f;
+  --menu-bg: #f4edd6;
 }
 
 /* ── Autumn — rust, ember, oak ───────────────────────────────── */
