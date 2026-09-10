@@ -70,37 +70,62 @@ createRoot(document.getElementById('root')!).render(
   let tickTimer: ReturnType<typeof setInterval> | undefined
 
   // --- boot flourish ----------------------------------------------------------
-  // Each launch greets the user with a short *random* one-octave scale, played
-  // at a fixed musical tempo (STEP_MS per note) that is deliberately DECOUPLED
-  // from how fast the progress bar fills: a cached, instant load would
-  // otherwise cross every milestone in a couple of frames and stack the whole
-  // scale into one chord. One rising / drifting / fading musical-note glyph is
-  // spawned along the track per note. The splash is held until the scale has
-  // finished (`flourish.done()` gates `maybeDismiss`) so it is always heard and
-  // seen even when the real data load beats it — the bar itself still tracks
-  // the load.
+  // Each launch greets the user with a short *random* one-octave scale, and the
+  // scale and the progress bar are one motion, not two: the bar is the scale's
+  // ceiling and the scale is the bar's floor.
+  //
+  //  * A note never sounds before the bar has reached its step, so the melody
+  //    can never run ahead of the loading it is illustrating.
+  //  * The bar never advances faster than `pace()` (the scale's own tempo), so
+  //    an instant cached load can't cross every milestone in two frames and
+  //    stack the whole scale into a chord.
+  //  * The bar never falls behind `floor()` — a plain linear clock started with
+  //    the scale — so a slow load can't stall the melody mid-phrase. The melody
+  //    always flows at a steady STEP_MS; the bar shows whichever is further
+  //    along, the real load or the music.
+  //
+  // One rising / drifting / fading glyph is spawned at the bar's head per note.
+  // The splash is held until the scale has finished (`flourish.done()` gates
+  // `maybeDismiss`) so it is always heard and seen.
+  //
+  // The scale is *armed* (`arm()`) only once we know this launch won't reload
+  // into a newer build — a reload behind the splash would otherwise cut the
+  // melody off mid-phrase and restart it from the top on the second pass.
   //
   // Audio is best-effort: a browser keeps a fresh AudioContext suspended until
-  // a user gesture, so a plain reload (Ctrl+R) with no click/tap starts
-  // silent. We arm listeners that, on the first pointer/key/touch within ~60 s
-  // (independent of the splash, which is usually gone by then), resume the
-  // context and replay the whole scale from the top.
+  // a user gesture, so a plain reload (Ctrl+R) with no click/tap starts silent.
+  // The first pointer/key/touch resumes the context and the scale simply
+  // carries on from where it is — it is deliberately never replayed from the
+  // top, and the listeners die with the splash, so nothing can ever sound over
+  // the app itself.
   const track = splash?.querySelector<HTMLElement>('.boot-splash__track') ?? null
   const flourishCleanups: (() => void)[] = []
-  const flourish = ((): { done: () => boolean; whenDone: (cb: () => void) => void } => {
-    let scaleDone = true
+  type Flourish = {
+    /** Start the scale, spreading it over the bar from `fromPct` to 100. */
+    arm: (fromPct: number) => void
+    /** Called every frame with the bar's rendered %; sounds any note due. */
+    at: (pct: number) => void
+    /** Max % the bar may advance per 16ms tick (the scale's tempo). */
+    pace: () => number
+    /** Min % the bar must be at by now, so the melody never stalls. */
+    floor: () => number
+    done: () => boolean
+    whenDone: (cb: () => void) => void
+  }
+  const flourish = ((): Flourish => {
     let doneCb: (() => void) | undefined
-    const api = {
-      done: () => scaleDone,
-      whenDone: (cb: () => void) => { doneCb = cb; if (scaleDone) cb() },
+    if (!splash) {
+      return {
+        arm: () => {}, at: () => {}, pace: () => Infinity, floor: () => 0,
+        done: () => true, whenDone: (cb) => cb(),
+      }
     }
-    if (!splash) return api
 
     const rand = (n: number) => Math.floor(Math.random() * n)
 
     // A random one-octave run: random root (G3–G4), random mode, random
-    // direction (ascending or descending). All modes top out at 8 notes, so
-    // the scale lasts 8 * STEP_MS ≈ MIN_VISIBLE_MS and rarely delays boot.
+    // direction (ascending or descending). All modes top out at 8 notes, so the
+    // scale runs 9 * STEP_MS ≈ MIN_VISIBLE_MS end to end and rarely delays boot.
     const MODES: number[][] = [
       [0, 2, 4, 5, 7, 9, 11, 12], // major
       [0, 2, 3, 5, 7, 8, 10, 12], // natural minor
@@ -169,51 +194,73 @@ createRoot(document.getElementById('root')!).render(
       flourishCleanups.push(() => { clearTimeout(gone); el.remove() })
     }
 
-    // --- the scale: one fixed-tempo sequence, note (+ optional glyph) per step.
-    let seqTimer: ReturnType<typeof setInterval> | undefined
-    const runScale = (withGlyphs: boolean) => {
-      if (seqTimer !== undefined) return
-      scaleDone = false
-      let i = 0
-      const stepOnce = () => {
-        if (i >= N) {
-          if (seqTimer !== undefined) { clearInterval(seqTimer); seqTimer = undefined }
-          scaleDone = true
-          doneCb?.()
-          return
-        }
-        playFreq(freqs[i])
-        if (withGlyphs) spawnGlyph((i + 0.5) / N)
-        i += 1
-      }
-      stepOnce()
-      seqTimer = setInterval(stepOnce, STEP_MS)
-      flourishCleanups.push(() => {
-        if (seqTimer !== undefined) { clearInterval(seqTimer); seqTimer = undefined }
-      })
+    // --- the scale, as a position on the bar -----------------------------------
+    // The scale is laid over the *first* SPAN of the bar's remaining travel —
+    // note `i` is due at `startPct + ((i + 1) / N) * span`, the last one landing
+    // on `endPct`. The tail past `endPct` is left to the real load, so the
+    // music never pushes the bar to a figure the loading hasn't earned.
+    //
+    // `floor()` walks that same line at a constant STEP_MS per step and is what
+    // keeps the melody flowing when the load stalls; `pace()` is the same speed
+    // as a per-tick limit, which is what stops a cached load from crossing every
+    // step at once. Once the scale is done `pace()` lifts and the bar is the
+    // load's alone again.
+    const SPAN = 0.72
+    const runMs = N * STEP_MS
+    let armed = false
+    let fired = 0
+    let startPct = 0
+    let span = 100 * SPAN
+    let armedAt = 0
+    let lastNoteAt = 0
+
+    const api: Flourish = {
+      arm: (fromPct: number) => {
+        if (armed) return
+        armed = true
+        // Clamped so a late arm still leaves the scale room to breathe: the
+        // notes then catch up under the STEP_MS gate rather than as a chord.
+        startPct = Math.max(0, Math.min(fromPct, 55))
+        span = (100 - startPct) * SPAN
+        armedAt = performance.now()
+        lastNoteAt = armedAt - STEP_MS
+      },
+      // Before the scale is armed the same speed limit still applies (over a
+      // nominal full-width run), so the bar can't sprint to 92% during the
+      // update check and leave the whole scale to catch up afterwards.
+      pace: () => (fired >= N ? Infinity : ((armed ? span : 100 * SPAN) / runMs) * 16),
+      floor: () => (armed
+        ? startPct + Math.min((performance.now() - armedAt) / runMs, 1) * span
+        : 0),
+      at: (pct: number) => {
+        if (!armed || fired >= N) return
+        const now = performance.now()
+        if (now - lastNoteAt < STEP_MS * 0.75) return // never stack into a chord
+        if (pct + 0.01 < startPct + ((fired + 1) / N) * span) return // never lead the bar
+        playFreq(freqs[fired])
+        spawnGlyph(pct / 100)
+        fired += 1
+        lastNoteAt = now
+        if (fired >= N) doneCb?.()
+      },
+      done: () => armed && fired >= N,
+      whenDone: (cb: () => void) => { doneCb = cb; if (api.done()) cb() },
     }
 
-    // Kick the run now: glyphs animate regardless; audio rides along if the
-    // context is already live (it usually is not on a fresh load).
-    runScale(true)
-
-    // Gesture fallback: on the first interaction, resume a suspended context
-    // and — if nothing was audible yet — (re)start the scale from the top so
-    // the launch still gets its scale, even after the splash has gone.
+    // Gesture fallback: on the first interaction, resume a suspended context so
+    // the rest of the scale is audible. The scale is never restarted — it stays
+    // locked to the bar — and the listeners are dropped with the splash, so a
+    // late tap can never play notes over the app.
     const kick = () => {
       detach()
       const c = getCtx()
-      if (!c || heardAny) return
-      void c.resume().then(() => {
-        if (c.state !== 'running' || heardAny) return
-        if (seqTimer !== undefined) { clearInterval(seqTimer); seqTimer = undefined; scaleDone = true; doneCb?.() }
-        freqs.forEach((f, k) => setTimeout(() => playFreq(f), k * STEP_MS))
-      })
+      if (!c || heardAny || c.state === 'running') return
+      void c.resume().catch(() => { /* still no gesture credit — stay silent */ })
     }
     const evs: (keyof WindowEventMap)[] = ['pointerdown', 'touchstart', 'keydown']
     const detach = () => evs.forEach((e) => window.removeEventListener(e, kick))
     evs.forEach((e) => window.addEventListener(e, kick, { passive: true }))
-    setTimeout(detach, 60000)
+    flourishCleanups.push(detach)
 
     return api
   })()
@@ -222,11 +269,18 @@ createRoot(document.getElementById('root')!).render(
     if (bar) bar.style.width = `${displayed}%`
     if (pctEl) pctEl.textContent = `${Math.round(displayed)}%`
   }
+  // One frame of the bar. Three forces, in order: ease toward the real
+  // milestone target, but never faster than the scale's tempo (`pace`); never
+  // slower than the scale's own clock (`floor`); then hand the rendered % to
+  // the scale so it can sound whatever note that position has now reached.
   const tick = () => {
     const gap = progress - displayed
-    if (Math.abs(gap) < 0.1) { displayed = progress; render(); return }
-    displayed += reduceMotion ? gap : gap * 0.14
+    if (Math.abs(gap) < 0.1) displayed = progress
+    else displayed += reduceMotion ? gap : Math.min(gap * 0.14, flourish.pace())
+    const floor = flourish.floor()
+    if (floor > displayed) displayed = floor
     render()
+    flourish.at(displayed)
   }
   const stopTicker = () => {
     if (tickTimer !== undefined) { clearInterval(tickTimer); tickTimer = undefined }
@@ -294,6 +348,10 @@ createRoot(document.getElementById('root')!).render(
     if (updateSettled) return
     updateSettled = true
     setProgress(appReady ? 100 : 70)
+    // Only now is this launch committed to the build it already has, so the
+    // scale can start knowing it won't be cut off by a reload behind the
+    // splash. It plays out over the bar's remaining travel from here.
+    flourish.arm(displayed)
     maybeDismiss()
   }
 

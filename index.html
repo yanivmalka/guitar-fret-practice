@@ -66,7 +66,9 @@
         border-radius: inherit;
         background: #0ff;
         box-shadow: 0 0 10px rgba(0, 255, 255, 0.55);
-        transition: width 0.45s ease;
+        /* No CSS transition: main.tsx eases the width itself every ~16ms and
+           sounds a note as the bar's head crosses each step, so a transition
+           on top would leave the bar trailing its own note glyphs. */
       }
       #boot-splash .boot-splash__pct {
         margin-top: -14px;
@@ -126,7 +128,6 @@
       }
       @media (prefers-reduced-motion: reduce) {
         #boot-splash img { animation-duration: 0.01ms; }
-        #boot-splash .boot-splash__bar { transition: none; }
         #boot-splash .boot-splash__note { display: none; }
       }
     </style>
