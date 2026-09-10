@@ -22,6 +22,8 @@ interface Props {
   canIntervals: boolean;
   /** Dev/admin only: the Game tile is a live entry point, not "coming soon". */
   showGame: boolean;
+  /** Dev/admin only: render the inert "coming soon" roadmap tiles at all. */
+  showRoadmap: boolean;
   /** Open the given domain (closes the drawer). */
   onPick: (d: LearnDomain) => void;
   /** A locked (Premium) tile was tapped — open the upgrade page. */
@@ -54,6 +56,7 @@ export default function LearnHub({
   canDaily,
   canIntervals,
   showGame,
+  showRoadmap,
   onPick,
   onLocked,
   onOpenGame,
@@ -64,12 +67,20 @@ export default function LearnHub({
     { kind: 'open', id: 'daily', emoji: '📅', label: 'Daily practice', locked: !canDaily },
     { kind: 'open', id: 'notes', emoji: '🎵', label: 'Notes', locked: false },
     { kind: 'open', id: 'intervals', emoji: '🎸', label: 'Intervals', locked: !canIntervals },
-    { kind: 'soon', emoji: '🎼', label: 'Scales' },
-    { kind: 'soon', emoji: '🎹', label: 'Chords' },
-    { kind: 'soon', emoji: '📖', label: 'Staff reading' },
-    showGame
-      ? { kind: 'action', emoji: '🎮', label: 'Game', onSelect: onOpenGame }
-      : { kind: 'soon', emoji: '🎮', label: 'Game' },
+    // The inert roadmap placeholders are a dev/admin-only preview — a regular
+    // user only sees domains they can actually open.
+    ...(showRoadmap
+      ? ([
+          { kind: 'soon', emoji: '🎼', label: 'Scales' },
+          { kind: 'soon', emoji: '🎹', label: 'Chords' },
+          { kind: 'soon', emoji: '📖', label: 'Staff reading' },
+        ] as SoonTile[])
+      : []),
+    ...(showGame
+      ? [{ kind: 'action', emoji: '🎮', label: 'Game', onSelect: onOpenGame } as ActionTile]
+      : showRoadmap
+        ? [{ kind: 'soon', emoji: '🎮', label: 'Game' } as SoonTile]
+        : []),
   ];
 
   return (

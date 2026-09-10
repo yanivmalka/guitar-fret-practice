@@ -642,6 +642,7 @@ export default function App() {
           canDaily={can('premiumTeacher', auth.tier)}
           canIntervals={can('intervalDrill', auth.tier)}
           showGame={import.meta.env.DEV || auth.admin}
+          showRoadmap={import.meta.env.DEV || auth.admin}
           onPick={(d) => {
             setActiveDomain(d);
             setShowStats(false);
