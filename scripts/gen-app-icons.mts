@@ -126,8 +126,12 @@ await onGradient(2732, 0.3, 'assets/splash-dark.png');
 // anything for this, so the OS falls back to the adaptive-launcher foreground,
 // which it generates at only 192px (xxxhdpi) and then up-scales → blurry. A
 // dedicated 1152px asset (crisp at xxxhdpi = 288dp × 4) wired up by the APK
-// workflow via android-overrides/values-v31/styles.xml. Mark ≈ 63% keeps it
-// inside the circular safe zone.
-await centered(1152, 720, 'assets/android12-splash-icon.png');
+// workflow via android-overrides/values-v31/styles.xml. This icon has no
+// windowSplashScreenIconBackgroundColor, so the platform clips it to a circle
+// ~2/3 of the canvas (radius 384px here); the mark's farthest pixel from
+// centre must stay inside that or its corners get shaved (the low notehead /
+// the tuning pegs). 576px longest side keeps the whole glyph ~4% clear of the
+// mask while still filling the slot.
+await centered(1152, 576, 'assets/android12-splash-icon.png');
 
 console.log('done.');
