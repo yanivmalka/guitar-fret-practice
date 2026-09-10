@@ -89,7 +89,14 @@ export default function QuickAccess(props: QuickAccessProps) {
   );
 
   const [phase, setPhase] = useState<Phase>('sunk');
-  const [lastChangedId, setLastChangedId] = useState<QuickAccessId | null>(null);
+  // The setting that floats to the circle ("last changed wins") is only
+  // recomputed once the widget has sunk away and is summoned afresh — never
+  // while it is on screen. Reordering the strip under the player's finger
+  // mid-use is disorienting, so a change made now is remembered in a ref and
+  // only promoted to `committedChangedId` the next time `phase` returns to
+  // 'sunk' (when nothing is visible to jump around).
+  const [committedChangedId, setCommittedChangedId] = useState<QuickAccessId | null>(null);
+  const pendingChangedId = useRef<QuickAccessId | null>(null);
   // Shown when the summon gesture lands but there is nothing to reveal:
   // 'off'   — Quick Access is disabled in Settings.
   // 'empty' — enabled, but the player has not pinned any shortcuts yet.
@@ -159,9 +166,18 @@ export default function QuickAccess(props: QuickAccessProps) {
     applyValue[id](nextVal);
     if (item.prefKey) saveSetting(item.prefKey, nextVal);
     if (id === 'answerMode' && nextVal === 'voice') askForMic();
-    setLastChangedId(id);
+    pendingChangedId.current = id;
     armSink();
   };
+
+  // Promote the pending "last changed" pick only once the widget is fully
+  // sunk, so the strip never rearranges itself while the player is looking at
+  // it. The next summon then opens with that setting on the circle.
+  useEffect(() => {
+    if (phase !== 'sunk' || pendingChangedId.current === null) return;
+    setCommittedChangedId(pendingChangedId.current);
+    pendingChangedId.current = null;
+  }, [phase]);
 
   // Tear down the outstanding timers on unmount.
   useEffect(() => () => {
@@ -301,8 +317,8 @@ export default function QuickAccess(props: QuickAccessProps) {
   // first pinned. Its first tap opens the strip; once open, further taps cycle
   // that setting in place, exactly like a strip button. It is never repeated as
   // a strip row: the strip holds only the *other* pinned settings.
-  const fabId: QuickAccessId = lastChangedId && pinned.includes(lastChangedId)
-    ? lastChangedId
+  const fabId: QuickAccessId = committedChangedId && pinned.includes(committedChangedId)
+    ? committedChangedId
     : pinned[0];
   const menuIds: QuickAccessId[] = pinned.filter((id) => id !== fabId);
 
