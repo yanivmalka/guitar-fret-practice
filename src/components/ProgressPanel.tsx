@@ -395,6 +395,11 @@ function ScopeView({
 
   return (
     <>
+      <div className="stat-group">
+        <p className="stat-group-title improving">🎸 {t('Fretboard heatmap')}</p>
+        <FretHeatmap history={history} instrument={instrument} />
+      </div>
+
       <HeroTiles tiles={heroTiles} />
 
       <div className="stat-group">
@@ -421,9 +426,6 @@ function ScopeView({
       <Expander label={t('By fret')} open={open === 'byfret'} onToggle={toggle('byfret')}>
         {fretRows.length > 0 && <BarRows rows={fretRows} />}
         <UnplayedChips items={unplayedFrets} />
-      </Expander>
-      <Expander label={t('Fretboard heatmap')} open={open === 'fret'} onToggle={toggle('fret')}>
-        <FretHeatmap history={history} instrument={instrument} />
       </Expander>
       <Expander label={t('Daily timeline')} open={open === 'time'} onToggle={toggle('time')}>
         <Timeline history={history} />
