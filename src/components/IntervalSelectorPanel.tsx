@@ -25,6 +25,7 @@ import {
   useIntervalSelector,
   type IntervalDifficulty,
 } from '../hooks/useIntervalSelector';
+import { useLockHint } from './LockHint';
 import { useTranslation } from '../i18n/useTranslation';
 import {
   playClickSound, playToggleOnSound, playToggleOffSound, haptic,
@@ -117,6 +118,7 @@ export default function IntervalSelectorPanel({
   onStart,
 }: Props) {
   const { t, lang } = useTranslation();
+  const { showLockHint, lockHintNode } = useLockHint();
   const sel = useIntervalSelector({
     instrument, masteredSizes, accidental, order, notation, audioMuted: silentMode,
   });
@@ -272,21 +274,35 @@ export default function IntervalSelectorPanel({
         >
           {EXERCISE_ORDER.map((ex) => {
             const active = state.exercise === ex;
-            // Audio-only exercise: unavailable while drill sound is muted.
-            const disabled = busy || (ex === 'identifyInterval' && !!silentMode);
+            // Audio-only exercise: unavailable while drill sound is muted. It
+            // stays tappable (not `disabled`) so the tap can surface a lock
+            // hint explaining why, instead of doing nothing.
+            const soundLocked = ex === 'identifyInterval' && !!silentMode;
             return (
               <button
                 key={ex}
                 type="button"
-                className={`mode-card ${active ? 'active' : ''}`}
+                className={`mode-card ${active ? 'active' : ''}${soundLocked ? ' mode-card-locked' : ''}`}
                 aria-pressed={active}
-                disabled={disabled}
+                aria-disabled={soundLocked || undefined}
+                disabled={busy}
                 title={
-                  ex === 'identifyInterval' && silentMode
+                  soundLocked
                     ? t('Silent mode is on — this exercise needs sound.')
                     : undefined
                 }
-                onClick={click(() => sel.setExercise(ex))}
+                onClick={(e) => {
+                  playClickSound();
+                  haptic.tap();
+                  if (soundLocked) {
+                    showLockHint(
+                      e.currentTarget,
+                      t('Silent mode is on — this exercise needs sound.'),
+                    );
+                    return;
+                  }
+                  sel.setExercise(ex);
+                }}
               >
                 {EXERCISE_META[ex].glyph}
                 <span>{t(EXERCISE_META[ex].label)}</span>
@@ -337,6 +353,8 @@ export default function IntervalSelectorPanel({
           ▶ {t('Start interval practice')}
         </button>
       </div>
+
+      {lockHintNode}
     </div>
   );
 }
