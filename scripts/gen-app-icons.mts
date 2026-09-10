@@ -107,26 +107,30 @@ console.log('native source art (for capacitor-assets, in assets/):');
 await onGradient(1024, 0.78, 'assets/icon-only.png');
 // Android adaptive icon: the launcher masks and zooms (~1.4x) the foreground
 // layer, so the mark sits small on a full 1024 transparent canvas to survive
-// the crop.
+// the crop. The note glyph is diagonal, so its farthest pixel (the top-right
+// tuning pegs) sits ~0.64x the mark's longest side out from centre — at 0.5
+// canvas coverage that lands just inside the 72dp adaptive safe zone, where a
+// bigger mark had the pegs shaved off by tighter OEM masks (OneUI's squircle).
 await sharp({
   create: { width: 1024, height: 1024, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
 })
-  .composite([{ input: await mark(600), gravity: 'center' }])
+  .composite([{ input: await mark(512), gravity: 'center' }])
   .png()
   .toFile(join(root, 'assets/icon-foreground.png'));
-console.log('  assets/icon-foreground.png  (1024px canvas, 600px mark)');
+console.log('  assets/icon-foreground.png  (1024px canvas, 512px mark)');
 await solid(1024, 'assets/icon-background.png');
 // Android adaptive-icon foreground, hi-res. `capacitor-assets` 3.0.5 has a bug:
 // given an explicit assets/icon-foreground.png it resizes with the *legacy*
 // icon table (192px at xxxhdpi), not the adaptive one (432px). Android then
 // upscales that 192px layer onto the 108dp (= 432px at xxxhdpi) adaptive
-// canvas and the mark comes out soft. This 512px `nodpi` copy — same 600/1024
-// ≈ 0.586 mark coverage as icon-foreground.png so the on-screen size is
-// unchanged, only the pixel density goes up — is wired up by the APK workflow
-// via android-overrides/mipmap-anydpi-v26/ic_launcher.xml, which points the
+// canvas and the mark comes out soft. This 512px `nodpi` copy — same 0.5
+// canvas coverage as icon-foreground.png so the on-screen size is unchanged,
+// only the pixel density goes up — is wired up by the APK workflow via
+// android-overrides/mipmap-anydpi-v26/ic_launcher.xml, which points the
 // foreground at it and drops the generator's doubled inset. The mark stays
-// small so it survives the launcher's circular mask + ~1.4x parallax zoom.
-await centered(512, Math.round(512 * (600 / 1024)), 'assets/ic-adaptive-fg.png');
+// small so it survives the launcher's mask + ~1.4x parallax zoom: 0.5 keeps
+// the diagonal glyph's corners (tuning pegs) inside the 72dp safe zone.
+await centered(512, Math.round(512 * 0.5), 'assets/ic-adaptive-fg.png');
 // Splash: 2732² is the capacitor-assets canonical source size. Keep the mark
 // small — only the centre ~1200px is guaranteed visible on every device.
 await onGradient(2732, 0.3, 'assets/splash.png');
