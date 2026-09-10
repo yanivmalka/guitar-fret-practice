@@ -2,8 +2,8 @@
 <!--
   API 26+ (Android 8+) adaptive launcher icon override.
 
-  Replaces the ic_launcher.xml that `capacitor-assets generate --android`
-  writes, which is blurry for two stacked reasons:
+  Replaces the ic_launcher.xml that the `capacitor-assets generate` Android
+  step writes, which is blurry for two stacked reasons:
 
   1. Low-res foreground. `capacitor-assets` 3.0.5, given an explicit
      assets/icon-foreground.png, resizes it with the *legacy* icon size table
