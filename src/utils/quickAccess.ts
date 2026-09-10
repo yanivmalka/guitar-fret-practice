@@ -9,10 +9,10 @@
 //
 // Exactly seven settings are pinnable and at most five can be pinned at once.
 // Every pinnable setting is a two-state toggle except Note volume, which cycles
-// through four discrete loudness steps.
+// through the five discrete loudness levels (`NOTE_VOLUME_LEVELS`).
 
 import { loadSetting, saveSetting } from './settings';
-import { NOTE_VOLUME_MIN, NOTE_VOLUME_MAX, NOTE_VOLUME_DEFAULT } from './audio';
+import { NOTE_VOLUME_LEVELS, noteVolumeLevelIndex } from './audio';
 
 export const ENABLED_KEY = 'pref_quickAccessEnabled';
 export const PINNED_KEY = 'pref_pinnedQuickAccess';
@@ -38,29 +38,21 @@ export interface QuickAccessItem {
   voiceOnly?: boolean;
   /** Current raw pref value -> the next raw value in the cycle. */
   next: (cur: unknown) => unknown;
-  /** Current raw pref value -> the glyph shown for that state. */
-  icon: (cur: unknown) => string;
 }
 
-// ── Note volume: four discrete steps across the makeup-gain range ──────
-// "Mute" is the quietest the gain slider allows (NOTE_VOLUME_MIN); true
-// silence is the separate Silent mode toggle.
-const VOL_STEPS = [NOTE_VOLUME_MIN, 4, 7, NOTE_VOLUME_MAX] as const;
-const VOL_ICONS = ['🔇', '🔈', '🔉', '🔊'] as const;
+// ── Note volume: cycles through the five shared loudness levels ────────
+// Level 1 is the quietest the makeup gain allows, not true silence — that is
+// the separate Silent mode toggle.
+const VOL_STEPS = NOTE_VOLUME_LEVELS;
 
-function volIndex(cur: unknown): number {
-  const v = typeof cur === 'number' ? cur : NOTE_VOLUME_DEFAULT;
-  let best = 0;
-  let bestDist = Infinity;
-  VOL_STEPS.forEach((step, i) => {
-    const d = Math.abs(step - v);
-    if (d < bestDist) { bestDist = d; best = i; }
-  });
-  return best;
+/**
+ * Which of the five discrete loudness levels a raw `pref_noteVolume` value
+ * sits on (0 = quietest … 4 = loudest). Used by `QuickAccessGlyph` to pick
+ * how many sound waves to draw.
+ */
+export function noteVolumeStep(cur: unknown): number {
+  return noteVolumeLevelIndex(typeof cur === 'number' ? cur : NaN);
 }
-
-/** Glyph shown on the main circle before the first change this session. */
-export const GENERIC_QA_ICON = '🎛️';
 
 export const QUICK_ACCESS_ITEMS: readonly QuickAccessItem[] = [
   {
@@ -68,35 +60,30 @@ export const QUICK_ACCESS_ITEMS: readonly QuickAccessItem[] = [
     prefKey: 'pref_notation',
     label: 'Note names',
     next: (cur) => (cur === 'solfege' ? 'alpha' : 'solfege'),
-    icon: (cur) => (cur === 'solfege' ? 'Do' : 'ABC'),
   },
   {
     id: 'accidental',
     prefKey: 'pref_accidental',
     label: 'Sharps or flats',
     next: (cur) => (cur === 'flats' ? 'sharps' : 'flats'),
-    icon: (cur) => (cur === 'flats' ? '♭' : '♯'),
   },
   {
     id: 'showScore',
     prefKey: 'pref_showScore',
     label: 'Score & celebrations',
     next: (cur) => cur === false,
-    icon: (cur) => (cur === false ? '☆' : '⭐'),
   },
   {
     id: 'silentMode',
     prefKey: 'pref_silentMode',
     label: 'Silent mode',
     next: (cur) => cur !== true,
-    icon: (cur) => (cur === true ? '🔇' : '🔊'),
   },
   {
     id: 'noteVolume',
     prefKey: 'pref_noteVolume',
     label: 'Note volume',
-    next: (cur) => VOL_STEPS[(volIndex(cur) + 1) % VOL_STEPS.length],
-    icon: (cur) => VOL_ICONS[volIndex(cur)],
+    next: (cur) => VOL_STEPS[(noteVolumeStep(cur) + 1) % VOL_STEPS.length],
   },
   {
     id: 'answerMode',
@@ -104,14 +91,12 @@ export const QUICK_ACCESS_ITEMS: readonly QuickAccessItem[] = [
     label: 'How you answer',
     voiceOnly: true,
     next: (cur) => (cur === 'voice' ? 'tap' : 'voice'),
-    icon: (cur) => (cur === 'voice' ? '🎤' : '👆'),
   },
   {
     id: 'showMastery',
     prefKey: 'pref_showMastery',
     label: 'Mastery on the fretboard',
     next: (cur) => cur === false,
-    icon: (cur) => (cur === false ? '🙈' : '👁️'),
   },
 ];
 

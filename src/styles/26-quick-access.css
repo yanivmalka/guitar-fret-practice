@@ -9,28 +9,38 @@
    — there is no hit-target element, so single taps still reach the UI. */
 
 /* The glowing circle. Fixed at a comfortable thumb height, independent of the
-   Play button. */
-.qa-fab {
-  position: fixed;
-  right: 10px;
-  top: 46%;
-  width: 52px;
-  height: 52px;
+   Play button — but styled exactly like it: the `.icon-btn` recipe, i.e. a
+   transparent fill, a 2px accent ring, an accent-tinted halo and a soft
+   press-in. */
+.qa-fab,
+.qa-menu-item {
   border-radius: 50%;
   border: 2px solid var(--accent);
-  background: var(--bg-1);
+  background: transparent;
   color: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 0 18px 3px rgba(var(--accent-rgb), 0.4);
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.2s, transform 0.2s;
+}
+.qa-fab:hover,
+.qa-menu-item:hover { background: rgba(var(--accent-rgb), 0.1); }
+.qa-fab:active,
+.qa-menu-item:active { transform: scale(0.9); }
+
+.qa-fab {
+  position: fixed;
+  right: 10px;
+  top: 46%;
+  width: 52px;
+  height: 52px;
   touch-action: none;
   z-index: 71;
-  -webkit-tap-highlight-color: transparent;
   animation: qa-pop 0.16s ease-out;
 }
-.qa-fab:active { transform: scale(0.92); }
 
 /* Downward strip of pinned-setting icons. */
 .qa-menu {
@@ -46,28 +56,13 @@
 .qa-menu-item {
   width: 46px;
   height: 46px;
-  border-radius: 50%;
-  border: 1px solid rgba(var(--accent-rgb), 0.5);
-  background: var(--bg-2);
-  color: var(--accent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 0 12px 2px rgba(var(--accent-rgb), 0.28);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
 }
-.qa-menu-item:active { transform: scale(0.92); }
 
-/* The glyph inside the circle / each strip button — an emoji or a short
-   notation label ("ABC" / "Do"). */
-.qa-glyph {
-  font-size: 20px;
-  line-height: 1;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-.qa-menu-item .qa-glyph { font-size: 18px; }
+/* The glyph inside the circle / each strip button — a crisp `currentColor`
+   vector icon, drawn in the same language as the Play button's triangle. */
+.qa-glyph { display: inline-flex; }
+.qa-glyph svg { width: 26px; height: 26px; display: block; }
+.qa-menu-item .qa-glyph svg { width: 22px; height: 22px; }
 
 /* One-time edge hint after the first successful pin. */
 .qa-hint {

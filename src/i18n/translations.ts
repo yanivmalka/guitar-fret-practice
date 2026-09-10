@@ -56,8 +56,8 @@ const he: Record<string, string> = {
   'Visual-only questions — no note playback or chime. Haptics and on-screen celebrations stay on. Great for practising with headphones off or a guitar in hand.':
     'שאלות חזותיות בלבד — ללא השמעת התו וללא צליל "נכון". הרטט והחגיגות על המסך נשארים פעילים. מצוין לתרגול בלי אוזניות או עם גיטרה אמיתית ביד.',
   'Note volume': 'עוצמת התווים',
-  'How loud the drill note samples play. Drag the slider or use − / + to boost it if the notes sound weak; the limiter keeps even the loudest setting from distorting.':
-    'עד כמה חזק מושמעים צלילי התווים בתרגול. גרור את המחוון או השתמש ב־− / + כדי להגביר אם התווים נשמעים חלשים; המגביל מונע עיוות גם בעוצמה המקסימלית.',
+  'How loud the drill note samples play. Pick one of five levels with − / + if the notes sound weak; the limiter keeps even the loudest setting from distorting.':
+    'עד כמה חזק מושמעים צלילי התווים בתרגול. בחר אחת מחמש רמות עם ־ / + אם התווים נשמעים חלשים; המגביל מונע עיוות גם ברמה החזקה ביותר.',
   'Theme': 'ערכת נושא',
   'Dark': 'כהה',
   'Night': 'לילה',

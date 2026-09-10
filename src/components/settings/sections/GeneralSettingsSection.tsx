@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { SettingCard, SegmentedControl, PickRow, StepperMeter } from '../../SettingCard';
 import {
-  NOTE_VOLUME_MIN, NOTE_VOLUME_MAX, NOTE_VOLUME_STEP, NOTE_VOLUME_DEFAULT,
+  NOTE_VOLUME_LEVELS, noteVolumeLevelIndex,
 } from '../../../utils/audio';
 import { ProGate } from '../../ProGate';
 import { QuickAccessEnableToggle, QuickAccessPinButton } from '../../QuickAccessPinButton';
@@ -156,16 +156,20 @@ export default function GeneralSettingsSection({
       <SettingCard
         label={t('Note volume')}
         pin={<QuickAccessPinButton itemId="noteVolume" />}
-        help={t('How loud the drill note samples play. Drag the slider or use − / + to boost it if the notes sound weak; the limiter keeps even the loudest setting from distorting.')}
+        help={t('How loud the drill note samples play. Pick one of five levels with − / + if the notes sound weak; the limiter keeps even the loudest setting from distorting.')}
       >
         <StepperMeter
           ariaLabel={t('Note volume')}
-          value={noteVolume}
-          min={NOTE_VOLUME_MIN}
-          max={NOTE_VOLUME_MAX}
-          step={NOTE_VOLUME_STEP}
-          formatValue={(v) => `${Math.round((v / NOTE_VOLUME_DEFAULT) * 100)}%`}
-          onChange={(v) => { setNoteVolume(v); saveSetting('pref_noteVolume', v); }}
+          value={noteVolumeLevelIndex(noteVolume) + 1}
+          min={1}
+          max={NOTE_VOLUME_LEVELS.length}
+          step={1}
+          formatValue={(v) => `${v} / ${NOTE_VOLUME_LEVELS.length}`}
+          onChange={(v) => {
+            const gain = NOTE_VOLUME_LEVELS[Math.round(v) - 1];
+            setNoteVolume(gain);
+            saveSetting('pref_noteVolume', gain);
+          }}
         />
       </SettingCard>
       <SettingCard

@@ -4,10 +4,10 @@ import {
 import { playClickSound, haptic } from '../utils/feedback';
 import { saveSetting } from '../utils/settings';
 import type { AccidentalMode, NotationMode } from '../utils/music';
+import QuickAccessGlyph from './QuickAccessGlyph';
 import {
   type QuickAccessId,
   quickAccessItem,
-  GENERIC_QA_ICON,
   subscribeQuickAccess,
   getQuickAccessEnabled,
   getPinnedQuick,
@@ -208,28 +208,28 @@ export default function QuickAccess(props: QuickAccessProps) {
       setPhase('sunk');
     }
   };
+  // The circle is itself the first setting — the last-changed one, else the
+  // first pinned. Its first tap opens the strip; once open, further taps cycle
+  // that setting in place, exactly like a strip button. It is never repeated as
+  // a strip row: the strip holds only the *other* pinned settings.
+  const fabId: QuickAccessId = lastChangedId && pinned.includes(lastChangedId)
+    ? lastChangedId
+    : pinned[0];
+  const menuIds: QuickAccessId[] = pinned.filter((id) => id !== fabId);
+
   const onFabPointerUp = () => {
     const d = fabDown.current;
     fabDown.current = null;
     if (!d || d.dragged) return;
     playClickSound();
     haptic.tap();
-    if (phase === 'revealed') {
+    if (phase === 'revealed' && menuIds.length > 0) {
       setPhase('open');
       armSink();
-    } else if (phase === 'open') {
-      cycle(lastChangedId ?? pinned[0]);
+    } else {
+      cycle(fabId);
     }
   };
-
-  // Strip order: the last-changed setting on top, then the rest in pinned order.
-  const menuIds: QuickAccessId[] = lastChangedId && pinned.includes(lastChangedId)
-    ? [lastChangedId, ...pinned.filter((id) => id !== lastChangedId)]
-    : [...pinned];
-
-  const circleIcon = lastChangedId
-    ? quickAccessItem(lastChangedId).icon(values[lastChangedId])
-    : GENERIC_QA_ICON;
 
   return (
     <div className="qa-root">
@@ -243,32 +243,29 @@ export default function QuickAccess(props: QuickAccessProps) {
         <button
           type="button"
           className="qa-fab"
-          aria-label={t('Quick access')}
+          aria-label={t(quickAccessItem(fabId).label)}
           aria-expanded={phase === 'open'}
           onPointerDown={onFabPointerDown}
           onPointerMove={onFabPointerMove}
           onPointerUp={onFabPointerUp}
         >
-          <span className="qa-glyph">{circleIcon}</span>
+          <span className="qa-glyph"><QuickAccessGlyph id={fabId} value={values[fabId]} /></span>
         </button>
       )}
 
-      {phase === 'open' && (
+      {phase === 'open' && menuIds.length > 0 && (
         <div className="qa-menu" role="group" aria-label={t('Quick access')}>
-          {menuIds.map((id) => {
-            const item = quickAccessItem(id);
-            return (
-              <button
-                key={id}
-                type="button"
-                className="qa-menu-item"
-                aria-label={t(item.label)}
-                onClick={() => cycle(id)}
-              >
-                <span className="qa-glyph">{item.icon(values[id])}</span>
-              </button>
-            );
-          })}
+          {menuIds.map((id) => (
+            <button
+              key={id}
+              type="button"
+              className="qa-menu-item"
+              aria-label={t(quickAccessItem(id).label)}
+              onClick={() => cycle(id)}
+            >
+              <span className="qa-glyph"><QuickAccessGlyph id={id} value={values[id]} /></span>
+            </button>
+          ))}
         </div>
       )}
     </div>

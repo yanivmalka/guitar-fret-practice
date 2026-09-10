@@ -38,13 +38,31 @@ function getCtx(): AudioContext {
 // The soundfont MP3 samples are mastered quiet, so every drill note runs
 // through a shared makeup-gain stage: a boost (>1×) followed by a limiter that
 // catches the peaks the boost would otherwise clip. Route note playback into
-// masterOut() instead of ctx.destination. The boost is a plain multiplier the
-// user drags in Settings (`pref_noteVolume`); the limiter keeps even the top
-// of the range from distorting.
-export const NOTE_VOLUME_MIN = 1;
-export const NOTE_VOLUME_MAX = 10;
-export const NOTE_VOLUME_STEP = 0.2;
-export const NOTE_VOLUME_DEFAULT = 2.6;
+// masterOut() instead of ctx.destination; the limiter keeps even the top of the
+// range from distorting.
+//
+// The boost the user picks in Settings (`pref_noteVolume`) is one of five
+// discrete levels. An earlier build exposed the raw multiplier on a continuous
+// 1–10× slider, which surfaced meaningless readouts ("38%" … "385%"); five
+// clearly-spaced steps replace it. Spacing is roughly geometric (~+4 dB per
+// step) so each level is an audible jump. Level 2 is the long-standing default;
+// true silence is the separate Silent mode toggle, not level 1.
+export const NOTE_VOLUME_LEVELS: readonly number[] = [1.6, 2.6, 4, 6.3, 10];
+export const NOTE_VOLUME_MIN = NOTE_VOLUME_LEVELS[0];
+export const NOTE_VOLUME_MAX = NOTE_VOLUME_LEVELS[NOTE_VOLUME_LEVELS.length - 1];
+export const NOTE_VOLUME_DEFAULT = NOTE_VOLUME_LEVELS[1];
+
+/** Nearest level index (0-based) for an arbitrary stored gain multiplier. */
+export function noteVolumeLevelIndex(v: number): number {
+  const n = typeof v === 'number' && Number.isFinite(v) ? v : NOTE_VOLUME_DEFAULT;
+  let best = 0;
+  let bestDist = Infinity;
+  NOTE_VOLUME_LEVELS.forEach((lvl, i) => {
+    const d = Math.abs(lvl - n);
+    if (d < bestDist) { bestDist = d; best = i; }
+  });
+  return best;
+}
 
 let _boost = NOTE_VOLUME_DEFAULT;
 let masterGain: GainNode | null = null;
