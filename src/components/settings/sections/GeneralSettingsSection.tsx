@@ -77,6 +77,8 @@ export interface GeneralSettingsSectionProps {
   setShowMastery: (v: boolean) => void;
   masteryWindow: MasteryWindow;
   setMasteryWindow: (w: MasteryWindow) => void;
+  leftHanded: boolean;
+  setLeftHanded: (v: boolean) => void;
 }
 
 export default function GeneralSettingsSection({
@@ -84,6 +86,7 @@ export default function GeneralSettingsSection({
   noteVolume, setNoteVolume, theme, setTheme, season, setSeason, voiceSupported, answerMode, setAnswerMode, askForMic,
   voiceEnginePref, pickVoiceEngine, voiceProfileStat, setSettingsOpen,
   setShowVoiceCalibration, showMastery, setShowMastery, masteryWindow, setMasteryWindow,
+  leftHanded, setLeftHanded,
 }: GeneralSettingsSectionProps) {
   const todayStr = localDayStr(new Date());
   // Which sub-control of the "Mastery time window" card is visible. Seeded from
@@ -190,6 +193,20 @@ export default function GeneralSettingsSection({
           value={lang}
           options={LANGUAGES}
           onChange={(l) => { setLang(l); }}
+        />
+      </SettingCard>
+      <SettingCard
+        label={t('Left-handed')}
+        help={t('Mirrors the app for a left-handed player: the fretboard flips (nut on the right), and the menu, Quick Access and back buttons move to the left. Independent of language — it stays mirrored in Hebrew too.')}
+      >
+        <SegmentedControl
+          ariaLabel={t('Left-handed')}
+          value={leftHanded ? 'on' : 'off'}
+          options={[
+            { value: 'on', label: t('On') },
+            { value: 'off', label: t('Off') },
+          ]}
+          onChange={(v) => { setLeftHanded(v === 'on'); }}
         />
       </SettingCard>
       {voiceSupported && (

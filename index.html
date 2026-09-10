@@ -150,6 +150,14 @@
         var PHONE_W = 390;
         var PHONE_H = 844;
         var root = document.documentElement;
+        // Set the left-handed flag before first paint so the fretboard and
+        // chrome don't visibly flip after the app mounts.
+        try {
+          root.dataset.hand =
+            JSON.parse(localStorage.getItem('pref_leftHanded') || 'false') === true
+              ? 'left'
+              : 'right';
+        } catch (e) { root.dataset.hand = 'right'; }
         root.style.setProperty('--phone-w', PHONE_W + 'px');
         root.style.setProperty('--phone-h', PHONE_H + 'px');
         function updateScale() {

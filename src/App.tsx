@@ -24,6 +24,7 @@ import { playClickSound, playToggleOnSound, playToggleOffSound, haptic } from '.
 import { withClick as click } from './utils/withClick';
 import { loadSetting, saveSetting } from './utils/settings';
 import { useThemeEffect } from './hooks/useThemeEffect';
+import { useHandednessEffect } from './hooks/useHandednessEffect';
 import { useFeedbackModeEffect } from './hooks/useFeedbackModeEffect';
 import { useBootReadyEvent } from './hooks/useBootReadyEvent';
 import { useAutoPauseOnBackground } from './hooks/useAutoPauseOnBackground';
@@ -189,6 +190,7 @@ export default function App() {
     noteVolume, setNoteVolume,
     theme, setTheme,
     season, setSeason,
+    leftHanded, setLeftHanded,
   } = useAppPreferences();
   useEffect(() => { setAudioNoteVolume(noteVolume); }, [noteVolume]);
   const [showVoiceCalibration, setShowVoiceCalibration] = useState(false);
@@ -209,6 +211,7 @@ export default function App() {
   // 'silent'.
   const silentMode = feedbackMode !== 'sound';
   useThemeEffect(season, theme);
+  useHandednessEffect(leftHanded);
 
   useBootReadyEvent(auth.loading, auth.entitlementLoading);
 
@@ -726,6 +729,8 @@ export default function App() {
           setShowMastery={setShowMastery}
           masteryWindow={masteryWindow}
           setMasteryWindow={setMasteryWindow}
+          leftHanded={leftHanded}
+          setLeftHanded={setLeftHanded}
         />
       ),
     },

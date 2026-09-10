@@ -143,6 +143,9 @@ const he: Record<string, string> = {
   'See the full list and what earns each one': 'לצפייה ברשימה המלאה ובדרכים לזכות בכל תג',
   'Badges': 'תגים',
   'Language': 'שפה',
+  'Left-handed': 'שמאלי',
+  'Mirrors the app for a left-handed player: the fretboard flips (nut on the right), and the menu, Quick Access and back buttons move to the left. Independent of language — it stays mirrored in Hebrew too.':
+    'הופך את האפליקציה כמראה עבור מנגן שמאלי: הצוואר מתהפך (האוכף מימין), והתפריט, הגישה המהירה וכפתורי החזרה עוברים לצד שמאל. בלתי תלוי בשפה — נשאר הפוך גם בעברית.',
 
   // Hamburger drawer / dialogs
   'Settings': 'הגדרות',

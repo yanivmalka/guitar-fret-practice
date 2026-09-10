@@ -67,6 +67,17 @@ export function useAppPreferences() {
     setSeasonState(s);
     saveSetting('pref_season', s);
   }, []);
+  // Left-handed layout. An axis of its own, independent of language direction:
+  // Hebrew only flips reading order, whereas this mirrors the fretboard
+  // geometry and moves the on-screen chrome (menu, Quick Access, back
+  // buttons) to the opposite side. Persists internally, like setTheme.
+  const [leftHanded, setLeftHandedState] = useState<boolean>(
+    () => loadSetting<boolean>('pref_leftHanded', false),
+  );
+  const setLeftHanded = useCallback((v: boolean) => {
+    setLeftHandedState(v);
+    saveSetting('pref_leftHanded', v);
+  }, []);
 
   return {
     byString, setByString,
@@ -82,5 +93,6 @@ export function useAppPreferences() {
     noteVolume, setNoteVolume,
     theme, setTheme,
     season, setSeason,
+    leftHanded, setLeftHanded,
   };
 }

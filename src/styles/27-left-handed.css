@@ -1,0 +1,27 @@
+/* ── Left-handed layout ───────────────────────────────────────────────
+   Everything the `pref_leftHanded` toggle flips, keyed off `data-hand`
+   on <html> (`data-hand="left"`). This is an axis of its own, separate
+   from `dir`: switching to Hebrew only changes reading order, whereas
+   this mirrors the instrument itself and moves the on-screen chrome to
+   the opposite side. Loaded last so these overrides win. */
+
+/* Fretboard geometry — the by-note tap grid. Reverse the column order
+   so fret 0 sits on the right. `direction` only reorders the grid
+   tracks; the digits inside each button stay upright because every
+   .fret-btn is its own flex column. */
+[data-hand="left"] .fret-grid { direction: rtl; }
+
+/* The little SVG necks — the Selector's 0-12 / 12-max half-picker, its
+   in-play mini neck, and the Settings fret-range neck. A single flip
+   mirrors every string, fret line, inlay dot and the nut; the text
+   labels are counter-flipped so they read normally at their mirrored
+   positions. */
+[data-hand="left"] .fret-neck > svg,
+[data-hand="left"] .fret-range-svg {
+  transform: scaleX(-1);
+}
+[data-hand="left"] .fret-neck > svg text {
+  transform: scaleX(-1);
+  transform-box: fill-box;
+  transform-origin: center;
+}
