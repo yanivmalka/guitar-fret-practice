@@ -62,11 +62,6 @@ export interface UseVoiceAnswerResult {
   ensurePermission: () => Promise<boolean>;
   /** Manually restart listening for the current question. */
   retry: () => void;
-  /**
-   * Tell the engine the last spoken answer was correct so it can learn from
-   * it (on-device "general" engine only; a no-op otherwise).
-   */
-  learn: (label: string) => void;
 }
 
 const MAX_AUTO_RETRIES = 1;
@@ -411,9 +406,5 @@ export function useVoiceAnswer(params: UseVoiceAnswerParams): UseVoiceAnswerResu
   // Tear the engine down on unmount.
   useEffect(() => () => { engine?.destroy(); }, [engine]);
 
-  const learn = useCallback((label: string) => {
-    void engine?.learn?.(label);
-  }, [engine]);
-
-  return { supported, status, partial, error, permission, ensurePermission, retry, learn };
+  return { supported, status, partial, error, permission, ensurePermission, retry };
 }

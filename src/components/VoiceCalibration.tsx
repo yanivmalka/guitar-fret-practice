@@ -37,6 +37,10 @@ function exportFileStem(notation: NotationMode, label: string): string {
 }
 
 
+// How many extra takes to prompt for, per label, when the self-test flags a
+// pair as acoustically too close — on top of the usual SAMPLES_PER_LABEL.
+const EXTRA_TAKES = 3;
+
 interface Props {
   notation: NotationMode;
   accidental: AccidentalMode;
@@ -73,7 +77,13 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
   const lastPcmRef = useRef<{ pcm: Float32Array; sampleRate: number } | null>(null);
   const [hasLast, setHasLast] = useState(false);
   const [selfTest, setSelfTest] = useState<string[] | null>(null);
+  const [closePairs, setClosePairs] = useState<{ a: string; b: string }[]>([]);
   const [testing, setTesting] = useState(false);
+  // Set while recording extra takes for one flagged pair — overrides the
+  // per-label target for just those two labels and confines auto-run to
+  // cycling between them instead of the full label list.
+  const [extraPair, setExtraPair] = useState<{ a: string; b: string } | null>(null);
+  const [extraTarget, setExtraTarget] = useState<Record<string, number>>({});
   const abortRef = useRef<AbortController | null>(null);
   const autoTimerRef = useRef<number | null>(null);
   // Consecutive failed/empty/rejected captures while running; a short run of
@@ -262,6 +272,8 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
 
   const stopRun = useCallback(() => {
     setRunning(false);
+    setExtraPair(null);
+    setExtraTarget({});
     autoMissRef.current = 0;
     if (autoTimerRef.current !== null) {
       clearTimeout(autoTimerRef.current);
@@ -278,56 +290,6 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
     setRunning(true);
   };
 
-  // Once started, keep cycling — record the current word, and when it has
-  // enough samples jump to the next word that still needs some — so the user
-  // only has to speak, never tap anything between takes.
-  useEffect(() => {
-    if (!running || rec !== 'idle') return;
-    if (autoMissRef.current >= 3) { stopRun(); return; }
-
-    const needsHere = (counts[label] ?? 0) < SAMPLES_PER_LABEL;
-    if (needsHere) {
-      autoTimerRef.current = window.setTimeout(() => { void record(); }, 800);
-    } else {
-      const nextAfter = PROFILE_LABELS.findIndex(
-        (n, i) => i > idx && (counts[n] ?? 0) < SAMPLES_PER_LABEL,
-      );
-      const nextAny = nextAfter >= 0
-        ? nextAfter
-        : PROFILE_LABELS.findIndex((n) => (counts[n] ?? 0) < SAMPLES_PER_LABEL);
-      if (nextAny >= 0) setIdx(nextAny);
-      else stopRun(); // everything recorded
-    }
-
-    return () => {
-      if (autoTimerRef.current !== null) {
-        clearTimeout(autoTimerRef.current);
-        autoTimerRef.current = null;
-      }
-    };
-  }, [running, rec, counts, idx, label, record, stopRun]);
-
-  const playLast = useCallback(() => {
-    const cap = lastPcmRef.current;
-    if (!cap) return;
-    playClickSound();
-    try {
-      // Reuse the click-sound module's persistent AudioContext rather than
-      // constructing a fresh one: a freshly-constructed context stayed
-      // silent on at least one iOS device even after resume(), while this
-      // one is already proven to produce audible sound (the click itself).
-      const ctx = getFeedbackAudioCtx();
-      if (!ctx) return;
-      if (ctx.state === 'suspended') ctx.resume();
-      const buf = ctx.createBuffer(1, cap.pcm.length, cap.sampleRate);
-      buf.getChannelData(0).set(cap.pcm);
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      src.connect(ctx.destination);
-      src.start();
-    } catch { /* playback is a nicety — ignore failures */ }
-  }, []);
-
   // Compare every recorded word against every other and flag pairs that are
   // acoustically too close to tell apart — the usual culprits are B/E/G/D.
   const runSelfTest = useCallback(async () => {
@@ -342,6 +304,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
       }
       const labels = [...byLabel.keys()];
       const warns: string[] = [];
+      const pairs: { a: string; b: string }[] = [];
       for (let i = 0; i < labels.length; i++) {
         for (let j = i + 1; j < labels.length; j++) {
           const a = byLabel.get(labels[i])!;
@@ -368,14 +331,99 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
                 ? `“${a}” ו-“${b}” נשמעים דומים מדי — הקלט מחדש אחד מהם.`
                 : `“${a}” and “${b}” sound very similar — re-record one of them.`,
             );
+            pairs.push({ a: labels[i], b: labels[j] });
           }
         }
       }
       setSelfTest(warns);
+      setClosePairs(pairs);
     } finally {
       setTesting(false);
     }
   }, [profile, vocabId, labelText, lang]);
+
+  // Start a focused round of extra takes for one flagged pair, on top of the
+  // takes already recorded — more calibration data on the exact pair a user
+  // confuses is cheap and, on real recordings, closed most of the B/D gap
+  // without touching the matcher at all.
+  const startExtraTakes = (pair: { a: string; b: string }) => {
+    playClickSound(); haptic.tap();
+    setExtraTarget({
+      [pair.a]: (counts[pair.a] ?? 0) + EXTRA_TAKES,
+      [pair.b]: (counts[pair.b] ?? 0) + EXTRA_TAKES,
+    });
+    setExtraPair(pair);
+    setSelfTest(null);
+    setClosePairs([]);
+    setErr(null);
+    autoMissRef.current = 0;
+    const startIdx = PROFILE_LABELS.findIndex((n) => n === pair.a);
+    if (startIdx >= 0) setIdx(startIdx);
+    setRunning(true);
+  };
+
+  // Once started, keep cycling — record the current word, and when it has
+  // enough samples jump to the next word that still needs some — so the user
+  // only has to speak, never tap anything between takes. While `extraPair` is
+  // set, cycling stays confined to that pair's two labels and, once both hit
+  // their (higher) target, the self-test re-runs automatically so the user
+  // sees right away whether the extra takes actually resolved the pair.
+  useEffect(() => {
+    if (!running || rec !== 'idle') return;
+    if (autoMissRef.current >= 3) { stopRun(); return; }
+
+    const target = extraTarget[label] ?? SAMPLES_PER_LABEL;
+    const needsHere = (counts[label] ?? 0) < target;
+    if (needsHere) {
+      autoTimerRef.current = window.setTimeout(() => { void record(); }, 800);
+    } else if (extraPair) {
+      const other = label === extraPair.a ? extraPair.b : extraPair.a;
+      const otherTarget = extraTarget[other] ?? SAMPLES_PER_LABEL;
+      if ((counts[other] ?? 0) < otherTarget) {
+        setIdx(PROFILE_LABELS.findIndex((n) => n === other));
+      } else {
+        stopRun();
+        void runSelfTest();
+      }
+    } else {
+      const nextAfter = PROFILE_LABELS.findIndex(
+        (n, i) => i > idx && (counts[n] ?? 0) < SAMPLES_PER_LABEL,
+      );
+      const nextAny = nextAfter >= 0
+        ? nextAfter
+        : PROFILE_LABELS.findIndex((n) => (counts[n] ?? 0) < SAMPLES_PER_LABEL);
+      if (nextAny >= 0) setIdx(nextAny);
+      else stopRun(); // everything recorded
+    }
+
+    return () => {
+      if (autoTimerRef.current !== null) {
+        clearTimeout(autoTimerRef.current);
+        autoTimerRef.current = null;
+      }
+    };
+  }, [running, rec, counts, idx, label, record, stopRun, extraPair, extraTarget, runSelfTest]);
+
+  const playLast = useCallback(() => {
+    const cap = lastPcmRef.current;
+    if (!cap) return;
+    playClickSound();
+    try {
+      // Reuse the click-sound module's persistent AudioContext rather than
+      // constructing a fresh one: a freshly-constructed context stayed
+      // silent on at least one iOS device even after resume(), while this
+      // one is already proven to produce audible sound (the click itself).
+      const ctx = getFeedbackAudioCtx();
+      if (!ctx) return;
+      if (ctx.state === 'suspended') ctx.resume();
+      const buf = ctx.createBuffer(1, cap.pcm.length, cap.sampleRate);
+      buf.getChannelData(0).set(cap.pcm);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      src.start();
+    } catch { /* playback is a nicety — ignore failures */ }
+  }, []);
 
   const removeTake = async (key: string) => {
     playClickSound(); haptic.tap();
@@ -416,6 +464,11 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
   };
 
   const here = counts[label] ?? 0;
+  // Never show a target lower than what's already recorded — `extraTarget`
+  // resets once a focused round finishes, and without this the display
+  // would snap back to the baseline SAMPLES_PER_LABEL even though the label
+  // already has more takes than that.
+  const target = Math.max(SAMPLES_PER_LABEL, extraTarget[label] ?? 0, here);
   const lettersDone = LETTER_LABELS.filter((n) => (counts[n] ?? 0) >= SAMPLES_PER_LABEL).length;
 
   return (
@@ -449,9 +502,16 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
         <div className="vcal-prompt">
           <span className="vcal-prompt-label">{t('Say:')}</span>
           <span className="vcal-note">{prompt}</span>
-          <span className="vcal-here">{here} / {SAMPLES_PER_LABEL} {t('recordings')}</span>
+          <span className="vcal-here">{here} / {target} {t('recordings')}</span>
         </div>
         <div className="vcal-hint">{hint}</div>
+        {extraPair && (
+          <div className="vcal-hint vcal-extra-hint">
+            {lang === 'he'
+              ? `מקליט עוד טייקים כדי להבחין בין “${labelText(extraPair.a)}” ל-“${labelText(extraPair.b)}”`
+              : `Recording extra takes to tell “${labelText(extraPair.a)}” and “${labelText(extraPair.b)}” apart`}
+          </div>
+        )}
 
         <div className={`vcal-meter${rec === 'recording' ? ' is-live' : ''}`}>
           <div className="vcal-meter-fill" style={{ width: `${level * 100}%` }} />
@@ -540,7 +600,22 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
           <div className="vcal-selftest">
             {selfTest.length === 0
               ? <span className="vcal-here">{t('All words are distinct enough — looks good.')}</span>
-              : selfTest.map((w, i) => <div key={i} className="vcal-err">{w}</div>)}
+              : selfTest.map((w, i) => (
+                <div key={i} className="vcal-selftest-row">
+                  <div className="vcal-err">{w}</div>
+                  {closePairs[i] && (
+                    <button
+                      className="vcal-btn vcal-link"
+                      onClick={() => startExtraTakes(closePairs[i])}
+                      disabled={rec !== 'idle' || running}
+                    >
+                      {lang === 'he'
+                        ? `הקלט עוד ${EXTRA_TAKES} טייקים ל-“${labelText(closePairs[i].a)}” ו-“${labelText(closePairs[i].b)}”`
+                        : `Record ${EXTRA_TAKES} more takes for “${labelText(closePairs[i].a)}” and “${labelText(closePairs[i].b)}”`}
+                    </button>
+                  )}
+                </div>
+              ))}
           </div>
         )}
 

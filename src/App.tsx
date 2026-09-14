@@ -390,9 +390,6 @@ export default function App() {
   // Voice answering (WP-4): while a question is on screen and answerMode is
   // 'voice', listen and route the recognised note/fret through the same
   // selectAnswer/selectFret the tap handlers use.
-  // Held in a ref because the callback below is defined inside the same
-  // useVoiceAnswer() call that produces `voice.learn`.
-  const voiceLearnRef = useRef<(label: string) => void>(() => {});
   const voice = useVoiceAnswer({
     enabled: answerMode === 'voice',
     running,
@@ -403,12 +400,9 @@ export default function App() {
     hasActiveQuestion: eff.byNote ? currentNote !== null : currentFret !== null,
     notation: notation as SpeechNotation,
     engineEpoch: voiceEngineEpoch,
-    // A correct spoken answer is fed back to the engine so the "general"
-    // recogniser can learn the user's own voice over time.
-    onNote: (n) => { if (selectAnswer(n)) voiceLearnRef.current(n); },
+    onNote: selectAnswer,
     onFret: selectFret,
   });
-  useEffect(() => { voiceLearnRef.current = voice.learn; }, [voice.learn]);
   // Fall back to tap input if voice is selected but no recogniser exists.
   const voiceActive = answerMode === 'voice' && voice.supported;
 

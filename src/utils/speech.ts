@@ -109,19 +109,6 @@ export interface SpeechEngine {
   /** Release any retained resources. */
   destroy(): void;
   /**
-   * Optional: fold the most recent utterance into a self-learning store
-   * under `label`, e.g. after the game scored a voice answer correct.
-   *
-   * No engine implements this at present, so `useVoiceAnswer`'s `learn()` is
-   * a no-op. Both former implementations were removed because learning is
-   * keyed on the *game* scoring the answer right, which is not the same as
-   * the recogniser having heard it right, and the two do come apart: a
-   * captured session had "F sharp" heard as "F"+"b" = E, which happened to
-   * be the correct note for that fret, so the profile learnt "F" and "b"
-   * from an utterance that was neither.
-   */
-  learn?(label: string): Promise<void>;
-  /**
    * Optional: pre-load whatever the engine needs for its first match
    * (template store, lazy chunk) so the first question is not slow. Only the
    * on-device template engines implement it.
