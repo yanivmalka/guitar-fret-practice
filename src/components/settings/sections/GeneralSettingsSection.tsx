@@ -217,6 +217,11 @@ export default function GeneralSettingsSection({
                 if (m === 'voice') askForMic();
               }}
             />
+            {answerMode === 'voice' && (
+              <p className="set-card-help">
+                {t('Speak clearly and pause briefly between words — for sharp/flat notes, say the letter, pause, then “sharp” / “flat” as two separate words.')}
+              </p>
+            )}
           </SettingCard>
           {/* Voice engine + personal profile only matter once Voice is the
               chosen answer mode, so they live nested under it. */}

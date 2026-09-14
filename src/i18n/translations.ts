@@ -104,6 +104,8 @@ const he: Record<string, string> = {
   'How you answer': 'איך עונים',
   'Voice mode asks for microphone permission the first time.':
     'במצב קול תתבקש לאשר גישה למיקרופון בפעם הראשונה.',
+  'Speak clearly and pause briefly between words — for sharp/flat notes, say the letter, pause, then “sharp” / “flat” as two separate words.':
+    'דברו ברור והשהו רגע קצר בין מילים — בתווי דיאז/במול, אמרו את האות, השהו רגע, ואז "דיאז"/"במול" כשתי מילים נפרדות.',
   'Tap': 'הקשה',
   'Voice': 'קול',
   'Voice engine': 'מנוע זיהוי קולי',
@@ -593,6 +595,8 @@ const he: Record<string, string> = {
   'Profile name': 'שם הפרופיל',
   'Say just this word, on its own': 'אמור רק את המילה הזו, לבדה',
   'Say just the note name, on its own': 'אמור רק את שם התו, לבד',
+  'Speak clearly and pause briefly between words — later, when answering, say the letter, pause, then “sharp” / “flat” as two separate words.':
+    'דברו ברור והשהו רגע קצר בין מילים — בהמשך, כשעונים, אמרו את האות, השהו רגע, ואז "דיאז"/"במול" כשתי מילים נפרדות.',
   'Could not use the microphone — try again': 'לא ניתן להשתמש במיקרופון — נסה שוב',
   'No sound captured — try again, closer to the mic': 'לא נקלט קול — נסה שוב, קרוב יותר למיקרופון',
   'Recording too short — try again': 'ההקלטה קצרה מדי — נסה שוב',

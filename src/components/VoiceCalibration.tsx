@@ -372,6 +372,10 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
           </div>
         </div>
 
+        <div className="vcal-hint">
+          {t('Speak clearly and pause briefly between words — later, when answering, say the letter, pause, then “sharp” / “flat” as two separate words.')}
+        </div>
+
         <div className="vcal-prompt">
           <span className="vcal-prompt-label">{t('Say:')}</span>
           <span className="vcal-note">{prompt}</span>

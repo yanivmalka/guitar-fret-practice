@@ -114,6 +114,8 @@ Bugs or behavior the product already promises but doesn't deliver.
 
   **Direction:** tell the user, briefly, where it matters — the calibration screen and the 🎤 voice answer-mode hint: say the letter, a short pause, then "sharp" / "flat". Needs a Hebrew translation. This is a real fix rather than a workaround: the pause is exactly what lets the segmenter see two words, and it costs the speaker almost nothing. It does not replace the B/D item below, which failed even on a perfectly separated take.
 
+  **DONE 2026-09-14.** Added the same hint text (Hebrew included) in two places: `VoiceCalibration.tsx` under the progress bar, and `GeneralSettingsSection.tsx` under the "How you answer" picker when Voice mode is selected — "Speak clearly and pause briefly between words — say the letter, pause, then 'sharp' / 'flat' as two separate words." Not yet measured against real recordings; the earlier measurement above (0/4 → 2/4 with a deliberate pause) is what justified adding it, not a fresh test of the hint itself changing behavior.
+
 - **B and D are the one confusable letter pair.** Both failures in the 8-of-10 quiet-room run were "B♭", and the second one isolates the cause. Segmentation was perfect (`segMs [400,400]`, `usedSplit: false`), the accidental stage was certain (`b:9.5` against `#:21.4`) — and the note still came out C#, because the letter stage ranked `D:12.6` just above `B:13.2`. "B flat" became "D flat".
 
   The pair sat within about one distance unit on every turn where either was spoken, while F, C, G, A and E won by 5–10 units:
