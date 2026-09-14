@@ -14,7 +14,9 @@ Consolidated from `wishlist-requirements.md` (original Stage-based roadmap) and 
 A compressed, priority-ordered view of everything in this document that is **not** done yet. Full context, reasoning, and implementation plans live in the sections below (§1–§7) — this section only points at them; it does not replace them. Re-derive this list from the sections below rather than trusting it blindly if it's been a while, since the sections are the source of truth and this summary can drift out of date.
 
 ### A. Voice — live product bugs, most urgent (full detail: §1)
-- **Shipped voice recogniser behaviour is unverified.** `c996e17` changed what audio the forced split sees after the 9-of-9 measurement was taken; run the two-run verification protocol (quiet room + the same background noise that produced a 3-of-10 run) before trusting current behaviour.
+- **Voice recogniser measured in a quiet room (2026-09-14): 5/10 spoken naturally, 8/10 with a short pause before "sharp"/"flat".** No code change between the two. The background-noise run of the verification protocol is still outstanding.
+- **Nothing tells the user to pause between the letter and "sharp"/"flat"** — the pause alone took accidentals from 0/4 to 2/4. Add a short hint to the calibration screen and the 🎤 answer-mode hint (Hebrew copy included).
+- **B and D are the one confusable letter pair** — the cause of both remaining quiet-room failures, within ~1 distance unit of each other on every turn. Direction: re-score only the onset (the plosive burst) as a tie-break when B and D are close; measure against real recordings.
 - **VAD breaks with background noise/talking.** `captureUtterance` gates onset/silence off a noise floor sampled before speech starts, so continuous room noise defeats both ends of capture. Fix direction: endpoint against the utterance's own peak, not a pre-sampled floor.
 - **"Personal" engine silently falls back with no UI signal** when the profile isn't ready — Settings should show which recogniser is actually active.
 - **"By note" mode can't be answered by voice at all** — needs a fret vocabulary for the template engines (currently only note names are recognized).
@@ -49,13 +51,24 @@ Bugs or behavior the product already promises but doesn't deliver.
 
 - **The current voice recogniser is live but not verified.** Seven commits landed on `main` (`d107cfb` … `279eb6e`) and deployed. The measured result — 9 of 9 recognition on the personal profile, up from 1 of 9 — was taken on `dae4b6c`. `c996e17` then changed which audio is handed to the forced split (segment 0 rather than the whole capture, because the old form was a no-op whenever the segmenter already returned two segments), and that also changes the single-segment path the 9-of-9 run exercised. **The shipped behaviour is therefore unmeasured.** No user impact was taken from the forced re-calibration this work required (IndexedDB v5 plus the `-v5` vocab suffix drop every stored template) because there were no users at the time.
 
+  **MEASURED 2026-09-14 — run 1 (quiet room) is done; run 2 (background noise) is still outstanding.** Freshly calibrated profile (nine labels × two takes), `engine: "profile"` confirmed on every turn, `noiseFloor` 0.0001–0.0018 throughout, web build. The ten protocol words were said under two speaking styles, with no code change between them:
+
+  | Speaking style | Total | Accidentals | Letters |
+  |---|---|---|---|
+  | Natural, no deliberate pause | **5/10** | **0/4** | 5/6 |
+  | Steady mic distance + a short deliberate pause between letter and accidental | **8/10** | **2/4** | 6/6 |
+
+  So the shipped recogniser is not the 9-of-9 engine the `dae4b6c` measurement suggested, but it is not broken either: with clean, separated input it is strong, and what remains has two identified causes, each its own item below — **"Accidentals need the speaker to pause"** and **"B and D are the one confusable letter pair"**. The debt `c996e17` left is cleared: the forced-split path is not what breaks accidentals.
+
+  **Tried and reverted the same day — biasing the forced-split cut point by template length.** The hypothesis was that the forced split, which cuts a merged "F sharp" at the quietest frame anywhere in the middle 60% of the run, lands on an arbitrary energy dip rather than the word boundary; since "sharp"/"flat" templates run markedly longer than letter templates, the search was centred on the letter's expected share instead (`splitAt` = median letter frames ÷ (median letter + median accidental frames), which came out **0.39** for this profile, searched ±12%). It did not help, and the split hypothesis was taken *less* often (2 of 13 turns, against 4 of 11 on the baseline), because a cut forced near 0.39 yields worse halves whenever the real boundary is elsewhere. That run was also confounded by the speaker's input level varying about 10× within it (`peak` 0.025 → 0.34). The change was reverted before commit, and the 8-of-10 run afterwards showed the cut point was never the lever — separated input and the B/D pair are.
+
   ### Verification protocol — two runs, one sitting
 
   Both runs are the same setup: hard-refresh, 🐞 → **Simulate Pro** → **Voice: on** → **Clear**, answer mode 🎤, "by fret" mode, engine **Personal** with a completed calibration (all nine labels at two takes — an incomplete one silently falls back to another engine, see the item below). Confirm the log's `start` line says `engine: "profile"` before trusting anything. Say the ten words regardless of what the correct answer is, then 🐞 → **Copy**:
 
   **D, E, A, B, B♭, B♭, F#, F#, C, G**
 
-  1. **Quiet room** — clears the debt `c996e17` left. Expect the letters at distances of roughly 10–20; `usedSplit: true` on the fluent "F sharp" utterances with no second attempt; `taken: false` on every single letter (a single letter being dragged into a split would show up immediately as `taken: true` on a C or G row). "B♭" has never once been measured — watch `accidentals` for whether `b` beats `#` and by how much, and read the `note` field rather than the score, since A# and B♭ are the same note.
+  1. **Quiet room** — **DONE 2026-09-14, see the measured result above.** Clears the debt `c996e17` left. Expect the letters at distances of roughly 10–20; `usedSplit: true` on the fluent "F sharp" utterances with no second attempt; `taken: false` on every single letter (a single letter being dragged into a split would show up immediately as `taken: true` on a C or G row). "B♭" has never once been measured — watch `accidentals` for whether `b` beats `#` and by how much, and read the `note` field rather than the score, since A# and B♭ are the same note.
   2. **With the same background noise that produced the 3-of-10 run** — this is the one that matters. Read `[voice] vad`: how many rows say `reason: "cap"`, and what `peakOverGate` is on them. A low ratio confirms the mechanism below and sets the fraction for the relative-endpoint fix.
 
 - **Voice answering collapses when anyone else is talking in the room.** This is a requirement, not an edge case: "אני לא יכול לצפות שאדם לא יוכל להשתמש בהקלטה רק כי מישהו מדבר לידו." A session recorded with people talking nearby scored **3 of 10** on the personal profile, against 9 of 9 for the same profile and the same speaker minutes earlier in a quiet room.
@@ -95,7 +108,28 @@ Bugs or behavior the product already promises but doesn't deliver.
   - **The general engine's quality on frets is unmeasured.** Its note-name accuracy was poor enough on real microphone input to be the reason the personal profile became the main path; the leave-one-out check on the bundled set scored 100% for `frets-1-24`, but that is synthetic-against-synthetic and says nothing about a real voice. Measure it with the debug log before assuming this mode works, exactly as was done for note names.
   - **Alternative worth considering first:** twenty-five spoken numbers is a much larger vocabulary than twelve note names, and the failure modes ("fifteen"/"fifty", "two"/"to") are unforgiving. Routing by-note mode to the platform recogniser (Web Speech / native), which handles digits well and already has `parseSpokenFret` behind it, may be a better answer than template matching.
 
-**Section status:** the original four items below are resolved (three delivered, one closed by removing the dead code rather than building the behavior — see its note). The five voice items above were added later and are open.
+- **Accidentals need the speaker to pause between the letter and "sharp"/"flat" — and nothing tells them so.** Same speaker, same profile, same quiet room, no code change: accidentals went from **0/4** spoken naturally to **2/4** with a short deliberate pause ("F … sharp"), and the total from 5/10 to 8/10 (see the measured result under "The current voice recogniser is live but not verified").
+
+  The mechanism is visible in the log. With the pause, three of the four accidental captures came back from the segmenter as two clean, near-equal segments (`segMs` `[400,400]`, `[400,400]`, `[420,420]`, `usedSplit: false`) and matched with wide margins — the two F♯ takes scored `F:10.9` against `A:21.5` for the runner-up letter, and `#:11.0` against `b:19.4`. Spoken fluently, the same words came back as one merged voiced run, and the letter half then matched poorly however the audio was cut. The one accidental that still merged despite the pause (`[760,100]`) went through the forced split and came out wrong (D#).
+
+  **Direction:** tell the user, briefly, where it matters — the calibration screen and the 🎤 voice answer-mode hint: say the letter, a short pause, then "sharp" / "flat". Needs a Hebrew translation. This is a real fix rather than a workaround: the pause is exactly what lets the segmenter see two words, and it costs the speaker almost nothing. It does not replace the B/D item below, which failed even on a perfectly separated take.
+
+- **B and D are the one confusable letter pair.** Both failures in the 8-of-10 quiet-room run were "B♭", and the second one isolates the cause. Segmentation was perfect (`segMs [400,400]`, `usedSplit: false`), the accidental stage was certain (`b:9.5` against `#:21.4`) — and the note still came out C#, because the letter stage ranked `D:12.6` just above `B:13.2`. "B flat" became "D flat".
+
+  The pair sat within about one distance unit on every turn where either was spoken, while F, C, G, A and E won by 5–10 units:
+
+  | Spoken | D | B | Outcome |
+  |---|---|---|---|
+  | D | 9.2 | 11.9 | D — correct |
+  | B, 1st attempt | 10.2 | 10.0 | too close; the ratio gate rejected it |
+  | B, 2nd attempt | 11.3 | 10.8 | B — correct, by 0.5 |
+  | B♭ | 12.6 | 13.2 | D — **wrong** |
+
+  This is what the acoustics predict. Both are the same long /iː/ vowel behind a voiced plosive (/b/ vs /d/), so the only thing that tells them apart is the onset burst — a few tens of milliseconds that a whole-word MFCC + DTW distance barely weights, because the shared vowel dominates the alignment cost.
+
+  **Direction (unmeasured):** when the two leading letters are B and D and their distances are close, re-score only the onset of the segment — the first few tens of milliseconds, where the burst lives; the exact window is a starting point to measure, not a known value — against the same two labels' template onsets, and let that break the tie. Keep it scoped to that tie-break so it cannot disturb letters that already win clearly. It is a matcher change, so judge it against real recorded voices with `scripts/eval-voice.mts`, not synthetic leave-one-out. Whether other letter pairs need the same treatment is unknown; this log shows no evidence for any.
+
+**Section status:** the original four items below are resolved (three delivered, one closed by removing the dead code rather than building the behavior — see its note). The seven voice items above were added later and are open.
 
 ### DONE
 
@@ -153,56 +187,6 @@ Bugs or behavior the product already promises but doesn't deliver.
   - "Clear all history" still wipes everything across instruments (that is its stated contract).
 
   **Files touched:** `src/utils/mastery.ts` (2 new helpers), `src/App.tsx` (1 call + deps), `src/components/ProgressPanel.tsx` (1 call + caption), `src/utils/progress.ts` (`allBestsSummary` optional filter). No `HistoryEntry` field, no schema/migration.
-
-- **The personal voice profile never runs inside the Android app.** `getSpeechEngine()` in `src/utils/speech.ts` opens with `if (isCapacitorNative()) { cached = new NativeSpeechEngine(); }`, before the user's `pref_voiceEngine` setting is consulted at all. Inside the APK the recogniser is therefore always Google's, and the on-device template engines never load. The Settings screen still offers the **Voice engine** picker (Auto / Personal / General / Web) and **Calibrate my voice** there, so a user can complete a nine-word calibration on the platform the product is actually heading for and have it change nothing. This is squarely "behavior the product already promises but doesn't deliver".
-
-  It matters more than it did: the personal-profile path has now been measured working. After the calibration/question-time preprocessing was made symmetric (`Trim calibration takes the way question-time segments are trimmed`) and the segmenter stopped being trusted to decide word boundaries (`Score both readings of a merged utterance instead of trusting the splitter`), a controlled desktop session — three "C", three "G", three fluent "F sharp" — recognised **9 of 9**, with letter distances of 10–20 and the accidental stage clearing at 11.5–12.2 against a 25 ceiling. That is the engine the Android build cannot reach.
-
-  ### Implementation plan — let the engine preference win on native
-
-  **Goal:** a calibrated personal profile is used inside the Android app, and the engine picker means what it says on every platform.
-
-  - **`src/utils/speech.ts`, `getSpeechEngine()`:** stop short-circuiting on `isCapacitorNative()`. Fold native into the same preference ladder the web already uses: `pref === 'profile'` → the profile engine when `canProfile`; `pref === 'general'` → the template engine; `pref === 'web'` → `NativeSpeechEngine` on native (it is the platform recogniser there, the counterpart of Web Speech); `'auto'` → personal profile when one is calibrated, otherwise `NativeSpeechEngine` rather than the bundled synthetic set, which is a much weaker fallback than Google's recogniser and has no advantage on a platform where the native path exists.
-  - **Verify `getUserMedia` inside the Capacitor WebView.** The template engines need `navigator.mediaDevices.getUserMedia` and an `AudioContext`, not just the speech plugin's `RECORD_AUDIO` grant. Android WebView also requires the host activity to answer `onPermissionRequest` before the WebView is allowed the microphone. **This must be confirmed on a device, not assumed** — if it does not work, the whole item is blocked and the plan needs rethinking, so check it before touching the selection logic. `TemplateSpeechEngine.checkPermission()`/`requestPermission()` go through `navigator.permissions` and `getUserMedia`, both of which behave differently in a WebView than in Chrome.
-  - **`createDictationEngine()` keeps its native short-circuit** — free-text dictation genuinely wants the platform recogniser, not a twelve-word template matcher.
-  - **Silent fallback needs a UI signal (see the separate note below).** Choosing "Personal" on a device where the profile is not ready currently drops to another engine with nothing shown; on Android that would be indistinguishable from this bug.
-
-- **Choosing "Personal" silently falls back to another engine.** `getSpeechEngine()` demotes to the general template engine (web) whenever `isProfileReady()` is false, and `recomputeReady()` requires all nine labels at `SAMPLES_PER_LABEL` recordings each. An interrupted calibration, or takes rejected by the noise gate, therefore leave the user on a different recogniser than the one they picked, with no indication anywhere in the UI. This was hit during voice debugging: a full session was recorded, analysed and reported against the wrong engine before the `engine:` field in the debug log gave it away. The Settings screen should show which recogniser is actually active, and say when the personal profile is incomplete and why.
-
-- **Voice answering cannot work at all in "by note" mode.** In that mode a note name is shown and the answer is a fret number, but `useVoiceAnswer` passes `profileVocabId(p.notation)` as the vocabulary on every turn regardless of mode (`src/hooks/useVoiceAnswer.ts`), and `profileVocabId()` only ever returns the note vocabulary. So a template engine can emit nothing but a letter such as `"C"`, and `ingest()` then runs `parseSpokenFret("C")`, which returns `null`. No spoken answer is ever parsed. The 240 bundled `frets-1-24` templates in `src/utils/generalVoiceTemplates.ts` are referenced nowhere in `src/` — roughly a third of a 1.8MB bundled file that no code path can reach.
-
-  The Settings screen offers 🎤 Voice as an answer mode without qualification, so a user who picks "by fret" mode gets voice answering and a user who picks "by note" gets a microphone that never registers anything. This predates the current work and is not a regression from it.
-
-  ### Implementation plan — a fret vocabulary for the template engines
-
-  - **`src/utils/voiceProfileVocab.ts`:** `profileVocabId()` needs to take the mode as well as the notation, returning the fret vocabulary in by-note mode (the bundled key is `frets-1-24`; keep the same `-v{n}` layout suffix so `baseVocabId()`/`isCurrentVocabId()` keep working). Its callers — `useVoiceAnswer` (twice: `start()` and `warmUp()`), `VoiceCalibration`, and `App.tsx`'s profile-count read — all have the mode to hand or can be given it.
-  - **The personal profile has no fret recordings.** `PROFILE_LABELS` is seven letters plus two accidentals; calibrating 24 more words is a much longer flow than the current nine and should not be forced on anyone. The sane split is: by-note mode uses the *general* template engine (which does have the 240 bundled fret templates) even when a personal profile exists, unless and until fret calibration is offered as an opt-in extra.
-  - **The general engine's quality on frets is unmeasured.** Its note-name accuracy was poor enough on real microphone input to be the reason the personal profile became the main path; the leave-one-out check on the bundled set scored 100% for `frets-1-24`, but that is synthetic-against-synthetic and says nothing about a real voice. Measure it with the debug log before assuming this mode works, exactly as was done for note names.
-  - **Alternative worth considering first:** twenty-five spoken numbers is a much larger vocabulary than twelve note names, and the failure modes ("fifteen"/"fifty", "two"/"to") are unforgiving. Routing by-note mode to the platform recogniser (Web Speech / native), which handles digits well and already has `parseSpokenFret` behind it, may be a better answer than template matching.
-
-- **Voice answering collapses when anyone else is talking in the room.** This is a requirement, not an edge case: "אני לא יכול לצפות שאדם לא יוכל להשתמש בהקלטה רק כי מישהו מדבר לידו." A session recorded with people talking nearby scored **3 of 10** on the personal profile, against 9 of 9 for the same profile and the same speaker minutes earlier in a quiet room.
-
-  The failure is in `captureUtterance` (`src/utils/utteranceCapture.ts`), not in the matcher. It learns a noise floor from roughly the first 200ms *before* speech starts, derives one gate from it (`max(0.012, noiseFloor * 3.5)` for onset, `max(0.010, noiseFloor * 2.5)` for the trailing-silence test), and uses that for the whole utterance. With continuous speech in the room that single sample is contaminated, and the recording fails in both directions at once:
-
-  - **The end is never detected.** Three captures ran to the 3500ms `maxSpeechMs` hard cap where a quiet room produces 850–1300ms. The segmenter was then handed 1040ms and 1540ms "letters" against the 280–440ms a spoken letter actually takes, and nothing downstream can survive that.
-  - **The start is never detected.** One question produced no capture at all — the onset gate sat above the speaker's own voice, and the turn ended on the onset timeout.
-
-  Everything downstream degrades with it, which is easy to misread as a matcher problem: the *identical* profile scored its "#" template at 29–34 where it had scored 11.5–12.2 in the quiet run. The templates did not change; what was fed to them did. Note also that the browser's own `noiseSuppression: true` is already requested in `openMicSession()`, so this is not solved by asking for cleaner audio — the decision logic is what fails.
-
-  **Direction:** endpoint against the utterance's own level rather than a floor sampled before it — track the running peak during speech and treat "silence" as a fixed fraction below that peak, keeping the absolute floor as a backstop. That adapts to a quiet room and a noisy one without either threshold being guessed. `279eb6e` added the `[voice] vad` debug line (stop reason `silence`/`cap`, noise floor, gate, peak, and `peakOverGate`) specifically to supply the ratio that fix needs to be calibrated against; it has not been read yet.
-
-- **The current voice recogniser is live but not verified.** Seven commits landed on `main` (`d107cfb` … `279eb6e`) and deployed. The measured result — 9 of 9 recognition on the personal profile, up from 1 of 9 — was taken on `dae4b6c`. `c996e17` then changed which audio is handed to the forced split (segment 0 rather than the whole capture, because the old form was a no-op whenever the segmenter already returned two segments), and that also changes the single-segment path the 9-of-9 run exercised. **The shipped behaviour is therefore unmeasured.** No user impact was taken from the forced re-calibration this work required (IndexedDB v5 plus the `-v5` vocab suffix drop every stored template) because there were no users at the time.
-
-  ### Verification protocol — two runs, one sitting
-
-  Both runs are the same setup: hard-refresh, 🐞 → **Simulate Pro** → **Voice: on** → **Clear**, answer mode 🎤, "by fret" mode, engine **Personal** with a completed calibration (all nine labels at two takes — an incomplete one silently falls back to another engine, see the item above). Confirm the log's `start` line says `engine: "profile"` before trusting anything. Say the ten words regardless of what the correct answer is, then 🐞 → **Copy**:
-
-  **D, E, A, B, B♭, B♭, F#, F#, C, G**
-
-  1. **Quiet room** — clears the debt `c996e17` left. Expect the letters at distances of roughly 10–20; `usedSplit: true` on the fluent "F sharp" utterances with no second attempt; `taken: false` on every single letter (a single letter being dragged into a split would show up immediately as `taken: true` on a C or G row). "B♭" has never once been measured — watch `accidentals` for whether `b` beats `#` and by how much, and read the `note` field rather than the score, since A# and B♭ are the same note.
-  2. **With the same background noise that produced the 3-of-10 run** — this is the one that matters. Read `[voice] vad`: how many rows say `reason: "cap"`, and what `peakOverGate` is on them. A low ratio confirms the mechanism above and sets the fraction for the relative-endpoint fix.
-
-**Section status:** the original four items are resolved (three delivered, one closed by removing the dead code rather than building the behavior — see its note). The four voice items above were added later and are open.
 
 ---
 
