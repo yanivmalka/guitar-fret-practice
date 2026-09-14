@@ -17,6 +17,24 @@ import { cloudInsertTemplate, cloudDeleteTemplate, cloudDeleteProfile } from '..
 import type { SpeechNotation } from '../utils/speechVocab';
 import { playClickSound, getFeedbackAudioCtx, haptic } from '../utils/feedback';
 import { useTranslation } from '../i18n/useTranslation';
+import { encodeWav } from '../utils/wavEncode';
+
+// Canonical letter -> filename fragment, matching `scripts/wav-lib.mts`'s
+// `classify()` naming (`alpha_<frag>_*.wav` / `solfege_<frag>_*.wav`), so a
+// recording exported here can be fed straight into `scripts/eval-voice.mts`.
+const ALPHA_FRAG: Record<string, string> = {
+  A: 'A', B: 'B', C: 'C', D: 'D', E: 'E', F: 'F', G: 'G',
+};
+const SOLFEGE_FRAG: Record<string, string> = {
+  C: 'do', D: 're', E: 'mi', F: 'fa', G: 'sol', A: 'la', B: 'si',
+};
+function exportFileStem(notation: NotationMode, label: string): string {
+  const set = notation === 'solfege' ? 'solfege' : 'alpha';
+  if (label === '#') return `${set}_${notation === 'solfege' ? 'diese' : 'sharp'}`;
+  if (label === 'b') return `${set}_${notation === 'solfege' ? 'bemol' : 'flat'}`;
+  const frag = (notation === 'solfege' ? SOLFEGE_FRAG : ALPHA_FRAG)[label] ?? label;
+  return `${set}_${frag}`;
+}
 
 
 interface Props {
@@ -62,6 +80,16 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
   // them means the mic is unusable or the room is too noisy, so auto mode
   // stops instead of looping forever.
   const autoMissRef = useRef(0);
+  // Optional: when set, every accepted take is also written out as a WAV —
+  // the trimmed word, exactly what gets stored as a template — for offline
+  // work with `scripts/eval-voice.mts`. Session-only (a directory handle
+  // can't be persisted to localStorage); the user re-picks the folder each
+  // time they want to export. Chrome/Edge desktop only.
+  const exportDirRef = useRef<FileSystemDirectoryHandle | null>(null);
+  const exportCounterRef = useRef<Record<string, number>>({});
+  const [exporting, setExporting] = useState(false);
+  const [exportErr, setExportErr] = useState<string | null>(null);
+  const exportSupported = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
 
   const label = PROFILE_LABELS[idx];
   const isAccidental = (ACCIDENTAL_LABELS as readonly string[]).includes(label);
@@ -122,6 +150,27 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
   const doneLabels = PROFILE_LABELS.filter((n) => (counts[n] ?? 0) >= SAMPLES_PER_LABEL).length;
   const allDone = doneLabels === total;
 
+  // Best-effort write of one accepted take to the picked export folder.
+  // Failure here must never affect calibration itself — it only surfaces a
+  // one-line status so the user knows to re-pick the folder if permission
+  // was revoked mid-session.
+  const exportTake = useCallback(async (pcm: Float32Array, sampleRate: number, forLabel: string) => {
+    const dir = exportDirRef.current;
+    if (!dir) return;
+    try {
+      const stem = exportFileStem(notation, forLabel);
+      const n = (exportCounterRef.current[stem] ?? 0) + 1;
+      exportCounterRef.current[stem] = n;
+      const handle = await dir.getFileHandle(`${stem}_r${n}.wav`, { create: true });
+      const writable = await handle.createWritable();
+      await writable.write(encodeWav(pcm, sampleRate));
+      await writable.close();
+      setExportErr(null);
+    } catch {
+      setExportErr(t('Could not write to the export folder — pick it again'));
+    }
+  }, [notation, t]);
+
   const record = useCallback(async () => {
     if (rec !== 'idle') return;
     playClickSound(); haptic.tap();
@@ -159,10 +208,8 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
         // question-time segment. Storing the untrimmed capture instead left
         // several hundred ms of trailing silence in every template, which DTW
         // then charged against every comparison — see `isolateWord`.
-        const { frames } = computeMfcc(
-          isolateWord(captured.pcm, captured.sampleRate),
-          captured.sampleRate,
-        );
+        const isolated = isolateWord(captured.pcm, captured.sampleRate);
+        const { frames } = computeMfcc(isolated, captured.sampleRate);
         if (!frames.length) {
           setErr(t('Recording too short — try again'));
           autoMissRef.current++;
@@ -180,6 +227,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
           await refreshCounts(profile);
           autoMissRef.current = 0;
           haptic.tap();
+          void exportTake(isolated, captured.sampleRate, label);
         }
       } catch {
         setErr(t('Saving the recording failed'));
@@ -188,7 +236,29 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
     } finally {
       setRec('idle');
     }
-  }, [rec, profile, vocabId, label, refreshCounts, t]);
+  }, [rec, profile, vocabId, label, refreshCounts, exportTake, t]);
+
+  const toggleExport = useCallback(async () => {
+    playClickSound(); haptic.tap();
+    if (exportDirRef.current) {
+      exportDirRef.current = null;
+      setExporting(false);
+      setExportErr(null);
+      return;
+    }
+    try {
+      const picker = (window as unknown as {
+        showDirectoryPicker: (opts?: { mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle>;
+      }).showDirectoryPicker;
+      const dir = await picker({ mode: 'readwrite' });
+      exportDirRef.current = dir;
+      exportCounterRef.current = {};
+      setExporting(true);
+      setExportErr(null);
+    } catch {
+      // User cancelled the picker, or permission was refused — not an error.
+    }
+  }, []);
 
   const stopRun = useCallback(() => {
     setRunning(false);
@@ -393,6 +463,20 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
           <button className="vcal-btn vcal-link" onClick={playLast} disabled={rec !== 'idle'}>
             ▶ {t('Play last recording')}
           </button>
+        )}
+
+        {import.meta.env.DEV && exportSupported && (
+          <>
+            <button className="vcal-btn vcal-link" onClick={() => void toggleExport()}>
+              {exporting ? t('Stop exporting recordings') : t('Export recordings to a folder (dev)')}
+            </button>
+            {exporting && (
+              <div className="vcal-hint">
+                {t('Every accepted take is also saved as a WAV, named for scripts/eval-voice.mts.')}
+              </div>
+            )}
+            {exportErr && <div className="vcal-err">{exportErr}</div>}
+          </>
         )}
 
         <button

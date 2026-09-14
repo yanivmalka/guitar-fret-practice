@@ -37,10 +37,33 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { registerHooks } from 'node:module';
 import { computeMfcc, framesFromJson } from '../src/utils/mfcc.ts';
 import { dtwDistance, knnVote, matchTemplates, type Template } from '../src/utils/dtw.ts';
-import { segmentUtterance } from '../src/utils/utteranceCapture.ts';
 import { decodeWav, trimSilence, classify, KEYS, type VocabKey } from './wav-lib.mts';
+
+// `utteranceCapture.ts` is app source, written for Vite's bundler resolution:
+// its own `import ... from './debugLog'` has no extension, which plain
+// `node --experimental-strip-types` cannot resolve on its own (unlike this
+// script's own imports above, which already spell out `.ts`). Rather than
+// add an extension to app source just for this script, teach the loader to
+// fall back to `.ts` for an unresolved relative specifier, and import
+// `utteranceCapture.ts` dynamically (after this hook is registered — a
+// static import at the top of this file would resolve before any of this
+// module's own code runs).
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    try {
+      return nextResolve(specifier, context);
+    } catch (e) {
+      if (specifier.startsWith('.') && !/\.[cm]?[jt]sx?$/.test(specifier)) {
+        return nextResolve(`${specifier}.ts`, context);
+      }
+      throw e;
+    }
+  },
+});
+const { segmentUtterance } = await import('../src/utils/utteranceCapture.ts');
 
 // ── args ────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
