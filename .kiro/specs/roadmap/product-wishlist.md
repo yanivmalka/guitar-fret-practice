@@ -150,7 +150,24 @@ Bugs or behavior the product already promises but doesn't deliver.
 
   Caveats: this is an older recording set from one speaker, not the phone session the log came from, and it has no "B flat" takes. It refutes the direction as specified. It does not prove that no burst feature could help. Any next attempt needs a feature that actually resolves the burst (for example a finer hop over the first ~60 ms, or a non-CMN energy/spectral-tilt cue), and the /iː/ letters B C D E G should be treated as one group rather than B/D alone.
 
-  Tooling note: `scripts/eval-voice.mts` does not currently run as documented. `src/utils/utteranceCapture.ts` imports `./debugLog` without an extension, and plain `node --experimental-strip-types` cannot resolve that (`ERR_MODULE_NOT_FOUND`). The measurement above used a resolve hook that appends `.ts`.
+  Tooling note: `scripts/eval-voice.mts` did not run as documented (`src/utils/utteranceCapture.ts` imports `./debugLog` with no extension, which plain `node --experimental-strip-types` can't resolve). **Fixed 2026-09-14**: the script now registers a resolve-hook fallback and dynamically imports `utteranceCapture.ts`, scoped entirely to the script. `VoiceCalibration.tsx` also gained a dev-only "Export recordings to a folder" toggle (File System Access API) that writes every accepted calibration take as a WAV named for `scripts/wav-lib.mts`'s `classify()`, so a real session builds an `eval-voice.mts`-ready testset with no manual file handling.
+
+  **Measured again 2026-09-14, same day — on the product owner's own computer mic, not the older set above.** Repeated calibration to build up 10 B takes and 8 D takes (deleting and re-recording past the normal 2-per-label cap), then ran the identical leave-one-out matcher check.
+
+  - **B/D confusion reproduces on this speaker/mic too, independent of the earlier dataset:** baseline 13/18 correct (B→D twice, D→B twice, D→E once) — a real, present confusion, not an artifact of one old recording set.
+  - **The onset tie-break still does not help.** Scored only on the 16 turns where B and D were the top-2 candidates: baseline (no re-score) got 12/16 right. Every window from 30ms to 300ms was equal to or worse than baseline — never better:
+
+    | Window | Correct / 16 | Flips: good / bad |
+    |---|---|---|
+    | 30 ms | 4 | 0 / 8 |
+    | 50 ms | 5 | 0 / 7 |
+    | 80 ms | 7 | 1 / 6 |
+    | 100 ms | 10 | 3 / 5 |
+    | 150 ms | 9 | 1 / 4 |
+    | 200 ms | 11 | 1 / 2 |
+    | 250–300 ms | 12 (ties baseline) | 1 / 1 |
+
+  Two independent real-mic datasets now agree: no onset window, short or long, beats just trusting the whole-word DTW distance. **The onset-tie-break direction is closed — not a tuning problem, the approach itself doesn't isolate B from D with this feature pipeline.** The wishlist item above stays open; the next idea needs a feature that isn't whole-word DTW over 25ms/10-hop MFCC (per the burst-smearing note above), evaluated the same way before it touches the app.
 
 **Section status:** the original four items below are resolved (three delivered, one closed by removing the dead code rather than building the behavior — see its note). The seven voice items above were added later and are open.
 
