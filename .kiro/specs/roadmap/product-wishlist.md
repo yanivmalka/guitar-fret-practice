@@ -16,7 +16,7 @@ A compressed, priority-ordered view of everything in this document that is **not
 ### A. Voice — live product bugs, most urgent (full detail: §1)
 - **Voice recogniser measured in a quiet room (2026-09-14): 5/10 spoken naturally, 8/10 with a short pause before "sharp"/"flat".** No code change between the two. The background-noise run of the verification protocol is still outstanding.
 - **Nothing tells the user to pause between the letter and "sharp"/"flat"** — the pause alone took accidentals from 0/4 to 2/4. Add a short hint to the calibration screen and the 🎤 answer-mode hint (Hebrew copy included).
-- **B and D are the one confusable letter pair** — the cause of both remaining quiet-room failures, within ~1 distance unit of each other on every turn. Direction: re-score only the onset (the plosive burst) as a tie-break when B and D are close; measure against real recordings.
+- **B and D are close in one session** — the cause of both remaining quiet-room failures. The proposed onset tie-break was **measured on real recordings (2026-09-14) and made B/D worse**; not built. The same recordings show C/E/G, not B/D, as the worst letters. Open, no validated direction.
 - **VAD breaks with background noise/talking.** `captureUtterance` gates onset/silence off a noise floor sampled before speech starts, so continuous room noise defeats both ends of capture. Fix direction: endpoint against the utterance's own peak, not a pre-sampled floor.
 - **"Personal" engine silently falls back with no UI signal** when the profile isn't ready — Settings should show which recogniser is actually active.
 - **"By note" mode can't be answered by voice at all** — needs a fret vocabulary for the template engines (currently only note names are recognized).
@@ -130,6 +130,27 @@ Bugs or behavior the product already promises but doesn't deliver.
   This is what the acoustics predict. Both are the same long /iː/ vowel behind a voiced plosive (/b/ vs /d/), so the only thing that tells them apart is the onset burst — a few tens of milliseconds that a whole-word MFCC + DTW distance barely weights, because the shared vowel dominates the alignment cost.
 
   **Direction (unmeasured):** when the two leading letters are B and D and their distances are close, re-score only the onset of the segment — the first few tens of milliseconds, where the burst lives; the exact window is a starting point to measure, not a known value — against the same two labels' template onsets, and let that break the tie. Keep it scoped to that tie-break so it cannot disturb letters that already win clearly. It is a matcher change, so judge it against real recorded voices with `scripts/eval-voice.mts`, not synthetic leave-one-out. Whether other letter pairs need the same treatment is unknown; this log shows no evidence for any.
+
+  **Measured 2026-09-14 — the onset tie-break does not work; not built.** Tested offline on the git-ignored `scripts/testset/` (one speaker's real 48 kHz mic recordings, six takes of each letter). Each take was matched, through the app's own `segmentUtterance` → `computeMfcc` → `matchTemplates` letter stage, against every pair of the other takes stored through `isolateWord` (a two-take calibration). That is 60 turns per letter.
+
+  - **Baseline:** B/D correct 106 of 120. B was taken as D 6 times, and D as B 5 times.
+  - **Onset re-score** (B and D are the top two, the ratio is at or above a trigger, and the pair is decided by DTW over the first *N* frames of the segment and of each template):
+
+    | Window | Trigger 0.97 | Trigger 0.90 |
+    |---|---|---|
+    | 30–80 ms (N 3–8) | 95–97 / 120 (≈11 correct answers flipped wrong, 1 fixed) | 84–86 / 120 |
+    | 100–120 ms | 100–101 / 120 | 91–98 / 120 |
+    | 150 ms | 103 / 120 | 104 / 120 |
+    | 200 ms | 107 / 120 | 109 / 120 (3 fixed, 0 broken) |
+    | 250 ms | 104 / 120 | 105 / 120 |
+
+    The short windows the acoustics argued for are clearly harmful. The only gain sits at exactly 200 ms, and both neighbours lose. A single-point optimum in a sample of three flips is noise, not a tuning value.
+  - **The burst is inside the segment.** The lead-in before 10% of peak energy is 20–50 ms on every B and D take, so the burst is not being trimmed off. The more likely limit is the features: 25 ms MFCC frames with a 10 ms hop, cepstral mean normalisation over the whole word, and the C0 down-weight smear a burst of 10–20 ms into one or two frames.
+  - **B/D is not the worst pair in this data.** Letter-stage confusion over the same 60 turns per letter: A 60, B 54, D 52, F 50, C 42 (→E 10, →A 8), E 36 (→C 14), G 29 (→D 10, →E 8, →A 7). The claim that "B and D are the one confusable pair" rests on one 10-word session.
+
+  Caveats: this is an older recording set from one speaker, not the phone session the log came from, and it has no "B flat" takes. It refutes the direction as specified. It does not prove that no burst feature could help. Any next attempt needs a feature that actually resolves the burst (for example a finer hop over the first ~60 ms, or a non-CMN energy/spectral-tilt cue), and the /iː/ letters B C D E G should be treated as one group rather than B/D alone.
+
+  Tooling note: `scripts/eval-voice.mts` does not currently run as documented. `src/utils/utteranceCapture.ts` imports `./debugLog` without an extension, and plain `node --experimental-strip-types` cannot resolve that (`ERR_MODULE_NOT_FOUND`). The measurement above used a resolve hook that appends `.ts`.
 
 **Section status:** the original four items below are resolved (three delivered, one closed by removing the dead code rather than building the behavior — see its note). The seven voice items above were added later and are open.
 
