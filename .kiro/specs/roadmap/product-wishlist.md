@@ -725,7 +725,8 @@ Does not exist yet; needs to be built to justify a price above Pro. Justified on
 - Instruments from other families (ukulele, mandolin, violin)
 - Daily challenge / friends — (the leaderboard itself has shipped, as a free feature — see Free tier above; only per-friend / daily-challenge framing around it remains undone)
 
-### Open / deferred work
+### DONE — Free/Pro features built (phases 1–6)
+
 - **Mastery "time-travel" view (Pro) — build the UI.** — **DONE.** The Pro "Questions counted" card in `GeneralSettingsSection.tsx` became a **"Mastery time window"** card: a `Recent` / `A day` / `A range` segmented control switches between the existing `lastN` `PickRow` (100 / 250 / 500 / 1000 / All), a single `<input type="date">` writing `{ kind: 'onDay', dayISO }`, and a from/to date pair writing `{ kind: 'dateRange', fromISO, toISO }` with the half-open upper bound `applyMasteryWindow` already expects (an incomplete or out-of-order range is never persisted). Still wrapped in `<ProGate feature="masteryMaps" variant="replace">`, and `useMasteryOverlay` still pins a non-Pro user to `FREE_MASTERY_WINDOW`. Persistence is unchanged (`setMasteryWindow` + `saveSetting('pref_masteryWindow', …)`), so a chosen day/range round-trips across devices with no migration; the card's help line shows a one-line summary of the active window ("showing last 500" / "showing 2026-04-12" / "showing 2026-03-01 – 2026-03-30"). New date-picker CSS lives in `src/styles/02-settings.css`; new strings have Hebrew entries in `translations.ts`. `src/utils/mastery.ts` gained two pure helpers — `isDefaultMasteryWindow` and `describeMasteryWindow(w, t)` (the shared label formatter the settings card and the overlay caption both use) — plus a `DEFAULT_MASTERY_LASTN` constant; no type/schema change. The overlay-caption half of the plan is **also built**: `useMasteryOverlay` returns `effectiveMasteryWindow` (post Free/Pro resolution) and `App.tsx` renders a small amber `.mastery-window-caption` pill above `.game-row` whenever the at-rest mastery overlay is showing and the window is not the default last-250 — so a time-travelled overlay is never mistaken for the live one. Inert for Free (always `FREE_MASTERY_WINDOW`) and while a round is live.
 
   ### Implementation plan — Mastery "time-travel" view
@@ -758,6 +759,7 @@ Does not exist yet; needs to be built to justify a price above Pro. Justified on
   - `applyMasteryWindow` is called once per overlay memo; no perf concern at these history sizes.
 
   **Files touched:** `src/components/settings/sections/GeneralSettingsSection.tsx` (the new control), `src/i18n/translations.ts` (strings), optionally `src/hooks/useMasteryOverlay.ts` + the overlay render sites in `src/App.tsx` (the caption). No change to `src/utils/mastery.ts`, no schema, no migration, no new settings key.
+
 - **Precise fret-range selector (Pro) — DONE.** Built as an extra layer on top of the free 0–12 / 12–max half-picker (which is unchanged and stays free). A new **"Precise fret range"** on/off toggle plus a two-handle slider (`src/components/FretRangeControl.tsx`) sit under the neck SVG in `SelectorPanel`, wrapped in `<ProGate feature="fretRange" variant="overlay">`. `useSelector` now takes an `isPro` argument and carries an explicit window: `useFretRange` / `fretLo` / `fretHi` (persisted as `sel_useFretRange` / `sel_fretLo` / `sel_fretHi`, global, clamped to `[0, maxFret]` with a 3-fret minimum via `clampFretWindow`, re-clamped on instrument switch). The derivation applies the window only when `useFretRange && isPro` (`precise`), so a free user — or a Pro user with the toggle off — falls back to the halves and the stored window is kept untouched. `getTime` is fed effective halves derived from the window (`fretFrom < 12` / `fretTo > 12`). `historyKey(state, instrument, isPro)` emits a `p<lo>-<hi>` fret segment for a precise window so its stats never mix with the half-picker's `0-12` / `12-max` shape (the non-precise shape is byte-identical to before, so existing history / `best_<key>` records still resolve). `applyStage` forces `useFretRange` off — Auto Advance always runs on the standard half-picker.
 
 ### Premium Teacher (P2) — shipped; follow-ups
@@ -1004,7 +1006,8 @@ assertions (a 14-day-old correct answer contributes half; a position with only
 >180-day rows is dropped; the `effectiveN` gate holds; `positionScore` rises
 monotonically with recent accuracy and with SRS bucket).
 
-### Open decisions
+### OPEN — Decisions still needed
+
 - **Premium shape** — ~~a single higher-priced subscription tier, or one-time in-app purchases per game mode~~. **DECIDED 2026-09-08: a single higher-priced subscription tier.** No per-mode one-time purchases. This matches `premium-product-plan.md`, which frames Premium as one adaptive learning system rather than a bundle of separately bought modes. The tier is still parked (not yet priced or sold); only Free/Pro is built.
 - **Cloud sync in Free** — ~~offer basic single-device backup for free and gate only multi-device restore behind Pro~~. **DECIDED: sync and multi-device restore both stay free** — the full history has to be present locally for scoring to stay correct, so restore cannot be gated.
 - **Free history limit** — ~~"current combination only" vs "last 7 days"~~. **DECIDED: last 7 days**, as a view filter over the Stats & Progress screen and mastery overlays only, never a data/sync cut.
