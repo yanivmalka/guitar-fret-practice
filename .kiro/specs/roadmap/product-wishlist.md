@@ -1019,7 +1019,7 @@ monotonically with recent accuracy and with SRS bucket).
 
 ## 7. Shipped Since Last Audit (Not Previously Tracked)
 
-Found while re-checking the codebase against this document — real, shipped features that this wishlist never listed as planned, confirmed, or otherwise. Recorded here so the document stays a true map of the product, not just of what was once proposed.
+Found while re-checking the codebase against this document — real, shipped features that this wishlist never listed as planned, confirmed, or otherwise. Recorded here so the document stays a true map of the product, not just of what was once proposed. All items in this section are **DONE / SHIPPED**.
 
 - **Full Hebrew localization + RTL layout.** `src/i18n/` (`LanguageContext.tsx`, `translations.ts`, `useTranslation.ts`) — the whole app shell, Onboarding, SelectorPanel, ProgressPanel, and the settings/stats sub-pages are translated and, in Hebrew, laid out right-to-left (including mirrored back-chevrons and right-aligned settings pages).
 - **Feedback Board.** `src/components/FeedbackBoard.tsx` + `src/utils/board.ts` — a hamburger settings sub-page where any signed-in user can post an idea/comment/suggestion. Admins (see below) get two tabs on the same page instead — "Write" and "Inbox" (every user's posts, with a handled/delete workflow); guests get a sign-in prompt. Backed by a public Supabase table added in migration `0005`.
