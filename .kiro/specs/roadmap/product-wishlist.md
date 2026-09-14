@@ -9,6 +9,39 @@ Consolidated from `wishlist-requirements.md` (original Stage-based roadmap) and 
 
 ---
 
+## 0. What's Left — Open Items Summary (added 2026-09-14)
+
+A compressed, priority-ordered view of everything in this document that is **not** done yet. Full context, reasoning, and implementation plans live in the sections below (§1–§7) — this section only points at them; it does not replace them. Re-derive this list from the sections below rather than trusting it blindly if it's been a while, since the sections are the source of truth and this summary can drift out of date.
+
+### A. Voice — live product bugs, most urgent (full detail: §1)
+- **Shipped voice recogniser behaviour is unverified.** `c996e17` changed what audio the forced split sees after the 9-of-9 measurement was taken; run the two-run verification protocol (quiet room + the same background noise that produced a 3-of-10 run) before trusting current behaviour.
+- **VAD breaks with background noise/talking.** `captureUtterance` gates onset/silence off a noise floor sampled before speech starts, so continuous room noise defeats both ends of capture. Fix direction: endpoint against the utterance's own peak, not a pre-sampled floor.
+- **"Personal" engine silently falls back with no UI signal** when the profile isn't ready — Settings should show which recogniser is actually active.
+- **"By note" mode can't be answered by voice at all** — needs a fret vocabulary for the template engines (currently only note names are recognized).
+- **Personal voice profile never runs inside the Android app** — `getSpeechEngine()` short-circuits to the native engine before consulting the user's engine preference; needs `getUserMedia` verified inside the Capacitor WebView first.
+
+### B. Finish the current product (full detail: §2, §3)
+- **Badge art + earn-animation redesign** — direction agreed, **blocked on art assets** (Gemini-rendered PNGs per badge family × tier × face).
+- **Adaptive timer** (tightens/relaxes with streak) — not built.
+- **Audio refinements B1/B2** — escalating streak tone (`playStreakTone`) and the background-beats toggle — not built. (B3 Silent Mode is done.)
+- **Practice schedule / reminders** (local notification, streak nudge) — not built.
+
+### C. Approved by the product owner, not yet built (full detail: §4, §6)
+- **Saved/named Selector presets** — approved as a lightweight bookmark feature (also folds in "quick-switch recent combos"); not built.
+- **Chromatic tuner** — approved as a free tool for everyone, also serves as the go/no-go pitch-detection spike for Premium; not built. Needs real noisy-room measurement before the DSP is trusted.
+- **Recency model: exponential time-decay** for weakness/mastery statistics (14-day half-life, 180-day cap, continuous per-position score) — approved 2026-09-08, not built. Scoped to `weakness.ts` and `intervalWeakness.ts`/`intervalMastery.ts` first; `pathProgress.ts` deliberately deferred.
+- **Left-handed mode needs a real device visual QA pass** — built, but the SVG-neck text counter-flip, the Pro fret-range slider under mirroring, and drawer RTL flips were never verified on a device.
+- **Premium Teacher: reclassify "consolidation" vs "overdue" + reword Today card** — approved 2026-09-08, not built.
+- **Premium Teacher: `useLearning` perf refactor** (stop rebuilding both full plans every answer/60s tick) — real fix identified, not built (not urgent — card is unmounted during a session).
+- **Intervals (P4) follow-ups** — no Learning Path checkpoints yet, no adaptive difficulty, SRS granularity is quality-only/ascending-only.
+
+### D. Fully open decisions (no direction yet)
+- **Pro price and trial length** — blocks building the payment rail (phase 7, RevenueCat expected).
+- **Ads in Free** — undecided; current build has none.
+- Longer-horizon, explicitly parked/low-priority: named expertise tests, dedicated admin dashboard, public user profiles, a real social/friends layer, additional string instruments (ukulele/mandolin), iOS port — see §4 for each item's product-decision note.
+
+---
+
 ## 1. Fix Now
 Bugs or behavior the product already promises but doesn't deliver.
 
