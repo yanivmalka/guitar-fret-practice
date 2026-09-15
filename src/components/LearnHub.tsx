@@ -7,7 +7,10 @@
 // upgrade page. Scales / Chords / Staff reading are inert "coming soon" tiles
 // (premium-product-plan.md §9 P5–P7). The Game tile is the sole entry point
 // into the Game layer, but only for dev/admin (`showGame`) — everyone else
-// still sees it as "coming soon".
+// still sees it as "coming soon". The Tuner tile is a live entry point for
+// everyone, on every tier — it's a generic utility (mic-based pitch
+// detection), not part of the adaptive Premium teaching system the other
+// domains belong to.
 //
 // All copy through `t()`; the grid inherits `dir` from the settings page root.
 
@@ -30,6 +33,8 @@ interface Props {
   onLocked: () => void;
   /** The Game tile was tapped — open the Game layer (closes the drawer). */
   onOpenGame: () => void;
+  /** The Tuner tile was tapped — open the tuner screen (closes the drawer). */
+  onOpenTuner: () => void;
 }
 
 interface OpenTile {
@@ -60,6 +65,7 @@ export default function LearnHub({
   onPick,
   onLocked,
   onOpenGame,
+  onOpenTuner,
 }: Props) {
   const { t } = useTranslation();
 
@@ -67,6 +73,9 @@ export default function LearnHub({
     { kind: 'open', id: 'daily', emoji: '📅', label: 'Daily practice', locked: !canDaily },
     { kind: 'open', id: 'notes', emoji: '🎵', label: 'Notes', locked: false },
     { kind: 'open', id: 'intervals', emoji: '🎸', label: 'Intervals', locked: !canIntervals },
+    // Free for every tier — a tuner is a generic utility, not part of the
+    // adaptive Premium teaching system the other domains belong to.
+    { kind: 'action', emoji: '🎛️', label: 'Tuner', onSelect: onOpenTuner },
     // The inert roadmap placeholders are a dev/admin-only preview — a regular
     // user only sees domains they can actually open.
     ...(showRoadmap

@@ -30,6 +30,7 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         designPreview: resolve(__dirname, 'design-preview.html'),
         statsRedesign: resolve(__dirname, 'stats-redesign.html'),
+        tuner: resolve(__dirname, 'tuner.html'),
       },
     },
   },

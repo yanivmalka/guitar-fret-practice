@@ -45,6 +45,7 @@ import LearningPathScreen from './components/LearningPathScreen';
 import DailyPracticeScreen from './components/DailyPracticeScreen';
 import IntervalPracticeScreen from './components/IntervalPracticeScreen';
 import LearnHub from './components/LearnHub';
+import TunerScreen from './components/TunerScreen';
 import { useLearning } from './hooks/useLearning';
 import { useDrillHistorySink } from './game/useDrillHistorySink';
 import type { HistoryOps } from './hooks/useGameEngine';
@@ -457,6 +458,7 @@ export default function App() {
   const {
     showStats, setShowStats, showPath, setShowPath, settingsOpen, setSettingsOpen,
     activeDomain, setActiveDomain, drawerSection, setDrawerSection, gameOpen, setGameOpen,
+    tunerOpen, setTunerOpen,
     micPrompt, setMicPrompt, showInfo, gameBackRef, upgradeFromAccountRef,
     askForMic, grantMic, openInfo,
   } = nav;
@@ -654,6 +656,13 @@ export default function App() {
             setSettingsOpen(false);
             setDrawerSection(null);
             setGameOpen(true);
+          }}
+          onOpenTuner={() => {
+            setShowStats(false);
+            setShowPath(false);
+            setSettingsOpen(false);
+            setDrawerSection(null);
+            setTunerOpen(true);
           }}
         />
       ),
@@ -855,6 +864,12 @@ export default function App() {
   // self-contained component so App gains no Game state beyond `gameOpen`.
   if (gameOpen) {
     return <GameFlow onExit={() => setGameOpen(false)} backRef={gameBackRef} />;
+  }
+
+  // The Tuner is likewise a self-contained full-screen takeover — it owns
+  // its own mic/pitch-detection state (src/tuner/useTuner.ts) entirely.
+  if (tunerOpen) {
+    return <TunerScreen onClose={() => setTunerOpen(false)} />;
   }
 
   // The unified "Stats & progress" screen replaces the game entirely — its own

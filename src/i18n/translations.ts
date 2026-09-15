@@ -945,6 +945,31 @@ const he: Record<string, string> = {
   'Quick access is off': 'הגישה המהירה כבויה',
   "You haven't pinned any quick access shortcuts yet":
     'עדיין לא הגדרתם קיצורי דרך לגישה המהירה',
+
+  // Tuner — the Learn-tab tile that opens a live chromatic tuner (mic-based
+  // pitch detection). Free for every tier.
+  'Tuner': 'טיונר',
+  'Tune your strings using the microphone.': 'כוונון המיתרים באמצעות המיקרופון.',
+  'Start listening': 'התחל האזנה',
+  'Requesting microphone permission…': 'מבקש הרשאת מיקרופון…',
+  'Microphone access was denied. Allow it in your browser settings, then try again.':
+    'הגישה למיקרופון נדחתה. אשרו אותה בהגדרות הדפדפן ונסו שוב.',
+  'Try again': 'נסו שוב',
+  "Couldn't start the microphone.": 'לא ניתן היה להפעיל את המיקרופון.',
+  'Listening… play a note.': 'מאזין… נגנו תו.',
+  "Tap a note on the wheel to lock it as the string you're tuning. Tap it again to switch back to auto-detect.":
+    'הקישו על תו בחוגה כדי לנעוץ אותו כמיתר שאתם מכוונים. הקישו עליו שוב כדי לחזור לזיהוי אוטומטי.',
+  'Tuning': 'מכוונים',
+  'Detected': 'זוהה',
+  'String {n}': 'מיתר {n}',
+  'or': 'או',
+  'Unpin': 'שחרר נעילה',
+  "Tap to lock this note at 12 o'clock": 'הקישו כדי לנעוץ את התו הזה בשעה 12',
+  'Tap to unpin': 'הקישו כדי לשחרר את הנעילה',
+  'In tune': 'מכוון',
+  'Tighten (raise pitch)': 'הידקו (העלו את הטון)',
+  'Loosen (lower pitch)': 'רפו (הורידו את הטון)',
+  '~{pct}% of the audible threshold': '~{pct}% מסף השמיעה האנושי',
 };
 
 const dictionaries: Record<Lang, Record<string, string>> = { en: {}, he };

@@ -67,6 +67,10 @@ export function useAppNavigation({
   // Populated by <GameFlow> with its "step one level back" action, so the
   // Android hardware Back button can walk the Game's own screens.
   const gameBackRef = useRef<(() => void) | null>(null);
+  // The Tuner is a single-screen full-page takeover (no sub-screens of its
+  // own, unlike the Game), so it needs no backRef — Back just closes it.
+  // Not persisted to gfp_view, same as gameOpen.
+  const [tunerOpen, setTunerOpen] = useState(false);
   // The `upgrade` (Pro) sub-page is reachable both from the Account tab's plan
   // tile and from any locked <ProGate> in the app (via registerUpgradeHandler,
   // which may open it without Account ever being shown). Back should return to
@@ -209,6 +213,14 @@ export function useAppNavigation({
     return () => window.removeEventListener('keydown', onKey);
   }, [showPath]);
 
+  // Close the Tuner with Escape, back to the home screen.
+  useEffect(() => {
+    if (!tunerOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setTunerOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [tunerOpen]);
+
   // Escape steps a learning-type tab (Daily practice / Intervals) back to the
   // Selector, matching the on-screen Back button and hardware Back.
   useEffect(() => {
@@ -234,6 +246,7 @@ export function useAppNavigation({
     activeDomain, setActiveDomain,
     drawerSection, setDrawerSection,
     gameOpen, setGameOpen,
+    tunerOpen, setTunerOpen,
     micPrompt, setMicPrompt,
     showInfo, setShowInfo,
     infoAutoShown, setInfoAutoShown,
