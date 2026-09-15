@@ -173,7 +173,7 @@ export async function captureUtterance(
     const onAbort = () => finish(null);
     opts.signal?.addEventListener('abort', onAbort);
 
-    const onsetTimer = setTimeout(() => {
+    const onOnsetTimeout = () => {
       if (started) return;
       // Nothing crossed the onset gate. Whether the speaker was silent or
       // spoke under a gate raised by a contaminated noise floor is only
@@ -186,7 +186,8 @@ export async function captureUtterance(
         loudestOverGate: +(loudest / gate).toFixed(2),
       });
       finish(null);
-    }, cfg.onsetTimeoutMs);
+    };
+    let onsetTimer = setTimeout(onOnsetTimeout, cfg.onsetTimeoutMs);
 
     processor.onaudioprocess = (e: AudioProcessingEvent) => {
       if (done) return;
@@ -233,6 +234,28 @@ export async function captureUtterance(
 
       const trailing = (cfg.trailingSilenceMs / 1000) * sampleRate;
       const cap = (cfg.maxSpeechMs / 1000) * sampleRate;
+      if (silenceRun >= trailing && peak < gate) {
+        // Onset fired on a single block (a click, a knock) and nothing after
+        // it ever reached even the silence gate — no word was spoken. A live
+        // round once took such a capture (post-onset peak 0.0069 against a
+        // gate of 0.010) and answered "E" from a 100ms segment. Go back to
+        // waiting for real speech instead of handing it to the matcher.
+        vlog('[voice] transient ignored', {
+          ms: Math.round((speechSamples / sampleRate) * 1000),
+          noiseFloor: +noiseFloor.toFixed(4),
+          gate: +gate.toFixed(4),
+          peak: +peak.toFixed(4),
+        });
+        started = false;
+        speech.length = 0;
+        preRoll.length = 0;
+        speechSamples = 0;
+        silenceRun = 0;
+        peak = 0;
+        loudest = 0;
+        onsetTimer = setTimeout(onOnsetTimeout, cfg.onsetTimeoutMs);
+        return;
+      }
       if (silenceRun >= trailing || speechSamples >= cap) {
         // Why the recording stopped, and the levels that decided it. Ending
         // on 'cap' means the level never fell below `gate` for long enough —

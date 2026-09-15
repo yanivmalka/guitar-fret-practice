@@ -514,8 +514,12 @@ export class TemplateSpeechEngine implements SpeechEngine {
         concatNote = best.label;
       }
     }
-    const concatTaken = !!concatNote && concatNote !== note;
-    if (concatNote) note = concatNote;
+    // Only overrides an answer the segmented path already gave. When that
+    // path rejected the capture ("ask again"), letting concat answer turned a
+    // spoken plain "C" into C# in a live round; the one correct live override
+    // (F → F#) had a segmented answer to correct.
+    const concatTaken = !!concatNote && !!note && concatNote !== note;
+    if (concatNote && note) note = concatNote;
 
     vlog('[voice] concat accidental', {
       engine: this.kind,
