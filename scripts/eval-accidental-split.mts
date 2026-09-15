@@ -9,10 +9,12 @@
 //           (the current templateSpeechEngine code)
 //   concat  no cut: the whole trimmed utterance is matched against every
 //           letter template and every letter+accidental concatenation
+//   concatG concat with the ratio gate;  concatI concat on isolateWord audio
+//   hybrid  quiet, overridden by concatG only when it reads an accidental
 //
 // quiet/search reproduce runSegmented's decision including its gates
 // (a gated-out turn is reported as "∅", i.e. the app would listen again);
-// concat is reported ungated.
+// concat / concatI are reported ungated.
 //
 // Profile export (browser console, on the app's origin) → voice-profile.json:
 // an array of StoredTemplate rows from IndexedDB `voiceProfiles`.
@@ -39,7 +41,7 @@ registerHooks({
     }
   },
 });
-const { segmentUtterance } = await import('../src/utils/utteranceCapture.ts');
+const { segmentUtterance, isolateWord } = await import('../src/utils/utteranceCapture.ts');
 
 const [wavDir, profilePath, vocabArg] = process.argv.slice(2);
 if (!wavDir || !profilePath) {
@@ -150,46 +152,56 @@ for (const l of letters) for (const a of accidentals) {
   combos.push({ label: compose(l.label, a.label), frames: [...l.frames, ...a.frames] });
 }
 
-function concatDecode(pcm: Float32Array, sr: number): { note: string; ranked: string } {
-  const frames = mfcc(trimSilence(pcm, sr), sr);
-  if (!frames.length) return { note: '∅', ranked: '' };
+function concatDecode(pcm: Float32Array, sr: number, trim: (p: Float32Array, sr: number) => Float32Array = trimSilence): { note: string; gated: string; ranked: string } {
+  const frames = mfcc(trim(pcm, sr), sr);
+  if (!frames.length) return { note: '∅', gated: '∅', ranked: '' };
   const byNote = new Map<string, number>();
   for (const t of [...letters, ...combos]) {
     const d = dtwDistance(frames, t.frames);
     if (d < (byNote.get(t.label) ?? Infinity)) byNote.set(t.label, d);
   }
   const ranked = [...byNote.entries()].sort((a, b) => a[1] - b[1]);
-  return { note: ranked[0][0], ranked: ranked.slice(0, 3).map(([l, d]) => `${l}:${d.toFixed(1)}`).join(' ') };
+  const gated = gate(ranked.map(([label, distance]) => ({ label, distance }))) ?? '∅';
+  return { note: ranked[0][0], gated, ranked: ranked.slice(0, 3).map(([l, d]) => `${l}:${d.toFixed(1)}`).join(' ') };
 }
 
-const methods = ['quiet', 'search', 'concat'] as const;
-const tally = { natural: {} as Record<string, [number, number]>, sharp: {} as Record<string, [number, number]> };
-for (const g of ['natural', 'sharp'] as const) for (const m of methods) tally[g][m] = [0, 0];
+// concatG  concat with the app's ratio gate (a close call → ∅, listen again)
+// concatI  concat on isolateWord-trimmed audio, as calibration takes are
+// hybrid   quiet decides, except when gated concat hears an accidental
+const methods = ['quiet', 'search', 'concat', 'concatG', 'concatI', 'hybrid'] as const;
+// [correct, total, wrong answer]
+const tally = { natural: {} as Record<string, [number, number, number]>, sharp: {} as Record<string, [number, number, number]> };
+for (const g of ['natural', 'sharp'] as const) for (const m of methods) tally[g][m] = [0, 0, 0];
 
-console.log(`\n${'file'.padEnd(20)} ${'want'.padEnd(4)} ${'quiet'.padEnd(5)} ${'search'.padEnd(6)} concat  (concat top-3)`);
+console.log(`\n${'file'.padEnd(20)} want ${methods.map((m) => m.padEnd(7)).join(' ')} (concat top-3)`);
 for (const file of readdirSync(wavDir).sort()) {
   if (!file.toLowerCase().endsWith('.wav')) continue;
   const t = classify(file);
   if (!t || t.key !== 'notes-alpha') continue;
   const { pcm, sampleRate } = decodeWav(readFileSync(resolve(wavDir, file)));
   const want = SHARP_WRAP[t.label] ?? t.label;
-  const got = {
-    quiet: segmentedDecode(pcm, sampleRate, quietCut),
-    search: segmentedDecode(pcm, sampleRate, searchCut),
-    concat: '',
-  };
   const c = concatDecode(pcm, sampleRate);
-  got.concat = c.note;
+  const ci = concatDecode(pcm, sampleRate, isolateWord);
+  const quiet = segmentedDecode(pcm, sampleRate, quietCut);
+  const got: Record<typeof methods[number], string> = {
+    quiet,
+    search: segmentedDecode(pcm, sampleRate, searchCut),
+    concat: c.note,
+    concatG: c.gated,
+    concatI: ci.note,
+    hybrid: c.gated.includes('#') ? c.gated : quiet,
+  };
   const g = want.includes('#') ? 'sharp' : 'natural';
   for (const m of methods) {
     tally[g][m][1]++;
     if (got[m] === want) tally[g][m][0]++;
+    else if (got[m] !== '∅') tally[g][m][2]++;
   }
   const mark = (m: typeof methods[number]) => (got[m] === want ? got[m] : `${got[m]}✗`);
-  console.log(`${file.padEnd(20)} ${want.padEnd(4)} ${mark('quiet').padEnd(5)} ${mark('search').padEnd(6)} ${mark('concat').padEnd(7)} (${c.ranked})`);
+  console.log(`${file.padEnd(20)} ${want.padEnd(4)} ${methods.map((m) => mark(m).padEnd(7)).join(' ')} (${c.ranked})`);
 }
 
-console.log('\ncorrect / total   (quiet, search: ∅ = gated out, app would listen again)');
+console.log('\ncorrect / wrong answer / total   (∅ = gated out, app would listen again — not a wrong answer)');
 for (const g of ['sharp', 'natural'] as const) {
-  console.log(`  ${g.padEnd(8)} ` + methods.map((m) => `${m} ${tally[g][m][0]}/${tally[g][m][1]}`).join('   '));
+  console.log(`  ${g.padEnd(8)} ` + methods.map((m) => `${m} ${tally[g][m][0]}/${tally[g][m][2]}/${tally[g][m][1]}`).join('   '));
 }
