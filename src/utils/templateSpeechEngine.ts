@@ -19,7 +19,7 @@ import type {
   SpeechEngineKind,
   MicPermissionState,
 } from './speech';
-import { captureUtterance, segmentUtterance } from './utteranceCapture';
+import { captureUtterance, segmentUtterance, trimToVoice } from './utteranceCapture';
 import { computeMfcc, framesFromJson } from './mfcc';
 import { knnVote, matchTemplates, type Template } from './dtw';
 import { isLetterLabel, isAccidentalLabel } from './voiceProfileVocab';
@@ -477,6 +477,52 @@ export class TemplateSpeechEngine implements SpeechEngine {
         note = FLAT_TO_SHARP[letter] ?? letter;
       }
     }
+
+    // Whole-utterance check for an accidental, with no cut at all. In a
+    // fluent "F sharp" the /f/ and /sh/ fricatives merge, so any cut leaves a
+    // letter half that sounds like "E" — and E + "#" composes to F, which
+    // looks exactly like a dropped sharp. Instead, match the trimmed capture
+    // against every letter take and every letter take followed by an
+    // accidental take, and let DTW find the boundary.
+    //
+    // It only ever overrides with an accidental reading: on its own it misread
+    // plain F as E, while the segmented path above reads naturals well. Offline
+    // (scripts/eval-accidental-split.mts, `hybrid`) this took sharps from 2 to
+    // 13 of 30, wrong answers 15 → 9, naturals unchanged. Not yet measured
+    // live, and flats were not in that test set.
+    const t1 = performance.now();
+    const wholeFrames = computeMfcc(trimToVoice(captured.pcm, captured.sampleRate), captured.sampleRate).frames;
+    let concatNote: string | null = null;
+    let cRanked: { label: string; distance: number }[] = [];
+    if (wholeFrames.length && accidentals.length) {
+      const combos: Template[] = [...letters];
+      for (const l of letters) {
+        for (const a of accidentals) {
+          const label = a.label === '#'
+            ? SHARP_WRAP[`${l.label}#`] ?? `${l.label}#`
+            : FLAT_TO_SHARP[l.label] ?? l.label;
+          combos.push({ label, frames: [...l.frames, ...a.frames] });
+        }
+      }
+      // Ranked by composed note name, exactly as measured: only a reading
+      // whose note carries "#" (a sharp, or a flat composed to one) overrides.
+      cRanked = matchTemplates(wholeFrames, combos);
+      const [best, second] = cRanked;
+      if (best && Number.isFinite(best.distance)
+        && !(second && best.distance > second.distance * ratioCap)
+        && best.label.includes('#')) {
+        concatNote = best.label;
+      }
+    }
+    const concatTaken = !!concatNote && concatNote !== note;
+    if (concatNote) note = concatNote;
+
+    vlog('[voice] concat accidental', {
+      engine: this.kind,
+      ms: +(performance.now() - t1).toFixed(1),
+      top: cRanked.slice(0, 4).map((r) => `${r.label}:${r.distance.toFixed(1)}`).join(' '),
+      note: concatNote, overrode: concatTaken,
+    });
 
     vlog('[voice] segmented match', {
       engine: this.kind, segments: segFrames.length,

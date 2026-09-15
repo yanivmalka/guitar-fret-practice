@@ -141,6 +141,7 @@ export async function captureUtterance(
   let silenceRun = 0;
   let speechSamples = 0;
   let peak = 0;
+  let loudest = 0;
 
   return await new Promise<CapturedUtterance | null>((resolve) => {
     let done = false;
@@ -173,7 +174,18 @@ export async function captureUtterance(
     opts.signal?.addEventListener('abort', onAbort);
 
     const onsetTimer = setTimeout(() => {
-      if (!started) finish(null);
+      if (started) return;
+      // Nothing crossed the onset gate. Whether the speaker was silent or
+      // spoke under a gate raised by a contaminated noise floor is only
+      // visible from the loudest block against the gate.
+      const gate = Math.max(0.012, noiseFloor * 3.5);
+      vlog('[voice] onset timeout', {
+        noiseFloor: +noiseFloor.toFixed(4),
+        gate: +gate.toFixed(4),
+        loudest: +loudest.toFixed(4),
+        loudestOverGate: +(loudest / gate).toFixed(2),
+      });
+      finish(null);
     }, cfg.onsetTimeoutMs);
 
     processor.onaudioprocess = (e: AudioProcessingEvent) => {
@@ -185,11 +197,16 @@ export async function captureUtterance(
       opts.onLevel?.(rms);
 
       if (!started) {
-        // Learn the noise floor from the first ~200ms of not-yet-speech.
-        if (noiseSamples < 5) {
-          noiseFloor = (noiseFloor * noiseSamples + rms) / (noiseSamples + 1);
-          noiseSamples++;
-        }
+        if (rms > loudest) loudest = rms;
+        // Noise floor = the quietest block heard so far, not an average of
+        // the first ~200ms. Listening restarts ~90ms after a rejected answer,
+        // usually while the speaker is already repeating it, so those first
+        // blocks are their voice. Averaging them once set the floor to 0.10
+        // and the onset gate to 0.36 — above the speaker's own peak of 0.13 —
+        // and the turn ended deaf on the onset timeout. A minimum drops back
+        // as soon as there is any gap between words.
+        noiseFloor = noiseSamples === 0 ? rms : Math.min(noiseFloor, rms);
+        noiseSamples++;
         preRoll.push(new Float32Array(block));
         while (preRoll.length > preRollBlocks) preRoll.shift();
 
@@ -374,4 +391,34 @@ export function isolateWord(pcm: Float32Array, sampleRate: number): Float32Array
   // Normally exactly one; a stray noise burst can add another, so keep the
   // longest, which is the word.
   return segments.reduce((best, s) => (s.length > best.length ? s : best));
+}
+
+/**
+ * Trim leading / trailing silence off a whole question-time capture, keeping
+ * every word inside it — unlike `isolateWord`, which keeps only the longest
+ * run and so drops the "sharp" of a paused "F … sharp". Gate is relative to
+ * the capture's own peak (15%, floor 0.015) with 30ms padding.
+ *
+ * Kept identical to `trimSilence` in `scripts/wav-lib.mts`: the whole-utterance
+ * accidental match in `templateSpeechEngine` was measured offline through that
+ * function (`scripts/eval-accidental-split.mts`), and `isolateWord` in its
+ * place lost most of the gain (sharps 13 → 9 of 30).
+ */
+export function trimToVoice(pcm: Float32Array, sampleRate: number): Float32Array {
+  const win = Math.max(1, Math.round(sampleRate * 0.02));
+  const rmsAt = (start: number) => {
+    let acc = 0;
+    const end = Math.min(pcm.length, start + win);
+    for (let i = start; i < end; i++) acc += pcm[i] * pcm[i];
+    return Math.sqrt(acc / (end - start));
+  };
+  let peak = 0;
+  for (let i = 0; i < pcm.length; i += win) peak = Math.max(peak, rmsAt(i));
+  const gate = Math.max(0.015, peak * 0.15);
+  let first = 0;
+  for (let i = 0; i < pcm.length; i += win) { if (rmsAt(i) > gate) { first = i; break; } }
+  let last = pcm.length;
+  for (let i = pcm.length - win; i >= 0; i -= win) { if (rmsAt(i) > gate) { last = i + win; break; } }
+  const pad = Math.round(sampleRate * 0.03);
+  return pcm.subarray(Math.max(0, first - pad), Math.min(pcm.length, last + pad));
 }
