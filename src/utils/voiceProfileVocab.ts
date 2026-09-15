@@ -26,8 +26,14 @@ export const ACCIDENTAL_LABELS = ['#', 'b'] as const;
 /** Every label a v2 profile stores, in calibration order. */
 export const PROFILE_LABELS = [...LETTER_LABELS, ...ACCIDENTAL_LABELS] as const;
 
-/** Recordings required per label before a label counts as "done". */
-export const SAMPLES_PER_LABEL = 2;
+/**
+ * Recordings required per label before a label counts as "done". Kept at 4
+ * (not 2) so `runSelfTest`'s within-label yardstick has several pairs to
+ * draw from instead of exactly one — with only one within-label pair, a
+ * single noisy take can inflate that yardstick and make the self-test flag
+ * nearly every cross-label pair as "too close".
+ */
+export const SAMPLES_PER_LABEL = 4;
 
 export type LetterLabel = (typeof LETTER_LABELS)[number];
 export type AccidentalLabel = (typeof ACCIDENTAL_LABELS)[number];
