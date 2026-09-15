@@ -73,8 +73,15 @@ function accidentalAbsMax(): number {
     const v = parseFloat(localStorage.getItem('voiceAccidentalAbsMax') ?? '');
     if (!Number.isNaN(v) && v > 0) return v;
   } catch { /* ignore */ }
-  return 25;
+  // Was 25. In noisy-room rounds four wrong answers came from room noise
+  // matched as an accidental at 23.2–24.4, while every correct accidental
+  // logged the same day scored ≤ 22.2.
+  return 22.5;
 }
+
+// When the second segment fails the accidental gate, answer the letter alone
+// only if it beat the runner-up letter by at least this ratio.
+const LETTER_FALLBACK_RATIO = 0.85;
 
 function hasGetUserMedia(): boolean {
   return typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
@@ -463,14 +470,26 @@ export class TemplateSpeechEngine implements SpeechEngine {
     let note: string | null = letter;
     let accLabel: string | null = null;
     let aRanked: { label: string; distance: number }[] = [];
+    let letterFallback = false;
 
     if (letter && accFrames) {
       aRanked = matchTemplates(accFrames, accidentals);
       accLabel = gate(aRanked, 'accidental', accidentalAbsMax());
       if (!accLabel) {
-        // A second word was spoken but "#" vs "b" is unclear — ask again
-        // rather than guess a natural note.
-        note = null;
+        // The second segment is not a clear "#"/"b". Usually that is a short
+        // fragment or room noise after a plain letter, so when the letter won
+        // by a wide margin answer it; otherwise ask again rather than guess.
+        // Live logs with known truth: ratio ≤ 0.85 was 4 right, 0 wrong
+        // (C 0.52, E 0.75 ×2, E 0.85); E 0.86 for a spoken A and B 0.96 for
+        // a spoken E sat just above it.
+        const [lb, ls] = lRanked;
+        const letterRatio = ls && ls.distance > 0 ? lb.distance / ls.distance : 0;
+        letterFallback = letterRatio <= LETTER_FALLBACK_RATIO;
+        note = letterFallback ? letter : null;
+        vlog('[voice] letter fallback', {
+          engine: this.kind, letter, ratio: +letterRatio.toFixed(3),
+          need: LETTER_FALLBACK_RATIO, taken: letterFallback,
+        });
       } else if (accLabel === '#') {
         note = SHARP_WRAP[`${letter}#`] ?? `${letter}#`;
       } else {
@@ -518,8 +537,11 @@ export class TemplateSpeechEngine implements SpeechEngine {
     // path rejected the capture ("ask again"), letting concat answer turned a
     // spoken plain "C" into C# in a live round; the one correct live override
     // (F → F#) had a segmented answer to correct.
-    const concatTaken = !!concatNote && !!note && concatNote !== note;
-    if (concatNote && note) note = concatNote;
+    // Not a letter-fallback answer either: that capture held noise the
+    // accidental gate rejected, and noisy captures are where concat misreads
+    // (G#/D#/A# on long noisy captures in a live round).
+    const concatTaken = !!concatNote && !!note && !letterFallback && concatNote !== note;
+    if (concatTaken) note = concatNote;
 
     vlog('[voice] concat accidental', {
       engine: this.kind,
@@ -538,7 +560,7 @@ export class TemplateSpeechEngine implements SpeechEngine {
       // matters whether the right one was second or last.
       letters: lRanked.map((r) => `${r.label}:${r.distance.toFixed(1)}`).join(' '),
       accidentals: aRanked.map((r) => `${r.label}:${r.distance.toFixed(1)}`).join(' '),
-      accidental: accLabel, note, confident: !!note,
+      accidental: accLabel, letterFallback, note, confident: !!note,
     });
 
     if (myTurn !== this.turn) return;
