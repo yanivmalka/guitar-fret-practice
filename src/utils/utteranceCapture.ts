@@ -61,6 +61,20 @@ const DEFAULTS = {
   maxSpeechMs: 2500,
 };
 
+/** A capture whose post-onset peak stays under this multiple of the silence gate is a transient, not a word. */
+const TRANSIENT_PEAK_OVER_GATE = 2;
+
+/** Post-onset block levels as fractions of the peak, for the `[voice] vad` line. */
+function levelStats(levels: number[], peak: number) {
+  if (!levels.length || peak <= 0) return {};
+  const sorted = [...levels].sort((a, b) => a - b);
+  const at = (q: number) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * q))];
+  const tailBlocks = levels.slice(-12);
+  const tail = tailBlocks.reduce((s, v) => s + v, 0) / tailBlocks.length;
+  const rel = (v: number) => +(v / peak).toFixed(3);
+  return { p10: rel(at(0.1)), p50: rel(at(0.5)), p90: rel(at(0.9)), tail: rel(tail), blocks: levels.length };
+}
+
 function makeAudioContext(): MinimalAudioContext {
   const Ctor: typeof AudioContext =
     window.AudioContext ||
@@ -142,6 +156,7 @@ export async function captureUtterance(
   let speechSamples = 0;
   let peak = 0;
   let loudest = 0;
+  const levels: number[] = [];
 
   return await new Promise<CapturedUtterance | null>((resolve) => {
     let done = false;
@@ -224,6 +239,7 @@ export async function captureUtterance(
       speech.push(new Float32Array(block));
       speechSamples += block.length;
       if (rms > peak) peak = rms;
+      levels.push(rms);
 
       const gate = Math.max(0.010, noiseFloor * 2.5);
       if (rms < gate) {
@@ -234,12 +250,14 @@ export async function captureUtterance(
 
       const trailing = (cfg.trailingSilenceMs / 1000) * sampleRate;
       const cap = (cfg.maxSpeechMs / 1000) * sampleRate;
-      if (silenceRun >= trailing && peak < gate) {
+      if (silenceRun >= trailing && peak < gate * TRANSIENT_PEAK_OVER_GATE) {
         // Onset fired on a single block (a click, a knock) and nothing after
-        // it ever reached even the silence gate — no word was spoken. A live
-        // round once took such a capture (post-onset peak 0.0069 against a
-        // gate of 0.010) and answered "E" from a 100ms segment. Go back to
-        // waiting for real speech instead of handing it to the matcher.
+        // it came close to speech level — no word was spoken. Live rounds
+        // took such captures and answered "E" from a 100–140ms segment, at
+        // post-onset peaks of 0.7× and 1.0× the silence gate (and a stray
+        // tail at 1.3×); every real word in the same logs peaked at 3.9× or
+        // more, even in a noisy room. Go back to waiting for real speech
+        // instead of handing it to the matcher.
         vlog('[voice] transient ignored', {
           ms: Math.round((speechSamples / sampleRate) * 1000),
           noiseFloor: +noiseFloor.toFixed(4),
@@ -253,6 +271,7 @@ export async function captureUtterance(
         silenceRun = 0;
         peak = 0;
         loudest = 0;
+        levels.length = 0;
         onsetTimer = setTimeout(onOnsetTimeout, cfg.onsetTimeoutMs);
         return;
       }
@@ -268,6 +287,11 @@ export async function captureUtterance(
           gate: +gate.toFixed(4),
           peak: +peak.toFixed(4),
           peakOverGate: +(peak / gate).toFixed(1),
+          // The level distribution during the capture, relative to its own
+          // peak — what an endpoint "silence = a fraction of the peak" rule
+          // would have to sit between. `tail` is the last ~500ms: on a 'cap'
+          // stop it is the room noise that kept the recording open.
+          ...levelStats(levels, peak),
         });
         const pcm = new Float32Array(speechSamples);
         let off = 0;
