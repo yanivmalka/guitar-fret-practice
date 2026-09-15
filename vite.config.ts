@@ -31,7 +31,6 @@ export default defineConfig({
         designPreview: resolve(__dirname, 'design-preview.html'),
         statsRedesign: resolve(__dirname, 'stats-redesign.html'),
         tuner: resolve(__dirname, 'tuner.html'),
-        pitchSpike: resolve(__dirname, 'pitch-spike.html'),
       },
     },
   },
