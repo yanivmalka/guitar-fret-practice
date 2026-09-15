@@ -735,6 +735,9 @@ export function useGameEngine(
       beep();
       onTimeout();
       const correctNote = notes[qString - 1][fret];
+      // A question that ran out of time with every voice attempt rejected
+      // otherwise leaves no record of what the speaker was trying to say.
+      vlog('[voice] timed out', { correctNote, currentFret: fret });
       const elapsed = (Date.now() - questionStartRef.current) / 1000;
       addEntry(tagInterval({ note: correctNote, fret, string: qString, seconds: Math.round(elapsed * 10) / 10, skipped: true, correct: null }));
       if (iq && iq.prompt.exercise === 'identifyInterval') {
