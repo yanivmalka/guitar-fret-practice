@@ -80,8 +80,10 @@ function accidentalAbsMax(): number {
 }
 
 // When the second segment fails the accidental gate, answer the letter alone
-// only if it beat the runner-up letter by at least this ratio.
+// only if it beat the runner-up letter by at least this ratio and the letter
+// segment is at least this long.
 const LETTER_FALLBACK_RATIO = 0.85;
+const LETTER_FALLBACK_MIN_MS = 250;
 
 function hasGetUserMedia(): boolean {
   return typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
@@ -422,6 +424,7 @@ export class TemplateSpeechEngine implements SpeechEngine {
     let letterFrames = segFrames[0];
     let accFrames: Float32Array[] | null = segFrames[1] ?? null;
     let usedSplit = false;
+    let letterMs = segMs[0];
 
     {
       // Split *segment 0*, not the whole capture. Passing the capture back to
@@ -452,6 +455,7 @@ export class TemplateSpeechEngine implements SpeechEngine {
           letterFrames = forced[0];
           accFrames = forced[1];
           usedSplit = true;
+          letterMs = ms(forcedSegs[0].length);
         }
         vlog('[voice] split hypothesis', {
           engine: this.kind,
@@ -481,14 +485,18 @@ export class TemplateSpeechEngine implements SpeechEngine {
         // by a wide margin answer it; otherwise ask again rather than guess.
         // Live logs with known truth: ratio ≤ 0.85 was 4 right, 0 wrong
         // (C 0.52, E 0.75 ×2, E 0.85); E 0.86 for a spoken A and B 0.96 for
-        // a spoken E sat just above it.
+        // a spoken E sat just above it. A short letter segment is not enough
+        // on its own: D 0.76 on 180 ms (E said) and D 0.80 on 200 ms (B said)
+        // were wrong, while every right fallback had a letter of 380 ms+.
         const [lb, ls] = lRanked;
         const letterRatio = ls && ls.distance > 0 ? lb.distance / ls.distance : 0;
-        letterFallback = letterRatio <= LETTER_FALLBACK_RATIO;
+        letterFallback = letterRatio <= LETTER_FALLBACK_RATIO
+          && letterMs >= LETTER_FALLBACK_MIN_MS;
         note = letterFallback ? letter : null;
         vlog('[voice] letter fallback', {
           engine: this.kind, letter, ratio: +letterRatio.toFixed(3),
-          need: LETTER_FALLBACK_RATIO, taken: letterFallback,
+          need: LETTER_FALLBACK_RATIO, letterMs, minMs: LETTER_FALLBACK_MIN_MS,
+          taken: letterFallback,
         });
       } else if (accLabel === '#') {
         note = SHARP_WRAP[`${letter}#`] ?? `${letter}#`;
