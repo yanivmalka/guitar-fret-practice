@@ -50,6 +50,16 @@ export interface InstrumentConfig {
    * instead of the note's own name.
    */
   sampleMap?: SampleRegion[];
+  /**
+   * Per-string lowest playable fret, parallel to `openMidi` (default 0 for
+   * every entry a caller omits). For a real instrument where one string is
+   * physically shorter than the rest — e.g. a 5-string banjo's short drone
+   * string, only fretted from fret 5 up — this is how that's expressed:
+   * frets below it are never asked as a question and show up disabled
+   * (greyed, non-interactive) on the fretboard grid, the same visual
+   * treatment already used for whole-tone/dots-only filtering.
+   */
+  minFrets?: number[];
 }
 
 const GUITAR: InstrumentConfig = {
@@ -156,6 +166,7 @@ const BANJO: InstrumentConfig = {
   ],
   openMidi: [62, 59, 55, 50, 67], // D4, B3, G3, D3, G4
   maxFret: BANJO_MAX_FRET,
+  minFrets: [0, 0, 0, 0, 5], // 5th string is the short drone — no fret below 5
   soundfontUrl: 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/banjo-mp3/',
   stringLabels: {
     1: 'String 1 · D', 2: 'String 2 · B', 3: 'String 3 · G',

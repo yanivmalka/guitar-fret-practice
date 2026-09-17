@@ -20,15 +20,22 @@ export const GUITAR_DOT_FRETS = [3, 5, 7, 9, 12, 15, 17, 19, 21];
 export let notes: string[][] = GUITAR_NOTES;
 export let activeMaxFret = 21;
 export let activeDotFrets: number[] = GUITAR_DOT_FRETS;
+// Per-string lowest playable fret (see InstrumentConfig.minFrets in
+// utils/instruments.ts) — empty for every instrument without a restricted
+// string; `activeMinFrets[i] ?? 0` at every read site covers that case and
+// also a string index past the end of a shorter array.
+export let activeMinFrets: number[] = [];
 
 export function setActiveInstrument(cfg: {
   notes: string[][];
   maxFret: number;
   dotFrets: number[];
+  minFrets?: number[];
 }): void {
   notes = cfg.notes;
   activeMaxFret = cfg.maxFret;
   activeDotFrets = cfg.dotFrets;
+  activeMinFrets = cfg.minFrets ?? [];
 }
 
 export const cofNotesSharp = ['C','G','D','A','E','B','F#','C#','G#','D#','A#','F'];
@@ -140,10 +147,13 @@ export function getValidFrets(stringIdx: number, fromFret: number, toFret: numbe
   // Fall back to the lowest string if a stale out-of-range index slips through
   // during an instrument switch (see getStringStartIndex).
   const row = notes[stringIdx] ?? notes[notes.length - 1];
+  // A physically-shorter string (e.g. a banjo's 5th drone string) can't sound
+  // below its own minimum fret regardless of the caller's requested window.
+  const floor = Math.max(fromFret, activeMinFrets[stringIdx] ?? 0);
   const valid: number[] = [];
-  for (let f = fromFret; f <= toFret; f++) {
+  for (let f = floor; f <= toFret; f++) {
     if (dotsOnly && !dotAndOpenFrets.includes(f)) continue;
     if (!wholeToneOnly || wholeTones.includes(row[f])) valid.push(f);
   }
-  return valid.length > 0 ? valid : [fromFret];
+  return valid.length > 0 ? valid : [floor];
 }
