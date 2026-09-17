@@ -11,7 +11,7 @@ let maxFret = 21;
 // below instead of being fetched as samples — see the comment on
 // InstrumentConfig.synth in utils/instruments.ts for why (no properly
 // licensed sampled mandolin exists anywhere).
-type SynthKind = 'none' | 'mandolin';
+type SynthKind = 'none' | 'mandolin' | 'ukuleleBaritone';
 let synthKind: SynthKind = 'none';
 
 // When set, this instrument's samples aren't one-exact-file-per-note — see
@@ -211,6 +211,84 @@ function synthesizeMandolinPluck(
   return nodes;
 }
 
+// ── Baritone ukulele synthesis ───────────────────────────────────────────
+// No free/CC0-licensed baritone ukulele sample library exists anywhere
+// (checked FreePats — the project's only ukulele bank is the standard
+// reentrant-tuning one already used for soprano/concert/tenor; there is no
+// separate baritone patch). Its D-G-B-E tuning also falls well below the
+// pitch range that existing UKULELE_SAMPLES was verified against (see the
+// comment on InstrumentConfig.synth and the ukulele variants block in
+// utils/instruments.ts). Same situation as mandolin, same fix: synthesize
+// instead of sample.
+//
+// Distinct from the mandolin voice on purpose — a baritone uke is a single
+// nylon string per course (no paired-string shimmer), warmer and rounder
+// than a mandolin's bright metal-string tone:
+//   - a single oscillator (no detuned pair — nothing to shimmer against)
+//   - a lowpass filter (not bandpass) for a mellow, rounded nylon tone
+//   - a softer, shorter pick-noise transient (finger/thumb pluck, not a
+//     hard plectrum attack) and a slightly slower attack
+//   - longer decay than mandolin (nylon strings sustain more than a
+//     mandolin's short, percussive ring)
+function synthesizeUkuleleBaritonePluck(
+  ctx: AudioContext, dest: AudioNode, midi: number, rate: number,
+  when: number, dur: number, peak: number,
+): AudioScheduledSourceNode[] {
+  const freq = midiToFreq(midi) * rate;
+  const t0 = ctx.currentTime + when;
+  const nodes: AudioScheduledSourceNode[] = [];
+
+  // Body filter: a mellow lowpass a couple of octaves above the fundamental,
+  // rather than mandolin's bright bandpass — nylon strings roll off the
+  // upper harmonics much faster than metal ones.
+  const body = ctx.createBiquadFilter();
+  body.type = 'lowpass';
+  body.frequency.value = freq * 3;
+  body.Q.value = 0.7;
+
+  const tone = ctx.createGain();
+  tone.connect(body);
+  body.connect(dest);
+
+  const osc = ctx.createOscillator();
+  osc.type = 'triangle'; // softer harmonic content than mandolin's sawtooth
+  osc.frequency.value = freq;
+  osc.connect(tone);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.05);
+  nodes.push(osc);
+
+  // Slightly slower attack (finger pluck, not a hard plectrum strike) and a
+  // longer exponential decay — nylon strings ring noticeably longer.
+  tone.gain.setValueAtTime(0, t0);
+  tone.gain.linearRampToValueAtTime(peak, t0 + 0.006);
+  tone.gain.exponentialRampToValueAtTime(0.0001, t0 + dur * 1.3);
+
+  // Soft, brief noise burst at note-on for the finger/thumb attack —
+  // lower-passed and quieter than mandolin's pick "chick".
+  const noiseDur = 0.015;
+  const noiseBuf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * noiseDur), ctx.sampleRate);
+  const data = noiseBuf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  const noise = ctx.createBufferSource();
+  noise.buffer = noiseBuf;
+  const noiseFilter = ctx.createBiquadFilter();
+  noiseFilter.type = 'bandpass';
+  noiseFilter.frequency.value = 1200;
+  noiseFilter.Q.value = 0.8;
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.setValueAtTime(peak * 0.25, t0);
+  noiseGain.gain.exponentialRampToValueAtTime(0.0001, t0 + noiseDur);
+  noise.connect(noiseFilter);
+  noiseFilter.connect(noiseGain);
+  noiseGain.connect(dest);
+  noise.start(t0);
+  noise.stop(t0 + noiseDur);
+  nodes.push(noise);
+
+  return nodes;
+}
+
 // ── Sparse sample maps (e.g. ukulele) ───────────────────────────────────
 // For an instrument whose sampleMap is set, one recorded file covers several
 // neighbouring semitones instead of every note having its own exact
@@ -295,8 +373,10 @@ export async function playNote(stringNum: number, fret: number, rate = 1) {
   offsets.forEach((t, i) => {
     const offset = t / rate;
     const dur = (i < lastIdx ? 0.4 : 0.8) / rate;
-    if (synthKind === 'mandolin') {
-      const nodes = synthesizeMandolinPluck(ctx, masterOut(ctx), midi, rate, offset, dur, 0.7);
+    if (synthKind === 'mandolin' || synthKind === 'ukuleleBaritone') {
+      const nodes = synthKind === 'mandolin'
+        ? synthesizeMandolinPluck(ctx, masterOut(ctx), midi, rate, offset, dur, 0.7)
+        : synthesizeUkuleleBaritonePluck(ctx, masterOut(ctx), midi, rate, offset, dur, 0.7);
       activeSources.push(...nodes);
       return;
     }
@@ -333,9 +413,11 @@ export async function playNoteSingle(stringNum: number, fret: number, rate = 1) 
   const ctx = getCtx();
   if (ctx.state === 'suspended') await ctx.resume();
   const midi = openMidi[stringNum - 1] + fret;
-  if (synthKind === 'mandolin') {
+  if (synthKind === 'mandolin' || synthKind === 'ukuleleBaritone') {
     const dur = 0.4 / rate;
-    const nodes = synthesizeMandolinPluck(ctx, masterOut(ctx), midi, rate, 0, dur, 0.6);
+    const nodes = synthKind === 'mandolin'
+      ? synthesizeMandolinPluck(ctx, masterOut(ctx), midi, rate, 0, dur, 0.6)
+      : synthesizeUkuleleBaritonePluck(ctx, masterOut(ctx), midi, rate, 0, dur, 0.6);
     activeSources.push(...nodes);
     soundEndTime = Date.now() + dur * 1000;
     return;
@@ -359,13 +441,13 @@ export async function playNoteSequence(stringNum: number, frets: number[], total
   const ctx = getCtx();
   if (ctx.state === 'suspended') await ctx.resume();
   const slotSec = totalMs / frets.length / 1000;
-  if (synthKind === 'mandolin') {
+  if (synthKind === 'mandolin' || synthKind === 'ukuleleBaritone') {
     frets.forEach((f, i) => {
       const offset = i * slotSec;
       const dur = Math.min(slotSec * 0.9, 0.6);
-      const nodes = synthesizeMandolinPluck(
-        ctx, masterOut(ctx), openMidi[stringNum - 1] + f, 1, offset, dur, 0.6,
-      );
+      const nodes = synthKind === 'mandolin'
+        ? synthesizeMandolinPluck(ctx, masterOut(ctx), openMidi[stringNum - 1] + f, 1, offset, dur, 0.6)
+        : synthesizeUkuleleBaritonePluck(ctx, masterOut(ctx), openMidi[stringNum - 1] + f, 1, offset, dur, 0.6);
       activeSources.push(...nodes);
     });
     soundEndTime = Date.now() + totalMs;

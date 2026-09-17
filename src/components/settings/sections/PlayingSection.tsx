@@ -5,7 +5,12 @@ import FretRangeControl from '../../FretRangeControl';
 import FretRangeNeck from '../../FretRangeNeck';
 import { withClick as click } from '../../../utils/withClick';
 import { saveSetting } from '../../../utils/settings';
-import { COMING_SOON_INSTRUMENTS, type InstrumentId, type InstrumentConfig } from '../../../utils/instruments';
+import {
+  COMING_SOON_INSTRUMENTS, type InstrumentId, type InstrumentConfig,
+  type InstrumentVariants, type UkuleleSize,
+  getAvailableStringCounts, getAvailableFretCounts,
+  getAvailableMandolinFretCounts, getAvailableUkuleleSizes, getAvailableBanjoTypes, getBanjoVariant,
+} from '../../../utils/instruments';
 import type { AccidentalMode, NotationMode } from '../../../utils/music';
 
 /**
@@ -22,6 +27,14 @@ export interface PlayingSectionProps {
   paused: boolean;
   stop: () => void;
   applyInstrument: (id: InstrumentId) => void;
+  instrumentVariants: InstrumentVariants;
+  setGuitarStrings: (strings: number) => void;
+  setGuitarFrets: (frets: number) => void;
+  setBassStrings: (strings: number) => void;
+  setBassFrets: (frets: number) => void;
+  setMandolinFrets: (frets: number) => void;
+  setUkuleleSize: (size: UkuleleSize) => void;
+  setBanjoType: (key: string) => void;
   setPreloaded: (v: boolean) => void;
   notation: NotationMode;
   setNotation: (n: NotationMode) => void;
@@ -38,8 +51,118 @@ export interface PlayingSectionProps {
 
 export default function PlayingSection({
   t, instrument, instrumentId, admin, running, paused, stop,
-  applyInstrument, setPreloaded, notation, setNotation, accidental, setAccidental, fretRange,
+  applyInstrument, instrumentVariants,
+  setGuitarStrings, setGuitarFrets, setBassStrings, setBassFrets,
+  setMandolinFrets, setUkuleleSize, setBanjoType,
+  setPreloaded, notation, setNotation, accidental, setAccidental, fretRange,
 }: PlayingSectionProps) {
+  // Same "stop the live drill + drop the preloaded-samples flag" guard the
+  // instrument row itself uses (samples reload on any variant change too),
+  // skipped when the tapped value is already the active one.
+  const withReload = (changed: boolean, apply: () => void) => {
+    if (!changed) return;
+    if (running || paused) stop();
+    apply();
+    setPreloaded(false);
+  };
+
+  const variantPicker = (() => {
+    if (instrumentId === 'guitar' || instrumentId === 'bass') {
+      const v = instrumentVariants[instrumentId];
+      const strings = getAvailableStringCounts(instrumentId);
+      const frets = getAvailableFretCounts(instrumentId, v.strings);
+      const setStrings = instrumentId === 'guitar' ? setGuitarStrings : setBassStrings;
+      const setFrets = instrumentId === 'guitar' ? setGuitarFrets : setBassFrets;
+      return (
+        <>
+          <div className="pick-row" role="group" aria-label={t('Strings')}>
+            {strings.map((s) => (
+              <button
+                key={s}
+                type="button"
+                className={`pick-btn${v.strings === s ? ' pick-btn-on' : ''}`}
+                aria-pressed={v.strings === s}
+                onClick={click(() => withReload(s !== v.strings, () => setStrings(s)))}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+          <div className="pick-row" role="group" aria-label={t('Frets')}>
+            {frets.map((f) => (
+              <button
+                key={f}
+                type="button"
+                className={`pick-btn${v.frets === f ? ' pick-btn-on' : ''}`}
+                aria-pressed={v.frets === f}
+                onClick={click(() => withReload(f !== v.frets, () => setFrets(f)))}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        </>
+      );
+    }
+    if (instrumentId === 'mandolin') {
+      const v = instrumentVariants.mandolin;
+      return (
+        <div className="pick-row" role="group" aria-label={t('Frets')}>
+          {getAvailableMandolinFretCounts().map((f) => (
+            <button
+              key={f}
+              type="button"
+              className={`pick-btn${v.frets === f ? ' pick-btn-on' : ''}`}
+              aria-pressed={v.frets === f}
+              onClick={click(() => withReload(f !== v.frets, () => setMandolinFrets(f)))}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      );
+    }
+    if (instrumentId === 'ukulele') {
+      const v = instrumentVariants.ukulele;
+      return (
+        <div className="pick-row" role="group" aria-label={t('Type')}>
+          {getAvailableUkuleleSizes().map((size) => (
+            <button
+              key={size}
+              type="button"
+              className={`pick-btn${v.size === size ? ' pick-btn-on' : ''}`}
+              aria-pressed={v.size === size}
+              onClick={click(() => withReload(size !== v.size, () => setUkuleleSize(size)))}
+            >
+              {t(size.charAt(0).toUpperCase() + size.slice(1))}
+            </button>
+          ))}
+        </div>
+      );
+    }
+    if (instrumentId === 'banjo') {
+      const v = instrumentVariants.banjo;
+      return (
+        <div className="pick-row" role="group" aria-label={t('Type')}>
+          {getAvailableBanjoTypes().map((bt) => (
+            <button
+              key={bt.key}
+              type="button"
+              className={`pick-btn${v.key === bt.key ? ' pick-btn-on' : ''}`}
+              aria-pressed={v.key === bt.key}
+              onClick={click(() => withReload(bt.key !== v.key, () => setBanjoType(bt.key)))}
+            >
+              {/* Two specs (22/24-fret six-string) share one label — the fret
+                  count disambiguates them in the button itself. */}
+              {t(bt.label)} ({getBanjoVariant(bt.key).maxFret})
+            </button>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  })();
+
   return (
     <>
       <SettingCard
@@ -79,6 +202,11 @@ export default function PlayingSection({
               : btn;
           })}
         </div>
+        {/* Cascading variant picker for the active instrument — string count
+            then fret count for guitar/bass, fret count only for mandolin, a
+            single named-type row for ukulele/banjo (see utils/instruments.ts
+            for why those two aren't independent axes). */}
+        {variantPicker}
         {/* Roadmap instruments the engine can't drill yet — shown to admins
             inside the same card as Guitar/Bass, as a second row of smaller
             disabled buttons, so the plan reads as part of the picker. */}
