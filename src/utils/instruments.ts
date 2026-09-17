@@ -5,7 +5,7 @@ import { GUITAR_NOTES, GUITAR_DOT_FRETS } from './music';
 // setAudioInstrument); nothing else should hardcode string counts, tuning,
 // fret counts or sample URLs.
 
-export type InstrumentId = 'guitar' | 'bass' | 'mandolin';
+export type InstrumentId = 'guitar' | 'bass' | 'mandolin' | 'banjo';
 
 // The 12 pitch classes, sharp-spelled — the spelling every `notes` row uses.
 // Exported so the interval layer (`src/utils/intervals.ts`) can do pitch-class
@@ -97,7 +97,7 @@ const MANDOLIN: InstrumentConfig = {
   ],
   openMidi: [55, 55, 50, 50, 45, 45, 40, 40], // G3 pairs, D3 pairs, A2 pairs, E2 pairs
   maxFret: MANDOLIN_MAX_FRET,
-  soundfontUrl: 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/mandolin-mp3/',
+  soundfontUrl: 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/banjo-mp3/',
   stringLabels: {
     1: 'String 1 · G', 2: 'String 2 · G',
     3: 'String 3 · D', 4: 'String 4 · D',
@@ -107,10 +107,38 @@ const MANDOLIN: InstrumentConfig = {
   dotFrets: [3, 5, 7, 9, 12, 15, 17, 20],
 };
 
+// 5-string banjo — standard open-G tuning (gDGBD). String 5 is the short
+// "drone" string, real-world only fretted from fret 5 up; we simplify it to a
+// full-range row like every other string here (same simplification style used
+// for mandolin's paired courses) rather than modelling a restricted range.
+const BANJO_MAX_FRET = 22;
+const BANJO: InstrumentConfig = {
+  id: 'banjo',
+  label: 'Banjo',
+  emoji: '🪕',
+  stringCount: 5,
+  notes: [
+    buildRow('D', BANJO_MAX_FRET), // 1st string
+    buildRow('B', BANJO_MAX_FRET), // 2nd string
+    buildRow('G', BANJO_MAX_FRET), // 3rd string
+    buildRow('D', BANJO_MAX_FRET), // 4th string (lowest)
+    buildRow('G', BANJO_MAX_FRET), // 5th string (short drone, highest pitch)
+  ],
+  openMidi: [62, 59, 55, 50, 67], // D4, B3, G3, D3, G4
+  maxFret: BANJO_MAX_FRET,
+  soundfontUrl: 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/banjo-mp3/',
+  stringLabels: {
+    1: 'String 1 · D', 2: 'String 2 · B', 3: 'String 3 · G',
+    4: 'String 4 · low D', 5: 'String 5 · high G (drone)',
+  },
+  dotFrets: [5, 7, 10, 12, 15, 17, 19, 22],
+};
+
 export const INSTRUMENTS: Record<InstrumentId, InstrumentConfig> = {
   guitar: GUITAR,
   bass: BASS,
   mandolin: MANDOLIN,
+  banjo: BANJO,
 };
 
 export function getInstrument(id: InstrumentId): InstrumentConfig {
@@ -131,5 +159,4 @@ export interface ComingSoonInstrument {
 
 export const COMING_SOON_INSTRUMENTS: readonly ComingSoonInstrument[] = [
   { label: 'Ukulele', emoji: '🎸', tuning: 'G C E A' },
-  { label: 'Banjo', emoji: '🪕', tuning: 'G D G B D' },
 ];

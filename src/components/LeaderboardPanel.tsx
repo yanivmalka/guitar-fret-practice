@@ -127,7 +127,7 @@ export function LeaderboardPanel({
   const toggles = (
     <div className="lb-toggles">
       <div className="sp2-scope lb-scope">
-        {(['guitar', 'bass', 'mandolin'] as InstrumentId[]).map((id) => (
+        {(['guitar', 'bass', 'mandolin', 'banjo'] as InstrumentId[]).map((id) => (
           <button
             key={id}
             className={`sp2-scope-btn${view === id ? ' sp2-scope-active' : ''}`}
