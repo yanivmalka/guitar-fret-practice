@@ -93,14 +93,19 @@ const BASS: InstrumentConfig = {
   dotFrets: [3, 5, 7, 9, 12, 15, 17, 19, 21, 24],
 };
 
-// Mandolin — 8 strings (4 paired courses), tuned G D A E.
+// Mandolin — 8 strings (4 paired courses), tuned G D A E — ascending by
+// fifths from the lowest course (G3) to the highest (E5), same interval
+// pattern as a violin but pitched an octave down. (An earlier version of
+// this had the octaves wrong — descending like a bass instead of ascending
+// like a mandolin actually is — fixed here.)
 // Each course is typically played in unison, so we represent it as 8 separate
 // strings for the fretboard but players think in terms of 4 pairs.
 //
 // No properly-licensed sampled mandolin exists in any free soundfont set
-// (checked FluidR3_GM, VCSL, University of Iowa, FreePats — none have one;
-// General MIDI itself has no dedicated mandolin instrument). `synth:
-// 'mandolin'` routes playback through the real-time synthesizer in
+// (checked FluidR3_GM, VCSL, University of Iowa, FreePats, sfzinstruments.io,
+// Flame Studios, and both of hilbricht.net's curated FOSS-instrument lists —
+// none have one; General MIDI itself has no dedicated mandolin instrument).
+// `synth: 'mandolin'` routes playback through the real-time synthesizer in
 // utils/audio.ts instead of fetching samples; `soundfontUrl` below is unused
 // while that flag is set but kept for type-completeness / a future fallback.
 const MANDOLIN_MAX_FRET = 20;
@@ -110,24 +115,24 @@ const MANDOLIN: InstrumentConfig = {
   emoji: '🎻',
   stringCount: 8,
   notes: [
-    buildRow('G', MANDOLIN_MAX_FRET),
-    buildRow('G', MANDOLIN_MAX_FRET),
-    buildRow('D', MANDOLIN_MAX_FRET),
-    buildRow('D', MANDOLIN_MAX_FRET),
-    buildRow('A', MANDOLIN_MAX_FRET),
-    buildRow('A', MANDOLIN_MAX_FRET),
     buildRow('E', MANDOLIN_MAX_FRET),
     buildRow('E', MANDOLIN_MAX_FRET),
+    buildRow('A', MANDOLIN_MAX_FRET),
+    buildRow('A', MANDOLIN_MAX_FRET),
+    buildRow('D', MANDOLIN_MAX_FRET),
+    buildRow('D', MANDOLIN_MAX_FRET),
+    buildRow('G', MANDOLIN_MAX_FRET),
+    buildRow('G', MANDOLIN_MAX_FRET),
   ],
-  openMidi: [55, 55, 50, 50, 45, 45, 40, 40], // G3 pairs, D3 pairs, A2 pairs, E2 pairs
+  openMidi: [76, 76, 69, 69, 62, 62, 55, 55], // E5 pairs, A4 pairs, D4 pairs, G3 pairs
   maxFret: MANDOLIN_MAX_FRET,
   soundfontUrl: 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/banjo-mp3/',
   synth: 'mandolin',
   stringLabels: {
-    1: 'String 1 · G', 2: 'String 2 · G',
-    3: 'String 3 · D', 4: 'String 4 · D',
-    5: 'String 5 · A', 6: 'String 6 · A',
-    7: 'String 7 · E', 8: 'String 8 · E',
+    1: 'String 1 · E', 2: 'String 2 · E',
+    3: 'String 3 · A', 4: 'String 4 · A',
+    5: 'String 5 · D', 6: 'String 6 · D',
+    7: 'String 7 · G', 8: 'String 8 · G',
   },
   dotFrets: [3, 5, 7, 9, 12, 15, 17, 20],
 };
