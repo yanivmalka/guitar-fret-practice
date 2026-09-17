@@ -124,11 +124,6 @@ function dotsFor(fretCount: number): number[] {
   return DOT_BASE.filter((f) => f <= fretCount);
 }
 
-const NOTE_NAMES = ['1st','2nd','3rd','4th','5th','6th','7th','8th','9th'];
-function ordinal(n: number): string {
-  return NOTE_NAMES[n - 1] ?? `${n}th`;
-}
-
 function buildVariant(
   id: 'guitar' | 'bass',
   label: string,
@@ -208,6 +203,236 @@ export function getInstrumentVariant(
   const fallbackSpec = specs.find((s) => s.isDefault) ?? specs[0];
   return pool.find((v) => v.variant?.stringCount === fallbackSpec.stringCount
     && v.variant?.fretCount === fallbackSpec.fretCount) ?? pool[0];
+}
+
+// ---------------------------------------------------------------------------
+// Mandolin variants — fret count only. The mandolin market has no verified
+// commercial cross-product of string counts (8-string / 4-course is
+// effectively the only production configuration found in research); what
+// varies is fret count. 4/5-string mandolins exist only as niche electric
+// models with no confirmed multiple-fret-count commercial lineup, so they
+// are NOT added here.
+// ---------------------------------------------------------------------------
+
+interface MandolinVariantSpec {
+  fretCount: number;
+  isDefault?: boolean;
+}
+
+const MANDOLIN_VARIANT_SPECS: MandolinVariantSpec[] = [
+  { fretCount: 20, isDefault: true }, // most common
+  { fretCount: 22 },                  // some models
+];
+
+function buildMandolinVariant(fretCount: number): InstrumentConfig {
+  return {
+    id: 'mandolin',
+    label: 'Mandolin',
+    emoji: '🎻',
+    stringCount: 8,
+    notes: [
+      buildRow('E', fretCount), buildRow('E', fretCount),
+      buildRow('A', fretCount), buildRow('A', fretCount),
+      buildRow('D', fretCount), buildRow('D', fretCount),
+      buildRow('G', fretCount), buildRow('G', fretCount),
+    ],
+    openMidi: [76, 76, 69, 69, 62, 62, 55, 55],
+    maxFret: fretCount,
+    soundfontUrl: 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/banjo-mp3/',
+    synth: 'mandolin',
+    stringLabels: {
+      1: 'String 1 · E', 2: 'String 2 · E',
+      3: 'String 3 · A', 4: 'String 4 · A',
+      5: 'String 5 · D', 6: 'String 6 · D',
+      7: 'String 7 · G', 8: 'String 8 · G',
+    },
+    // Matches the existing single MANDOLIN config's dot convention exactly
+    // ([3,5,7,9,12,15,17,20]), not the guitar/bass DOT_BASE table — a
+    // mandolin's dots don't follow the same convention as guitar/bass.
+    dotFrets: [3, 5, 7, 9, 12, 15, 17, 20, 22].filter((f) => f <= fretCount),
+    variant: { stringCount: 8, fretCount },
+  };
+}
+
+export const MANDOLIN_VARIANTS: InstrumentConfig[] = MANDOLIN_VARIANT_SPECS.map((s) =>
+  buildMandolinVariant(s.fretCount)
+);
+
+export function getAvailableMandolinFretCounts(): number[] {
+  return MANDOLIN_VARIANT_SPECS.map((s) => s.fretCount).sort((a, b) => a - b);
+}
+
+export function getMandolinVariant(fretCount: number): InstrumentConfig {
+  return MANDOLIN_VARIANTS.find((v) => v.maxFret === fretCount)
+    ?? MANDOLIN_VARIANTS.find((v) => v.variant?.fretCount
+      === MANDOLIN_VARIANT_SPECS.find((s) => s.isDefault)?.fretCount)!;
+}
+
+// ---------------------------------------------------------------------------
+// Ukulele variants — soprano / concert / tenor only. NOT a string-count ×
+// fret-count matrix: each named size is a fixed package (length + fret
+// range + tuning), not independent axes — so this is a single "size" picker,
+// not two pickers like guitar/bass.
+//
+// Baritone is deliberately NOT included here. It uses an entirely different,
+// non-reentrant D-G-B-E tuning (like the top 4 guitar strings) whose open
+// notes (down to D3 / MIDI 50) fall well below the current ukulele sample
+// library's verified-safe range — the existing UKULELE config's own comment
+// notes its samples were only confirmed accurate up to MIDI 86 (A-string,
+// fret 17), and reentrant GCEA doesn't go anywhere near D3. Shipping
+// baritone with the current `sampleMap` would silently pitch-shift samples
+// far outside their tested range. Needs either new low-register samples or
+// a real-time synth path (like mandolin's `synth: 'mandolin'`) before it can
+// be added safely — flagging rather than guessing.
+//
+// Concert and tenor are real-world spec'd 15–20 frets, but are capped at 17
+// here for the same reason: 17 is the documented outer edge of what the
+// existing sample set was verified against (see UKULELE_MAX_FRET comment
+// above). Soprano's real-world 12–15 range is unaffected by the cap.
+// ---------------------------------------------------------------------------
+
+const UKULELE_SAMPLE_VERIFIED_MAX_FRET = 17; // see comment above
+
+interface UkuleleVariantSpec {
+  size: 'soprano' | 'concert' | 'tenor';
+  fretCount: number;
+  isDefault?: boolean;
+}
+
+const UKULELE_VARIANT_SPECS: UkuleleVariantSpec[] = [
+  { size: 'soprano', fretCount: 15 },
+  { size: 'concert', fretCount: UKULELE_SAMPLE_VERIFIED_MAX_FRET },
+  { size: 'tenor', fretCount: UKULELE_SAMPLE_VERIFIED_MAX_FRET, isDefault: true },
+];
+
+function buildUkuleleVariant(spec: UkuleleVariantSpec): InstrumentConfig {
+  const fretCount = spec.fretCount;
+  return {
+    id: 'ukulele',
+    label: 'Ukulele',
+    emoji: '🎸',
+    stringCount: 4,
+    notes: [
+      buildRow('A', fretCount), buildRow('E', fretCount),
+      buildRow('C', fretCount), buildRow('G', fretCount),
+    ],
+    openMidi: [69, 64, 60, 67],
+    maxFret: fretCount,
+    soundfontUrl: `${import.meta.env.BASE_URL}audio/ukulele/`,
+    sampleMap: UKULELE_SAMPLES,
+    stringLabels: {
+      1: 'String 1 · A', 2: 'String 2 · E', 3: 'String 3 · C', 4: 'String 4 · G (high)',
+    },
+    dotFrets: [5, 7, 10, 12, 15, 17].filter((f) => f <= fretCount),
+    variant: { stringCount: 4, fretCount },
+  };
+}
+
+export const UKULELE_VARIANTS: InstrumentConfig[] = UKULELE_VARIANT_SPECS.map(buildUkuleleVariant);
+
+export function getAvailableUkuleleSizes(): Array<'soprano' | 'concert' | 'tenor'> {
+  return UKULELE_VARIANT_SPECS.map((s) => s.size);
+}
+
+export function getUkuleleVariant(size: 'soprano' | 'concert' | 'tenor'): InstrumentConfig {
+  const idx = UKULELE_VARIANT_SPECS.findIndex((s) => s.size === size);
+  return UKULELE_VARIANTS[idx] ?? UKULELE_VARIANTS[UKULELE_VARIANT_SPECS.findIndex((s) => s.isDefault)];
+}
+
+// ---------------------------------------------------------------------------
+// Banjo variants — named types, not independent string × fret axes. Each
+// named type below is a verified fixed commercial package (string count +
+// fret count + tuning together); combinations not listed (e.g. a 4-string
+// with 22 frets tuned like tenor, or a 6-string with 19 frets) were not
+// found as commercial products in research and are intentionally omitted.
+// ---------------------------------------------------------------------------
+
+interface BanjoVariantSpec {
+  key: 'tenor17' | 'tenor19' | 'plectrum22' | 'standard22' | 'parlor19' | 'longneck25' | 'sixstring22' | 'sixstring24';
+  label: string;
+  stringCount: number;
+  fretCount: number;
+  tuningLowToHigh: string[]; // for the 4 "main" strings; 5th drone handled separately
+  midiLowToHigh: number[];
+  hasDrone5th?: boolean; // 5-string types: adds a short 5th string, fretted from fret 5 up
+  isDefault?: boolean;
+}
+
+const BANJO_VARIANT_SPECS: BanjoVariantSpec[] = [
+  { key: 'standard22', label: '5-String Standard', stringCount: 5, fretCount: 22,
+    tuningLowToHigh: ['D','G','B','D'], midiLowToHigh: [50,55,59,62], hasDrone5th: true, isDefault: true },
+  { key: 'parlor19', label: '5-String Parlor', stringCount: 5, fretCount: 19,
+    tuningLowToHigh: ['D','G','B','D'], midiLowToHigh: [50,55,59,62], hasDrone5th: true },
+  { key: 'longneck25', label: '5-String Long Neck', stringCount: 5, fretCount: 25,
+    tuningLowToHigh: ['D','G','B','D'], midiLowToHigh: [50,55,59,62], hasDrone5th: true },
+  { key: 'tenor17', label: '4-String Tenor (Irish, short scale)', stringCount: 4, fretCount: 17,
+    tuningLowToHigh: ['C','G','D','A'], midiLowToHigh: [48,55,62,69] },
+  { key: 'tenor19', label: '4-String Tenor', stringCount: 4, fretCount: 19,
+    tuningLowToHigh: ['C','G','D','A'], midiLowToHigh: [48,55,62,69] },
+  { key: 'plectrum22', label: '4-String Plectrum', stringCount: 4, fretCount: 22,
+    tuningLowToHigh: ['C','G','B','D'], midiLowToHigh: [48,55,59,62] },
+  { key: 'sixstring22', label: '6-String (Guitar-Banjo)', stringCount: 6, fretCount: 22,
+    tuningLowToHigh: ['E','A','D','G','B','E'], midiLowToHigh: [40,45,50,55,59,64] },
+  { key: 'sixstring24', label: '6-String (Guitar-Banjo)', stringCount: 6, fretCount: 24,
+    tuningLowToHigh: ['E','A','D','G','B','E'], midiLowToHigh: [40,45,50,55,59,64] },
+];
+
+function buildBanjoVariant(spec: BanjoVariantSpec): InstrumentConfig {
+  // Strings 1..N in high-to-low pitch order for the "main" strings, same
+  // convention as every other instrument here. The short drone string (5th
+  // strings only) is a real-world exception: it's numbered *last* (string
+  // 5) despite being the highest-pitched string of all — that's the actual
+  // physical numbering used on a banjo, and matches the existing single
+  // BANJO config's own layout (see its 5-string block above) exactly.
+  const highToLowTuning = [...spec.tuningLowToHigh].reverse();
+  const highToLowMidi = [...spec.midiLowToHigh].reverse();
+  const notes = highToLowTuning.map((n) => buildRow(n, spec.fretCount));
+  const openMidi = [...highToLowMidi];
+  const stringLabels: Record<number, string> = {};
+  highToLowTuning.forEach((noteName, i) => {
+    const stringNum = i + 1;
+    const isLowest = stringNum === spec.stringCount;
+    stringLabels[stringNum] = `String ${stringNum} · ${isLowest ? 'low ' : ''}${noteName}`;
+  });
+
+  let minFrets: number[] | undefined;
+  let totalStringCount = spec.stringCount;
+  if (spec.hasDrone5th) {
+    notes.push(buildRow('G', spec.fretCount));
+    openMidi.push(67); // G4
+    totalStringCount = spec.stringCount + 1;
+    stringLabels[totalStringCount] = `String ${totalStringCount} · high G (drone)`;
+    minFrets = [...Array(spec.stringCount).fill(0), 5]; // drone only fretted from fret 5 up
+  }
+
+  return {
+    id: 'banjo',
+    label: 'Banjo',
+    emoji: '🪕',
+    stringCount: totalStringCount,
+    notes,
+    openMidi,
+    maxFret: spec.fretCount,
+    minFrets,
+    soundfontUrl: 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/banjo-mp3/',
+    stringLabels,
+    // Matches the existing single BANJO config's dot convention exactly
+    // ([5,7,10,12,15,17,19,22]) — a banjo's dots (10th fret, not 9th) don't
+    // follow the guitar/bass DOT_BASE table.
+    dotFrets: [5, 7, 10, 12, 15, 17, 19, 22, 24, 25].filter((f) => f <= spec.fretCount),
+    variant: { stringCount: totalStringCount, fretCount: spec.fretCount },
+  };
+}
+
+export const BANJO_VARIANTS: InstrumentConfig[] = BANJO_VARIANT_SPECS.map(buildBanjoVariant);
+
+export function getAvailableBanjoTypes(): Array<{ key: string; label: string }> {
+  return BANJO_VARIANT_SPECS.map((s) => ({ key: s.key, label: s.label }));
+}
+
+export function getBanjoVariant(key: string): InstrumentConfig {
+  const idx = BANJO_VARIANT_SPECS.findIndex((s) => s.key === key);
+  return BANJO_VARIANTS[idx] ?? BANJO_VARIANTS[BANJO_VARIANT_SPECS.findIndex((s) => s.isDefault)];
 }
 
 // Default configs — unchanged from before variants existed, so every caller
