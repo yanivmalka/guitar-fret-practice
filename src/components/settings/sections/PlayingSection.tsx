@@ -47,7 +47,7 @@ export default function PlayingSection({
         help={t('Switches tuning, string count and fret range, then reloads the note samples.')}
       >
         <div className="pick-row" role="group" aria-label={t('Instruments')}>
-          {([['guitar', '🎸', t('Guitar')], ['bass', '🎵', t('Bass')]] as const).map(([id, emoji, name]) => (
+          {([['guitar', '🎸', t('Guitar')], ['bass', '🎵', t('Bass')], ['mandolin', '🎻', t('Mandolin')]] as const).map(([id, emoji, name]) => (
             <button
               key={id}
               type="button"

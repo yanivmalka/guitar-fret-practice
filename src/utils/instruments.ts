@@ -5,7 +5,7 @@ import { GUITAR_NOTES, GUITAR_DOT_FRETS } from './music';
 // setAudioInstrument); nothing else should hardcode string counts, tuning,
 // fret counts or sample URLs.
 
-export type InstrumentId = 'guitar' | 'bass';
+export type InstrumentId = 'guitar' | 'bass' | 'mandolin';
 
 // The 12 pitch classes, sharp-spelled — the spelling every `notes` row uses.
 // Exported so the interval layer (`src/utils/intervals.ts`) can do pitch-class
@@ -76,9 +76,41 @@ const BASS: InstrumentConfig = {
   dotFrets: [3, 5, 7, 9, 12, 15, 17, 19, 21, 24],
 };
 
+// Mandolin — 8 strings (4 paired courses), tuned G D A E.
+// Each course is typically played in unison, so we represent it as 8 separate
+// strings for the fretboard but players think in terms of 4 pairs.
+const MANDOLIN_MAX_FRET = 20;
+const MANDOLIN: InstrumentConfig = {
+  id: 'mandolin',
+  label: 'Mandolin',
+  emoji: '🎻',
+  stringCount: 8,
+  notes: [
+    buildRow('G', MANDOLIN_MAX_FRET),
+    buildRow('G', MANDOLIN_MAX_FRET),
+    buildRow('D', MANDOLIN_MAX_FRET),
+    buildRow('D', MANDOLIN_MAX_FRET),
+    buildRow('A', MANDOLIN_MAX_FRET),
+    buildRow('A', MANDOLIN_MAX_FRET),
+    buildRow('E', MANDOLIN_MAX_FRET),
+    buildRow('E', MANDOLIN_MAX_FRET),
+  ],
+  openMidi: [55, 55, 50, 50, 45, 45, 40, 40], // G3 pairs, D3 pairs, A2 pairs, E2 pairs
+  maxFret: MANDOLIN_MAX_FRET,
+  soundfontUrl: 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/mandolin-mp3/',
+  stringLabels: {
+    1: 'String 1 · G', 2: 'String 2 · G',
+    3: 'String 3 · D', 4: 'String 4 · D',
+    5: 'String 5 · A', 6: 'String 6 · A',
+    7: 'String 7 · E', 8: 'String 8 · E',
+  },
+  dotFrets: [3, 5, 7, 9, 12, 15, 17, 20],
+};
+
 export const INSTRUMENTS: Record<InstrumentId, InstrumentConfig> = {
   guitar: GUITAR,
   bass: BASS,
+  mandolin: MANDOLIN,
 };
 
 export function getInstrument(id: InstrumentId): InstrumentConfig {
@@ -99,6 +131,5 @@ export interface ComingSoonInstrument {
 
 export const COMING_SOON_INSTRUMENTS: readonly ComingSoonInstrument[] = [
   { label: 'Ukulele', emoji: '🎸', tuning: 'G C E A' },
-  { label: 'Mandolin', emoji: '🎻', tuning: 'G D A E' },
   { label: 'Banjo', emoji: '🪕', tuning: 'G D G B D' },
 ];
