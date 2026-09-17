@@ -75,6 +75,7 @@ export default function PlayingSection({
       const setFrets = instrumentId === 'guitar' ? setGuitarFrets : setBassFrets;
       return (
         <>
+          <span className="pick-row-label">{t('Strings')}</span>
           <div className="pick-row" role="group" aria-label={t('Strings')}>
             {strings.map((s) => (
               <button
@@ -88,6 +89,7 @@ export default function PlayingSection({
               </button>
             ))}
           </div>
+          <span className="pick-row-label">{t('Frets')}</span>
           <div className="pick-row" role="group" aria-label={t('Frets')}>
             {frets.map((f) => (
               <button
@@ -107,6 +109,8 @@ export default function PlayingSection({
     if (instrumentId === 'mandolin') {
       const v = instrumentVariants.mandolin;
       return (
+        <>
+        <span className="pick-row-label">{t('Frets')}</span>
         <div className="pick-row" role="group" aria-label={t('Frets')}>
           {getAvailableMandolinFretCounts().map((f) => (
             <button
@@ -120,11 +124,14 @@ export default function PlayingSection({
             </button>
           ))}
         </div>
+        </>
       );
     }
     if (instrumentId === 'ukulele') {
       const v = instrumentVariants.ukulele;
       return (
+        <>
+        <span className="pick-row-label">{t('Type')}</span>
         <div className="pick-row" role="group" aria-label={t('Type')}>
           {getAvailableUkuleleSizes().map((size) => (
             <button
@@ -138,11 +145,14 @@ export default function PlayingSection({
             </button>
           ))}
         </div>
+        </>
       );
     }
     if (instrumentId === 'banjo') {
       const v = instrumentVariants.banjo;
       return (
+        <>
+        <span className="pick-row-label">{t('Type')}</span>
         <div className="pick-row" role="group" aria-label={t('Type')}>
           {getAvailableBanjoTypes().map((bt) => (
             <button
@@ -158,6 +168,7 @@ export default function PlayingSection({
             </button>
           ))}
         </div>
+        </>
       );
     }
     return null;

@@ -286,6 +286,22 @@
    share the card's var(--bg-3) / 12px vocabulary, the selected one going cyan
    like .set-seg-on. Roadmap instruments the engine can't drill yet sit in
    a second, smaller row below (admin-only, gated in App.tsx). */
+/* Small heading above a .pick-row so a cascading picker (e.g. Strings, then
+   Frets) reads as two distinct choices instead of one ambiguous button
+   block — same vocabulary as .set-card-k, one notch smaller/tighter since
+   it sits inside a card that already has its own label. */
+.pick-row-label {
+  display: block;
+  margin: 10px 0 4px;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.pick-row-label:first-child {
+  margin-top: 0;
+}
 .pick-row {
   display: grid;
   grid-auto-flow: column;
