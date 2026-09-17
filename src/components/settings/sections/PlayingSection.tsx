@@ -183,39 +183,47 @@ export default function PlayingSection({
         label={t('Instruments')}
         help={t('Switches tuning, string count and fret range, then reloads the note samples.')}
       >
-        <div className="pick-row" role="group" aria-label={t('Instruments')}>
-          {([
-            ['guitar', '🎸', t('Guitar'), false],
-            ['bass', '🎵', t('Bass'), false],
-            ['mandolin', '🎻', t('Mandolin'), true],
-            ['banjo', '🪕', t('Banjo'), true],
-            ['ukulele', '🎸', t('Ukulele'), true],
-          ] as const).map(([id, emoji, name, pro]) => {
-            const btn = (
-              <button
-                key={id}
-                type="button"
-                className={`pick-btn${instrumentId === id ? ' pick-btn-on' : ''}`}
-                aria-pressed={instrumentId === id}
-                onClick={click(() => {
-                  if (id === instrumentId) return;
-                  if (running || paused) stop();
-                  applyInstrument(id);
-                  setPreloaded(false);
-                })}
-              >
-                {emoji} {name}
-              </button>
-            );
-            return pro
-              ? (
-                <ProGate key={id} feature="extraInstruments" variant="inline-badge" pitch={t('Unlock more instruments')}>
-                  {btn}
-                </ProGate>
-              )
-              : btn;
-          })}
-        </div>
+        {(
+          [
+            [
+              ['guitar', '🎸', t('Guitar'), false],
+              ['bass', '🎵', t('Bass'), false],
+            ],
+            [
+              ['mandolin', '🎻', t('Mandolin'), true],
+              ['banjo', '🪕', t('Banjo'), true],
+              ['ukulele', '🎸', t('Ukulele'), true],
+            ],
+          ] as const
+        ).map((row, i) => (
+          <div key={i} className="pick-row" role="group" aria-label={t('Instruments')}>
+            {row.map(([id, emoji, name, pro]) => {
+              const btn = (
+                <button
+                  key={id}
+                  type="button"
+                  className={`pick-btn${instrumentId === id ? ' pick-btn-on' : ''}`}
+                  aria-pressed={instrumentId === id}
+                  onClick={click(() => {
+                    if (id === instrumentId) return;
+                    if (running || paused) stop();
+                    applyInstrument(id);
+                    setPreloaded(false);
+                  })}
+                >
+                  {emoji} {name}
+                </button>
+              );
+              return pro
+                ? (
+                  <ProGate key={id} feature="extraInstruments" variant="inline-badge" pitch={t('Unlock more instruments')}>
+                    {btn}
+                  </ProGate>
+                )
+                : btn;
+            })}
+          </div>
+        ))}
         {/* Cascading variant picker for the active instrument — string count
             then fret count for guitar/bass, fret count only for mandolin, a
             single named-type row for ukulele/banjo (see utils/instruments.ts
