@@ -41,7 +41,7 @@ export interface InstrumentConfig {
    * licensed sample library available. `soundfontUrl` is still required by
    * the type but is ignored at playback time.
    */
-  synth?: 'mandolin';
+  synth?: 'mandolin' | 'ukuleleBaritone';
   /**
    * When set, this instrument's samples aren't one-exact-file-per-note —
    * each file covers a few neighbouring semitones and is pitch-corrected at
@@ -269,32 +269,32 @@ export function getMandolinVariant(fretCount: number): InstrumentConfig {
 }
 
 // ---------------------------------------------------------------------------
-// Ukulele variants — soprano / concert / tenor only. NOT a string-count ×
-// fret-count matrix: each named size is a fixed package (length + fret
+// Ukulele variants — soprano / concert / tenor / baritone. NOT a string-count
+// × fret-count matrix: each named size is a fixed package (length + fret
 // range + tuning), not independent axes — so this is a single "size" picker,
 // not two pickers like guitar/bass.
 //
-// Baritone is deliberately NOT included here. It uses an entirely different,
-// non-reentrant D-G-B-E tuning (like the top 4 guitar strings) whose open
-// notes (down to D3 / MIDI 50) fall well below the current ukulele sample
-// library's verified-safe range — the existing UKULELE config's own comment
-// notes its samples were only confirmed accurate up to MIDI 86 (A-string,
-// fret 17), and reentrant GCEA doesn't go anywhere near D3. Shipping
-// baritone with the current `sampleMap` would silently pitch-shift samples
-// far outside their tested range. Needs either new low-register samples or
-// a real-time synth path (like mandolin's `synth: 'mandolin'`) before it can
-// be added safely — flagging rather than guessing.
+// Soprano/concert/tenor share the standard reentrant G-C-E-A tuning and use
+// the recorded FreePats samples (`sampleMap`), same as before. Concert/tenor
+// are capped at 17 frets (not the real-world 15–20) because 17 is the
+// documented outer edge of what that sample set was verified against (see
+// the original UKULELE_MAX_FRET comment above). Soprano's real-world 12–15
+// range is unaffected by the cap.
 //
-// Concert and tenor are real-world spec'd 15–20 frets, but are capped at 17
-// here for the same reason: 17 is the documented outer edge of what the
-// existing sample set was verified against (see UKULELE_MAX_FRET comment
-// above). Soprano's real-world 12–15 range is unaffected by the cap.
+// Baritone uses a completely different, non-reentrant D-G-B-E tuning (like
+// the top 4 guitar strings) whose open notes (down to D3) fall well below
+// both that verified sample range AND below any free/CC0 sample library
+// found anywhere (checked FreePats in full — its only ukulele bank is the
+// one already used here for the reentrant sizes; there is no separate
+// baritone patch). So — same situation and same fix as mandolin — baritone
+// is synthesized in real time (`synth: 'ukuleleBaritone'`,
+// see utils/audio.ts) instead of sampled.
 // ---------------------------------------------------------------------------
 
 const UKULELE_SAMPLE_VERIFIED_MAX_FRET = 17; // see comment above
 
 interface UkuleleVariantSpec {
-  size: 'soprano' | 'concert' | 'tenor';
+  size: 'soprano' | 'concert' | 'tenor' | 'baritone';
   fretCount: number;
   isDefault?: boolean;
 }
@@ -303,10 +303,34 @@ const UKULELE_VARIANT_SPECS: UkuleleVariantSpec[] = [
   { size: 'soprano', fretCount: 15 },
   { size: 'concert', fretCount: UKULELE_SAMPLE_VERIFIED_MAX_FRET },
   { size: 'tenor', fretCount: UKULELE_SAMPLE_VERIFIED_MAX_FRET, isDefault: true },
+  { size: 'baritone', fretCount: 19 },
 ];
 
 function buildUkuleleVariant(spec: UkuleleVariantSpec): InstrumentConfig {
   const fretCount = spec.fretCount;
+  if (spec.size === 'baritone') {
+    // D-G-B-E, low to high — same interval pattern as the top 4 guitar
+    // strings, just its own tuning (not derived from GUITAR's rows).
+    return {
+      id: 'ukulele',
+      label: 'Ukulele',
+      emoji: '🎸',
+      stringCount: 4,
+      notes: [
+        buildRow('E', fretCount), buildRow('B', fretCount),
+        buildRow('G', fretCount), buildRow('D', fretCount),
+      ],
+      openMidi: [64, 59, 55, 50], // E4, B3, G3, D3
+      maxFret: fretCount,
+      soundfontUrl: 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/acoustic_guitar_nylon-mp3/', // unused while synth is set; kept for type-completeness
+      synth: 'ukuleleBaritone',
+      stringLabels: {
+        1: 'String 1 · E', 2: 'String 2 · B', 3: 'String 3 · G', 4: 'String 4 · low D',
+      },
+      dotFrets: dotsFor(fretCount), // guitar-family dot convention (same scale-length family as its D-G-B-E tuning)
+      variant: { stringCount: 4, fretCount },
+    };
+  }
   return {
     id: 'ukulele',
     label: 'Ukulele',
@@ -330,11 +354,11 @@ function buildUkuleleVariant(spec: UkuleleVariantSpec): InstrumentConfig {
 
 export const UKULELE_VARIANTS: InstrumentConfig[] = UKULELE_VARIANT_SPECS.map(buildUkuleleVariant);
 
-export function getAvailableUkuleleSizes(): Array<'soprano' | 'concert' | 'tenor'> {
+export function getAvailableUkuleleSizes(): Array<'soprano' | 'concert' | 'tenor' | 'baritone'> {
   return UKULELE_VARIANT_SPECS.map((s) => s.size);
 }
 
-export function getUkuleleVariant(size: 'soprano' | 'concert' | 'tenor'): InstrumentConfig {
+export function getUkuleleVariant(size: 'soprano' | 'concert' | 'tenor' | 'baritone'): InstrumentConfig {
   const idx = UKULELE_VARIANT_SPECS.findIndex((s) => s.size === size);
   return UKULELE_VARIANTS[idx] ?? UKULELE_VARIANTS[UKULELE_VARIANT_SPECS.findIndex((s) => s.isDefault)];
 }
