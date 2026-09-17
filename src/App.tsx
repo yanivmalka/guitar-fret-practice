@@ -710,9 +710,11 @@ export default function App() {
       activeFret={
         gameActive
           ? intervalPrompt
-            ? intervalPrompt.exercise === 'findTargetPosition'
-              ? intervalPrompt.refFret
-              : undefined
+            // Every interval exercise (identify / find-the-note / find-the-
+            // position) has a reference fret — mark it on the mini neck so
+            // the asked-about position is always visible, not just for
+            // findTargetPosition.
+            ? intervalPrompt.refFret
             : askedFret
           : undefined
       }

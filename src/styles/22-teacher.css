@@ -179,8 +179,14 @@
   line-height: 1.15;
 }
 .interval-prompt-name { font-size: 1.6rem; font-weight: 800; }
-.interval-prompt-rel { font-size: 1rem; color: var(--text-2); }
-.interval-prompt-root { color: var(--accent); font-weight: 800; }
+.interval-prompt-rel {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
+  font-size: 1.15rem;
+  color: var(--text-2);
+}
+.interval-prompt-root { color: var(--accent); font-weight: 800; font-size: 1.3rem; }
 
 /* "🔊 hear it again" — on the identify/find prompt and in the miss feedback. */
 .interval-replay-btn {

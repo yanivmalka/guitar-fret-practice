@@ -83,7 +83,7 @@ export default function IntervalPrompt({ prompt, accidental, notation, onReplay 
       <span className="interval-prompt-name">{name}</span>
       <span className="interval-prompt-rel">
         {prompt.dir === 'down' ? t('below') : t('above')}
-        <strong className="interval-prompt-root"> {root}</strong>
+        <strong className="interval-prompt-root">{root}</strong>
       </span>
       {replay && (
         <button type="button" className="interval-replay-btn" onClick={replay}>
