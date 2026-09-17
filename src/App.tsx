@@ -19,8 +19,8 @@ import Onboarding from './components/Onboarding';
 import { setActiveInstrument } from './utils/music';
 import type { HistoryEntry } from './utils/music';
 import {
-  getInstrument, type InstrumentId, type InstrumentConfig, type UkuleleSize, type InstrumentVariants,
-  getInstrumentVariant, getAvailableStringCounts, getDefaultFretCount,
+  getInstrument, type InstrumentId, type InstrumentConfig, type UkuleleSize, type InstrumentVariants, type GuitarType,
+  getInstrumentVariant, getAvailableStringCounts, getDefaultFretCount, getDefaultGuitarType,
   getMandolinVariant, getDefaultMandolinFretCount,
   getUkuleleVariant, getDefaultUkuleleSize,
   getBanjoVariant, getDefaultBanjoType,
@@ -100,7 +100,11 @@ function defaultInstrumentVariants(): InstrumentVariants {
   const guitarStrings = getAvailableStringCounts('guitar')[0];
   const bassStrings = getAvailableStringCounts('bass')[0];
   return {
-    guitar: { strings: guitarStrings, frets: getDefaultFretCount('guitar', guitarStrings) },
+    guitar: {
+      strings: guitarStrings,
+      frets: getDefaultFretCount('guitar', guitarStrings),
+      type: getDefaultGuitarType(),
+    },
     bass: { strings: bassStrings, frets: getDefaultFretCount('bass', bassStrings) },
     mandolin: { frets: getDefaultMandolinFretCount() },
     ukulele: { size: getDefaultUkuleleSize() },
@@ -114,7 +118,7 @@ function defaultInstrumentVariants(): InstrumentVariants {
 // (none currently) falls back to the single unvaried config.
 function resolveInstrumentConfig(id: InstrumentId, variants: InstrumentVariants): InstrumentConfig {
   switch (id) {
-    case 'guitar': return getInstrumentVariant('guitar', variants.guitar.strings, variants.guitar.frets);
+    case 'guitar': return getInstrumentVariant('guitar', variants.guitar.strings, variants.guitar.frets, variants.guitar.type);
     case 'bass': return getInstrumentVariant('bass', variants.bass.strings, variants.bass.frets);
     case 'mandolin': return getMandolinVariant(variants.mandolin.frets);
     case 'ukulele': return getUkuleleVariant(variants.ukulele.size);
@@ -188,11 +192,17 @@ export default function App() {
   const setGuitarStrings = (strings: number) => {
     saveInstrumentVariants({
       ...instrumentVariants,
-      guitar: { strings, frets: getDefaultFretCount('guitar', strings) },
+      guitar: { ...instrumentVariants.guitar, strings, frets: getDefaultFretCount('guitar', strings) },
     });
   };
   const setGuitarFrets = (frets: number) => {
     saveInstrumentVariants({ ...instrumentVariants, guitar: { ...instrumentVariants.guitar, frets } });
+  };
+  // Acoustic/electric only swaps which sample library notes are played
+  // from — string count and fret count (and any saved fret window) carry
+  // over untouched, unlike a string-count change which resets frets.
+  const setGuitarType = (type: GuitarType) => {
+    saveInstrumentVariants({ ...instrumentVariants, guitar: { ...instrumentVariants.guitar, type } });
   };
   const setBassStrings = (strings: number) => {
     saveInstrumentVariants({
@@ -781,6 +791,7 @@ export default function App() {
           instrumentVariants={instrumentVariants}
           setGuitarStrings={setGuitarStrings}
           setGuitarFrets={setGuitarFrets}
+          setGuitarType={setGuitarType}
           setBassStrings={setBassStrings}
           setBassFrets={setBassFrets}
           setMandolinFrets={setMandolinFrets}

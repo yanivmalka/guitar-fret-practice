@@ -9,6 +9,13 @@ import { UKULELE_SAMPLES } from './ukuleleSamples';
 
 export type InstrumentId = 'guitar' | 'bass' | 'mandolin' | 'banjo' | 'ukulele';
 
+// Guitar-only: acoustic vs electric. Doesn't touch tuning, string count or
+// fret positions (same notes either way) — the only thing it changes is
+// which sample library the notes are played from, plus the string/fret
+// defaults seeded for it. Kept off InstrumentVariants.bass/mandolin/etc —
+// this axis only exists for guitar.
+export type GuitarType = 'acoustic' | 'electric';
+
 // Per-instrument string/fret (or named-type) selection, on top of which
 // instrument is active. Guitar and bass are independent string-count ×
 // fret-count axes; mandolin is fret-count only; ukulele and banjo are each a
@@ -16,7 +23,7 @@ export type InstrumentId = 'guitar' | 'bass' | 'mandolin' | 'banjo' | 'ukulele';
 // variant table below for why). `UkuleleSize` is declared further down,
 // next to the spec table it names.
 export interface InstrumentVariants {
-  guitar: { strings: number; frets: number };
+  guitar: { strings: number; frets: number; type: GuitarType };
   bass: { strings: number; frets: number };
   mandolin: { frets: number };
   ukulele: { size: UkuleleSize };
@@ -169,15 +176,44 @@ function buildVariant(
   };
 }
 
-const GUITAR_SOUNDFONT = 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/acoustic_guitar_nylon-mp3/';
+const ACOUSTIC_GUITAR_SOUNDFONT = 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/acoustic_guitar_nylon-mp3/';
+const ELECTRIC_GUITAR_SOUNDFONT = 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/electric_guitar_clean-mp3/';
 const BASS_SOUNDFONT = 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/electric_bass_finger-mp3/';
 
-export const GUITAR_VARIANTS: InstrumentConfig[] = GUITAR_VARIANT_SPECS.map((s) =>
-  buildVariant('guitar', 'Guitar', '🎸', GUITAR_SOUNDFONT, s)
-);
+// Same string/fret variant matrix for both guitar types — acoustic vs
+// electric doesn't change what commercial string/fret combinations exist,
+// only the sample library each note is played from.
+const GUITAR_SOUNDFONT_BY_TYPE: Record<GuitarType, string> = {
+  acoustic: ACOUSTIC_GUITAR_SOUNDFONT,
+  electric: ELECTRIC_GUITAR_SOUNDFONT,
+};
+
+export const GUITAR_VARIANTS_BY_TYPE: Record<GuitarType, InstrumentConfig[]> = {
+  acoustic: GUITAR_VARIANT_SPECS.map((s) =>
+    buildVariant('guitar', 'Guitar', '🎸', GUITAR_SOUNDFONT_BY_TYPE.acoustic, s)
+  ),
+  electric: GUITAR_VARIANT_SPECS.map((s) =>
+    buildVariant('guitar', 'Guitar', '🎸', GUITAR_SOUNDFONT_BY_TYPE.electric, s)
+  ),
+};
+// Back-compat: the acoustic pool is what `GUITAR_VARIANTS` always meant
+// before the acoustic/electric selector existed.
+export const GUITAR_VARIANTS: InstrumentConfig[] = GUITAR_VARIANTS_BY_TYPE.acoustic;
+
 export const BASS_VARIANTS: InstrumentConfig[] = BASS_VARIANT_SPECS.map((s) =>
   buildVariant('bass', 'Bass', '🎵', BASS_SOUNDFONT, s)
 );
+
+/** The two guitar types the picker offers, in display order. */
+export function getAvailableGuitarTypes(): GuitarType[] {
+  return ['acoustic', 'electric'];
+}
+
+/** Verified default — acoustic, unchanged behavior for anyone who never
+ *  touches the new selector. */
+export function getDefaultGuitarType(): GuitarType {
+  return 'acoustic';
+}
 
 /** String-count options available for a base instrument, ascending. */
 export function getAvailableStringCounts(base: 'guitar' | 'bass'): number[] {
@@ -204,13 +240,19 @@ export function getDefaultFretCount(base: 'guitar' | 'bass', stringCount: number
 /** Look up a built guitar/bass variant config by string+fret count. Falls
  *  back to that base instrument's default variant if the exact combination
  *  isn't one of the verified ones (should not happen if the UI only offers
- *  `getAvailableFretCounts` results, but keeps this total). */
+ *  `getAvailableFretCounts` results, but keeps this total).
+ *
+ *  `guitarType` only matters when `base === 'guitar'` — it picks which
+ *  sample-library pool (acoustic/electric) the string+fret combo is read
+ *  from; ignored for bass. Defaults to acoustic so existing callers that
+ *  don't pass it keep resolving exactly as before this type existed. */
 export function getInstrumentVariant(
   base: 'guitar' | 'bass',
   stringCount: number,
   fretCount: number,
+  guitarType: GuitarType = 'acoustic',
 ): InstrumentConfig {
-  const pool = base === 'guitar' ? GUITAR_VARIANTS : BASS_VARIANTS;
+  const pool = base === 'guitar' ? GUITAR_VARIANTS_BY_TYPE[guitarType] : BASS_VARIANTS;
   const exact = pool.find((v) => v.stringCount === stringCount && v.maxFret === fretCount);
   if (exact) return exact;
   const specs = base === 'guitar' ? GUITAR_VARIANT_SPECS : BASS_VARIANT_SPECS;
@@ -503,7 +545,7 @@ const GUITAR: InstrumentConfig = {
   notes: GUITAR_NOTES,
   openMidi: [64, 59, 55, 50, 45, 40],
   maxFret: 21,
-  soundfontUrl: GUITAR_SOUNDFONT,
+  soundfontUrl: ACOUSTIC_GUITAR_SOUNDFONT,
   stringLabels: {
     1: 'String 1 · high E', 2: 'String 2 · B', 3: 'String 3 · G',
     4: 'String 4 · D', 5: 'String 5 · A', 6: 'String 6 · low E',

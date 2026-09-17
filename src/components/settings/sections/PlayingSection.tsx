@@ -7,8 +7,8 @@ import { withClick as click } from '../../../utils/withClick';
 import { saveSetting } from '../../../utils/settings';
 import {
   COMING_SOON_INSTRUMENTS, type InstrumentId, type InstrumentConfig,
-  type InstrumentVariants, type UkuleleSize,
-  getAvailableStringCounts, getAvailableFretCounts,
+  type InstrumentVariants, type UkuleleSize, type GuitarType,
+  getAvailableStringCounts, getAvailableFretCounts, getAvailableGuitarTypes,
   getAvailableMandolinFretCounts, getAvailableUkuleleSizes, getUkuleleVariant, getAvailableBanjoTypes, getBanjoVariant,
 } from '../../../utils/instruments';
 import type { AccidentalMode, NotationMode } from '../../../utils/music';
@@ -30,6 +30,7 @@ export interface PlayingSectionProps {
   instrumentVariants: InstrumentVariants;
   setGuitarStrings: (strings: number) => void;
   setGuitarFrets: (frets: number) => void;
+  setGuitarType: (type: GuitarType) => void;
   setBassStrings: (strings: number) => void;
   setBassFrets: (frets: number) => void;
   setMandolinFrets: (frets: number) => void;
@@ -52,7 +53,7 @@ export interface PlayingSectionProps {
 export default function PlayingSection({
   t, instrument, instrumentId, admin, running, paused, stop,
   applyInstrument, instrumentVariants,
-  setGuitarStrings, setGuitarFrets, setBassStrings, setBassFrets,
+  setGuitarStrings, setGuitarFrets, setGuitarType, setBassStrings, setBassFrets,
   setMandolinFrets, setUkuleleSize, setBanjoType,
   setPreloaded, notation, setNotation, accidental, setAccidental, fretRange,
 }: PlayingSectionProps) {
@@ -75,6 +76,27 @@ export default function PlayingSection({
       const setFrets = instrumentId === 'guitar' ? setGuitarFrets : setBassFrets;
       return (
         <>
+          {instrumentId === 'guitar' && (
+            <>
+              <span className="pick-row-label">{t('Type')}</span>
+              <div className="pick-row" role="group" aria-label={t('Type')}>
+                {getAvailableGuitarTypes().map((gt) => (
+                  <button
+                    key={gt}
+                    type="button"
+                    className={`pick-btn${instrumentVariants.guitar.type === gt ? ' pick-btn-on' : ''}`}
+                    aria-pressed={instrumentVariants.guitar.type === gt}
+                    onClick={click(() => withReload(
+                      instrumentVariants.guitar.type !== gt,
+                      () => setGuitarType(gt),
+                    ))}
+                  >
+                    {t(gt === 'acoustic' ? 'Acoustic' : 'Electric')}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
           <span className="pick-row-label">{t('Strings')}</span>
           <div className="pick-row" role="group" aria-label={t('Strings')}>
             {strings.map((s) => (

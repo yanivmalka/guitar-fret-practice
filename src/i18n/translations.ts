@@ -29,6 +29,8 @@ const he: Record<string, string> = {
   'Strings': 'מיתרים',
   'Frets': 'סריגים',
   'Type': 'סוג',
+  'Acoustic': 'אקוסטית',
+  'Electric': 'חשמלית',
   'Soprano': 'סופרן',
   'Concert': 'קונצרט',
   'Tenor': 'טנור',
