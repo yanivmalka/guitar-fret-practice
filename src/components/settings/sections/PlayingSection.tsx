@@ -47,22 +47,37 @@ export default function PlayingSection({
         help={t('Switches tuning, string count and fret range, then reloads the note samples.')}
       >
         <div className="pick-row" role="group" aria-label={t('Instruments')}>
-          {([['guitar', '🎸', t('Guitar')], ['bass', '🎵', t('Bass')], ['mandolin', '🎻', t('Mandolin')], ['banjo', '🪕', t('Banjo')], ['ukulele', '🎸', t('Ukulele')]] as const).map(([id, emoji, name]) => (
-            <button
-              key={id}
-              type="button"
-              className={`pick-btn${instrumentId === id ? ' pick-btn-on' : ''}`}
-              aria-pressed={instrumentId === id}
-              onClick={click(() => {
-                if (id === instrumentId) return;
-                if (running || paused) stop();
-                applyInstrument(id);
-                setPreloaded(false);
-              })}
-            >
-              {emoji} {name}
-            </button>
-          ))}
+          {([
+            ['guitar', '🎸', t('Guitar'), false],
+            ['bass', '🎵', t('Bass'), false],
+            ['mandolin', '🎻', t('Mandolin'), true],
+            ['banjo', '🪕', t('Banjo'), true],
+            ['ukulele', '🎸', t('Ukulele'), true],
+          ] as const).map(([id, emoji, name, pro]) => {
+            const btn = (
+              <button
+                key={id}
+                type="button"
+                className={`pick-btn${instrumentId === id ? ' pick-btn-on' : ''}`}
+                aria-pressed={instrumentId === id}
+                onClick={click(() => {
+                  if (id === instrumentId) return;
+                  if (running || paused) stop();
+                  applyInstrument(id);
+                  setPreloaded(false);
+                })}
+              >
+                {emoji} {name}
+              </button>
+            );
+            return pro
+              ? (
+                <ProGate key={id} feature="extraInstruments" variant="inline-badge" pitch={t('Unlock more instruments')}>
+                  {btn}
+                </ProGate>
+              )
+              : btn;
+          })}
         </div>
         {/* Roadmap instruments the engine can't drill yet — shown to admins
             inside the same card as Guitar/Bass, as a second row of smaller

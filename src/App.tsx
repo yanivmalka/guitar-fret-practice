@@ -72,7 +72,7 @@ import { FeedbackBoard } from './components/FeedbackBoard';
 import { LeaderboardPanel } from './components/LeaderboardPanel';
 import { BadgeGrid } from './components/BadgeGrid';
 import { UpgradeCard } from './components/UpgradeCard';
-import { can } from './utils/features';
+import { can, PRO_ONLY_INSTRUMENTS } from './utils/features';
 import { GuestMergePrompt } from './components/GuestMergePrompt';
 import { useAppNavigation } from './hooks/useAppNavigation';
 import { useBackNavigation } from './hooks/useBackNavigation';
@@ -96,13 +96,30 @@ export default function App() {
   // prompt on a pushpin (see QuickAccessPinButton). Its own external store so
   // the deep-nested prompt can raise it without threading state through.
   const qaManageOpen = useSyncExternalStore(subscribeQuickAccess, getQaManageOpen);
+  // Auth carries the entitlement/tier — needed above (before the instrument
+  // is resolved) so a Free/downgraded user's saved pro-only instrument choice
+  // can be clamped back to guitar for this session. The account-sync effect
+  // further down uses the same `auth` object.
+  const auth = useAuth();
+
   // Which instrument is being drilled. Chosen on first launch (Onboarding) and
   // switchable from the hamburger menu; everything tuning/string/fret/sample
   // related flows from this config (see utils/instruments.ts).
   const [instrumentId, setInstrumentId] = useState<InstrumentId>(
     () => loadSetting('pref_instrument', 'guitar'),
   );
-  const instrument = getInstrument(instrumentId);
+  // Mandolin/banjo/ukulele need `extraInstruments` (Pro). ProGate in the
+  // instrument picker (PlayingSection) is presentation-only and blocks the
+  // *tap* that would set this; this is the real gate, covering the case
+  // where a saved pref_instrument is one of them but the account has since
+  // lost Pro (downgrade, expiry) — it falls back to guitar for this session
+  // without touching the saved preference, so it resumes automatically the
+  // moment the account is Pro again.
+  const effectiveInstrumentId: InstrumentId =
+    PRO_ONLY_INSTRUMENTS.includes(instrumentId) && !can('extraInstruments', auth.tier)
+      ? 'guitar'
+      : instrumentId;
+  const instrument = getInstrument(effectiveInstrumentId);
   // Sync the shared note-table + audio bindings to the active instrument before
   // any child hook/component reads them this render. Idempotent — this is an
   // external-store sync, not derived render state.
@@ -112,10 +129,6 @@ export default function App() {
     setInstrumentId(id);
     saveSetting('pref_instrument', id);
   };
-
-  // Auth carries the entitlement/tier. The account-sync effect further down
-  // uses the same `auth` object.
-  const auth = useAuth();
 
   const selector = useSelector(instrument, auth.isPro);
   const { derivedSettings } = selector;
@@ -282,7 +295,7 @@ export default function App() {
   const derived = useDerivedNotes(
     safeGuitarString, eff.fretFrom, eff.fretTo,
     eff.wholeToneOnly, eff.dotsOnly,
-    accidental, order, byString, eff.multiStrings, instrumentId,
+    accidental, order, byString, eff.multiStrings, effectiveInstrumentId,
   );
   const { cofList, isMulti } = derived;
   const scoring = useScoring();
@@ -676,7 +689,7 @@ export default function App() {
         <PlayingSection
           t={t}
           instrument={instrument}
-          instrumentId={instrumentId}
+          instrumentId={effectiveInstrumentId}
           admin={auth.admin}
           running={running}
           paused={paused}

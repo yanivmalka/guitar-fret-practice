@@ -4,6 +4,7 @@
 // which tier" stays greppable and adding a tier is a `MIN_TIER` edit.
 
 import { TIER_RANK, type Tier } from './entitlement';
+import type { InstrumentId } from './instruments';
 
 export type Feature =
   | 'historyBeyond7Days'   // the Stats & Progress screen's "All time" scope + trends
@@ -12,6 +13,7 @@ export type Feature =
   | 'fretRange'            // the precise "fret N–M" window control in Settings → Playing
   | 'multiStringFull'      // multi-string drilling on more than FREE_MULTI_STRING_LIMIT strings
   | 'voiceProfile'         // personal voice profile + calibration
+  | 'extraInstruments'     // mandolin / banjo / ukulele — everything past guitar & bass
   | 'noAds'                // future: suppress Free-tier ads
   | 'premiumTeacher'       // The adaptive "Teacher" surface: the Today card
                            // beside the Selector, weak-spot targeting, Leitner
@@ -34,6 +36,7 @@ const MIN_TIER: Record<Feature, Tier> = {
   fretRange:          'pro',
   multiStringFull:    'pro',
   voiceProfile:       'pro',
+  extraInstruments:   'pro',
   noAds:              'pro',
   premiumTeacher:     'premium',
   learningPath:       'premium',
@@ -73,3 +76,10 @@ export const FREE_MULTI_STRING_LIMIT = 2;
  *  Progress screen. The full history is still recorded, synced and restored —
  *  this is a view filter over one screen, never a data cut (design §5.1). */
 export const FREE_HISTORY_DAYS = 7;
+
+/** Instrument ids gated behind `extraInstruments` — everything past guitar
+ *  & bass. Single source of truth: App.tsx reads this to clamp a Free /
+ *  downgraded user's saved instrument choice back to guitar (the real gate;
+ *  the instrument picker's ProGate is presentation-only), and it's what
+ *  `extraInstruments` itself exists to describe. */
+export const PRO_ONLY_INSTRUMENTS: readonly InstrumentId[] = ['mandolin', 'banjo', 'ukulele'];

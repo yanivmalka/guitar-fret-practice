@@ -75,6 +75,17 @@
 /* keep the "Pro" pill clear of the catch layer so it reads as a label */
 .progate-inline .progate-badge { position: relative; z-index: 1; pointer-events: none; }
 
+/* Instrument picker (.pick-row, 02-settings.css) is a grid of equal 1fr
+   columns where each .pick-btn used to be the direct grid item and so
+   stretched to fill its column automatically. Wrapping a gated instrument in
+   <ProGate variant="inline-badge"> adds a .progate-inline span between the
+   grid cell and the button; without this, that span (now sized to its
+   grid column) wouldn't pass the stretch down to the button inside it, and
+   the icon+label would shrink to their own content width instead of
+   matching the free instruments' full-width tiles. */
+.pick-row .progate-inline { display: flex; width: 100%; }
+.pick-row .progate-inline .pick-btn { flex: 1; }
+
 /* ── UpgradeCard ─────────────────────────────────────────────────────────── */
 .pro-card {
   display: flex;
