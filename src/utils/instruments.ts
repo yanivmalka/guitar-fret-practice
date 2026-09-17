@@ -1,11 +1,13 @@
 import { GUITAR_NOTES, GUITAR_DOT_FRETS } from './music';
+import type { SampleRegion } from './ukuleleSamples';
+import { UKULELE_SAMPLES } from './ukuleleSamples';
 
 // Everything in the app that differs between guitar and bass lives here. The
 // hooks read the *active* config (App.tsx applies it via setActiveInstrument +
 // setAudioInstrument); nothing else should hardcode string counts, tuning,
 // fret counts or sample URLs.
 
-export type InstrumentId = 'guitar' | 'bass' | 'mandolin' | 'banjo';
+export type InstrumentId = 'guitar' | 'bass' | 'mandolin' | 'banjo' | 'ukulele';
 
 // The 12 pitch classes, sharp-spelled — the spelling every `notes` row uses.
 // Exported so the interval layer (`src/utils/intervals.ts`) can do pitch-class
@@ -40,6 +42,14 @@ export interface InstrumentConfig {
    * the type but is ignored at playback time.
    */
   synth?: 'mandolin';
+  /**
+   * When set, this instrument's samples aren't one-exact-file-per-note —
+   * each file covers a few neighbouring semitones and is pitch-corrected at
+   * playback (see utils/ukuleleSamples.ts). `soundfontUrl` is still where
+   * the files are fetched from; the file name per note comes from this map
+   * instead of the note's own name.
+   */
+  sampleMap?: SampleRegion[];
 }
 
 const GUITAR: InstrumentConfig = {
@@ -149,11 +159,46 @@ const BANJO: InstrumentConfig = {
   dotFrets: [5, 7, 10, 12, 15, 17, 19, 22],
 };
 
+// Ukulele — 4 strings, standard reentrant tuning A E C G (string 1 = A,
+// thinnest/highest; string 4 = G, the "reentrant" string — physically
+// labelled 4 but tuned HIGHER than strings 2/3, which is what makes it
+// reentrant rather than a plain descending run like a guitar's strings).
+//
+// Real recorded samples from the FreePats project (CC0, see
+// public/audio/ukulele/CREDIT.txt) — 13 notes spanning C4–C6, each covering
+// a few neighbouring semitones via `sampleMap` (utils/ukuleleSamples.ts).
+// maxFret is capped at 17 so every fretted note on every string stays
+// inside that C4–C6 sample range with zero extrapolation (checked: the
+// highest note this produces is the A string at fret 17 = MIDI 86, exactly
+// the top edge of the last mapped sample).
+const UKULELE_MAX_FRET = 17;
+const UKULELE: InstrumentConfig = {
+  id: 'ukulele',
+  label: 'Ukulele',
+  emoji: '🎸',
+  stringCount: 4,
+  notes: [
+    buildRow('A', UKULELE_MAX_FRET), // 1st string
+    buildRow('E', UKULELE_MAX_FRET), // 2nd string
+    buildRow('C', UKULELE_MAX_FRET), // 3rd string
+    buildRow('G', UKULELE_MAX_FRET), // 4th string (reentrant — higher than 2nd/3rd)
+  ],
+  openMidi: [69, 64, 60, 67], // A4, E4, C4, G4
+  maxFret: UKULELE_MAX_FRET,
+  soundfontUrl: `${import.meta.env.BASE_URL}audio/ukulele/`,
+  sampleMap: UKULELE_SAMPLES,
+  stringLabels: {
+    1: 'String 1 · A', 2: 'String 2 · E', 3: 'String 3 · C', 4: 'String 4 · G (high)',
+  },
+  dotFrets: [5, 7, 10, 12, 15, 17],
+};
+
 export const INSTRUMENTS: Record<InstrumentId, InstrumentConfig> = {
   guitar: GUITAR,
   bass: BASS,
   mandolin: MANDOLIN,
   banjo: BANJO,
+  ukulele: UKULELE,
 };
 
 export function getInstrument(id: InstrumentId): InstrumentConfig {
@@ -172,6 +217,4 @@ export interface ComingSoonInstrument {
   tuning: string;
 }
 
-export const COMING_SOON_INSTRUMENTS: readonly ComingSoonInstrument[] = [
-  { label: 'Ukulele', emoji: '🎸', tuning: 'G C E A' },
-];
+export const COMING_SOON_INSTRUMENTS: readonly ComingSoonInstrument[] = [];

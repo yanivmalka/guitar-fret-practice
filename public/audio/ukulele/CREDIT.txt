@@ -1,0 +1,17 @@
+Ukulele samples
+----------------
+Source: FreePats project (https://freepats.zenvoid.org/GuitarFamily/ukulele.html)
+Recorded by Mateusz Dąbrowski from a Flight Fireball ukulele (tenor), August 2026.
+License: Creative Commons CC0 1.0 Universal (public domain dedication)
+https://creativecommons.org/publicdomain/zero/1.0/
+
+13 pitched samples (C4–C6) converted from the original 24-bit/48kHz WAV to
+MP3 here; the two percussive articulations (body-tap, chuck) from the
+original release are not included, as this app only needs pitched notes.
+Sharp-named files from the original release (C#5, D#5, F#4) were renamed to
+their flat equivalents (Db5, Eb5, Gb4) to match this project's existing
+note-naming convention — same pitch, just relabeled.
+
+See src/utils/ukuleleSamples.ts for how these are mapped across the full
+fretboard range (each file covers several adjacent semitones via pitch
+correction, following the original release's own SFZ mapping).

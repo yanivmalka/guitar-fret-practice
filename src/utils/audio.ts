@@ -1,3 +1,5 @@
+import type { SampleRegion } from './ukuleleSamples';
+
 // Active instrument's tuning + sample source. Swapped by setAudioInstrument()
 // when the user switches instrument; defaults to the standard 6-string guitar.
 let openMidi = [64, 59, 55, 50, 45, 40];
@@ -12,18 +14,26 @@ let maxFret = 21;
 type SynthKind = 'none' | 'mandolin';
 let synthKind: SynthKind = 'none';
 
+// When set, this instrument's samples aren't one-exact-file-per-note — see
+// the comment on InstrumentConfig.sampleMap in utils/instruments.ts and
+// utils/ukuleleSamples.ts. null for every instrument with a full chromatic
+// sample set (guitar, bass, banjo).
+let sampleMap: SampleRegion[] | null = null;
+
 export function setAudioInstrument(cfg: {
   openMidi: number[];
   soundfontUrl: string;
   stringCount: number;
   maxFret: number;
   synth?: SynthKind;
+  sampleMap?: SampleRegion[];
 }): void {
   openMidi = cfg.openMidi;
   baseUrl = cfg.soundfontUrl;
   stringCount = cfg.stringCount;
   maxFret = cfg.maxFret;
   synthKind = cfg.synth ?? 'none';
+  sampleMap = cfg.sampleMap ?? null;
 }
 
 // Silent mode: mutes the drill's *content* audio (the question note and the
@@ -201,9 +211,31 @@ function synthesizeMandolinPluck(
   return nodes;
 }
 
+// ── Sparse sample maps (e.g. ukulele) ───────────────────────────────────
+// For an instrument whose sampleMap is set, one recorded file covers several
+// neighbouring semitones instead of every note having its own exact
+// recording — see the comment on InstrumentConfig.sampleMap in
+// utils/instruments.ts and utils/ukuleleSamples.ts for where this data and
+// approach comes from (it mirrors that release's own SFZ instrument mapping).
+function resolveRegion(midi: number): SampleRegion | null {
+  if (!sampleMap) return null;
+  return sampleMap.find(r => midi >= r.lokey && midi <= r.hikey) ?? null;
+}
+
+// Extra playback-rate multiplier so a region's sample lands exactly on
+// `midi` (1 for every plain, one-sample-per-note instrument, or for a note
+// that IS the mapped sample's own recorded pitch).
+function pitchRatio(midi: number): number {
+  const region = resolveRegion(midi);
+  if (!region) return 1;
+  const semitones = (midi - region.keycenter) + region.tuneCents / 100;
+  return Math.pow(2, semitones / 12);
+}
+
 async function loadSample(midi: number): Promise<AudioBuffer | null> {
   if (synthKind !== 'none') return null;
-  const name = midiName(midi);
+  const region = resolveRegion(midi);
+  const name = region ? region.file : midiName(midi);
   const key = baseUrl + name;
   if (cache[key]) return cache[key];
   try {
@@ -271,10 +303,7 @@ export async function playNote(stringNum: number, fret: number, rate = 1) {
     const src = ctx.createBufferSource();
     const gain = ctx.createGain();
     src.buffer = buffer;
-    src.playbackRate.value = rate;
-    src.connect(gain);
-    gain.connect(masterOut(ctx));
-    gain.gain.setValueAtTime(0.7, ctx.currentTime + offset);
+    src.playbackRate.value = rate * pitchRatio(midi);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + offset + dur);
     src.start(ctx.currentTime + offset);
     src.stop(ctx.currentTime + offset + dur);
@@ -316,10 +345,7 @@ export async function playNoteSingle(stringNum: number, fret: number, rate = 1) 
   const src = ctx.createBufferSource();
   const gain = ctx.createGain();
   src.buffer = buffer;
-  src.playbackRate.value = rate;
-  src.connect(gain);
-  gain.connect(masterOut(ctx));
-  gain.gain.setValueAtTime(0.6, ctx.currentTime);
+  src.playbackRate.value = rate * pitchRatio(midi);
   gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
   src.start();
   src.stop(ctx.currentTime + 0.4);
@@ -346,7 +372,7 @@ export async function playNoteSequence(stringNum: number, frets: number[], total
     return;
   }
   const buffers = await Promise.all(frets.map(f => loadSample(openMidi[stringNum - 1] + f)));
-  frets.forEach((_f, i) => {
+  frets.forEach((f, i) => {
     const buffer = buffers[i];
     if (!buffer) return;
     const offset = i * slotSec;
@@ -354,6 +380,7 @@ export async function playNoteSequence(stringNum: number, frets: number[], total
     const src = ctx.createBufferSource();
     const gain = ctx.createGain();
     src.buffer = buffer;
+    src.playbackRate.value = pitchRatio(openMidi[stringNum - 1] + f);
     src.connect(gain);
     gain.connect(masterOut(ctx));
     gain.gain.setValueAtTime(0.6, ctx.currentTime + offset);
