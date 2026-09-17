@@ -322,9 +322,9 @@ interface UkuleleVariantSpec {
 }
 
 const UKULELE_VARIANT_SPECS: UkuleleVariantSpec[] = [
-  { size: 'soprano', fretCount: 15 },
+  { size: 'soprano', fretCount: 15, isDefault: true }, // most common/most popular size overall
   { size: 'concert', fretCount: UKULELE_SAMPLE_VERIFIED_MAX_FRET },
-  { size: 'tenor', fretCount: UKULELE_SAMPLE_VERIFIED_MAX_FRET, isDefault: true },
+  { size: 'tenor', fretCount: UKULELE_SAMPLE_VERIFIED_MAX_FRET }, // 2nd most popular; favored by pros, not the majority
   { size: 'baritone', fretCount: 19 },
 ];
 
