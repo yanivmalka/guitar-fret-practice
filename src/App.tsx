@@ -18,7 +18,13 @@ import ProgressPanel from './components/ProgressPanel';
 import Onboarding from './components/Onboarding';
 import { setActiveInstrument } from './utils/music';
 import type { HistoryEntry } from './utils/music';
-import { getInstrument, type InstrumentId } from './utils/instruments';
+import {
+  getInstrument, type InstrumentId, type InstrumentConfig, type UkuleleSize, type InstrumentVariants,
+  getInstrumentVariant, getAvailableStringCounts, getDefaultFretCount,
+  getMandolinVariant, getDefaultMandolinFretCount,
+  getUkuleleVariant, getDefaultUkuleleSize,
+  getBanjoVariant, getDefaultBanjoType,
+} from './utils/instruments';
 import { setAudioInstrument, setNoteVolume as setAudioNoteVolume } from './utils/audio';
 import { playClickSound, playToggleOnSound, playToggleOffSound, haptic, soundLevelFromPrefs } from './utils/feedback';
 import { withClick as click } from './utils/withClick';
@@ -90,6 +96,33 @@ import { useRoundEndCelebrations } from './hooks/useRoundEndCelebrations';
 // reload — always lands back on the Selector. `LearnDomain` is defined by
 // <LearnHub> and re-exported through its import above.
 
+function defaultInstrumentVariants(): InstrumentVariants {
+  const guitarStrings = getAvailableStringCounts('guitar')[0];
+  const bassStrings = getAvailableStringCounts('bass')[0];
+  return {
+    guitar: { strings: guitarStrings, frets: getDefaultFretCount('guitar', guitarStrings) },
+    bass: { strings: bassStrings, frets: getDefaultFretCount('bass', bassStrings) },
+    mandolin: { frets: getDefaultMandolinFretCount() },
+    ukulele: { size: getDefaultUkuleleSize() },
+    banjo: { key: getDefaultBanjoType() },
+  };
+}
+
+// Resolve the *actual* InstrumentConfig for the active instrument + its
+// stored variant selection. Guitar/bass/mandolin/ukulele/banjo each route to
+// their own verified-variant lookup in utils/instruments.ts; any other id
+// (none currently) falls back to the single unvaried config.
+function resolveInstrumentConfig(id: InstrumentId, variants: InstrumentVariants): InstrumentConfig {
+  switch (id) {
+    case 'guitar': return getInstrumentVariant('guitar', variants.guitar.strings, variants.guitar.frets);
+    case 'bass': return getInstrumentVariant('bass', variants.bass.strings, variants.bass.frets);
+    case 'mandolin': return getMandolinVariant(variants.mandolin.frets);
+    case 'ukulele': return getUkuleleVariant(variants.ukulele.size);
+    case 'banjo': return getBanjoVariant(variants.banjo.key);
+    default: return getInstrument(id);
+  }
+}
+
 export default function App() {
   const { t, lang, setLang } = useTranslation();
   // The full-page Quick Access shortcut manager, opened only from the cap
@@ -108,6 +141,21 @@ export default function App() {
   const [instrumentId, setInstrumentId] = useState<InstrumentId>(
     () => loadSetting('pref_instrument', 'guitar'),
   );
+  // The chosen string-count/fret-count (or named type) within that
+  // instrument. Merged over the verified defaults on load so a stored blob
+  // missing a key (new install, new instrument added later) never produces
+  // an invalid combination.
+  const [instrumentVariants, setInstrumentVariants] = useState<InstrumentVariants>(() => {
+    const defaults = defaultInstrumentVariants();
+    const stored = loadSetting<Partial<InstrumentVariants>>('pref_instrumentVariant', {});
+    return {
+      guitar: { ...defaults.guitar, ...stored.guitar },
+      bass: { ...defaults.bass, ...stored.bass },
+      mandolin: { ...defaults.mandolin, ...stored.mandolin },
+      ukulele: { ...defaults.ukulele, ...stored.ukulele },
+      banjo: { ...defaults.banjo, ...stored.banjo },
+    };
+  });
   // Mandolin/banjo/ukulele need `extraInstruments` (Pro). ProGate in the
   // instrument picker (PlayingSection) is presentation-only and blocks the
   // *tap* that would set this; this is the real gate, covering the case
@@ -119,7 +167,7 @@ export default function App() {
     PRO_ONLY_INSTRUMENTS.includes(instrumentId) && !can('extraInstruments', auth.tier)
       ? 'guitar'
       : instrumentId;
-  const instrument = getInstrument(effectiveInstrumentId);
+  const instrument = resolveInstrumentConfig(effectiveInstrumentId, instrumentVariants);
   // Sync the shared note-table + audio bindings to the active instrument before
   // any child hook/component reads them this render. Idempotent — this is an
   // external-store sync, not derived render state.
@@ -128,6 +176,41 @@ export default function App() {
   const applyInstrument = (id: InstrumentId) => {
     setInstrumentId(id);
     saveSetting('pref_instrument', id);
+  };
+  // One setter per instrument's variant shape (mirrors PlayingSection's
+  // per-instrument picker UI — guitar/bass cascade string→fret, the rest are
+  // a single choice). Each persists the whole blob immediately, same as
+  // applyInstrument does for the instrument id itself.
+  const saveInstrumentVariants = (next: InstrumentVariants) => {
+    setInstrumentVariants(next);
+    saveSetting('pref_instrumentVariant', next);
+  };
+  const setGuitarStrings = (strings: number) => {
+    saveInstrumentVariants({
+      ...instrumentVariants,
+      guitar: { strings, frets: getDefaultFretCount('guitar', strings) },
+    });
+  };
+  const setGuitarFrets = (frets: number) => {
+    saveInstrumentVariants({ ...instrumentVariants, guitar: { ...instrumentVariants.guitar, frets } });
+  };
+  const setBassStrings = (strings: number) => {
+    saveInstrumentVariants({
+      ...instrumentVariants,
+      bass: { strings, frets: getDefaultFretCount('bass', strings) },
+    });
+  };
+  const setBassFrets = (frets: number) => {
+    saveInstrumentVariants({ ...instrumentVariants, bass: { ...instrumentVariants.bass, frets } });
+  };
+  const setMandolinFrets = (frets: number) => {
+    saveInstrumentVariants({ ...instrumentVariants, mandolin: { frets } });
+  };
+  const setUkuleleSize = (size: UkuleleSize) => {
+    saveInstrumentVariants({ ...instrumentVariants, ukulele: { size } });
+  };
+  const setBanjoType = (key: string) => {
+    saveInstrumentVariants({ ...instrumentVariants, banjo: { key } });
   };
 
   const selector = useSelector(instrument, auth.isPro);
@@ -695,6 +778,14 @@ export default function App() {
           paused={paused}
           stop={stop}
           applyInstrument={applyInstrument}
+          instrumentVariants={instrumentVariants}
+          setGuitarStrings={setGuitarStrings}
+          setGuitarFrets={setGuitarFrets}
+          setBassStrings={setBassStrings}
+          setBassFrets={setBassFrets}
+          setMandolinFrets={setMandolinFrets}
+          setUkuleleSize={setUkuleleSize}
+          setBanjoType={setBanjoType}
           setPreloaded={setPreloaded}
           notation={notation}
           setNotation={setNotation}

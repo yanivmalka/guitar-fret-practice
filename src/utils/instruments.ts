@@ -9,6 +9,20 @@ import { UKULELE_SAMPLES } from './ukuleleSamples';
 
 export type InstrumentId = 'guitar' | 'bass' | 'mandolin' | 'banjo' | 'ukulele';
 
+// Per-instrument string/fret (or named-type) selection, on top of which
+// instrument is active. Guitar and bass are independent string-count ×
+// fret-count axes; mandolin is fret-count only; ukulele and banjo are each a
+// single named-package picker (see the market-research comments by each
+// variant table below for why). `UkuleleSize` is declared further down,
+// next to the spec table it names.
+export interface InstrumentVariants {
+  guitar: { strings: number; frets: number };
+  bass: { strings: number; frets: number };
+  mandolin: { frets: number };
+  ukulele: { size: UkuleleSize };
+  banjo: { key: string };
+}
+
 // The 12 pitch classes, sharp-spelled — the spelling every `notes` row uses.
 // Exported so the interval layer (`src/utils/intervals.ts`) can do pitch-class
 // math against the same table the drill renders from.
@@ -268,6 +282,12 @@ export function getMandolinVariant(fretCount: number): InstrumentConfig {
       === MANDOLIN_VARIANT_SPECS.find((s) => s.isDefault)?.fretCount)!;
 }
 
+/** The verified-default fret count (20 — most common) — used to seed the
+ *  mandolin picker before the user has made a choice. */
+export function getDefaultMandolinFretCount(): number {
+  return (MANDOLIN_VARIANT_SPECS.find((s) => s.isDefault) ?? MANDOLIN_VARIANT_SPECS[0]).fretCount;
+}
+
 // ---------------------------------------------------------------------------
 // Ukulele variants — soprano / concert / tenor / baritone. NOT a string-count
 // × fret-count matrix: each named size is a fixed package (length + fret
@@ -293,8 +313,10 @@ export function getMandolinVariant(fretCount: number): InstrumentConfig {
 
 const UKULELE_SAMPLE_VERIFIED_MAX_FRET = 17; // see comment above
 
+export type UkuleleSize = 'soprano' | 'concert' | 'tenor' | 'baritone';
+
 interface UkuleleVariantSpec {
-  size: 'soprano' | 'concert' | 'tenor' | 'baritone';
+  size: UkuleleSize;
   fretCount: number;
   isDefault?: boolean;
 }
@@ -354,13 +376,19 @@ function buildUkuleleVariant(spec: UkuleleVariantSpec): InstrumentConfig {
 
 export const UKULELE_VARIANTS: InstrumentConfig[] = UKULELE_VARIANT_SPECS.map(buildUkuleleVariant);
 
-export function getAvailableUkuleleSizes(): Array<'soprano' | 'concert' | 'tenor' | 'baritone'> {
+export function getAvailableUkuleleSizes(): UkuleleSize[] {
   return UKULELE_VARIANT_SPECS.map((s) => s.size);
 }
 
-export function getUkuleleVariant(size: 'soprano' | 'concert' | 'tenor' | 'baritone'): InstrumentConfig {
+export function getUkuleleVariant(size: UkuleleSize): InstrumentConfig {
   const idx = UKULELE_VARIANT_SPECS.findIndex((s) => s.size === size);
   return UKULELE_VARIANTS[idx] ?? UKULELE_VARIANTS[UKULELE_VARIANT_SPECS.findIndex((s) => s.isDefault)];
+}
+
+/** The verified-default size (tenor — preferred by professionals) — used to
+ *  seed the ukulele picker before the user has made a choice. */
+export function getDefaultUkuleleSize(): UkuleleSize {
+  return (UKULELE_VARIANT_SPECS.find((s) => s.isDefault) ?? UKULELE_VARIANT_SPECS[0]).size;
 }
 
 // ---------------------------------------------------------------------------
@@ -457,6 +485,12 @@ export function getAvailableBanjoTypes(): Array<{ key: string; label: string }> 
 export function getBanjoVariant(key: string): InstrumentConfig {
   const idx = BANJO_VARIANT_SPECS.findIndex((s) => s.key === key);
   return BANJO_VARIANTS[idx] ?? BANJO_VARIANTS[BANJO_VARIANT_SPECS.findIndex((s) => s.isDefault)];
+}
+
+/** The verified-default type (5-String Standard — most common) — used to
+ *  seed the banjo picker before the user has made a choice. */
+export function getDefaultBanjoType(): string {
+  return (BANJO_VARIANT_SPECS.find((s) => s.isDefault) ?? BANJO_VARIANT_SPECS[0]).key;
 }
 
 // Default configs — unchanged from before variants existed, so every caller
