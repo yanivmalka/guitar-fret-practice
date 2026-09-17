@@ -383,11 +383,11 @@ interface BanjoVariantSpec {
 }
 
 const BANJO_VARIANT_SPECS: BanjoVariantSpec[] = [
-  { key: 'standard22', label: '5-String Standard', stringCount: 5, fretCount: 22,
+  { key: 'standard22', label: '5-String Standard', stringCount: 4, fretCount: 22,
     tuningLowToHigh: ['D','G','B','D'], midiLowToHigh: [50,55,59,62], hasDrone5th: true, isDefault: true },
-  { key: 'parlor19', label: '5-String Parlor', stringCount: 5, fretCount: 19,
+  { key: 'parlor19', label: '5-String Parlor', stringCount: 4, fretCount: 19,
     tuningLowToHigh: ['D','G','B','D'], midiLowToHigh: [50,55,59,62], hasDrone5th: true },
-  { key: 'longneck25', label: '5-String Long Neck', stringCount: 5, fretCount: 25,
+  { key: 'longneck25', label: '5-String Long Neck', stringCount: 4, fretCount: 25,
     tuningLowToHigh: ['D','G','B','D'], midiLowToHigh: [50,55,59,62], hasDrone5th: true },
   { key: 'tenor17', label: '4-String Tenor (Irish, short scale)', stringCount: 4, fretCount: 17,
     tuningLowToHigh: ['C','G','D','A'], midiLowToHigh: [48,55,62,69] },
