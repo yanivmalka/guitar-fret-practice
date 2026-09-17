@@ -308,6 +308,17 @@
   grid-auto-columns: 1fr;
   gap: 6px;
 }
+/* Modifier for a picker with too many/too-long options to fit one row at
+   equal width without squeezing or overflowing (banjo: 8 named types) —
+   wraps onto as many rows as needed, each button sized to its own text
+   instead of forced into a 1fr column. */
+.pick-row-wrap {
+  display: flex;
+  flex-wrap: wrap;
+}
+.pick-row-wrap .pick-btn {
+  flex: 1 1 calc(50% - 3px);
+}
 .pick-btn {
   padding: 10px 8px;
   border: 1px solid var(--surface-border);

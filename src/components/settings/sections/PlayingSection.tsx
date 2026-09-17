@@ -9,7 +9,7 @@ import {
   COMING_SOON_INSTRUMENTS, type InstrumentId, type InstrumentConfig,
   type InstrumentVariants, type UkuleleSize,
   getAvailableStringCounts, getAvailableFretCounts,
-  getAvailableMandolinFretCounts, getAvailableUkuleleSizes, getAvailableBanjoTypes, getBanjoVariant,
+  getAvailableMandolinFretCounts, getAvailableUkuleleSizes, getUkuleleVariant, getAvailableBanjoTypes, getBanjoVariant,
 } from '../../../utils/instruments';
 import type { AccidentalMode, NotationMode } from '../../../utils/music';
 
@@ -141,7 +141,10 @@ export default function PlayingSection({
               aria-pressed={v.size === size}
               onClick={click(() => withReload(size !== v.size, () => setUkuleleSize(size)))}
             >
-              {t(size.charAt(0).toUpperCase() + size.slice(1))}
+              {/* Size name alone doesn't say what actually differs between
+                  the four — append the fret range so the row reads as sizes
+                  the player can compare, not four interchangeable buttons. */}
+              {t(size.charAt(0).toUpperCase() + size.slice(1))} ({getUkuleleVariant(size).maxFret})
             </button>
           ))}
         </div>
@@ -153,7 +156,7 @@ export default function PlayingSection({
       return (
         <>
         <span className="pick-row-label">{t('Type')}</span>
-        <div className="pick-row" role="group" aria-label={t('Type')}>
+        <div className="pick-row pick-row-wrap" role="group" aria-label={t('Type')}>
           {getAvailableBanjoTypes().map((bt) => (
             <button
               key={bt.key}
