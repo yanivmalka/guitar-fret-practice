@@ -33,6 +33,13 @@ export interface InstrumentConfig {
   /** "String N · …" caption per 1-based string number */
   stringLabels: Record<number, string>;
   dotFrets: number[];
+  /**
+   * When set, notes are synthesized in real time (see utils/audio.ts) instead
+   * of being fetched from `soundfontUrl` — for instruments with no properly
+   * licensed sample library available. `soundfontUrl` is still required by
+   * the type but is ignored at playback time.
+   */
+  synth?: 'mandolin';
 }
 
 const GUITAR: InstrumentConfig = {
@@ -79,6 +86,13 @@ const BASS: InstrumentConfig = {
 // Mandolin — 8 strings (4 paired courses), tuned G D A E.
 // Each course is typically played in unison, so we represent it as 8 separate
 // strings for the fretboard but players think in terms of 4 pairs.
+//
+// No properly-licensed sampled mandolin exists in any free soundfont set
+// (checked FluidR3_GM, VCSL, University of Iowa, FreePats — none have one;
+// General MIDI itself has no dedicated mandolin instrument). `synth:
+// 'mandolin'` routes playback through the real-time synthesizer in
+// utils/audio.ts instead of fetching samples; `soundfontUrl` below is unused
+// while that flag is set but kept for type-completeness / a future fallback.
 const MANDOLIN_MAX_FRET = 20;
 const MANDOLIN: InstrumentConfig = {
   id: 'mandolin',
@@ -98,6 +112,7 @@ const MANDOLIN: InstrumentConfig = {
   openMidi: [55, 55, 50, 50, 45, 45, 40, 40], // G3 pairs, D3 pairs, A2 pairs, E2 pairs
   maxFret: MANDOLIN_MAX_FRET,
   soundfontUrl: 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/banjo-mp3/',
+  synth: 'mandolin',
   stringLabels: {
     1: 'String 1 · G', 2: 'String 2 · G',
     3: 'String 3 · D', 4: 'String 4 · D',

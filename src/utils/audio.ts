@@ -5,16 +5,25 @@ let baseUrl = 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/acoustic_g
 let stringCount = 6;
 let maxFret = 21;
 
+// When set, notes are generated in real time by synthesizeMandolinPluck()
+// below instead of being fetched as samples — see the comment on
+// InstrumentConfig.synth in utils/instruments.ts for why (no properly
+// licensed sampled mandolin exists anywhere).
+type SynthKind = 'none' | 'mandolin';
+let synthKind: SynthKind = 'none';
+
 export function setAudioInstrument(cfg: {
   openMidi: number[];
   soundfontUrl: string;
   stringCount: number;
   maxFret: number;
+  synth?: SynthKind;
 }): void {
   openMidi = cfg.openMidi;
   baseUrl = cfg.soundfontUrl;
   stringCount = cfg.stringCount;
   maxFret = cfg.maxFret;
+  synthKind = cfg.synth ?? 'none';
 }
 
 // Silent mode: mutes the drill's *content* audio (the question note and the
@@ -26,7 +35,10 @@ export function setSilent(v: boolean) { _silent = v; }
 // Keyed by soundfont URL + note name: two instruments can need the same pitch
 // from different soundfonts, so the URL must be part of the key.
 const cache: Record<string, AudioBuffer> = {};
-let activeSources: AudioBufferSourceNode[] = [];
+// AudioScheduledSourceNode is the interface both AudioBufferSourceNode
+// (sampled notes) and OscillatorNode (synthesized notes) implement, so
+// stopPlayback() can stop either kind without caring which one is active.
+let activeSources: AudioScheduledSourceNode[] = [];
 let soundEndTime = 0;
 let audioCtx: AudioContext | null = null;
 
@@ -103,7 +115,94 @@ function midiName(midi: number): string {
   return n[midi % 12] + (Math.floor(midi / 12) - 1);
 }
 
+function midiToFreq(midi: number): number {
+  return 440 * Math.pow(2, (midi - 69) / 12);
+}
+
+// ── Mandolin synthesis ───────────────────────────────────────────────────
+// No properly-licensed sampled mandolin exists in any free soundfont set (see
+// the comment on InstrumentConfig.synth in utils/instruments.ts), so mandolin
+// notes are synthesized here instead of loaded. The goal is a bright, quickly
+// decaying plucked-string tone with the characteristic "double string" shimmer
+// of a mandolin course (two strings tuned to the same pitch, never perfectly
+// in tune with each other):
+//
+//   - two detuned oscillators (±5 cents) approximate the paired course
+//   - a bandpass filter centred a few harmonics up brightens the tone —
+//     mandolins sound thinner/more nasal than a guitar because of the short
+//     scale length and metal strings
+//   - a short filtered noise burst at note-on approximates the pick "chick"
+//     transient that plucked-with-a-plectrum instruments have and a bowed or
+//     sample-less oscillator tone otherwise lacks entirely
+//   - fast attack, exponential decay — mandolin notes ring far more briefly
+//     than a sustained sample
+//
+// Returns every node that needs to be started/stopped so the caller can push
+// them onto `activeSources` (for stopPlayback()) exactly like a sampled note.
+function synthesizeMandolinPluck(
+  ctx: AudioContext, dest: AudioNode, midi: number, rate: number,
+  when: number, dur: number, peak: number,
+): AudioScheduledSourceNode[] {
+  const freq = midiToFreq(midi) * rate;
+  const t0 = ctx.currentTime + when;
+  const nodes: AudioScheduledSourceNode[] = [];
+
+  // Body filter: emphasise the 3rd–5th harmonic region for that bright,
+  // slightly nasal mandolin timbre rather than a guitar's rounder tone.
+  const body = ctx.createBiquadFilter();
+  body.type = 'bandpass';
+  body.frequency.value = freq * 4;
+  body.Q.value = 1.3;
+
+  const tone = ctx.createGain();
+  tone.connect(body);
+  body.connect(dest);
+
+  // Two oscillators a few cents apart, standing in for the two strings of one
+  // course — never perfectly unison, which is what gives a real mandolin its
+  // characteristic shimmer/beating.
+  [-5, 5].forEach((cents) => {
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = freq;
+    osc.detune.value = cents;
+    osc.connect(tone);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.05);
+    nodes.push(osc);
+  });
+
+  // Fast attack (2 ms, avoids a click) then an exponential pluck decay.
+  // exponentialRamp can't target 0 directly, so it ramps to a small epsilon.
+  tone.gain.setValueAtTime(0, t0);
+  tone.gain.linearRampToValueAtTime(peak, t0 + 0.002);
+  tone.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+  // Pick-attack transient: a short burst of highpassed noise right at note-on.
+  const noiseDur = 0.02;
+  const noiseBuf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * noiseDur), ctx.sampleRate);
+  const data = noiseBuf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  const noise = ctx.createBufferSource();
+  noise.buffer = noiseBuf;
+  const noiseFilter = ctx.createBiquadFilter();
+  noiseFilter.type = 'highpass';
+  noiseFilter.frequency.value = 2500;
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.setValueAtTime(peak * 0.5, t0);
+  noiseGain.gain.exponentialRampToValueAtTime(0.0001, t0 + noiseDur);
+  noise.connect(noiseFilter);
+  noiseFilter.connect(noiseGain);
+  noiseGain.connect(dest);
+  noise.start(t0);
+  noise.stop(t0 + noiseDur);
+  nodes.push(noise);
+
+  return nodes;
+}
+
 async function loadSample(midi: number): Promise<AudioBuffer | null> {
+  if (synthKind !== 'none') return null;
   const name = midiName(midi);
   const key = baseUrl + name;
   if (cache[key]) return cache[key];
@@ -147,8 +246,8 @@ export async function playNote(stringNum: number, fret: number, rate = 1) {
   const ctx = getCtx();
   if (ctx.state === 'suspended') await ctx.resume();
   const midi = openMidi[stringNum - 1] + fret;
-  const buffer = await loadSample(midi);
-  if (!buffer) return;
+  const buffer = synthKind === 'none' ? await loadSample(midi) : null;
+  if (synthKind === 'none' && !buffer) return;
   // The whole pluck event scales with `rate`: the sample plays faster
   // (playbackRate) AND the grain offsets / envelope durations compress by the
   // same 1/rate factor, so a faster question compresses the entire note event
@@ -162,14 +261,19 @@ export async function playNote(stringNum: number, fret: number, rate = 1) {
   const offsets = rate >= 1.9 ? [0] : rate >= 1.35 ? [0, 0.4] : [0, 0.4, 0.8];
   const lastIdx = offsets.length - 1;
   offsets.forEach((t, i) => {
+    const offset = t / rate;
+    const dur = (i < lastIdx ? 0.4 : 0.8) / rate;
+    if (synthKind === 'mandolin') {
+      const nodes = synthesizeMandolinPluck(ctx, masterOut(ctx), midi, rate, offset, dur, 0.7);
+      activeSources.push(...nodes);
+      return;
+    }
     const src = ctx.createBufferSource();
     const gain = ctx.createGain();
     src.buffer = buffer;
     src.playbackRate.value = rate;
     src.connect(gain);
     gain.connect(masterOut(ctx));
-    const offset = t / rate;
-    const dur = (i < lastIdx ? 0.4 : 0.8) / rate;
     gain.gain.setValueAtTime(0.7, ctx.currentTime + offset);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + offset + dur);
     src.start(ctx.currentTime + offset);
@@ -200,6 +304,13 @@ export async function playNoteSingle(stringNum: number, fret: number, rate = 1) 
   const ctx = getCtx();
   if (ctx.state === 'suspended') await ctx.resume();
   const midi = openMidi[stringNum - 1] + fret;
+  if (synthKind === 'mandolin') {
+    const dur = 0.4 / rate;
+    const nodes = synthesizeMandolinPluck(ctx, masterOut(ctx), midi, rate, 0, dur, 0.6);
+    activeSources.push(...nodes);
+    soundEndTime = Date.now() + dur * 1000;
+    return;
+  }
   const buffer = await loadSample(midi);
   if (!buffer) return;
   const src = ctx.createBufferSource();
@@ -222,6 +333,18 @@ export async function playNoteSequence(stringNum: number, frets: number[], total
   const ctx = getCtx();
   if (ctx.state === 'suspended') await ctx.resume();
   const slotSec = totalMs / frets.length / 1000;
+  if (synthKind === 'mandolin') {
+    frets.forEach((f, i) => {
+      const offset = i * slotSec;
+      const dur = Math.min(slotSec * 0.9, 0.6);
+      const nodes = synthesizeMandolinPluck(
+        ctx, masterOut(ctx), openMidi[stringNum - 1] + f, 1, offset, dur, 0.6,
+      );
+      activeSources.push(...nodes);
+    });
+    soundEndTime = Date.now() + totalMs;
+    return;
+  }
   const buffers = await Promise.all(frets.map(f => loadSample(openMidi[stringNum - 1] + f)));
   frets.forEach((_f, i) => {
     const buffer = buffers[i];
@@ -243,6 +366,7 @@ export async function playNoteSequence(stringNum: number, frets: number[], total
 }
 
 export async function preloadAllSamples(): Promise<void> {
+  if (synthKind !== 'none') return;
   const promises: Promise<unknown>[] = [];
   const topFret = Math.min(maxFret, 18);
   for (let s = 0; s < stringCount; s++)
