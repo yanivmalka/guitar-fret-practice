@@ -82,7 +82,7 @@ export default function IntervalPracticeScreen({
         </button>
       )}
       <div className="sp2 settings-page-inner" dir={lang === 'he' ? 'rtl' : undefined}>
-        <h1 className="interval-home-title interval-home-title--notch">🎸 {t('Interval training')}</h1>
+        <h1 className="interval-home-title">🎸 {t('Interval training')}</h1>
 
         <div className="settings-page-body">
           <ProGate

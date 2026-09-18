@@ -241,7 +241,7 @@
    `.settings-page-name` hero. The hamburger button is the only way off the
    page, so `.settings-page` keeps its top padding trimmed for the title. */
 .settings-page.interval-home {
-  padding-top: 16px;
+  padding-top: 12px;
 }
 .interval-home-title {
   margin: 0 0 12px;

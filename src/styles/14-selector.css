@@ -297,10 +297,3 @@
   background: transparent;
   color: var(--text-3);
 }
-
-/* ── Interval practice home screen title spacing ───────────────────
-   Adds safe-area aware top margin to keep the title clear of the
-   device notch/punch-hole camera on mobile devices. */
-.interval-home-title--notch {
-  margin-top: max(32px, env(safe-area-inset-top, 32px));
-}
