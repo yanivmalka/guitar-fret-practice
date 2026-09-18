@@ -319,6 +319,14 @@
 .pick-row-wrap .pick-btn {
   flex: 1 1 calc(50% - 3px);
 }
+/* Small caption under a .pick-row spelling out a fact the buttons alone
+   don't convey (e.g. ukulele string order) — quieter than .pick-row-label
+   since it's supplementary, not a heading. */
+.pick-row-note {
+  margin: 6px 2px 0;
+  font-size: 0.72rem;
+  color: var(--text-3);
+}
 .pick-btn {
   padding: 10px 8px;
   border: 1px solid var(--surface-border);

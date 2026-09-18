@@ -29,6 +29,10 @@ const he: Record<string, string> = {
   'Strings': 'מיתרים',
   'Frets': 'סריגים',
   'Type': 'סוג',
+  'Strings 4→1: G · C · E · A — reentrant tuning, string 4 (G) is pitched higher than string 3 (C).':
+    'מיתרים 4→1: G · C · E · A — כוונון רה-אנטרנטי: מיתר 4 (G) מכוון גבוה יותר ממיתר 3 (C).',
+  'Strings 4→1: D · G · B · E — same as the top four guitar strings.':
+    'מיתרים 4→1: D · G · B · E — זהה לארבעת המיתרים העליונים בגיטרה.',
   'Acoustic': 'אקוסטית',
   'Electric': 'חשמלית',
   'Soprano': 'סופרן',

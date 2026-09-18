@@ -151,6 +151,7 @@ export default function PlayingSection({
     }
     if (instrumentId === 'ukulele') {
       const v = instrumentVariants.ukulele;
+      const isBaritone = v.size === 'baritone';
       return (
         <>
         <span className="pick-row-label">{t('Type')}</span>
@@ -170,6 +171,16 @@ export default function PlayingSection({
             </button>
           ))}
         </div>
+        {/* String order isn't obvious from the fretboard alone — soprano/
+            concert/tenor share the standard reentrant G-C-E-A tuning (string
+            4, the G, is pitched *above* string 3, the C — verified against
+            standard ukulele tuning references), baritone is linear D-G-B-E
+            like the top four guitar strings. */}
+        <p className="pick-row-note">
+          {isBaritone
+            ? t('Strings 4→1: D · G · B · E — same as the top four guitar strings.')
+            : t('Strings 4→1: G · C · E · A — reentrant tuning, string 4 (G) is pitched higher than string 3 (C).')}
+        </p>
         </>
       );
     }
