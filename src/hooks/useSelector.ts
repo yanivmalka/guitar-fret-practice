@@ -4,6 +4,7 @@ import { FREE_MULTI_STRING_LIMIT } from '../utils/features';
 import { openUpgrade } from '../utils/upgradeDrawer';
 import type { AccidentalMode, OrderMode } from '../utils/music';
 import type { InstrumentConfig } from '../utils/instruments';
+import { calculateUniqueNotes } from '../utils/noteCalculator';
 import {
   buildStageSequence, stageStepIndex, nextStageStep, type StageStep,
 } from '../utils/stageSequence';
@@ -269,7 +270,6 @@ export function useSelector(instrument: InstrumentConfig, isPro = false) {
           
           // Check if removing this string would result in insufficient notes
           if (next.length > 0) {
-            const { calculateUniqueNotes } = require('../utils/noteCalculator');
             const uniqueNotes = calculateUniqueNotes(instrument, next, safeFretLo, safeFretHi);
             
             if (uniqueNotes < MIN_FRET_WINDOW) {
