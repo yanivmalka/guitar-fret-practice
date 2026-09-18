@@ -384,6 +384,8 @@ export async function playNote(stringNum: number, fret: number, rate = 1) {
     const gain = ctx.createGain();
     src.buffer = buffer;
     src.playbackRate.value = rate * pitchRatio(midi);
+    src.connect(gain);
+    gain.connect(masterOut(ctx));
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + offset + dur);
     src.start(ctx.currentTime + offset);
     src.stop(ctx.currentTime + offset + dur);
@@ -428,6 +430,8 @@ export async function playNoteSingle(stringNum: number, fret: number, rate = 1) 
   const gain = ctx.createGain();
   src.buffer = buffer;
   src.playbackRate.value = rate * pitchRatio(midi);
+  src.connect(gain);
+  gain.connect(masterOut(ctx));
   gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
   src.start();
   src.stop(ctx.currentTime + 0.4);
