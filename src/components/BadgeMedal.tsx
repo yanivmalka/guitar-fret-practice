@@ -166,17 +166,64 @@ function familyEmblem(id: BadgeId, instrumentId?: string): Emblem {
   return map[id] ?? 'target';
 }
 
-function medalSVG(metal: Metal, emblem: Emblem): string {
+// Role badges aren't always struck as a plain disc — a badge whose shape
+// itself carries meaning (the Admin medal as a guitar pick, say) uses one of
+// these instead of a circle for the rim/dome layers. Normalized around
+// (0,0) with "radius" r: a near-circular rounded top tapering to a point
+// below, like a plectrum.
+type Frame = 'circle' | 'pick';
+
+function pickPath(cx: number, cy: number, r: number): string {
+  const k = 0.66;
+  return [
+    `M ${cx + r} ${cy}`,
+    `C ${cx + r} ${cy - r * k} ${cx + r * k} ${cy - r} ${cx} ${cy - r}`,
+    `C ${cx - r * k} ${cy - r} ${cx - r} ${cy - r * k} ${cx - r} ${cy}`,
+    `C ${cx - r} ${cy + r * 0.55} ${cx - r * 0.45} ${cy + r * 1.3} ${cx} ${cy + r * 1.3}`,
+    `C ${cx + r * 0.45} ${cy + r * 1.3} ${cx + r} ${cy + r * 0.55} ${cx + r} ${cy}`,
+    'Z',
+  ].join(' ');
+}
+
+function framePaths(frame: Frame): { rim: string; stroke: string; dome: string; domeStroke: string } {
+  if (frame === 'circle') {
+    // Kept as <circle> elements by the caller — paths unused in that branch.
+    return { rim: '', stroke: '', dome: '', domeStroke: '' };
+  }
+  const cx = 50;
+  const cy = 45;
+  return {
+    rim: pickPath(cx, cy, 40),
+    stroke: pickPath(cx, cy, 39.3),
+    dome: pickPath(cx, cy, 33),
+    domeStroke: pickPath(cx, cy, 33),
+  };
+}
+
+function familyFrame(id: BadgeId): Frame {
+  return id === 'admin' ? 'pick' : 'circle';
+}
+
+function medalSVG(metal: Metal, emblem: Emblem, frame: Frame): string {
   const e = EMBLEMS[emblem];
+  const body = frame === 'circle'
+    ? '<circle cx="50" cy="50" r="48" fill="url(#bm-rim-METAL)"/>' +
+      '<circle cx="50" cy="50" r="47.2" fill="none" stroke="url(#bm-edge)" stroke-width="1.4"/>' +
+      '<circle cx="50" cy="50" r="40" fill="url(#bm-dome-METAL)"/>' +
+      '<circle cx="50" cy="50" r="40" fill="none" stroke="#000" stroke-opacity="0.16" stroke-width="1"/>'
+    : (() => {
+        const p = framePaths(frame);
+        return `<path d="${p.rim}" fill="url(#bm-rim-METAL)"/>` +
+          `<path d="${p.stroke}" fill="none" stroke="url(#bm-edge)" stroke-width="1.4"/>` +
+          `<path d="${p.dome}" fill="url(#bm-dome-METAL)"/>` +
+          `<path d="${p.domeStroke}" fill="none" stroke="#000" stroke-opacity="0.16" stroke-width="1"/>`;
+      })();
   return (
     '<svg viewBox="0 0 100 100" role="img" aria-hidden="true" focusable="false">' +
-      `<circle cx="50" cy="50" r="48" fill="url(#bm-rim-${metal})"/>` +
-      '<circle cx="50" cy="50" r="47.2" fill="none" stroke="url(#bm-edge)" stroke-width="1.4"/>' +
-      `<circle cx="50" cy="50" r="40" fill="url(#bm-dome-${metal})"/>` +
-      '<circle cx="50" cy="50" r="40" fill="none" stroke="#000" stroke-opacity="0.16" stroke-width="1"/>' +
+      body.replaceAll('METAL', metal) +
       `<g transform="translate(0,1.3)" style="color:rgba(255,255,255,0.3)">${e}</g>` +
       `<g style="color:${INLAY[metal]}">${e}</g>` +
-      '<ellipse cx="40" cy="33" rx="21" ry="12.5" fill="url(#bm-gloss)"/>' +
+      '<ellipse cx="40" cy="30" rx="19" ry="11" fill="url(#bm-gloss)"/>' +
     '</svg>'
   );
 }
@@ -192,12 +239,13 @@ export function BadgeMedal({
   size?: number;
 }) {
   const emblem = familyEmblem(id, instrumentId);
+  const frame = familyFrame(id);
   return (
     <span
       className="badge-medal"
       style={{ width: size, height: size }}
       aria-hidden="true"
-      dangerouslySetInnerHTML={{ __html: medalSVG(tier, emblem) }}
+      dangerouslySetInnerHTML={{ __html: medalSVG(tier, emblem, frame) }}
     />
   );
 }

@@ -23,3 +23,9 @@ record-test-set.html
 # `design` skill (canvas.json + *.dc.html + the big self-contained
 # published-canvas HTML). Design exploration only, not app code.
 design-canvas/
+
+# Local Unity project used only as a design tool for badge artwork.
+# The Unity project itself (and its generated Library/Temp/obj/Logs) is
+# not app code and isn't committed; only the exported badge images that
+# get copied into src/assets or public/ are.
+unity-badges/
