@@ -986,6 +986,20 @@ const he: Record<string, string> = {
   'Tighten (raise pitch)': 'הידקו (העלו את הטון)',
   'Loosen (lower pitch)': 'רפו (הורידו את הטון)',
   '~{pct}% of the audible threshold': '~{pct}% מסף השמיעה האנושי',
+
+  // Fret range conflict dialog
+  'Fret range too small': 'טווח סריגים קטן מדי',
+  'The current fret range': 'טווח הסריגים הנוכחי',
+  ' allows fewer than ': ' מאפשר פחות מ-',
+  ' unique notes': ' תווים ייחודיים',
+  ' with the selected strings. Please expand the range.': ' עם המיתרים הנבחרים. אנא הרחב את הטווח.',
+  'Expand to minimum': 'הרחב למינימום',
+  'I will expand': 'אני ארחיב',
+  'Custom range': 'טווח מותאם',
+  'Keep as is': 'השאר כמו שזה',
+  'Set fret range': 'הגדר טווח סריגים',
+  'Close': 'סגור',
+  'Apply': 'החל',
 };
 
 const dictionaries: Record<Lang, Record<string, string>> = { en: {}, he };
