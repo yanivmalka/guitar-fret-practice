@@ -998,8 +998,6 @@ const he: Record<string, string> = {
   'Custom range': 'טווח מותאם',
   'Keep as is': 'השאר כמו שזה',
   'Set fret range': 'הגדר טווח סריגים',
-  'Close': 'סגור',
-  'Apply': 'החל',
 };
 
 const dictionaries: Record<Lang, Record<string, string>> = { en: {}, he };
