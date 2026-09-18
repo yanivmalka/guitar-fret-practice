@@ -7,6 +7,7 @@ import { useTranslation } from '../i18n/useTranslation';
 import { useLockHint } from './LockHint';
 import { openUpgrade } from '../utils/upgradeDrawer';
 import { FREE_MULTI_STRING_LIMIT } from '../utils/features';
+import FretRangeConflictDialog from './FretRangeConflictDialog';
 import {
   fretXFor, NECK_RIGHT, FB_LEFT_MARGIN, FB_TOP, FB_HEIGHT, FB_BOTTOM,
 } from '../utils/neckGeometry';
@@ -41,6 +42,17 @@ interface SelectorPanelProps {
    *  the Note-by-Fret card. */
   onInfo?: () => void;
   showInfo?: boolean;
+  /** Fret range conflict state when removing strings from multi-string mode */
+  onFretRangeConflict?: {
+    isOpen: boolean;
+    stringToRemove: number | null;
+  } | null;
+  /** Handler for fret range conflict resolution */
+  onFretRangeConflictResolve?: (
+    action: 'auto' | 'manual' | 'cancel',
+    newLo?: number,
+    newHi?: number,
+  ) => void;
 }
 
 export default function SelectorPanel({
@@ -49,6 +61,8 @@ export default function SelectorPanel({
   onDifficultySelect, onAutoAdvanceToggle, isPlaying, activeString, activeFret,
   byString, order, onByStringToggle, onOrderChange, accidental, notation, onNotationChange,
   notationOnly, onInfo, showInfo,
+  onFretRangeConflict,
+  onFretRangeConflictResolve,
 }: SelectorPanelProps) {
   const { t, lang } = useTranslation();
   const { showLockHint, lockHintNode } = useLockHint();
@@ -437,6 +451,19 @@ export default function SelectorPanel({
       </div>
 
       {lockHintNode}
+
+      {/* Fret Range Conflict Dialog */}
+      {onFretRangeConflict && onFretRangeConflictResolve && (
+        <FretRangeConflictDialog
+          instrument={instrument}
+          currentFretLo={selector.fretLo}
+          currentFretHi={selector.fretHi}
+          selectedStrings={selector.selectedStrings}
+          minNotes={4}
+          onResolve={onFretRangeConflictResolve}
+          isOpen={onFretRangeConflict.isOpen}
+        />
+      )}
     </div>
   );
 }

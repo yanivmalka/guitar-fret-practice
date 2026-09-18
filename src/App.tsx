@@ -727,6 +727,8 @@ export default function App() {
       onNotationChange={(n) => { playClickSound(); haptic.tap(); setNotation(n); saveSetting('pref_notation', n); }}
       onInfo={() => { playClickSound(); haptic.tap(); openInfo(); }}
       showInfo={showInfo}
+      onFretRangeConflict={selector.fretRangeConflict}
+      onFretRangeConflictResolve={selector.onFretRangeConflictResolve}
     />
   );
 

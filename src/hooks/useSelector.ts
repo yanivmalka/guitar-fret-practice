@@ -30,7 +30,8 @@ export interface SelectorState {
 
 // Minimum width (in frets) of the precise Pro fret-range window, so a round
 // always has room for a handful of distinct frets to ask about.
-export const MIN_FRET_WINDOW = 3;
+// Also used as minimum unique notes when removing strings from multi-string mode.
+export const MIN_FRET_WINDOW = 4;
 
 // Clamp a precise-window [lo, hi] pair to something valid for this neck: both
 // ends inside [0, maxFret], with lo at least MIN_FRET_WINDOW below hi (a bass
@@ -243,6 +244,10 @@ export function useSelector(instrument: InstrumentConfig, isPro = false) {
   const [autoAdvance, setAutoAdvance] = useState<boolean>(
     () => loadSetting('sel_autoAdvance', false)
   );
+  const [fretRangeConflict, setFretRangeConflict] = useState<{
+    isOpen: boolean;
+    stringToRemove: number | null;
+  } | null>(null);
 
   // ── Setters with persistence ───────────────────────────────────────
 
@@ -259,11 +264,28 @@ export function useSelector(instrument: InstrumentConfig, isPro = false) {
         const idx = prev.indexOf(stringNum);
         let next: number[];
         if (idx >= 0) {
-          // Remove it (toggle off)
+          // Attempting to remove a string — check if it would violate the fret window constraint
           next = prev.filter(s => s !== stringNum);
-          // If removing would empty the array, keep it
-          if (next.length === 0) next = [stringNum];
+          
+          // Check if removing this string would result in insufficient notes
+          if (next.length > 0) {
+            const { calculateUniqueNotes } = require('../utils/noteCalculator');
+            const uniqueNotes = calculateUniqueNotes(instrument, next, safeFretLo, safeFretHi);
+            
+            if (uniqueNotes < MIN_FRET_WINDOW) {
+              // Open conflict dialog instead of removing
+              setFretRangeConflict({
+                isOpen: true,
+                stringToRemove: stringNum,
+              });
+              return prev; // Don't remove yet
+            }
+          }
+          
+          // Safe to remove
+          if (next.length === 0) next = [stringNum]; // Keep at least one string
         } else {
+          // Adding a string
           // Free tier can drill at most FREE_MULTI_STRING_LIMIT strings at
           // once; reaching for one more opens the upgrade drawer and leaves
           // the selection untouched.
@@ -338,6 +360,38 @@ export function useSelector(instrument: InstrumentConfig, isPro = false) {
     saveSetting('sel_fretLo', l);
     setFretHi(h);
     saveSetting('sel_fretHi', h);
+  };
+
+  // Handle fret range conflict resolution when removing strings
+  const onFretRangeConflictResolve = (
+    action: 'auto' | 'manual' | 'cancel',
+    newLo?: number,
+    newHi?: number,
+  ) => {
+    const stringToRemove = fretRangeConflict?.stringToRemove;
+    
+    if (action === 'cancel' || !stringToRemove) {
+      setFretRangeConflict(null);
+      return;
+    }
+    
+    // Remove the string
+    setSelectedStrings(prev => {
+      const next = prev.filter(s => s !== stringToRemove);
+      if (next.length === 0) return [stringToRemove]; // Keep at least one
+      saveSetting(sKey, next);
+      return next;
+    });
+    
+    // Expand fret range if needed
+    if ((action === 'auto' || action === 'manual') && newLo !== undefined && newHi !== undefined) {
+      setFretLo(newLo);
+      saveSetting('sel_fretLo', newLo);
+      setFretHi(newHi);
+      saveSetting('sel_fretHi', newHi);
+    }
+    
+    setFretRangeConflict(null);
   };
 
   const onFretRangePreciseToggle = () => {
@@ -482,5 +536,7 @@ export function useSelector(instrument: InstrumentConfig, isPro = false) {
     runQuestionCount,
     derivedSettings,
     historyKey: () => historyKey(state, instrument, isPro),
+    fretRangeConflict,
+    onFretRangeConflictResolve,
   };
 }
