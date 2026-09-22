@@ -27,10 +27,12 @@ const STATUS_LABEL: Record<Status, string> = {
 // Same colour roles as ProgressPanel's fretboard heatmap — the per-palette
 // heat tokens, so "learning" and "mastered" stay mutually distinct on every
 // seasonal ground (autumn's olive success would otherwise collide with amber).
+// `mastered` uses --heat-known-cell, the darker/more-saturated green tuned
+// against --heat-needs-work for lightness as well as hue (see 00-tokens.css).
 const STATUS_COLOR: Record<Status, string> = {
   notStarted: 'var(--heat-unplayed)',
   learning: 'var(--heat-needs-work)',
-  mastered: 'var(--heat-known)',
+  mastered: 'var(--heat-known-cell)',
 };
 
 // Reuse the three bar-fill classes BarRows already ships.

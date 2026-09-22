@@ -145,10 +145,23 @@ function Expander({ label, open, onToggle, children }: { label: string; open: bo
   );
 }
 
+// `known` uses --heat-known-cell, not --heat-known — a darker/more
+// saturated green tuned specifically so this grid's solid cells separate
+// from --heat-needs-work by lightness as well as hue (see 00-tokens.css).
 const HEAT: Record<string, string> = {
   unplayed: 'var(--heat-unplayed)',
   needsWork: 'var(--heat-needs-work)',
-  known: 'var(--heat-known)',
+  known: 'var(--heat-known-cell)',
+};
+
+// Colour alone doesn't separate "needs work" from "known" reliably across
+// every seasonal palette (amber vs. green reads as similar warm-mid tones on
+// some grounds, and collapses further for red/green colour-blindness). Each
+// cell also carries a glyph so the level reads without relying on hue.
+const HEAT_GLYPH: Record<string, string> = {
+  unplayed: '',
+  needsWork: '•',
+  known: '✓',
 };
 
 // Short open-note label ("String 1 · high E" -> "E") for the heatmap rows.
@@ -175,7 +188,11 @@ function FretHeatmap({ history, instrument }: { history: HistoryEntry[]; instrum
                 const title = stat && stat.level !== 'unplayed'
                   ? `${t('String')} ${stringNumber} ${t('fret')} ${fret} — ${pct(stat.accuracy)}`
                   : `${t('String')} ${stringNumber} ${t('fret')} ${fret} — ${t('not played')}`;
-                return <span key={fret} className="sp2-heat-cell" title={title} style={{ background: HEAT[level] }} />;
+                return (
+                  <span key={fret} className="sp2-heat-cell" title={title} style={{ background: HEAT[level] }}>
+                    {HEAT_GLYPH[level]}
+                  </span>
+                );
               })}
             </div>
           );
@@ -188,8 +205,8 @@ function FretHeatmap({ history, instrument }: { history: HistoryEntry[]; instrum
         </div>
       </div>
       <div className="sp2-heat-legend">
-        <span><i style={{ background: HEAT.known }} /> {t('known')}</span>
-        <span><i style={{ background: HEAT.needsWork }} /> {t('needs work')}</span>
+        <span><i style={{ background: HEAT.known }}>{HEAT_GLYPH.known}</i> {t('known')}</span>
+        <span><i style={{ background: HEAT.needsWork }}>{HEAT_GLYPH.needsWork}</i> {t('needs work')}</span>
         <span><i style={{ background: HEAT.unplayed }} /> {t('unplayed')}</span>
       </div>
     </div>
