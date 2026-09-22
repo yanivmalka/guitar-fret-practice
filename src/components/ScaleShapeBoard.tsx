@@ -1,10 +1,11 @@
 // ── ScaleShapeBoard — the "build the scale" answer surface ──────────────
 //
 // A piano-tiles-style multi-string board: one row (lane) per string the
-// shape touches, one tappable tile per position in the shape, laid out over
-// the shape's fret window. This is the new capability Exercise A genuinely
-// needs (see scaleDrill.ts's header comment) — FretGrid only ever renders
-// one string.
+// shape touches, one tappable tile per fret in the shape's window — shape
+// members AND decoys alike, so a wrong tap is a real possibility, not just
+// "did you tap every visible button." This is the new capability Exercise A
+// genuinely needs (see scaleDrill.ts's header comment) — FretGrid only ever
+// renders one string.
 
 import type { ScaleQuestion } from '../learning/scaleDrill';
 import type { NeckPos } from '../utils/scales';
@@ -36,10 +37,14 @@ export default function ScaleShapeBoard({ question, foundPositions, wrongPositio
           <span className="scale-board-string-label">{s}</span>
           {fretRange.map((f) => {
             const pos: NeckPos = { string: s, fret: f };
+            // Every fret in the window is a real, tappable tile — including
+            // ones that are NOT part of the shape. Rendering only the true
+            // shape members (an earlier version of this component) would let
+            // the learner "solve" a question by tapping every visible tile,
+            // with nothing to actually get wrong — this way a wrong tap
+            // lands on a real, indistinguishable-looking decoy tile, exactly
+            // like FretGrid's filter-range frets.
             const isShapeMember = question.shape.some((p) => samePos(p, pos));
-            if (!isShapeMember) {
-              return <span className="scale-tile scale-tile-empty" key={f} aria-hidden="true" />;
-            }
             const isRoot = s === question.rootString && f === question.rootFret;
             const isFound = foundPositions.some((p) => samePos(p, pos));
             const isWrong = wrongPosition != null && samePos(wrongPosition, pos);
@@ -54,7 +59,7 @@ export default function ScaleShapeBoard({ question, foundPositions, wrongPositio
                 key={f}
                 type="button"
                 className={cls}
-                disabled={!active || isFound}
+                disabled={!active || (isFound && isShapeMember)}
                 onClick={() => onSelect(s, f)}
                 title={`String ${s} · fret ${f}`}
               >

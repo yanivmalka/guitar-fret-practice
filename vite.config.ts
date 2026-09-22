@@ -32,6 +32,7 @@ export default defineConfig({
         statsRedesign: resolve(__dirname, 'stats-redesign.html'),
         tuner: resolve(__dirname, 'tuner.html'),
         pitchSpike: resolve(__dirname, 'pitch-spike.html'),
+        scaleSpike: resolve(__dirname, 'scale-spike.html'),
       },
     },
   },

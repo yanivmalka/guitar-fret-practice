@@ -1,7 +1,7 @@
 /* ScaleShapeBoard — Exercise A ("build the scale") multi-string piano-tiles
-   board. One row (lane) per string, one tile per fret in the shape's window;
-   tiles that aren't part of the shape render as blank filler for lane
-   alignment. See src/components/ScaleShapeBoard.tsx. */
+   board. One row (lane) per string, one REAL tappable tile per fret in the
+   shape's window — decoys look identical to shape members until tapped or
+   revealed, so guessing isn't free. See src/components/ScaleShapeBoard.tsx. */
 
 .scale-board {
   display: flex;
@@ -33,10 +33,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.scale-tile-empty {
-  background: transparent;
 }
 
 .scale-tile-active {
