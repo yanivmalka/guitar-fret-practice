@@ -1,68 +1,140 @@
-/* ScaleShapeBoard — Exercise A ("build the scale") multi-string piano-tiles
-   board. One row (lane) per string, one REAL tappable tile per fret in the
-   shape's window — decoys look identical to shape members until tapped or
-   revealed, so guessing isn't free. See src/components/ScaleShapeBoard.tsx. */
+/* ScaleTilesBoard — Exercise A ("build the scale"), the real Piano Tiles
+   mechanic (scales-learning-spec.md's Session 2 correction note): one
+   vertical lane per string, tiles fall on a pure CSS animation and the
+   player taps a lane in time as its tile crosses the hit-line. See
+   src/components/ScaleTilesBoard.tsx / src/hooks/useScaleTilesEngine.ts. */
 
+.scale-tiles-board {
+  position: relative;
+  display: flex;
+  gap: 4px;
+  width: 100%;
+  max-width: 420px;
+  height: 260px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--surface-1, #10121c);
+}
+
+.scale-tiles-hitline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 78%;
+  height: 3px;
+  background: var(--accent, #4af);
+  box-shadow: 0 0 8px 2px rgba(74, 170, 255, 0.5);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.scale-tiles-lane {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: var(--surface-border);
+  border: none;
+  border-inline-start: 1px solid var(--border-soft);
+  cursor: pointer;
+  padding: 0;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.scale-tiles-lane:first-child { border-inline-start: none; }
+.scale-tiles-lane:active:not(:disabled) { filter: brightness(1.15); }
+.scale-tiles-lane:disabled { cursor: default; }
+
+.scale-tiles-tile {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--accent, #4af);
+  top: -32px;
+  animation-name: scale-tile-fall;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes scale-tile-fall {
+  from { transform: translateY(0); }
+  to { transform: translateY(300px); }
+}
+
+.scale-tiles-tile-hit {
+  background: #0c0;
+  box-shadow: 0 0 8px 2px rgba(0, 255, 0, 0.5);
+}
+.scale-tiles-tile-miss {
+  background: #a00;
+  opacity: 0.6;
+}
+
+/* ScalePracticeScreen — the exercise-A/B/C switcher (a minimal MVP row, not
+   the real Selector — see the screen's header comment) and the "hear it
+   again" replay affordance for Exercise B. */
+.scale-exercise-switcher {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Position / Difficulty controls (useScaleSelector, scales-learning-spec.md
+   §5.3/§5.4) — the same `set-card-btn` segmented-row look as the exercise
+   switcher above, with a small uppercase group label mirroring
+   `.interval-selector-label` (22-teacher.css). */
+.scale-position-switcher,
+.scale-difficulty-switcher {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.set-card-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.scale-position-row,
+.scale-difficulty-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.scale-replay-btn {
+  background: none;
+  border: none;
+  color: var(--accent, #4af);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 0 8px;
+  align-self: flex-start;
+}
+
+/* ScaleProgressBoard — the flat, grouped-by-scale-type board (spec §12).
+   Reuses 11-progress-bars.css's `.string-bar-*` row styling unchanged; this
+   file only adds the group header this screen introduces (Intervals' single
+   flat list has no equivalent, since it never groups). */
 .scale-board {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  width: 100%;
-  max-width: 420px;
+  gap: 4px;
 }
-
-.scale-board-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.scale-board-group {
+  margin-bottom: 10px;
 }
-
-.scale-board-string-label {
-  width: 18px;
-  flex-shrink: 0;
-  text-align: center;
-  font-size: 12px;
-  color: var(--text-2);
+.scale-board-group-title {
+  font-size: 0.85rem;
+  font-weight: 800;
+  margin: 0 0 6px;
+  color: var(--text-1, inherit);
 }
-
-.scale-tile {
-  flex: 1;
-  height: 48px;
-  min-width: 0;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.scale-tile-active {
-  background: var(--surface-border);
-  border: 2px solid var(--border-soft);
-  color: var(--text-0);
-  cursor: pointer;
-  transition: all 0.2s, box-shadow 0.6s;
-  outline: none;
-  -webkit-tap-highlight-color: transparent;
-  -webkit-appearance: none;
-  user-select: none;
-  touch-action: manipulation;
-}
-.scale-tile-active:active:not(:disabled) { transform: scale(0.93); }
-.scale-tile-active:disabled { cursor: default; }
-
-.scale-tile-root {
-  border-color: var(--accent, #4af) !important;
-  box-shadow: 0 0 8px 2px rgba(74, 170, 255, 0.4);
-}
-.scale-tile-root-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--accent, #4af);
-}
-
-.scale-tile-found {
-  background: #0a0 !important; border-color: #0f0 !important;
-  box-shadow: 0 0 8px 2px rgba(0, 255, 0, 0.4);
-}
-.scale-tile-wrong {
-  background: #a00 !important; border-color: #f00 !important;
+.scale-board .string-bar-label {
+  width: auto;
+  text-align: start;
 }

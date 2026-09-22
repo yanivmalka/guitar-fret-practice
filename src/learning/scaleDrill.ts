@@ -1,16 +1,29 @@
-// ── scaleDrill.ts — Exercise A question picking ("Build the scale") ──────
+// ── scaleDrill.ts — question picking for all three Scales exercises ──────
 //
-// Pure, no React. scales-learning-spec.md §8.1's exercise needs a genuinely
-// new answer surface (a piano-tiles-style multi-string board — see
+// Pure, no React. Exercise A (§8.1, "build the scale") needs a genuinely new
+// answer surface (a piano-tiles-style multi-string board — see
 // `ScaleShapeBoard.tsx` / `useScaleDrillEngine.ts`), NOT the single-string
 // `FretGrid` byNote flow the spec originally assumed: `FretGrid` renders one
-// string per question, but a scale shape spans several. This file is the
-// pure question-selection half of that new capability — mirrors
-// `intervalDrill.ts`'s role for Intervals, minus the `DrillConfig` plumbing
-// (the new board isn't wired through `useGameEngine`/`DrillConfig` yet).
+// string per question, but a scale shape spans several. Exercises B (§8.2,
+// "identify the scale") and C (§8.3, "name the degree") are the cheap reuse
+// case the spec calls out: both answer through a chip row, and C's option
+// building is `intervals.ts`'s `buildTargetNoteOptions` unchanged — a scale
+// degree IS an interval above the root. Mirrors `intervalDrill.ts`'s role
+// for Intervals, minus the `DrillConfig` plumbing (Scales isn't wired
+// through `useGameEngine`/`DrillConfig` — see this file's engines).
 
-import { scaleTypeById, scalePositionsFor, shapeAtRoot } from '../utils/scales';
+import { scaleTypeById, scalePositionsFor, shapeAtRoot, SCALE_TYPES } from '../utils/scales';
 import type { NeckPos } from '../utils/scales';
+import { buildTargetNoteOptions, noteNameAtSemitones } from '../utils/intervals';
+
+function shuffled<T>(xs: readonly T[], rng: () => number): T[] {
+  const out = [...xs];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
 
 /** One (scale type, position) pair a session may draw questions from. */
 export interface ScalePoolItem {
@@ -39,24 +52,30 @@ export interface ScaleQuestion {
   shape: NeckPos[];
 }
 
-/** Pick a random (scaleType, position) from `pool` and a random root fret it
- *  fits at (i.e. the position's window stays on the fretboard), and resolve
- *  the concrete shape. Returns `null` for an empty pool, an unknown scale
+function isNaturalName(name: string): boolean {
+  return !name.includes('#') && !name.includes('b');
+}
+
+/** Pick a random (scaleType, position) from `pool` and a root fret it fits at
+ *  (i.e. the position's window stays on the fretboard), and resolve the
+ *  concrete shape. Returns `null` for an empty pool, an unknown scale
  *  type/position, or an instrument too short for any position in the pool to
- *  fit at any root. `rng` is injectable for deterministic tests. */
+ *  fit at any root. `rng` is injectable for deterministic tests.
+ *
+ *  `naturalsOnly` (§9.1's "root bias" dimension, `focused` tier) restricts
+ *  the candidate root frets to natural-note roots when at least one exists
+ *  in range, falling back to any root rather than ever returning `null` just
+ *  because no natural root happens to fit. */
 export function pickScaleQuestion(
   pool: readonly ScalePoolItem[],
   noteTable: readonly (readonly string[])[],
   stringCount: number,
   maxFret: number,
   rng: () => number = Math.random,
+  naturalsOnly = false,
 ): ScaleQuestion | null {
   if (pool.length === 0) return null;
-  const order = [...pool];
-  for (let i = order.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [order[i], order[j]] = [order[j], order[i]];
-  }
+  const order = shuffled(pool, rng);
   for (const item of order) {
     const scaleType = scaleTypeById(item.scaleTypeId);
     if (!scaleType) continue;
@@ -65,22 +84,147 @@ export function pickScaleQuestion(
     if (!position) continue;
     const lo = Math.max(0, -position.window.from);
     if (lo > maxFret) continue;
+    const row = noteTable[position.rootString - 1];
+    if (!row) continue;
     // Every root fret in [lo, maxFret] keeps the window on the fretboard
     // (shapeAtRoot only rejects a negative low edge; a high edge past the
     // instrument's last fret is simply clamped by shapeAtRoot itself).
-    const rootFret = lo + Math.floor(rng() * (maxFret - lo + 1));
-    const shape = shapeAtRoot(scaleType, position, rootFret, noteTable);
-    if (!shape || shape.length === 0) continue;
-    const rootName = noteTable[position.rootString - 1]?.[rootFret];
-    if (!rootName) continue;
-    return {
-      scaleTypeId: item.scaleTypeId,
-      positionIndex: item.positionIndex,
-      rootString: position.rootString,
-      rootFret,
-      rootName,
-      shape,
-    };
+    let candidateFrets = shuffled(
+      Array.from({ length: maxFret - lo + 1 }, (_, i) => lo + i), rng,
+    );
+    if (naturalsOnly) {
+      const naturals = candidateFrets.filter((f) => isNaturalName(row[f] ?? ''));
+      if (naturals.length > 0) candidateFrets = naturals;
+    }
+    for (const rootFret of candidateFrets) {
+      const shape = shapeAtRoot(scaleType, position, rootFret, noteTable);
+      if (!shape || shape.length === 0) continue;
+      const rootName = row[rootFret];
+      if (!rootName) continue;
+      return {
+        scaleTypeId: item.scaleTypeId,
+        positionIndex: item.positionIndex,
+        rootString: position.rootString,
+        rootFret,
+        rootName,
+        shape,
+      };
+    }
   }
   return null;
+}
+
+/** One "identify the scale" question (§8.2): a root position plus the frets
+ *  to play in sequence, root to top (OD-S1, one string — a fret step is
+ *  exactly a semitone, so this reuses `playNoteSequence` unchanged), and a
+ *  chip-row option list of scale-type ids the learner picks from. */
+export interface ScaleIdentifyQuestion {
+  scaleTypeId: string;
+  positionIndex: number;
+  rootString: number;
+  rootFret: number;
+  rootName: string;
+  /** Frets on `rootString`, root to top, to play in sequence. */
+  playFrets: number[];
+  /** Scale-type ids, shuffled, always includes `scaleTypeId`. */
+  options: string[];
+}
+
+/** Picks a root the same way `pickScaleQuestion` does, then builds the
+ *  ascending playback + a multiple-choice scale-name option list. The option
+ *  list is only as wide as the shipped catalogue (§4.2's phased rollout) —
+ *  with one scale type shipped it degenerates to a single, always-correct
+ *  chip; it grows on its own as more scale types ship, no code change here. */
+export function pickScaleIdentifyQuestion(
+  pool: readonly ScalePoolItem[],
+  noteTable: readonly (readonly string[])[],
+  stringCount: number,
+  maxFret: number,
+  optionCount = 4,
+  rng: () => number = Math.random,
+  naturalsOnly = false,
+): ScaleIdentifyQuestion | null {
+  const base = pickScaleQuestion(pool, noteTable, stringCount, maxFret, rng, naturalsOnly);
+  if (!base) return null;
+  const scaleType = scaleTypeById(base.scaleTypeId);
+  if (!scaleType) return null;
+
+  const playFrets = [0, ...scaleType.degrees].map((s) => base.rootFret + s);
+
+  const poolTypeIds = [...new Set(pool.map((p) => p.scaleTypeId))];
+  const allTypeIds = [...new Set(SCALE_TYPES.map((s) => s.id))];
+  const chips = new Set<string>([base.scaleTypeId]);
+  for (const id of shuffled(poolTypeIds, rng)) {
+    if (chips.size >= optionCount) break;
+    chips.add(id);
+  }
+  for (const id of shuffled(allTypeIds, rng)) {
+    if (chips.size >= optionCount) break;
+    chips.add(id);
+  }
+
+  return {
+    scaleTypeId: base.scaleTypeId,
+    positionIndex: base.positionIndex,
+    rootString: base.rootString,
+    rootFret: base.rootFret,
+    rootName: base.rootName,
+    playFrets,
+    options: shuffled([...chips], rng),
+  };
+}
+
+/** One "name the degree" question (§8.3): a root + one of the scale's
+ *  degrees (not the root itself, which is a trivial "same note" question),
+ *  plus a note-chip option list built by `buildTargetNoteOptions` exactly as
+ *  Intervals Exercise B does — a scale degree IS an interval above the
+ *  root, and `poolSemitones` = the scale's own degrees makes the distractors
+ *  other real degrees of the same scale (a natural confuser set). */
+export interface ScaleDegreeQuestion {
+  scaleTypeId: string;
+  positionIndex: number;
+  rootString: number;
+  rootFret: number;
+  rootName: string;
+  /** Index into the scale type's `degrees`/`degreeLabels` arrays. */
+  degreeIndex: number;
+  degreeLabel: string;
+  /** Sharp-spelled correct note name. */
+  targetNote: string;
+  /** Note names, shuffled, always includes `targetNote`. */
+  options: string[];
+}
+
+export function pickScaleDegreeQuestion(
+  pool: readonly ScalePoolItem[],
+  noteTable: readonly (readonly string[])[],
+  stringCount: number,
+  maxFret: number,
+  optionCount = 4,
+  rng: () => number = Math.random,
+  naturalsOnly = false,
+): ScaleDegreeQuestion | null {
+  const base = pickScaleQuestion(pool, noteTable, stringCount, maxFret, rng, naturalsOnly);
+  if (!base) return null;
+  const scaleType = scaleTypeById(base.scaleTypeId);
+  if (!scaleType || scaleType.degrees.length === 0) return null;
+
+  const degreeIndex = Math.floor(rng() * scaleType.degrees.length);
+  const semitones = scaleType.degrees[degreeIndex];
+  const targetNote = noteNameAtSemitones(base.rootName, semitones);
+  const options = buildTargetNoteOptions(
+    base.rootName, targetNote, scaleType.degrees, 1, optionCount, undefined, semitones,
+  );
+
+  return {
+    scaleTypeId: base.scaleTypeId,
+    positionIndex: base.positionIndex,
+    rootString: base.rootString,
+    rootFret: base.rootFret,
+    rootName: base.rootName,
+    degreeIndex,
+    degreeLabel: scaleType.degreeLabels[degreeIndex] ?? '',
+    targetNote,
+    options,
+  };
 }

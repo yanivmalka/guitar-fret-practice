@@ -16,6 +16,15 @@
 //   • intervalDaily   — today's prescribed *interval* goal (0015, separate — OD-5)
 //   • intervalHistory — a capped, synced ring buffer of interval answers (0015)
 //   • path            — Learning Path checkpoint stars (notes only)
+//   • scaleSrs        — (scaleType, position)-item id → SrsItem (P5, a separate
+//                        lane — scales-learning-spec.md §10.1)
+//   • scaleHistory    — a capped ring buffer of scale-drill answers (§10.3,
+//                        §15) — LOCAL ONLY so far: `learningSync.ts` does not
+//                        carry `scaleSrs`/`scaleHistory` yet (spec §15's cloud
+//                        wiring is a later increment; these two fields persist
+//                        to localStorage today exactly like every other field
+//                        here, they just don't survive a sign-out/reinstall
+//                        until that wiring lands)
 //   • updatedAt
 //
 // This module is pure model + persistence. It does NOT import the sync layer
@@ -30,6 +39,7 @@ import {
   type SrsMap,
 } from './srs';
 import { noteItemId } from './noteItem';
+import { parseScaleItemId } from './scaleItem';
 import {
   emptyPathProgress,
   normalizePathProgress,
@@ -54,6 +64,10 @@ export const DEFAULT_INTERVAL_DAILY_TARGET = 10;
 // (spec §15.2 / OD-6).
 export const INTERVAL_HISTORY_CAP = 200;
 
+// Same idea, scale domain (scales-learning-spec.md §10.3 / §15.2). Local-only
+// for now — see the `InstrumentLearningState` header note above.
+export const SCALE_HISTORY_CAP = 200;
+
 export interface DailyGoal {
   /** Local calendar day, `YYYY-MM-DD`. */
   dateISO: string;
@@ -75,6 +89,24 @@ export interface IntervalHistoryRow {
   dir: 'up' | 'down';
   /** Which exercise produced the answer. */
   form: 'identify' | 'findNote' | 'findPosition';
+  /** A timeout folds in here as `false`, matching the SRS treatment. */
+  correct: boolean;
+  /** Seconds taken; `0` when unknown. */
+  seconds: number;
+  /** Epoch ms — the dedupe / cap-by-recency key on merge. */
+  createdAt: number;
+}
+
+/** One recorded scale-drill answer (scales-learning-spec.md §10.3). A capped
+ *  ring buffer of these (`InstrumentLearningState.scaleHistory`) feeds
+ *  `analyzeScaleWeakness` and `scaleMastery.ts`'s board. It is NEVER merged
+ *  into note/interval history, mastery, badges, leaderboard, or personal-best
+ *  (§19). */
+export interface ScaleHistoryRow {
+  /** `scale:<type>:<position>` — the item this answer reviews. */
+  itemId: string;
+  /** Which exercise produced the answer (§8). */
+  form: 'buildScale' | 'identifyScale' | 'nameDegree';
   /** A timeout folds in here as `false`, matching the SRS treatment. */
   correct: boolean;
   /** Seconds taken; `0` when unknown. */
@@ -107,6 +139,14 @@ export interface InstrumentLearningState {
    *  and Path progress follows that precedent. Absent in a pre-P3 blob ⇒ an
    *  empty record. */
   path: PathProgress;
+  /** Leitner schedule for `(scaleType, position)` items (P5). A separate map
+   *  from `srs`/`intervalSrs` so notes/intervals code never sees scale ids.
+   *  Keyed by `scaleItemId(type, position)`. Absent in a pre-P5 blob ⇒ `{}`. */
+  scaleSrs: SrsMap;
+  /** Capped (`SCALE_HISTORY_CAP`) ring buffer of scale-drill answers. Local
+   *  only for now — see this interface's header note. Absent in a pre-P5
+   *  blob ⇒ `[]`. */
+  scaleHistory: ScaleHistoryRow[];
   /** Epoch ms of the last Teacher answer, for merge tie-breaking. */
   lastAnswerAt: number;
   /** ISO timestamp of the last change. */
@@ -139,6 +179,8 @@ export function emptyInstrumentState(now: number): InstrumentLearningState {
     intervalDaily: freshDaily(now, DEFAULT_INTERVAL_DAILY_TARGET),
     intervalHistory: [],
     path: emptyPathProgress(),
+    scaleSrs: {},
+    scaleHistory: [],
     lastAnswerAt: 0,
     updatedAt: new Date(now).toISOString(),
   };
@@ -219,6 +261,40 @@ export function normalizeIntervalHistory(raw: unknown): IntervalHistoryRow[] {
     : rows;
 }
 
+/** Coerce untrusted storage input into a valid `ScaleHistoryRow[]`: drop
+ *  malformed rows, then keep the most recent `SCALE_HISTORY_CAP` by
+ *  `createdAt`. A missing key (pre-P5 blob) ⇒ `[]`. Mirrors
+ *  `normalizeIntervalHistory`. */
+export function normalizeScaleHistory(raw: unknown): ScaleHistoryRow[] {
+  if (!Array.isArray(raw)) return [];
+  const rows: ScaleHistoryRow[] = [];
+  for (const v of raw) {
+    if (v == null || typeof v !== 'object') continue;
+    const r = v as Record<string, unknown>;
+    const itemId = typeof r.itemId === 'string' ? r.itemId : '';
+    if (parseScaleItemId(itemId) == null) continue;
+    const createdAt =
+      typeof r.createdAt === 'number' && Number.isFinite(r.createdAt) && r.createdAt > 0
+        ? Math.round(r.createdAt)
+        : NaN;
+    if (!Number.isFinite(createdAt)) continue;
+    const form =
+      r.form === 'buildScale' || r.form === 'identifyScale' || r.form === 'nameDegree'
+        ? r.form
+        : null;
+    if (form == null) continue;
+    const seconds =
+      typeof r.seconds === 'number' && Number.isFinite(r.seconds) && r.seconds >= 0
+        ? r.seconds
+        : 0;
+    rows.push({ itemId, form, correct: r.correct === true, seconds, createdAt });
+  }
+  rows.sort((a, b) => a.createdAt - b.createdAt);
+  return rows.length > SCALE_HISTORY_CAP
+    ? rows.slice(rows.length - SCALE_HISTORY_CAP)
+    : rows;
+}
+
 export function normalizeInstrumentState(
   raw: unknown,
   now: number,
@@ -242,6 +318,8 @@ export function normalizeInstrumentState(
     intervalDaily: normalizeDaily(r.intervalDaily, now, DEFAULT_INTERVAL_DAILY_TARGET),
     intervalHistory: normalizeIntervalHistory(r.intervalHistory),
     path: normalizePathProgress(r.path),
+    scaleSrs: readSrsMap(r.scaleSrs),
+    scaleHistory: normalizeScaleHistory(r.scaleHistory),
     lastAnswerAt:
       typeof r.lastAnswerAt === 'number' && Number.isFinite(r.lastAnswerAt)
         ? r.lastAnswerAt
@@ -358,6 +436,8 @@ export function recordTeacherAnswer(
     intervalDaily: st.intervalDaily,
     intervalHistory: st.intervalHistory,
     path: st.path,
+    scaleSrs: st.scaleSrs,
+    scaleHistory: st.scaleHistory,
     lastAnswerAt: now,
     updatedAt: new Date(now).toISOString(),
   };
@@ -386,6 +466,8 @@ export function recordPracticeAnswer(
     intervalDaily: st.intervalDaily,
     intervalHistory: st.intervalHistory,
     path: st.path,
+    scaleSrs: st.scaleSrs,
+    scaleHistory: st.scaleHistory,
     lastAnswerAt: now,
     updatedAt: new Date(now).toISOString(),
   };
@@ -479,6 +561,48 @@ export function recordIntervalTeacherAnswer(
   };
 }
 
+// ── Apply one scale-drill answer (Premium only, P5) ────────────────────
+//
+// The scale-domain sibling of `recordIntervalTeacherAnswer` — but Scales has
+// only ONE recording path (no free-vs-guided split like Intervals', since
+// there is no guided Scale Today session yet, spec §13/§14 not built):
+// every scale answer, from any of the three exercises, folds the item into
+// `scaleSrs` and appends a capped row to `scaleHistory` (§10.3). Does NOT
+// touch a `scaleDaily` goal — that field doesn't exist yet (§14 is a later
+// increment). The note `srs` / `daily` / `path` and the interval fields are
+// byte-identical to the input (the note daily record is still rolled to
+// today for stale-day hygiene, a no-op within the same day). Pure.
+export function recordScaleAnswer(
+  st: InstrumentLearningState,
+  itemId: string,
+  form: ScaleHistoryRow['form'],
+  correct: boolean,
+  seconds: number,
+  now: number,
+): InstrumentLearningState {
+  const srsItem = getOrCreate(st.scaleSrs, itemId, now);
+  const nextItem = reviewSrsItem(srsItem, correct, now);
+  const row: ScaleHistoryRow = {
+    itemId,
+    form,
+    correct,
+    seconds: Number.isFinite(seconds) && seconds >= 0 ? seconds : 0,
+    createdAt: now,
+  };
+  const history = [...st.scaleHistory, row];
+  return {
+    ...st,
+    scaleSrs: { ...st.scaleSrs, [itemId]: nextItem },
+    scaleHistory:
+      history.length > SCALE_HISTORY_CAP
+        ? history.slice(history.length - SCALE_HISTORY_CAP)
+        : history,
+    daily: rollDailyGoal(st.daily, now, st.daily.target),
+    lastAnswerAt: now,
+    updatedAt: new Date(now).toISOString(),
+  };
+}
+
 // ── Fold Learning Path checkpoint stars (Premium only) ────────────────
 //
 // Monotonic per checkpoint (see `pathProgress.foldCheckpointStars`). Returns
@@ -539,6 +663,30 @@ export function mergeIntervalHistory(
     : out;
 }
 
+/**
+ * Merge two scale-history buffers: concatenate, drop rows that duplicate on
+ * (`createdAt`, `itemId`, `form`), then keep the most recent
+ * `SCALE_HISTORY_CAP` by `createdAt`. Mirrors `mergeIntervalHistory` — a real
+ * union, never last-writer-wins.
+ */
+export function mergeScaleHistory(
+  a: ScaleHistoryRow[],
+  b: ScaleHistoryRow[],
+): ScaleHistoryRow[] {
+  const seen = new Set<string>();
+  const out: ScaleHistoryRow[] = [];
+  for (const row of [...a, ...b]) {
+    const key = `${row.createdAt}|${row.itemId}|${row.form}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+  }
+  out.sort((x, y) => x.createdAt - y.createdAt);
+  return out.length > SCALE_HISTORY_CAP
+    ? out.slice(out.length - SCALE_HISTORY_CAP)
+    : out;
+}
+
 export function mergeInstrumentState(
   a: InstrumentLearningState,
   b: InstrumentLearningState,
@@ -553,6 +701,8 @@ export function mergeInstrumentState(
     ),
     intervalHistory: mergeIntervalHistory(a.intervalHistory ?? [], b.intervalHistory ?? []),
     path: mergePathProgress(a.path, b.path),
+    scaleSrs: mergeSrsMaps(a.scaleSrs ?? {}, b.scaleSrs ?? {}),
+    scaleHistory: mergeScaleHistory(a.scaleHistory ?? [], b.scaleHistory ?? []),
     lastAnswerAt: Math.max(a.lastAnswerAt, b.lastAnswerAt),
     updatedAt: a.updatedAt >= b.updatedAt ? a.updatedAt : b.updatedAt,
   };

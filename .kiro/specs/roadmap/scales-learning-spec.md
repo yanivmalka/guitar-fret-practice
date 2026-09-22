@@ -2,10 +2,10 @@
 
 Status: **design resolved (§17), scope confirmed by the product owner,
 Slice 1 (Minor Pentatonic) implementation IN PROGRESS — see "Session 1
-progress" below before writing more code.** This document was drafted by
-mirroring the shipped Intervals Learning domain (§0–§3 below explain how) so
-it could be reviewed against a concrete precedent rather than from a blank
-page.
+progress" and then "Session 2 plan" below before writing more code.** This
+document was drafted by mirroring the shipped Intervals Learning domain
+(§0–§3 below explain how) so it could be reviewed against a concrete
+precedent rather than from a blank page.
 
 ## Session 1 progress (2026-09-22) — read this before continuing
 
@@ -101,6 +101,419 @@ Each future implementation session should re-read this document in full
 before writing code, rather than relying on memory of this conversation.
 Triads (`premium-product-plan.md` P5's other half) are explicitly **out of
 scope** of this document and are not folded into it.
+
+## Session 2 progress (2026-09-22) — read this before continuing
+
+**Steps 0 and 1 of the plan below are done, live-verified in a real browser
+in English and Hebrew/RTL (zero console errors in either):**
+
+- **Step 0, the RTL bug, is fixed.** `ScaleShapeBoard.tsx`'s root now has a
+  permanent `dir="ltr"`. Re-verified live: string labels and the root tile
+  now stay on the same physical side regardless of `pref_language`, matching
+  `.fret-grid`'s existing rule.
+- **Step 1, Exercises B and C, are built and wired in.** `scaleDrill.ts`
+  gained `pickScaleIdentifyQuestion` (Exercise B) and `pickScaleDegreeQuestion`
+  (Exercise C), both covered by a new `scripts/check-scale-chip-drill.mts`
+  (15 checks, guitar + bass, all passing). A new `useScaleChipEngine.ts`
+  runs both (one dedicated engine, not merged with Exercise A's
+  `useScaleDrillEngine` — the answer shapes differ too much). The chip
+  answer surface reuses `IntervalChoiceRow.tsx` unchanged (a `'scale'`
+  variant was added to its type union for the identify-the-scale chips;
+  `'note'` is reused as-is for name-the-degree, exactly like Intervals
+  Exercise B). `ScalePracticeScreen.tsx` gained a minimal exercise switcher
+  (three buttons — explicitly **not** the real Selector, §5's picker is
+  still step 2) so all three exercises are reachable. All Hebrew strings
+  have translations; note names in Exercise C render as letters via the
+  existing `displayNote`, not solfège.
+
+**One known, accepted limitation, not a bug:** with only Minor Pentatonic
+shipped, Exercise B ("identify the scale") always shows exactly **one**
+chip — the correct answer, so it's currently un-loseable. This is the
+direct, foreseen consequence of §4.2's "one scale type at a time" rollout
+(the option-building code already pulls from the full catalogue and pads
+correctly; verified by the check script's "degrades to exactly 1" case) —
+it will stop being degenerate the moment scale type 2 ships (step 7). Not
+worth special-casing around; ship as-is.
+
+**Step 2 (Selector controls, §5) is now wired in — `useScaleSelector` is no
+longer inert, and its own "not yet imported" note above is out of date.**
+`ScalePracticeScreen.tsx` now calls `useScaleSelector(instrument.stringCount)`
+directly: the old local `exercise` state and the hardcoded
+`QUESTION_COUNT`/`BEAT_MS`/`CHIP_QUESTION_COUNT`/`CHIP_TIME_LIMIT` constants
+are gone, replaced by the hook's `exercise`/`pool`/`buildEnvelope(...)`. The
+screen's own duplicate `ScaleExercise` type is gone too — it now uses the one
+type `useScaleSelector.ts` exports. Both engines take the envelope's derived
+values (`useScaleChipEngine` gained a `naturalsOnly` option it didn't have
+before, threaded through to `pickScaleIdentifyQuestion`/
+`pickScaleDegreeQuestion`; Exercise A's tile-fall tempo, which isn't part of
+`ScaleEnvelope`, is derived from `difficulty` via a small local
+`BEAT_MS_BY_DIFFICULTY` map in the screen instead). Position (§5.3) and
+Difficulty (§5.4) now have real, minimal segmented-button UI in
+`ScalePracticeScreen.tsx` (new `.scale-position-switcher` /
+`.scale-difficulty-switcher` blocks + matching `30-scale-board.css` rules),
+gated the same way the hook gates the logic: the Position row only renders
+once more than one position exists (`sel.positionChoiceAvailable`), and
+picking "one position" visibly disables the Difficulty row and shows a "why"
+line, mirroring the hook's own `focused`-clamp. New strings added with
+Hebrew translations (`Position`, `All positions`, `Box`, the clamp-explainer
+line); `Difficulty`/`Focused`/`Mixed`/`Full` were already translated from the
+Intervals Selector and are reused as-is. §5.2 ("scale selection") is still
+correctly absent — see the hook's own header comment.
+
+**Verified: `tsc -b` and `npm run lint` are clean on the touched files, and
+all three `check-scale-*` diagnostic scripts still pass unchanged** (they
+exercise the pure question-picking/tile-scheduling functions, not this
+screen, so an unchanged pass here is expected, not a substitute for a UI
+check). **Not verified: a live browser click-through.** Earlier sessions used
+a Playwright-driven browser to catch the RTL-mirroring bug and the
+tap-any-order bug — no such tool was available in this session, so the new
+Position/Difficulty UI, the `naturalsOnly` wiring into `useScaleChipEngine`,
+and the difficulty→tempo mapping for Exercise A have only been verified by
+reading the code and by `tsc`/lint/the diagnostics above, not by actually
+clicking through the dev server. Per this doc's own standing rule (the
+Session 1 "free reuse" correction), **treat this increment as unverified in
+a real browser until someone actually does that** — start the dev server and
+walk: Learn → Scales (with `devSimulateTier` forced to `'premium'`) → confirm
+the new Position row appears with two "Box" buttons plus "All positions",
+confirm the Difficulty row disables and explains itself when a single
+position is picked, and confirm picking `focused` vs `full` visibly changes
+Exercise A's tile speed and the chip exercises' timer/option count.
+
+**Correction from the product owner, same session, overrides §8.1's
+"Exercise A" design as built so far — read before touching
+`ScaleShapeBoard.tsx` / `useScaleDrillEngine.ts` again.** The static grid
+board (tap any of N visible tiles, any order, no clock) was a
+misunderstanding: "piano-tiles-style" in this doc and in the component's own
+comments only ever meant "looks like a grid of small rectangular buttons,"
+never the actual mobile game — and was never checked against what that game
+actually does. Confirmed by research (web search, not assumed): real Piano
+Tiles streams four lanes of tiles continuously downward; the player taps
+each tile in time as it crosses a fixed line; the tempo ramps up over the
+run; **one missed or wrong tap ends the run immediately.**
+
+**Exercise A's real design (per the product owner's explicit description) is
+a genuine scrolling rhythm mechanic, not a static tap-in-any-order grid:**
+the neck effectively scrolls past the player over time (or equivalently, the
+tap-line moves along the neck) — **one lane per string** (explicit
+instruction: lane count = the active instrument's `stringCount`, for every
+instrument and variant, not a fixed six) — and only the scale shape's real
+notes ever appear as tiles to tap, arriving in each lane at the moment their
+fret position reaches the line. The player taps the right string at the
+right moment.
+
+**Built and shipped, same session, live-verified via `scale-spike.html`
+(guitar, 6 lanes, zero console errors, hits register and score climbs, a
+miss does not end the run):**
+- `src/learning/scaleTiles.ts` (pure) — `scheduleTiles` orders a shape
+  ascending by fret (ties by string) and assigns evenly spaced arrival
+  times; `pickScaleTilesRun` wraps the unchanged `pickScaleQuestion` and
+  schedules its shape. Covered by `scripts/check-scale-tiles.mts` (12
+  checks, guitar + bass).
+- `src/hooks/useScaleTilesEngine.ts` — the real-time engine. **No
+  `requestAnimationFrame` loop**: each tile's fall is a pure CSS animation
+  (`animation-delay` computed once from `tile.atMs`), so the engine only
+  needs one `setTimeout` per tile (fired at the close of its hit window) to
+  auto-resolve a miss. `tapLane(stringNum)` finds the nearest unresolved
+  tile in that lane within the hit window (`HIT_WINDOW_MS`, 260ms either
+  side) and resolves it.
+- `src/components/ScaleTilesBoard.tsx` + the rewritten
+  `src/styles/30-scale-board.css` — one lane (a full-height tappable button)
+  per string, a fixed hit-line, tiles as absolutely-positioned divs driving
+  a `@keyframes scale-tile-fall` animation.
+- **Resolved, the open question this note originally left:** a missed or
+  wrong-lane tap does **not** end the run — it scores a penalty
+  (`useScoring`'s normal `onWrong`) and the run continues, explicitly
+  *unlike* the real game's one-mistake-ends-everything rule. This was the
+  product owner's explicit choice when asked directly.
+- The old static-grid board/engine (`ScaleShapeBoard.tsx`,
+  `useScaleDrillEngine.ts`) are **deleted**, not kept — every caller
+  (`ScalePracticeScreen.tsx`, `scale-spike.html`'s `ScaleSpike.tsx`) now
+  runs the tiles engine.
+
+**Not done / explicitly out of scope for this pass** (say so plainly rather
+than claiming more than was verified): the real game's tempo-ramps-up-over-
+the-run behaviour was **not** implemented — `beatMs` is currently a fixed
+constant per run (wired to the Selector's difficulty envelope once §5's real
+picker lands, §9.1's tempo dimension), not a live mid-run ramp. Revisit only
+if the product owner asks for it; the core ask (lanes = strings, real
+falling-tile timing, tap-in-time scoring, continue-on-miss) is what was
+actually requested and is what got built.
+
+---
+
+## Session 2 plan (2026-09-22) — read this before continuing
+
+Written after live-verifying Session 1's build in a real browser (English
+**and** Hebrew/RTL, `devSimulateTier` forced to `'premium'`): the drawer →
+Learn → Scales → Start flow works end to end with zero console errors in
+both languages, and the board's tap/found/wrong feedback (green on a correct
+shape-member tap, red on a decoy tap, a live "Found N / M" counter) all work
+as designed. Two things came out of that verification that change the plan
+below.
+
+### 0. Fix first — a real RTL bug, not a nice-to-have
+
+**`ScaleShapeBoard.tsx` physically mirrors under Hebrew, and it should not.**
+Verified live: with `pref_language: 'he'`, the string-number labels swap from
+the left of each row to the right, and the root tile jumps from the first
+column to the last. This breaks an existing, deliberate app rule: the main
+fretboard (`.fret-grid`, `src/styles/09-fretboard.css` /
+`27-left-handed.css`) is **direction-locked** regardless of UI language —
+Hebrew changes text direction only, never the neck's physical layout; only
+the separate "left-handed" setting is allowed to mirror it
+(`[data-hand="left"] .fret-grid { direction: rtl; }`). `ScaleShapeBoard` has
+no equivalent lock, so it silently inherits the page's `dir="rtl"` and
+mirrors — a Hebrew-speaking learner sees a shape laid out backwards compared
+to every other drill screen in the app.
+
+**Fix:** add a fixed `dir="ltr"` on the `.scale-board` root (mirroring how
+`ScalePracticeScreen.tsx`'s `dir={lang === 'he' ? 'rtl' : undefined}` already
+proves the pattern one level up — the board itself needs the opposite, a
+permanent `ltr`, not a language-conditional one), then re-verify live in
+Hebrew: string labels stay on the physical left, root tile stays in the
+physical column it started in, independent of `pref_language`. Small,
+isolated, and should land before any of the feature work below so it is not
+compounded by more screens/positions being added on top of a mirrored board.
+
+### 1. Exercises B and C (§8.2 / §8.3) — before the Selector, not after
+
+Session 1's own "not built yet" list put Selector controls ahead of
+Exercises B/C, but re-reading §5.1 shows that ordering doesn't quite work:
+the Selector's exercise-choice control (§5.1) is meaningless while there is
+only one exercise to choose from ("once there is more than one scale type
+**and exercise** to choose between" — §5's own words). Build B and C first:
+
+- **Exercise B — Identify the scale** (§8.2): extend the two-note sequential
+  player already built for Intervals Exercise A to an N-note ascending
+  player (N = 5 for the one shipped scale type so far), root to top only
+  (OD-S1). Answer surface is a new small scale-name chip row — same shape as
+  the interval-chip row, different label set. No new engine capability.
+- **Exercise C — Name the degree** (§8.3): show scale + root + a degree
+  number/label, learner picks the target note from the existing note-chip
+  row (`buildTargetNoteOptions`, `noteNameAtSemitones`, `notesMatch` —
+  reused verbatim from Intervals Exercise B). No new engine capability.
+
+Both are cheap by design (§2's mapping table marks them REUSE /
+NEW-S-small) — this is the session to prove that out.
+
+### 2. Selector controls (§5) — once B and C exist
+
+`useScaleSelector.ts` (mirrors `useIntervalSelector.ts`) plus the
+exercise/scale/position/difficulty controls, now meaningful because there
+are three exercises to pick between. Also the first point where the "?"
+summary bubble (§5.6) and per-scale content's step-formula framing (§1.4,
+§7) become worth writing — before this, with one fixed exercise and no
+picker, there was nothing for a bubble to summarize.
+
+### 3. SRS + weakness + mastery (§10 / §11)
+
+`scaleSrs` in `InstrumentLearningState`, `scaleWeakness.ts`,
+`scaleMastery.ts`. Right now a session's score is thrown away when the
+screen closes; nothing is tracked. Needed before the progress board (next)
+has anything real to show.
+
+### 4. Progress board (§12)
+
+The flat, grouped-by-scale-type board — trivial with one scale type shipped,
+but write it against the full catalogue shape per §12 so it needs no rework
+when scale type 2 lands.
+
+### 5. Daily/Teacher integration (§13/§14), persistence/cloud sync (§15)
+
+`scaleSrs`/`scaleDaily`/`scaleHistory` fields in `learningState.ts` +
+`learningSync.ts`, riding along in the existing `user_learning_state` JSONB
+blob — no new Supabase migration, same as how `intervalSrs` shipped.
+
+### 6. Curriculum ordering (§6) and per-scale content (§7)
+
+`scaleCurriculum.ts`, `scaleContent.ts` — only matter once a second scale
+type ships, per §6's own framing.
+
+### 7. Ship scale type 2 (Major Pentatonic)
+
+The close-to-pure-data addition §4.2 describes: a new `SCALE_TYPES` row in
+`scales.ts` + a `SCALE_POSITION_SPECS` pair + its `scaleContent.ts` entry —
+only attempt this once steps 0–6 are solid, per the product owner's
+"one scale type at a time" decision (§4.2).
+
+Each future implementation session should re-read this document in full —
+this plan included — before writing code, rather than relying on memory of
+any prior conversation.
+
+---
+
+## Session 3 progress (2026-09-22) — read this before continuing
+
+**Step 3 of the plan above (SRS + weakness + mastery, §10/§11) is now built,
+scoped to LOCAL persistence only — cloud sync (the other half of §15) is
+still not wired.** "A session's score is thrown away when the screen closes"
+(step 3's own framing) is no longer true: every answer from all three
+exercises now folds into a real, per-`(scaleType, position)` Leitner
+schedule that survives a page reload.
+
+- **New `src/learning/scaleMastery.ts`** — mirrors `intervalMastery.ts`
+  one level down (own constants, not imported from the interval or note
+  mastery files, per §11/§19): `isScaleMastered`, `scaleStatus`,
+  `masteredScaleItems`, and `buildScaleBoard` (the flat §12 board — one row
+  per pool item, in the pool's own order, which already groups by scale type
+  since `buildScalePool` iterates types outer, positions inner).
+- **New `src/learning/scaleWeakness.ts`** — mirrors `intervalWeakness.ts`
+  exactly: the same four signals (low recency-weighted accuracy, slow
+  correct answers, repeated recent misses, overdue SRS), same recency-decay
+  engine (`recency.ts`, reused unchanged), same deterministic scoring/
+  ordering. `analyzeScaleWeakness` unions ids from `scaleHistory` +
+  `scaleSrs` — no `pool` argument needed (mirrors `intervalWeakness.ts`,
+  unlike `scaleMastery.ts`'s board which does need a pool to show
+  not-yet-touched items).
+- **`src/learning/learningState.ts`** (shared file, additive changes only —
+  verified against `check-learning.mts` / `check-learning-path.mts`, both
+  still pass unchanged) gained: `ScaleHistoryRow`, `InstrumentLearningState.
+  scaleSrs: SrsMap` / `.scaleHistory: ScaleHistoryRow[]`, `SCALE_HISTORY_CAP`
+  (200, same as intervals), `normalizeScaleHistory`, `mergeScaleHistory`, and
+  `recordScaleAnswer(st, itemId, form, correct, seconds, now)`. Unlike
+  Intervals' free/guided split (`recordIntervalAnswer` vs.
+  `recordIntervalTeacherAnswer`), Scales has only ONE recording path — there
+  is no guided Scale Today session yet (§13/§14, still not built) — so
+  `recordScaleAnswer` always does both the SRS review AND the capped history
+  append in one call, mirroring `recordIntervalTeacherAnswer`'s shape but
+  without touching any daily-goal field (`scaleDaily` does not exist yet).
+  `mergeInstrumentState` folds the two new fields in the same
+  never-last-writer-wins way as every other field here.
+- **`useScaleTilesEngine.ts` / `useScaleChipEngine.ts`** both gained an
+  `onAnswer` callback, fired once per resolved question (Exercise A: once
+  every tile in the run has hit or missed, `correct` = every tile was a hit;
+  Exercises B/C: on a tap or a timeout). `ScalePracticeScreen.tsx` wires both
+  into a small `recordAnswer` closure that loads the instrument's learning
+  state, calls `recordScaleAnswer`, and saves it back — no new hook, no
+  changes to `App.tsx` or `useLearning.ts` (deliberately: those are shared
+  across Notes/Intervals and §19 says not to touch them; Scales stays
+  self-contained by reading/writing `learningState.ts` directly, exactly how
+  this screen already avoids `useGameEngine`/`DrillConfig`).
+- **New `scripts/check-scale-mastery.mts`** (32 checks) covers all of the
+  above: SRS bucket transitions, history capping, `normalizeScaleHistory`
+  dropping malformed rows, `mergeScaleHistory`/`mergeInstrumentState` proving
+  a real union (a review made on one device is never dropped by a merge
+  against a blob written later on the other device — the same property
+  `mergeIntervalHistory` guarantees), the three-state mastery transitions,
+  and all four weakness signals firing independently. All pass, alongside
+  the three existing `check-scale-*` scripts (drill/chip-drill/tiles) and
+  `check-learning`/`check-learning-path` (proving this didn't disturb the
+  note or interval lanes). `tsc -b` and `npm run lint` are both clean (lint:
+  0 errors; 2 new warnings are the same pre-existing, already-tolerated
+  "ref written during render" pattern `useRoundLifecycle.ts:93` already has
+  elsewhere in this codebase, not a new problem).
+
+**Not verified: a live browser click-through, again — no browser/Playwright
+tool was available this session either.** Everything above is unit-tested at
+the pure-function level (`check-scale-mastery.mts`) and type/lint-clean, but
+nobody has actually run a scale session in a real browser and confirmed
+`scaleSrs`/`scaleHistory` show up correctly in `localStorage['learningState']`
+afterward, or that repeated sessions actually move an item from `notStarted`
+through `learning` to `mastered` the way a person would expect. Treat this as
+unverified in a real browser (same standing rule as Session 2's own note)
+until someone does that.
+
+**Deliberately NOT done this session (still exactly where the plan above
+leaves them):**
+- **§15's cloud half.** `learningSync.ts` does not carry `scaleSrs`/
+  `scaleHistory` yet — they persist to `localStorage` today (survive a
+  reload) but not to a sign-out, a reinstall, or a second device. This is
+  the very next gap to close before scale progress can be called durable.
+- **§14 `scaleDaily`.** No scale daily goal exists; `recordScaleAnswer`
+  rolls the shared note `daily` for stale-day hygiene only (a no-op most of
+  the time), exactly like `recordIntervalAnswer` does for the note domain.
+- **§13 Today/Teacher integration.** No guided scale session, no "why
+  these?" list, no `scaleTrackedCount`/`buildScalePlan` on `useLearning()`.
+  `analyzeScaleWeakness` exists and is tested but nothing calls it yet
+  outside the check script.
+- **§12 progress board.** `buildScaleBoard` exists and is tested but no
+  component renders it — there is still no visible place in the app to see
+  "2 mastered, 0 learning" for scales.
+- **§6 curriculum ordering / §4.2 scale type 2.** Unchanged from Session 2 —
+  still correctly deferred.
+
+---
+
+## Session 4 progress (2026-09-22) — read this before continuing
+
+**Live-verified in a real browser (Playwright/Chromium, zero console errors)
+both of Session 3's own open items, and built the progress board (§12) that
+was next in the plan.**
+
+- **Session 2's Position/Difficulty UI and Session 3's SRS/history wiring
+  are no longer "unverified" — both were driven end to end.** Drawer → Learn
+  → Scales (via `devSimulateTier` forced to `'premium'`) → the Position row
+  (Box 1 / Box 2 / All positions) and Difficulty row (Focused / Mixed / Full,
+  disabling with the "one position selected" explainer exactly as designed)
+  both work as built. One buildScale run and a full identifyScale session
+  (10/10 correct, since the single-scale-type degenerate case makes every
+  identify question have exactly one, always-correct chip) were played;
+  `localStorage['learningState']` was read directly afterward and shows real
+  `scaleSrs` entries (`scale:minorPentatonic:1` / `:2`, bucket/reps/lapses all
+  moving) and capped `scaleHistory` rows (`itemId`, `form`, `correct`,
+  `seconds`, `createdAt`) for the current instrument — confirming Session 3's
+  `recordScaleAnswer` wiring actually persists, not just unit-tests clean.
+- **New `src/components/ScaleProgressBoard.tsx`** — the flat board §12
+  describes: one section header per scale type (currently just "Minor
+  Pentatonic"), one row per position underneath showing `not started` /
+  `learning` / `mastered` plus a recent-accuracy bar, mirroring
+  `IntervalBoard.tsx`'s presentation (same `string-bar-*` classes from
+  `11-progress-bars.css`, same status colour/label vocabulary) with the one
+  addition Intervals' single flat list doesn't need: the group header. Fed by
+  `buildScaleBoard` (already built + unit-tested in Session 3) called against
+  `buildScalePool(SCALE_TYPES.map(s => s.id), stringCount)` — every shipped
+  scale type, not the Selector's own (possibly position-narrowed) `pool` — so
+  the board always reflects the full catalogue regardless of what's currently
+  picked to practise, and needs no rework when scale type 2 ships (per the
+  plan's own instruction for this step).
+- **Wired into `ScalePracticeScreen.tsx`, not into the shared
+  Stats/`ProgressPanel`/`useLearning.ts` path Intervals' board uses.** This
+  was a deliberate call, not an oversight: Session 3's own note re-affirmed
+  that Scales must stay self-contained by reading/writing `learningState.ts`
+  directly rather than touching `useLearning.ts`/`App.tsx` (§19), and
+  `IntervalBoard` only ever renders inside the shared central Stats screen
+  fed from `useLearning()`'s `intervalBoard`. So instead of the Stats screen,
+  a small **Practice / Progress** segmented tab was added at the top of
+  `ScalePracticeScreen.tsx` itself (reusing the existing `.stats-tabs`/
+  `.stats-tab` classes from `11-progress-bars.css`) — visible whenever a
+  session isn't running, switching between the existing exercise UI and the
+  new board. The board is recomputed from a `now` state bumped on every
+  `recordAnswer` call (needed anyway: an initial `Date.now()` call inside the
+  board's `useMemo` tripped this repo's "no impure calls during render" lint
+  rule, same fix pattern `useLearning.ts` already uses for its own board).
+- **One real bug caught by the live Hebrew/RTL check and fixed the same
+  way Session 2's RTL bug was:** the new `'Progress'` tab label had no
+  Hebrew entry in `translations.ts` — it silently rendered in English inside
+  an otherwise fully-Hebrew screen until the browser check surfaced it. Now
+  translated (`'התקדמות'`). A second, smaller layout issue from the same
+  check — the board's row labels (`not started` etc.) sat flush against the
+  physical screen edge in RTL because `ScaleProgressBoard` wasn't wrapped in
+  the `.set-card` padding every other block on this screen already uses —
+  is also fixed (wrapped in a `.set-card` like the rest of the screen).
+  Re-verified live afterward in both languages: the board now sits inside a
+  padded card with no clipped text, and the tab row plus board content mirror
+  correctly for Hebrew (labels/status swap sides, nothing physically flips
+  the wrong way).
+- **New Hebrew i18n keys** (`translations.ts`): `'Practice'`, `'Progress'`,
+  `'Scales mastered'`, `'No scales shipped yet.'`. `tsc -b` and `eslint` are
+  clean on every touched file (`ScalePracticeScreen.tsx`,
+  `ScaleProgressBoard.tsx`, `translations.ts`, `30-scale-board.css`); all
+  four `check-scale-*` diagnostic scripts still pass unchanged.
+
+**Noticed, not investigated — not this session's concern:** `git status`
+shows `src/utils/badges.ts` as modified even though this session never
+opened or edited it, and it wasn't listed as changed at session start. Likely
+a concurrent edit from elsewhere (another worktree/session/editor on this
+checkout — see this file's own `CLAUDE.md` staleness warning) rather than
+anything this session's Scales work touched; left as-is rather than guessed
+at or reverted.
+
+**Not done / still exactly where the plan leaves them:** §15's cloud sync
+half (`learningSync.ts` still doesn't carry `scaleSrs`/`scaleHistory`), §14
+`scaleDaily`, §13 Today/Teacher integration, §6 curriculum ordering / §4.2
+scale type 2 — all unchanged from Session 3's own list.
+
+---
 
 Reference documents:
 - `intervals-learning-spec.md` — the domain this spec is structurally copied

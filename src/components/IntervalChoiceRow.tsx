@@ -8,6 +8,12 @@
 // and the correct/wrong tinting live in `styles/22-teacher.css`
 // (`.interval-choice-row` / `.interval-choice-btn`).
 //
+// Reused as-is (not duplicated) for Scales Exercises B/C
+// (scales-learning-spec.md §8.2/§8.3, ScalePracticeScreen.tsx): the *scale*
+// variant lists scale names for "which scale did you hear?", and *note* is
+// reused unchanged for "name the degree" — the component takes no
+// domain-specific data, only opaque value/label pairs.
+//
 // All labels are provided by the caller already formatted / translated; this
 // component adds no copy of its own.
 
@@ -22,7 +28,7 @@ export interface IntervalChoice {
 }
 
 interface Props {
-  variant: 'interval' | 'note';
+  variant: 'interval' | 'note' | 'scale';
   options: IntervalChoice[];
   onSelect: (value: string) => void;
   /** After the answer: the value to flag correct / the value the learner got

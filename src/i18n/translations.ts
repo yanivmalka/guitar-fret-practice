@@ -785,12 +785,34 @@ const he: Record<string, string> = {
   // Premium scale training — the P5 scales half, first slice (scales-learning-spec.md)
   'Scale training': 'תרגול סולמות',
   'Practise building scale shapes on the neck': 'תרגול בניית צורות סולם על הצוואר',
-  'The app marks a root note. Tap every other note of the minor pentatonic shape around it.':
-    'האפליקציה מסמנת תו שורש. הקישו על כל שאר תווי צורת הסולם הפנטטוני המינורי סביבו.',
+  'Notes of the scale fall down their string\'s lane. Tap the lane the moment each one crosses the line.':
+    'תווי הסולם נופלים במסלול המיתר שלהם. הקישו על המסלול ברגע שכל תו חוצה את הקו.',
   'Question': 'שאלה',
   'Found': 'נמצאו',
   'Session complete!': 'הסשן הושלם!',
   'Practice again': 'תרגלו שוב',
+  'Build the scale': 'בנו את הסולם',
+  'Identify the scale': 'זהו את הסולם',
+  'Name the degree': 'ציינו את הדרגה',
+  'The app plays the scale ascending, root to top. Pick which scale you heard.':
+    'האפליקציה מנגנת את הסולם עולה, מהשורש ומעלה. בחרו איזה סולם שמעתם.',
+  'The app shows a scale, a root and a degree. Pick the note that matches.':
+    'האפליקציה מציגה סולם, שורש ודרגה. בחרו את התו המתאים.',
+  '🔊 hear it again': '🔊 השמיעו שוב',
+  'Minor Pentatonic': 'פנטטוני מינורי',
+  'Degree': 'דרגה',
+  'Root': 'שורש',
+  'Position': 'פוזיציה',
+  'All positions': 'כל הפוזיציות',
+  'Box': 'תבנית',
+  'One position selected — difficulty is focused.': 'נבחרה פוזיציה אחת — רמת הקושי ממוקדת.',
+  // Scale progress board (scales-learning-spec.md §12) — a flat board,
+  // grouped by scale type, showing each position's not started / learning /
+  // mastered status. Reached from ScalePracticeScreen's Practice/Progress tab.
+  'Practice': 'תרגול',
+  'Progress': 'התקדמות',
+  'Scales mastered': 'סולמות בשליטה',
+  'No scales shipped yet.': 'עדיין לא הושקו סולמות.',
   // Intervals Learning — the two MVP exercises + the identify-the-interval
   // question (intervals-learning-spec §8.1, task T5).
   'Identify the interval': 'לזהות את האינטרוול',

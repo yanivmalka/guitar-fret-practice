@@ -1200,6 +1200,8 @@ export default function App() {
       <>
         <ScalePracticeScreen
           instrument={instrument}
+          accidental={accidental}
+          notation={notation}
           showMenuButton={!settingsOpen}
           onOpenMenu={() => { setDrawerSection(null); setSettingsOpen(true); }}
         />

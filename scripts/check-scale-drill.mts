@@ -96,6 +96,26 @@ const bass = INSTRUMENTS.bass;
     ) === null);
 }
 
+// ── naturalsOnly root bias (§9.1) ──────────────────────────────────────
+{
+  const pool = buildScalePool(['minorPentatonic'], guitar.stringCount);
+  let sawAccidentalRoot = false;
+  for (let i = 0; i < 200; i++) {
+    const q = pickScaleQuestion(pool, guitar.notes, guitar.stringCount, guitar.maxFret, Math.random, true);
+    if (q && q.rootName.includes('#')) sawAccidentalRoot = true;
+  }
+  check('naturalsOnly=true: 200 picks never return an accidental root (guitar has natural roots to pick from)',
+    !sawAccidentalRoot);
+
+  let sawAccidentalRootDefault = false;
+  for (let i = 0; i < 200; i++) {
+    const q = pickScaleQuestion(pool, guitar.notes, guitar.stringCount, guitar.maxFret);
+    if (q && q.rootName.includes('#')) sawAccidentalRootDefault = true;
+  }
+  check('naturalsOnly=false (default): accidental roots do occur over 200 picks',
+    sawAccidentalRootDefault);
+}
+
 // ── Randomised stress: many picks stay internally consistent ──────────
 for (const [label, inst] of [['guitar', guitar], ['bass', bass]] as const) {
   const pool = buildScalePool(['minorPentatonic'], inst.stringCount);
