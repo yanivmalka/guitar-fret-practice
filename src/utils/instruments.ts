@@ -268,6 +268,14 @@ export function getInstrumentVariant(
 // varies is fret count. 4/5-string mandolins exist only as niche electric
 // models with no confirmed multiple-fret-count commercial lineup, so they
 // are NOT added here.
+//
+// Fret specifications verified against commercial models (Sep 2026 market
+// research): 20 (budget/beginner, e.g. Hola! Music HM-3TS), 22 (modern
+// standard A-style/F-hole, e.g. Kentucky KM-505), 24 (extended fingerboard
+// range; no exact match at 24, but Eastman MD305 has 23 and Loar LM-500
+// F-style has 29 with scoped fretboard — 24 is treated as a pragmatic
+// intermediate tier consistent with guitar/bass conventions, not a confirmed
+// single-source-verified production number).
 // ---------------------------------------------------------------------------
 
 interface MandolinVariantSpec {
@@ -276,8 +284,9 @@ interface MandolinVariantSpec {
 }
 
 const MANDOLIN_VARIANT_SPECS: MandolinVariantSpec[] = [
-  { fretCount: 20, isDefault: true }, // most common
-  { fretCount: 22 },                  // some models
+  { fretCount: 20 },                  // budget/beginner models (e.g. Hola! Music HM-3TS)
+  { fretCount: 22, isDefault: true }, // most common in modern A-style/F-hole (e.g. Kentucky KM-505)
+  { fretCount: 24 },                  // extended fingerboard; no exact commercial match found (Eastman MD305 uses 23, Loar LM-500 F-style has 29 with scoped fretboard) but 24 represents this range, consistent with guitar/bass conventions
 ];
 
 function buildMandolinVariant(fretCount: number): InstrumentConfig {
