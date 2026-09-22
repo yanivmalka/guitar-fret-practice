@@ -1,76 +1,100 @@
-/* ScaleTilesBoard — Exercise A ("build the scale"), the real Piano Tiles
-   mechanic (scales-learning-spec.md's Session 2 correction note): one
-   vertical lane per string, tiles fall on a pure CSS animation and the
-   player taps a lane in time as its tile crosses the hit-line. See
-   src/components/ScaleTilesBoard.tsx / src/hooks/useScaleTilesEngine.ts. */
+/* ScaleShapeBoard — Exercise A ("build the scale"): the WHOLE neck at once,
+   every note of every string on screen (scales-learning-spec.md's Session 3
+   correction). The shape's notes are lit, every other note is dim but still
+   there and still tappable. `dir` is locked to ltr on the element itself;
+   only the left-handed setting mirrors it (27-left-handed.css), exactly as
+   `.fret-grid` does. See src/components/ScaleShapeBoard.tsx. */
 
-.scale-tiles-board {
-  position: relative;
-  display: flex;
-  gap: 4px;
+/* The whole neck has to be on screen at once (product-owner instruction):
+   the board takes the full width it is given and every fret shrinks to fit,
+   rather than the neck scrolling sideways — a drill where you must tap every
+   lit note can't hide half of them off-screen. */
+.scale-neck-scroll {
   width: 100%;
-  max-width: 420px;
-  height: 260px;
   overflow: hidden;
-  border-radius: 10px;
-  background: var(--surface-1, #10121c);
 }
 
-.scale-tiles-hitline {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 78%;
-  height: 3px;
-  background: var(--accent, #4af);
-  box-shadow: 0 0 8px 2px rgba(74, 170, 255, 0.5);
-  z-index: 2;
-  pointer-events: none;
+.scale-neck {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 4px 6px;
+  box-sizing: border-box;
 }
 
-.scale-tiles-lane {
-  position: relative;
-  flex: 1;
+.scale-neck-row {
+  display: grid;
+  grid-template-columns: repeat(var(--scale-neck-frets, 22), minmax(0, 1fr));
+  gap: 2px;
+}
+
+.scale-neck-tile {
+  height: clamp(28px, 7.5vw, 44px);
   min-width: 0;
-  height: 100%;
-  background: var(--surface-border);
-  border: none;
-  border-inline-start: 1px solid var(--border-soft);
-  cursor: pointer;
   padding: 0;
+  border-radius: clamp(4px, 1.4vw, 9px);
+  font-size: clamp(0.44rem, 2.1vw, 0.8rem);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
   outline: none;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
   -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: none;
+  user-select: none;
   touch-action: manipulation;
 }
-.scale-tiles-lane:first-child { border-inline-start: none; }
-.scale-tiles-lane:active:not(:disabled) { filter: brightness(1.15); }
-.scale-tiles-lane:disabled { cursor: default; }
+.scale-neck-tile:active:not(:disabled) { transform: scale(0.9); }
+.scale-neck-tile:disabled { cursor: default; }
 
-.scale-tiles-tile {
-  position: absolute;
-  left: 6%;
-  right: 6%;
-  height: 28px;
-  border-radius: 6px;
+/* Off: a note that isn't in the scale. Present and playable, visually out
+   of the way. */
+.scale-neck-tile-dim {
+  background: var(--surface-1, #14161f);
+  border: 1px solid var(--surface-border);
+  color: var(--text-2);
+  opacity: 0.45;
+}
+
+/* Lit: a note of the scale — what the learner is here to see and tap. */
+.scale-neck-tile-lit {
+  background: color-mix(in srgb, var(--accent, #4af) 22%, transparent);
+  border: 2px solid var(--accent, #4af);
+  color: var(--text-0);
+  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--accent, #4af) 35%, transparent);
+}
+
+/* The root of the shape, so the pattern has an anchor. */
+.scale-neck-tile-root {
   background: var(--accent, #4af);
-  top: -32px;
-  animation-name: scale-tile-fall;
-  animation-timing-function: linear;
-  animation-fill-mode: forwards;
+  color: #04121f;
 }
 
-@keyframes scale-tile-fall {
-  from { transform: translateY(0); }
-  to { transform: translateY(300px); }
+.scale-neck-tile-found {
+  background: #0a8a3c;
+  border-color: #17c95e;
+  color: #fff;
+  box-shadow: 0 0 10px 2px rgba(23, 201, 94, 0.45);
+  opacity: 1;
 }
 
-.scale-tiles-tile-hit {
-  background: #0c0;
-  box-shadow: 0 0 8px 2px rgba(0, 255, 0, 0.5);
+.scale-neck-tile-wrong {
+  background: #a01722;
+  border-color: #ff4d5e;
+  color: #fff;
+  opacity: 1;
 }
-.scale-tiles-tile-miss {
-  background: #a00;
-  opacity: 0.6;
+
+.scale-neck-fretnums {
+  margin-top: 2px;
+}
+.scale-neck-fretnum {
+  text-align: center;
+  font-size: clamp(0.38rem, 1.7vw, 0.62rem);
+  color: var(--text-2);
 }
 
 /* ScalePracticeScreen — the exercise-A/B/C switcher (a minimal MVP row, not

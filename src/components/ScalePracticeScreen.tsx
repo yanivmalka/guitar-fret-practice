@@ -8,8 +8,8 @@
 //
 // Unlike Intervals, this screen does NOT hand a `DrillConfig` back to the
 // host's shared `useGameEngine` — every exercise runs on its own dedicated
-// engine (`useScaleTilesEngine` for Exercise A — a real-time Piano Tiles
-// mechanic, see its header comment — `useScaleChipEngine` for B and C — see
+// engine (`useScaleBoardEngine` for Exercise A — the whole-neck lit/dim
+// board, see its header comment — `useScaleChipEngine` for B and C — see
 // their header comments for why: the shared engine's byNote flow can't
 // answer a multi-string, multi-note-name shape, and Scales is already a
 // sibling domain with its own everything, scales-learning-spec.md §0). So
@@ -27,31 +27,21 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import type { InstrumentConfig } from '../utils/instruments';
-import { useScaleTilesEngine, type ScaleTilesAnswer } from '../hooks/useScaleTilesEngine';
+import { useScaleBoardEngine, type ScaleBoardAnswer } from '../hooks/useScaleBoardEngine';
 import { useScaleChipEngine, type ScaleChipAnswer } from '../hooks/useScaleChipEngine';
-import { useScaleSelector, type ScaleDifficulty } from '../hooks/useScaleSelector';
+import { useScaleSelector } from '../hooks/useScaleSelector';
 import { scaleTypeById, SCALE_TYPES } from '../utils/scales';
 import { scaleItemId } from '../learning/scaleItem';
 import { buildScalePool } from '../learning/scaleDrill';
 import { buildScaleBoard } from '../learning/scaleMastery';
 import { loadLearningState, saveLearningStateLocal, getInstrumentState, withInstrumentState, recordScaleAnswer } from '../learning/learningState';
-import ScaleTilesBoard from './ScaleTilesBoard';
+import ScaleShapeBoard from './ScaleShapeBoard';
 import ScaleProgressBoard from './ScaleProgressBoard';
 import IntervalChoiceRow from './IntervalChoiceRow';
 import { ProGate } from './ProGate';
 import { useTranslation } from '../i18n/useTranslation';
 import { displayNote, type AccidentalMode, type NotationMode } from '../utils/music';
 import { playClickSound, haptic } from '../utils/feedback';
-
-// Exercise A's "tempo" (ms between consecutive tile arrivals) isn't part of
-// `ScaleEnvelope` — that field only applies to the chip exercises' per-
-// question countdown (`useScaleSelector.ts`'s header comment) — so it's
-// derived from `difficulty` locally here instead, same three-tier shape.
-const BEAT_MS_BY_DIFFICULTY: Record<ScaleDifficulty, number> = {
-  focused: 1100,
-  mixed: 900,
-  full: 700,
-};
 
 interface Props {
   instrument: InstrumentConfig;
@@ -119,14 +109,14 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
     });
   }, [instrument.id, instrument.stringCount, now]);
 
-  const buildEngine = useScaleTilesEngine({
+  const buildEngine = useScaleBoardEngine({
     instrument: chipInstrument,
     pool,
     questionCount: buildEnvelope.questionCount,
-    beatMs: BEAT_MS_BY_DIFFICULTY[sel.difficulty],
+    timeLimit: buildEnvelope.timeLimit,
     naturalsOnly: buildEnvelope.naturalsOnlyRoot,
     onComplete: () => setFinished(true),
-    onAnswer: (a: ScaleTilesAnswer) =>
+    onAnswer: (a: ScaleBoardAnswer) =>
       recordAnswer(scaleItemId(a.scaleTypeId, a.positionIndex), 'buildScale', a.correct, a.seconds),
   });
 
@@ -293,7 +283,7 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
             {!running && tab === 'practice' && !finished && exercise === 'buildScale' && (
               <div className="set-card">
                 <p className="set-card-help">
-                  {t('Notes of the scale fall down their string\'s lane. Tap the lane the moment each one crosses the line.')}
+                  {t('The whole neck is shown with every note. The scale\'s notes are lit — tap all of them. Any note you tap plays its sound.')}
                 </p>
                 <button type="button" className="set-card-btn set-card-btn-primary" onClick={startSession}>
                   {t('Start')}
@@ -321,18 +311,24 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
               </div>
             )}
 
-            {buildEngine.running && buildEngine.run && (
+            {buildEngine.running && buildEngine.question && (
               <div className="set-card">
                 <p className="set-card-help">
                   {t('Question')} {buildEngine.questionNumber} / {buildEngine.questionCount}
-                  {' · '}{t('Found')} {buildEngine.hits} / {buildEngine.run.tiles.length}
+                  {' · '}{t('Found')} {buildEngine.found} / {buildEngine.question.shape.length}
                 </p>
-                <ScaleTilesBoard
-                  run={buildEngine.run}
-                  resolutions={buildEngine.resolutions}
+                <ScaleShapeBoard
+                  question={buildEngine.question}
+                  noteTable={instrument.notes}
                   stringCount={instrument.stringCount}
+                  maxFret={instrument.maxFret}
+                  dotFrets={instrument.dotFrets}
+                  accidental={accidental}
+                  notation={notation}
+                  foundPositions={buildEngine.foundPositions}
+                  wrongPosition={buildEngine.wrongPosition}
                   active={buildEngine.running}
-                  onTapLane={buildEngine.tapLane}
+                  onSelect={buildEngine.selectPosition}
                 />
               </div>
             )}

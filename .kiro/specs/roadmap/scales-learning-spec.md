@@ -102,6 +102,37 @@ before writing code, rather than relying on memory of this conversation.
 Triads (`premium-product-plan.md` P5's other half) are explicitly **out of
 scope** of this document and are not folded into it.
 
+## Session 3 correction (2026-09-23) — Exercise A is a whole-neck board
+
+**The product owner replaced the falling-lane Piano Tiles mechanic. Read
+this before touching Exercise A again; it overrides §8.1 and the Session 2
+correction below.** In their words: the exercise should show *all* the
+notes, everything at once, with the notes that aren't in the scale **off**
+(dim) and the notes that are part of the scale **lit** — across the whole
+screen, not a narrow window. Tapping any note plays that note; tapping a
+note of the scale turns it another colour; tapping a note that isn't in the
+scale lights it red. Confirmed with them directly that this **replaces**
+"Build the scale" rather than joining it as a fourth exercise.
+
+Built and live-verified in a real browser via `scale-spike.html` (guitar,
+whole neck on screen at 400px wide, zero console errors, lit/dim counts and
+the green-found / red-wrong feedback all correct):
+- `src/components/ScaleShapeBoard.tsx` — one row per string, one tile per
+  fret from 0 to `maxFret`, each carrying its real note name through
+  `displayNote` (so the accidental/notation settings still govern it).
+  Permanent `dir="ltr"`, mirrored only by `[data-hand="left"]`, same rule as
+  `.fret-grid`.
+- `src/hooks/useScaleBoardEngine.ts` — per-question countdown runner (the
+  envelope's `timeLimit` again, `beatMs` is gone). Tapping a dim note
+  penalises but does **not** end the question, keeping the continue-on-
+  mistake rule: with the shape already lit, a stray tap is exploration.
+- Deleted: `scaleTiles.ts`, `useScaleTilesEngine.ts`, `ScaleTilesBoard.tsx`,
+  `scripts/check-scale-tiles.mts` — the scheduling they existed for no
+  longer exists.
+
+Everything below this section describes the superseded design and is kept
+for the history of why each version was rejected.
+
 ## Session 2 progress (2026-09-22) — read this before continuing
 
 **Steps 0 and 1 of the plan below are done, live-verified in a real browser

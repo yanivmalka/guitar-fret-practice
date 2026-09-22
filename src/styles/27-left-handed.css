@@ -11,6 +11,11 @@
    .fret-btn is its own flex column. */
 [data-hand="left"] .fret-grid { direction: rtl; }
 
+/* The Scales whole-neck board (30-scale-board.css) is a fretboard too, and
+   follows the same rule: `dir="ltr"` pins it against the UI language, and
+   only this setting mirrors it so fret 0 sits on the right. */
+[data-hand="left"] .scale-neck-row { direction: rtl; }
+
 /* The little SVG necks — the Selector's 0-12 / 12-max half-picker, its
    in-play mini neck, and the Settings fret-range neck. A single flip
    mirrors every string, fret line, inlay dot and the nut; the text
