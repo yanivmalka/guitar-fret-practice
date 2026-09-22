@@ -435,6 +435,10 @@ possible — not "coolest feature first".
 ### P5 — Scales & triads
 - Build on P4's proven pattern; new answer forms (spell-it; play-a-sequence if the audio spike
   passed).
+- Scales half of this phase now has a drafted design: `scales-learning-spec.md` — item model
+  (scale type × neck position, root left free per question, mirroring how P4 left direction free),
+  the three practice exercises, curriculum ordering, and the open product questions still needing
+  a decision before implementation. Triads are not covered there yet.
 
 ### P6 — Chords
 - Needs triads; new answer UI for chord shapes.
