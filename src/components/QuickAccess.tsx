@@ -21,6 +21,14 @@ import {
 type AnswerMode = 'tap' | 'voice' | 'guitar';
 type Phase = 'sunk' | 'revealed' | 'open';
 
+/** Step `cur` to the next entry in `states`, wrapping around; falls back to
+ *  the first state if `cur` isn't currently offered (e.g. an admin flag was
+ *  simulated off after guitar mode was picked). */
+function nextInCycle<T>(states: readonly T[], cur: T): T {
+  const i = states.indexOf(cur);
+  return states[(i + 1) % states.length] ?? states[0];
+}
+
 // Reveal / sink timing and gesture tolerances. The summon gesture is a
 // double-tap on empty space in the app's bottom-right quadrant (taps on a
 // button or other control don't count); the two taps only have to be
@@ -44,6 +52,7 @@ const DRAG_ASIDE_PX = 24;
 export interface QuickAccessProps {
   t: (s: string) => string;
   voiceSupported: boolean;
+  isAdmin: boolean;
   askForMic: () => void;
   notation: NotationMode;
   setNotation: (n: NotationMode) => void;
@@ -75,18 +84,28 @@ export interface QuickAccessProps {
  * (gated at the call site in <App>).
  */
 export default function QuickAccess(props: QuickAccessProps) {
-  const { t, voiceSupported, askForMic } = props;
+  const { t, voiceSupported, isAdmin, askForMic } = props;
   const enabled = useSyncExternalStore(subscribeQuickAccess, getQuickAccessEnabled);
   const pinnedRaw = useSyncExternalStore(subscribeQuickAccess, getPinnedQuick);
   const hintSeen = useSyncExternalStore(subscribeQuickAccess, hasSeenQaHint);
 
-  // Drop the voice-only item when voice isn't available on this platform.
+  // Drop the "how you answer" item when neither of its states (voice, or the
+  // admin-only guitar experiment) is available on this platform/account.
   const pinned = useMemo(
     () => pinnedRaw.filter(
-      (id): id is QuickAccessId => id !== 'answerMode' || voiceSupported,
+      (id): id is QuickAccessId => id !== 'answerMode' || voiceSupported || isAdmin,
     ),
-    [pinnedRaw, voiceSupported],
+    [pinnedRaw, voiceSupported, isAdmin],
   );
+
+  // The states "How you answer" cycles through here — tap is always
+  // available; voice only where supported; guitar only for admins (it's an
+  // unreleased experiment gated the same way as the Settings picker).
+  const answerModeStates: AnswerMode[] = useMemo(() => [
+    'tap',
+    ...(voiceSupported ? ['voice' as const] : []),
+    ...(isAdmin ? ['guitar' as const] : []),
+  ], [voiceSupported, isAdmin]);
 
   const [phase, setPhase] = useState<Phase>('sunk');
   // The setting that floats to the circle ("last changed wins") is only
@@ -160,7 +179,9 @@ export default function QuickAccess(props: QuickAccessProps) {
 
   const cycle = (id: QuickAccessId) => {
     const item = quickAccessItem(id);
-    const nextVal = item.next(values[id]);
+    const nextVal = id === 'answerMode'
+      ? nextInCycle(answerModeStates, values.answerMode as AnswerMode)
+      : item.next(values[id]);
     playClickSound();
     haptic.tap();
     applyValue[id](nextVal);

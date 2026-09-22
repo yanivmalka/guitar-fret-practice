@@ -11,7 +11,7 @@ interface LegendState {
   caption: string;
 }
 
-function statesFor(id: QuickAccessId, t: (s: string) => string): LegendState[] {
+function statesFor(id: QuickAccessId, t: (s: string) => string, isAdmin: boolean): LegendState[] {
   switch (id) {
     case 'notation':
       return [
@@ -37,6 +37,9 @@ function statesFor(id: QuickAccessId, t: (s: string) => string): LegendState[] {
       return [
         { value: 'tap', caption: t('Tap') },
         { value: 'voice', caption: t('Voice') },
+        // Admin-only experiment (see GeneralSettingsSection) — only shown to
+        // admins, who are the only ones who can ever pick it.
+        ...(isAdmin ? [{ value: 'guitar', caption: t('Guitar') }] : []),
       ];
     case 'showMastery':
       return [
@@ -57,11 +60,12 @@ function statesFor(id: QuickAccessId, t: (s: string) => string): LegendState[] {
  * order.
  */
 export default function QuickAccessLegendPage({
-  t, lang, onBack,
+  t, lang, onBack, isAdmin,
 }: {
   t: (s: string) => string;
   lang: string;
   onBack: () => void;
+  isAdmin: boolean;
 }) {
   return (
     <div className="app settings-page">
@@ -84,7 +88,7 @@ export default function QuickAccessLegendPage({
               <li key={item.id} className="qa-legend-row">
                 <div className="qa-legend-label">{t(item.label)}</div>
                 <div className="qa-legend-states">
-                  {statesFor(item.id, t).map((s, i) => (
+                  {statesFor(item.id, t, isAdmin).map((s, i) => (
                     <div key={i} className="qa-legend-state">
                       <span className="qa-legend-glyph" aria-hidden="true">
                         <QuickAccessGlyph id={item.id} value={s.value} />

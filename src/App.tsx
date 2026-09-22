@@ -985,6 +985,7 @@ export default function App() {
         t={t}
         lang={lang}
         onBack={closeQuickAccessLegend}
+        isAdmin={auth.admin}
       />
     );
   }
@@ -996,6 +997,7 @@ export default function App() {
     <QuickAccess
       t={t}
       voiceSupported={voice.supported}
+      isAdmin={auth.admin}
       askForMic={askForMic}
       notation={notation}
       setNotation={setNotation}
