@@ -154,7 +154,7 @@ export default function PlayingSection({
       return (
         <>
         <span className="pick-row-label">{t('Type')}</span>
-        <div className="pick-row" role="group" aria-label={t('Type')}>
+        <div className="pick-row pick-row-wrap" role="group" aria-label={t('Type')}>
           {getAvailableUkuleleSizes().map((size) => (
             <button
               key={size}

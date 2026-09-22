@@ -318,6 +318,10 @@
 }
 .pick-row-wrap .pick-btn {
   flex: 1 1 calc(50% - 3px);
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.3;
 }
 .pick-btn {
   padding: 10px 8px;
