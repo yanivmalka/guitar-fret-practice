@@ -386,6 +386,13 @@ export async function playNote(stringNum: number, fret: number, rate = 1) {
     src.playbackRate.value = rate * pitchRatio(midi);
     src.connect(gain);
     gain.connect(masterOut(ctx));
+    // Anchor each pluck's decay to ITS OWN offset — without this, every
+    // ramp implicitly starts from the current gain value at the moment
+    // this call executes (t=0, all 3 plucks scheduled in the same tick),
+    // not from when its own source actually starts sounding. That left the
+    // 2nd/3rd plucks starting already ~90% decayed with no attack, which is
+    // what read as a smeared echo instead of a clean note.
+    gain.gain.setValueAtTime(1, ctx.currentTime + offset);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + offset + dur);
     src.start(ctx.currentTime + offset);
     src.stop(ctx.currentTime + offset + dur);
