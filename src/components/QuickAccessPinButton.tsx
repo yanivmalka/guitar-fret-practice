@@ -10,6 +10,7 @@ import {
   getPinnedQuick,
   togglePinnedQuick,
   openQuickAccessManager,
+  openQuickAccessLegend,
   MAX_QUICK_PINNED,
 } from '../utils/quickAccess';
 
@@ -34,6 +35,24 @@ export function QuickAccessEnableToggle() {
       ]}
       onChange={(v) => setQuickAccessEnabled(v === 'on')}
     />
+  );
+}
+
+/**
+ * Link to the read-only "what does each icon mean" page, shown under the
+ * enable toggle so it's discoverable before pinning anything.
+ */
+export function QuickAccessLegendLink() {
+  const { t } = useTranslation();
+  const click = (fn: () => void) => () => { playClickSound(); haptic.tap(); fn(); };
+  return (
+    <button
+      type="button"
+      className="set-card-btn"
+      onClick={click(() => openQuickAccessLegend())}
+    >
+      📌 {t('What do the icons mean?')}
+    </button>
   );
 }
 

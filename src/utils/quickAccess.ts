@@ -243,3 +243,25 @@ export function markQaHintSeen(): void {
   saveSetting(HINT_KEY, true);
   emit();
 }
+
+// ── Symbol legend page ───────────────────────────────────────────────
+// A read-only full-page explainer for the glyphs `QuickAccessGlyph` draws,
+// reached from a link under the "Quick access" enable row in Settings.
+
+let legendOpen = false;
+
+export function getQaLegendOpen(): boolean {
+  return legendOpen;
+}
+
+export function openQuickAccessLegend(): void {
+  if (legendOpen) return;
+  legendOpen = true;
+  emit();
+}
+
+export function closeQuickAccessLegend(): void {
+  if (!legendOpen) return;
+  legendOpen = false;
+  emit();
+}

@@ -961,6 +961,14 @@ const he: Record<string, string> = {
   'Quick access is off': 'הגישה המהירה כבויה',
   "You haven't pinned any quick access shortcuts yet":
     'עדיין לא הגדרתם קיצורי דרך לגישה המהירה',
+  'What do the icons mean?': 'מה המשמעות של הסמלים?',
+  'Quick access symbol legend': 'מקרא הסמלים של הגישה המהירה',
+  'What each icon on the Quick Access widget means. Tapping a pinned shortcut cycles through these states in order.':
+    'המשמעות של כל סמל בווידג\'ט הגישה המהירה. הקשה על קיצור מוצמד עוברת בין המצבים האלה בסדר הזה.',
+  'Letters (A B C)': 'אותיות (A B C)',
+  'Solfège (Do Re Mi)': 'סולפג\' (דו רה מי)',
+  'Sharps (♯)': 'דיאזים (♯)',
+  'Flats (♭)': 'במולים (♭)',
 
   // Tuner — the Learn-tab tile that opens a live chromatic tuner (mic-based
   // pitch detection). Free for every tier.

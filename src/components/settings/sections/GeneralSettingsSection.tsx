@@ -4,7 +4,7 @@ import {
   SOUND_LEVEL_COUNT, soundLevelFromPrefs, soundLevelToPrefs, soundLevelLabel,
 } from '../../../utils/feedback';
 import { ProGate } from '../../ProGate';
-import { QuickAccessEnableToggle, QuickAccessPinButton } from '../../QuickAccessPinButton';
+import { QuickAccessEnableToggle, QuickAccessLegendLink, QuickAccessPinButton } from '../../QuickAccessPinButton';
 import AppearancePicker from '../AppearancePicker';
 import { withClick as click } from '../../../utils/withClick';
 import { saveSetting } from '../../../utils/settings';
@@ -126,6 +126,7 @@ export default function GeneralSettingsSection({
         help={t('A floating button on the home screen for the settings you flip most. Pin up to 5 with the pushpins below, then double-tap the lower-right of the screen outside a drill to open it.')}
       >
         <QuickAccessEnableToggle />
+        <QuickAccessLegendLink />
       </SettingCard>
       <SettingCard
         label={t('Score & celebrations')}

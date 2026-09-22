@@ -62,8 +62,10 @@ import { useVoiceAnswer } from './hooks/useVoiceAnswer';
 import ExitHintToast from './components/ExitHintToast';
 import QuickAccess from './components/QuickAccess';
 import QuickAccessManagePage from './components/QuickAccessManagePage';
+import QuickAccessLegendPage from './components/QuickAccessLegendPage';
 import {
   subscribeQuickAccess, getQaManageOpen, closeQuickAccessManager,
+  getQaLegendOpen, closeQuickAccessLegend,
 } from './utils/quickAccess';
 import MicPermissionCard from './components/MicPermissionCard';
 import SignInNudge from './components/SignInNudge';
@@ -133,6 +135,10 @@ export default function App() {
   // prompt on a pushpin (see QuickAccessPinButton). Its own external store so
   // the deep-nested prompt can raise it without threading state through.
   const qaManageOpen = useSyncExternalStore(subscribeQuickAccess, getQaManageOpen);
+  // The read-only "what do the icons mean" legend page, opened from a link
+  // under the Quick Access enable row in Settings. Same external-store shape
+  // as the manager above.
+  const qaLegendOpen = useSyncExternalStore(subscribeQuickAccess, getQaLegendOpen);
   // Auth carries the entitlement/tier — needed above (before the instrument
   // is resolved) so a Free/downgraded user's saved pro-only instrument choice
   // can be clamped back to guitar for this session. The account-sync effect
@@ -950,6 +956,18 @@ export default function App() {
           soundLevel: soundLevelFromPrefs(feedbackMode, noteVolume),
           answerMode, showMastery,
         }}
+      />
+    );
+  }
+
+  // The read-only symbol legend, opened from Settings. Same "wins over every
+  // other screen" treatment as the manager above.
+  if (qaLegendOpen) {
+    return (
+      <QuickAccessLegendPage
+        t={t}
+        lang={lang}
+        onBack={closeQuickAccessLegend}
       />
     );
   }
