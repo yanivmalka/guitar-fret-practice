@@ -34,8 +34,8 @@
   line-height: 1.5;
   color: var(--text-1);
   text-align: start;
-  background: #111120;
-  border: 1px solid #2a2a3a;
+  background: var(--bg-1);
+  border: 1px solid var(--surface-border);
   border-radius: 8px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
   pointer-events: none;
@@ -46,7 +46,7 @@
   display: block;
   margin-bottom: 6px;
   padding-bottom: 6px;
-  border-bottom: 1px solid #2a2a3a;
+  border-bottom: 1px solid var(--surface-border);
   color: var(--text-0);
   font-weight: 500;
 }
