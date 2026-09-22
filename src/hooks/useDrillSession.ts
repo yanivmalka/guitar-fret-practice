@@ -52,15 +52,11 @@ export interface DrillCollaborators {
   /** Fired when the drill ends because every question was answered — never on
    *  a manual stop or a pause. Practice uses this for Auto Advance. */
   onComplete?: () => void;
-  /** See `GameSettings.muteQuestionAudio` — set while answer-by-guitar is the
-   *  active answer mode, so the question's own speaker playback can't be
-   *  picked up by the mic as a false answer. */
-  muteQuestionAudio?: boolean;
 }
 
 export function useDrillSession(config: DrillConfig, collab: DrillCollaborators) {
   const engine = useGameEngine(
-    { ...drillConfigToGameSettings(config), muteQuestionAudio: collab.muteQuestionAudio },
+    drillConfigToGameSettings(config),
     { setGuitarString: collab.setActiveString, ...NOOP_SETTERS },
     collab.history,
     collab.scoring,

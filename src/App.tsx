@@ -485,11 +485,6 @@ export default function App() {
       session: scoring.session,
     },
     onComplete: handleAutoComplete,
-    // Answer-by-guitar's pitch detector can't distinguish the app's own
-    // speaker playback from the learner's guitar, so the question's audio
-    // preview is suppressed while it's the active answer mode (admin-only —
-    // see useGuitarAnswer's own comment).
-    muteQuestionAudio: answerMode === 'guitar' && auth.admin,
   });
   const {
     running, paused, currentFret, currentNote, askedFret, remaining, feedback,

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { detectPitch } from '../tuner/pitchDetect';
 import { frequencyToNote } from '../tuner/noteUtils';
+import { isSoundPlaying, soundRemainingMs } from '../utils/audio';
 
 // ── useGuitarAnswer ─────────────────────────────────────────────────────
 //
@@ -14,6 +15,12 @@ import { frequencyToNote } from '../tuner/noteUtils';
 // there is no way to answer a "by note" question (answer = a specific fret)
 // this way. The driver effect below simply never activates while `byNote`
 // is true, and the caller falls back to tap for that question type.
+//
+// The question itself still plays its target note aloud (unchanged) — the
+// driver effect waits for that playback to finish (`isSoundPlaying`/
+// `soundRemainingMs` from `utils/audio`) before it starts listening, so the
+// detector never mistakes the app's own speaker output for the learner's
+// answer. It only starts capturing once the room should be quiet again.
 //
 // Per the repo's timer conventions, values read inside the rAF pitch-polling
 // loop are kept in refs; state exists only for what the UI renders.
@@ -201,12 +208,24 @@ export function useGuitarAnswer(params: UseGuitarAnswerParams): UseGuitarAnswerR
   // Drive listening from game state, exactly like useVoiceAnswer's driver
   // effect: a change in questionSeq means a fresh question, so a new listen
   // turn begins. The actual start (which sets state) is deferred to a timer
-  // rather than called synchronously from the effect body.
+  // rather than called synchronously from the effect body — and, unlike
+  // useVoiceAnswer, that timer waits out the question's own note-preview
+  // audio first (re-checking after each wait, in case playback was still
+  // being scheduled), so listening only begins once the app itself has gone
+  // quiet again.
   useEffect(() => {
     const active =
       enabled && supported && !byNote && running && !paused && !answered && hasActiveQuestion;
     if (!active) { stopListening(); return; }
-    const timer = window.setTimeout(() => { void startNow(); }, 0);
+    let timer: number;
+    const startWhenQuiet = () => {
+      if (isSoundPlaying()) {
+        timer = window.setTimeout(startWhenQuiet, soundRemainingMs() + 30);
+      } else {
+        void startNow();
+      }
+    };
+    timer = window.setTimeout(startWhenQuiet, 0);
     return () => { window.clearTimeout(timer); stopListening(); };
   }, [enabled, supported, byNote, running, paused, answered, hasActiveQuestion, questionSeq, startNow, stopListening]);
 
