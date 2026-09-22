@@ -1,4 +1,7 @@
 import type { SampleRegion } from './ukuleleSamples';
+import { detectPitch } from '../tuner/pitchDetect';
+import { frequencyToNote } from '../tuner/noteUtils';
+import { vlog, verror } from './debugLog';
 
 // Active instrument's tuning + sample source. Swapped by setAudioInstrument()
 // when the user switches instrument; defaults to the standard 6-string guitar.
@@ -127,6 +130,66 @@ function midiName(midi: number): string {
 
 function midiToFreq(midi: number): number {
   return 440 * Math.pow(2, (midi - 69) / 12);
+}
+
+// ── Played-pitch debug check ─────────────────────────────────────────────
+// Users have reported drill notes occasionally sounding a bit sharp/flat
+// across every instrument. Rather than a fix built on guessing why, this taps
+// the raw source (sample or synth oscillator) that was just scheduled and,
+// once it's had a moment to actually sound, runs the tuner's own
+// autocorrelation pitch detector (src/tuner/pitchDetect.ts) against it —
+// turning "sounds off" into a measured cents figure in the debug log
+// (utils/debugLog.ts, viewable via DebugLogPanel with no DevTools needed).
+//
+// The tap is a dead-end AnalyserNode routed through a silent gain into
+// destination (an AnalyserNode with nothing downstream doesn't reliably get
+// pulled each render quantum otherwise) so it can never be heard or change
+// what's actually played.
+const PITCH_CHECK_FFT_SIZE = 4096;
+const PITCH_CHECK_DELAY_MS = 120; // let the attack transient settle before sampling
+const PITCH_CHECK_TOLERANCE_CENTS = 25; // about a quarter-tone
+
+let silentSink: GainNode | null = null;
+function getSilentSink(ctx: AudioContext): GainNode {
+  if (silentSink && silentSink.context === ctx) return silentSink;
+  silentSink = ctx.createGain();
+  silentSink.gain.value = 0;
+  silentSink.connect(ctx.destination);
+  return silentSink;
+}
+
+function schedulePitchCheck(
+  ctx: AudioContext, tap: AudioNode, midi: number, rate: number, label: string, extraDelayMs = 0,
+): void {
+  try {
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = PITCH_CHECK_FFT_SIZE;
+    tap.connect(analyser);
+    analyser.connect(getSilentSink(ctx));
+    const buf = new Float32Array(analyser.fftSize);
+    setTimeout(() => {
+      analyser.getFloatTimeDomainData(buf);
+      analyser.disconnect();
+      const expectedFreq = midiToFreq(midi) * rate;
+      const result = detectPitch(buf, ctx.sampleRate);
+      if (!result) {
+        vlog('[audio-pitch-check]', { label, expectedFreq: Math.round(expectedFreq * 10) / 10, detected: 'no clear pitch' });
+        return;
+      }
+      const cents = Math.round(1200 * Math.log2(result.frequency / expectedFreq));
+      const entry = {
+        label,
+        expectedNote: midiName(midi),
+        expectedFreq: Math.round(expectedFreq * 10) / 10,
+        detectedFreq: Math.round(result.frequency * 10) / 10,
+        detectedNote: frequencyToNote(result.frequency).name,
+        cents,
+        clarity: Math.round(result.clarity * 100) / 100,
+      };
+      if (Math.abs(cents) > PITCH_CHECK_TOLERANCE_CENTS) verror('[audio-pitch-check] deviation', entry);
+      else vlog('[audio-pitch-check]', entry);
+    }, extraDelayMs + PITCH_CHECK_DELAY_MS);
+  } catch { /* diagnostic only — never let it break playback */ }
 }
 
 // ── Mandolin synthesis ───────────────────────────────────────────────────
@@ -378,6 +441,7 @@ export async function playNote(stringNum: number, fret: number, rate = 1) {
         ? synthesizeMandolinPluck(ctx, masterOut(ctx), midi, rate, offset, dur, 0.7)
         : synthesizeUkuleleBaritonePluck(ctx, masterOut(ctx), midi, rate, offset, dur, 0.7);
       activeSources.push(...nodes);
+      if (i === 0) schedulePitchCheck(ctx, nodes[0], midi, rate, `${stringNum}/${fret}`);
       return;
     }
     const src = ctx.createBufferSource();
@@ -386,6 +450,7 @@ export async function playNote(stringNum: number, fret: number, rate = 1) {
     src.playbackRate.value = rate * pitchRatio(midi);
     src.connect(gain);
     gain.connect(masterOut(ctx));
+    if (i === 0) schedulePitchCheck(ctx, src, midi, rate, `${stringNum}/${fret}`);
     // Anchor each pluck's decay to ITS OWN offset — without this, every
     // ramp implicitly starts from the current gain value at the moment
     // this call executes (t=0, all 3 plucks scheduled in the same tick),
@@ -428,6 +493,7 @@ export async function playNoteSingle(stringNum: number, fret: number, rate = 1) 
       ? synthesizeMandolinPluck(ctx, masterOut(ctx), midi, rate, 0, dur, 0.6)
       : synthesizeUkuleleBaritonePluck(ctx, masterOut(ctx), midi, rate, 0, dur, 0.6);
     activeSources.push(...nodes);
+    schedulePitchCheck(ctx, nodes[0], midi, rate, `${stringNum}/${fret}`);
     soundEndTime = Date.now() + dur * 1000;
     return;
   }
@@ -439,6 +505,7 @@ export async function playNoteSingle(stringNum: number, fret: number, rate = 1) 
   src.playbackRate.value = rate * pitchRatio(midi);
   src.connect(gain);
   gain.connect(masterOut(ctx));
+  schedulePitchCheck(ctx, src, midi, rate, `${stringNum}/${fret}`);
   gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
   src.start();
   src.stop(ctx.currentTime + 0.4);
@@ -456,10 +523,12 @@ export async function playNoteSequence(stringNum: number, frets: number[], total
     frets.forEach((f, i) => {
       const offset = i * slotSec;
       const dur = Math.min(slotSec * 0.9, 0.6);
+      const midi = openMidi[stringNum - 1] + f;
       const nodes = synthKind === 'mandolin'
-        ? synthesizeMandolinPluck(ctx, masterOut(ctx), openMidi[stringNum - 1] + f, 1, offset, dur, 0.6)
-        : synthesizeUkuleleBaritonePluck(ctx, masterOut(ctx), openMidi[stringNum - 1] + f, 1, offset, dur, 0.6);
+        ? synthesizeMandolinPluck(ctx, masterOut(ctx), midi, 1, offset, dur, 0.6)
+        : synthesizeUkuleleBaritonePluck(ctx, masterOut(ctx), midi, 1, offset, dur, 0.6);
       activeSources.push(...nodes);
+      schedulePitchCheck(ctx, nodes[0], midi, 1, `${stringNum}/${f}`, offset * 1000);
     });
     soundEndTime = Date.now() + totalMs;
     return;
@@ -470,12 +539,14 @@ export async function playNoteSequence(stringNum: number, frets: number[], total
     if (!buffer) return;
     const offset = i * slotSec;
     const dur = Math.min(slotSec * 0.9, 0.6);
+    const midi = openMidi[stringNum - 1] + f;
     const src = ctx.createBufferSource();
     const gain = ctx.createGain();
     src.buffer = buffer;
-    src.playbackRate.value = pitchRatio(openMidi[stringNum - 1] + f);
+    src.playbackRate.value = pitchRatio(midi);
     src.connect(gain);
     gain.connect(masterOut(ctx));
+    schedulePitchCheck(ctx, src, midi, 1, `${stringNum}/${f}`, offset * 1000);
     gain.gain.setValueAtTime(0.6, ctx.currentTime + offset);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + offset + dur);
     src.start(ctx.currentTime + offset);
