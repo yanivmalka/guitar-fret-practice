@@ -78,6 +78,18 @@ export function useAppPreferences() {
     setLeftHandedState(v);
     saveSetting('pref_leftHanded', v);
   }, []);
+  // Extra ✓/• glyphs drawn over the Stats-screen fretboard heatmap cells, on
+  // top of colour, so the "known" / "needs work" levels read for red/green
+  // colour-blindness. Off by default — colour alone is enough for most
+  // players and the glyphs otherwise clutter every cell permanently.
+  // Persists internally, like setTheme.
+  const [colorblindHeat, setColorblindHeatState] = useState<boolean>(
+    () => loadSetting<boolean>('pref_colorblindHeat', false),
+  );
+  const setColorblindHeat = useCallback((v: boolean) => {
+    setColorblindHeatState(v);
+    saveSetting('pref_colorblindHeat', v);
+  }, []);
 
   return {
     byString, setByString,
@@ -94,5 +106,6 @@ export function useAppPreferences() {
     theme, setTheme,
     season, setSeason,
     leftHanded, setLeftHanded,
+    colorblindHeat, setColorblindHeat,
   };
 }

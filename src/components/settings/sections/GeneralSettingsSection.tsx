@@ -83,6 +83,8 @@ export interface GeneralSettingsSectionProps {
   setMasteryWindow: (w: MasteryWindow) => void;
   leftHanded: boolean;
   setLeftHanded: (v: boolean) => void;
+  colorblindHeat: boolean;
+  setColorblindHeat: (v: boolean) => void;
 }
 
 export default function GeneralSettingsSection({
@@ -91,7 +93,7 @@ export default function GeneralSettingsSection({
   isAdmin,
   voiceEnginePref, pickVoiceEngine, voiceProfileStat, setSettingsOpen,
   setShowVoiceCalibration, showMastery, setShowMastery, masteryWindow, setMasteryWindow,
-  leftHanded, setLeftHanded,
+  leftHanded, setLeftHanded, colorblindHeat, setColorblindHeat,
 }: GeneralSettingsSectionProps) {
   const todayStr = localDayStr(new Date());
   // Which sub-control of the "Mastery time window" card is visible. Seeded from
@@ -303,6 +305,20 @@ export default function GeneralSettingsSection({
             { value: 'off', label: t('Off') },
           ]}
           onChange={(v) => { const on = v === 'on'; setShowMastery(on); saveSetting('pref_showMastery', on); }}
+        />
+      </SettingCard>
+      <SettingCard
+        label={t('Colour-blind heatmap markers')}
+        help={t('Adds a ✓ / • mark on the Stats-screen fretboard heatmap cells, on top of colour, so known vs. needs-work reads without relying on hue.')}
+      >
+        <SegmentedControl
+          ariaLabel={t('Colour-blind heatmap markers')}
+          value={colorblindHeat ? 'on' : 'off'}
+          options={[
+            { value: 'on', label: t('On') },
+            { value: 'off', label: t('Off') },
+          ]}
+          onChange={(v) => { setColorblindHeat(v === 'on'); }}
         />
       </SettingCard>
       <ProGate

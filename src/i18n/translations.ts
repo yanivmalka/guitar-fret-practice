@@ -167,6 +167,9 @@ const he: Record<string, string> = {
   'Left-handed': 'שמאלי',
   'Mirrors the app for a left-handed player: the fretboard flips (nut on the right), and the menu, Quick Access and back buttons move to the left. Independent of language — it stays mirrored in Hebrew too.':
     'הופך את האפליקציה כמראה עבור מנגן שמאלי: הצוואר מתהפך (האוכף מימין), והתפריט, הגישה המהירה וכפתורי החזרה עוברים לצד שמאל. בלתי תלוי בשפה — נשאר הפוך גם בעברית.',
+  'Colour-blind heatmap markers': 'סימוני מפת חום לעיוורי צבעים',
+  'Adds a ✓ / • mark on the Stats-screen fretboard heatmap cells, on top of colour, so known vs. needs-work reads without relying on hue.':
+    'מוסיף סימון ✓ / • על תאי מפת החום בצוואר הגיטרה במסך הסטטיסטיקה, בנוסף לצבע, כדי שההבדל בין "שולט" ל"דורש תרגול" יהיה ברור גם בלי להסתמך על גוון הצבע.',
 
   // Hamburger drawer / dialogs
   'Settings': 'הגדרות',

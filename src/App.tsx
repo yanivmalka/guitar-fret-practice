@@ -305,6 +305,7 @@ export default function App() {
     theme, setTheme,
     season, setSeason,
     leftHanded, setLeftHanded,
+    colorblindHeat, setColorblindHeat,
   } = useAppPreferences();
   useEffect(() => { setAudioNoteVolume(noteVolume); }, [noteVolume]);
   const [showVoiceCalibration, setShowVoiceCalibration] = useState(false);
@@ -877,6 +878,8 @@ export default function App() {
           setMasteryWindow={setMasteryWindow}
           leftHanded={leftHanded}
           setLeftHanded={setLeftHanded}
+          colorblindHeat={colorblindHeat}
+          setColorblindHeat={setColorblindHeat}
         />
       ),
     },
@@ -1045,6 +1048,7 @@ export default function App() {
           isPro={auth.isPro}
           intervalBoard={learning.intervalBoard}
           intervalStats={learning.intervalStats}
+          colorblindHeat={colorblindHeat}
         />
       </div>
     );

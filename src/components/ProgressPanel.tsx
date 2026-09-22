@@ -36,6 +36,9 @@ interface Props {
   // from the separate `intervalSrs` + `intervalHistory` (spec §15.2).
   intervalBoard?: IntervalBoardRow[];
   intervalStats?: IntervalStatsSummary | null;
+  // Draws ✓/• glyphs over the fretboard heatmap cells alongside colour, for
+  // red/green colour-blindness. Off by default (`pref_colorblindHeat`).
+  colorblindHeat?: boolean;
 }
 
 // The stats window: the free 7-day slice, or (Pro/Premium only) everything.
@@ -157,7 +160,8 @@ const HEAT: Record<string, string> = {
 // Colour alone doesn't separate "needs work" from "known" reliably across
 // every seasonal palette (amber vs. green reads as similar warm-mid tones on
 // some grounds, and collapses further for red/green colour-blindness). Each
-// cell also carries a glyph so the level reads without relying on hue.
+// cell can also carry a glyph so the level reads without relying on hue —
+// opt-in via `pref_colorblindHeat` (off by default, see FretHeatmap).
 const HEAT_GLYPH: Record<string, string> = {
   unplayed: '',
   needsWork: '•',
@@ -170,9 +174,10 @@ function shortStringLabel(label: string | undefined, n: number): string {
   return parts[parts.length - 1] ?? `S${n}`;
 }
 
-function FretHeatmap({ history, instrument }: { history: HistoryEntry[]; instrument: InstrumentConfig }) {
+function FretHeatmap({ history, instrument, colorblindHeat }: { history: HistoryEntry[]; instrument: InstrumentConfig; colorblindHeat: boolean }) {
   const { t } = useTranslation();
   const frets = Array.from({ length: instrument.maxFret + 1 }, (_, f) => f);
+  const glyph = (level: string) => (colorblindHeat ? HEAT_GLYPH[level] : '');
   return (
     <div className="sp2-heat-scroll">
       <div className="sp2-heat">
@@ -190,7 +195,7 @@ function FretHeatmap({ history, instrument }: { history: HistoryEntry[]; instrum
                   : `${t('String')} ${stringNumber} ${t('fret')} ${fret} — ${t('not played')}`;
                 return (
                   <span key={fret} className="sp2-heat-cell" title={title} style={{ background: HEAT[level] }}>
-                    {HEAT_GLYPH[level]}
+                    {glyph(level)}
                   </span>
                 );
               })}
@@ -205,8 +210,8 @@ function FretHeatmap({ history, instrument }: { history: HistoryEntry[]; instrum
         </div>
       </div>
       <div className="sp2-heat-legend">
-        <span><i style={{ background: HEAT.known }}>{HEAT_GLYPH.known}</i> {t('known')}</span>
-        <span><i style={{ background: HEAT.needsWork }}>{HEAT_GLYPH.needsWork}</i> {t('needs work')}</span>
+        <span><i style={{ background: HEAT.known }}>{glyph('known')}</i> {t('known')}</span>
+        <span><i style={{ background: HEAT.needsWork }}>{glyph('needsWork')}</i> {t('needs work')}</span>
         <span><i style={{ background: HEAT.unplayed }} /> {t('unplayed')}</span>
       </div>
     </div>
@@ -305,7 +310,7 @@ function Timeline({ history }: { history: HistoryEntry[] }) {
 
 // ── the stats body ─────────────────────────────────────────────
 function ScopeView({
-  history, noteNames, accidental, notation, instrument, windowed, open, toggle,
+  history, noteNames, accidental, notation, instrument, windowed, open, toggle, colorblindHeat,
 }: {
   history: HistoryEntry[];
   noteNames: string[];
@@ -320,6 +325,7 @@ function ScopeView({
   // group.
   open: string | null;
   toggle: (id: string) => () => void;
+  colorblindHeat: boolean;
 }) {
   const { t } = useTranslation();
 
@@ -417,7 +423,7 @@ function ScopeView({
     <>
       <div className="stat-group">
         <p className="stat-group-title improving">🎸 {t('Fretboard heatmap')}</p>
-        <FretHeatmap history={history} instrument={instrument} />
+        <FretHeatmap history={history} instrument={instrument} colorblindHeat={colorblindHeat} />
       </div>
 
       <HeroTiles tiles={heroTiles} />
@@ -476,7 +482,7 @@ function ScopeView({
 
 export default function ProgressPanel({
   allHistory, noteNames, accidental, notation, instrument, headerIcon, onClose,
-  onClearAll, isPro, intervalBoard, intervalStats,
+  onClearAll, isPro, intervalBoard, intervalStats, colorblindHeat = false,
 }: Props) {
   const { t, lang } = useTranslation();
   // Pro/Premium can toggle the window; free is pinned to the 7-day slice.
@@ -542,6 +548,7 @@ export default function ProgressPanel({
         notation={notation}
         instrument={instrument}
         windowed={windowed}
+        colorblindHeat={colorblindHeat}
         open={open}
         toggle={toggle}
       />
