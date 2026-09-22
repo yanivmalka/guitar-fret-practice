@@ -147,6 +147,11 @@ export function debugLogAsText(): string {
       (e) =>
         e.level === 'error' ||
         e.tag.startsWith('[presence]') ||
+        // Always shown, not just deviations over the verror threshold — a
+        // played-note pitch bug needs the full spread (including the "fine"
+        // readings) to tell a systemic offset from a one-off, not just the
+        // outliers that already crossed the error threshold on their own.
+        e.tag.startsWith('[audio-pitch-check]') ||
         (verbose && e.tag.startsWith('[voice]')),
     )
     .map((e) => {
