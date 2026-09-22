@@ -47,7 +47,7 @@
   right: -28px;
   top: -4px;
   font-size: 0.75rem;
-  color: #ff0;
+  color: var(--amber);
   font-weight: bold;
 }
 

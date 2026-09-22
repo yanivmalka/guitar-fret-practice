@@ -262,10 +262,14 @@ export function useGameEngine(
 
   const startCountdown = (seconds: number, onTimeout: () => void) => {
     timeoutCallbackRef.current = onTimeout;
-    setRemaining(seconds);
-    let rem = seconds;
+    // `seconds` can be fractional (the run's timing ramp eases toward a 3s
+    // floor). Display whole seconds counting down cleanly to 0 — never a
+    // fractional or negative value — by ceiling the start and clamping each
+    // tick, instead of decrementing the raw fractional value.
+    let rem = Math.ceil(seconds);
+    setRemaining(rem);
     countdownRef.current = window.setInterval(() => {
-      rem--;
+      rem = Math.max(0, rem - 1);
       setRemaining(rem);
       if (rem <= 0 && countdownRef.current) clearInterval(countdownRef.current);
     }, 1000);

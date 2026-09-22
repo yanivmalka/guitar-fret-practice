@@ -42,7 +42,7 @@ export default function SpeedBar({ remaining, total, startAt, answered, paused =
         className={`speed-bar-fill ${answered ? 'speed-bar-frozen' : ''}`}
         style={{ width: `${pct}%`, background: color }}
       />
-      <span className="speed-bar-time">{remaining > 0 ? remaining : ''}</span>
+      <span className="speed-bar-time">{remaining >= 0 ? remaining : ''}</span>
     </div>
   );
 }
