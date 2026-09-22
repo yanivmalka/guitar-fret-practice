@@ -159,7 +159,7 @@ function getSilentSink(ctx: AudioContext): GainNode {
 }
 
 function schedulePitchCheck(
-  ctx: AudioContext, tap: AudioNode, midi: number, rate: number, label: string, extraDelayMs = 0,
+  ctx: AudioContext, tap: AudioNode, midi: number, label: string, extraDelayMs = 0,
 ): void {
   try {
     const analyser = ctx.createAnalyser();
@@ -170,7 +170,7 @@ function schedulePitchCheck(
     setTimeout(() => {
       analyser.getFloatTimeDomainData(buf);
       analyser.disconnect();
-      const expectedFreq = midiToFreq(midi) * rate;
+      const expectedFreq = midiToFreq(midi);
       const result = detectPitch(buf, ctx.sampleRate);
       if (!result) {
         vlog('[audio-pitch-check]', { label, expectedFreq: Math.round(expectedFreq * 10) / 10, detected: 'no clear pitch' });
@@ -213,10 +213,10 @@ function schedulePitchCheck(
 // Returns every node that needs to be started/stopped so the caller can push
 // them onto `activeSources` (for stopPlayback()) exactly like a sampled note.
 function synthesizeMandolinPluck(
-  ctx: AudioContext, dest: AudioNode, midi: number, rate: number,
+  ctx: AudioContext, dest: AudioNode, midi: number,
   when: number, dur: number, peak: number,
 ): AudioScheduledSourceNode[] {
-  const freq = midiToFreq(midi) * rate;
+  const freq = midiToFreq(midi);
   const t0 = ctx.currentTime + when;
   const nodes: AudioScheduledSourceNode[] = [];
 
@@ -294,10 +294,10 @@ function synthesizeMandolinPluck(
 //   - longer decay than mandolin (nylon strings sustain more than a
 //     mandolin's short, percussive ring)
 function synthesizeUkuleleBaritonePluck(
-  ctx: AudioContext, dest: AudioNode, midi: number, rate: number,
+  ctx: AudioContext, dest: AudioNode, midi: number,
   when: number, dur: number, peak: number,
 ): AudioScheduledSourceNode[] {
-  const freq = midiToFreq(midi) * rate;
+  const freq = midiToFreq(midi);
   const t0 = ctx.currentTime + when;
   const nodes: AudioScheduledSourceNode[] = [];
 
@@ -421,10 +421,16 @@ export async function playNote(stringNum: number, fret: number, rate = 1) {
   const midi = openMidi[stringNum - 1] + fret;
   const buffer = synthKind === 'none' ? await loadSample(midi) : null;
   if (synthKind === 'none' && !buffer) return;
-  // The whole pluck event scales with `rate`: the sample plays faster
-  // (playbackRate) AND the grain offsets / envelope durations compress by the
-  // same 1/rate factor, so a faster question compresses the entire note event
-  // rather than only shifting its pitch.
+  // The pluck *cadence* scales with `rate` — grain offsets and envelope
+  // durations compress by 1/rate so a faster question compresses the whole
+  // note event — but the sample's own playbackRate is NOT multiplied by
+  // `rate`. It used to be: `src.playbackRate.value = rate * pitchRatio(midi)`,
+  // which meant the pitch drifted with question speed too — and pitch is
+  // brutally sensitive to that in 12-TET (a mere 6% rate bump is already a
+  // full semitone, per 1200*log2(rate)), so even a modest timing-ramp
+  // speedup could make the sample sound like a different note than the one
+  // being quizzed. Pitch now stays locked to the target note at any speed;
+  // only the note's timing/cadence compresses.
   //
   // As the run's timing ramp accelerates (rate climbs above 1×) the note is
   // also plucked fewer times — three plucks at normal speed, two once the
@@ -438,19 +444,19 @@ export async function playNote(stringNum: number, fret: number, rate = 1) {
     const dur = (i < lastIdx ? 0.4 : 0.8) / rate;
     if (synthKind === 'mandolin' || synthKind === 'ukuleleBaritone') {
       const nodes = synthKind === 'mandolin'
-        ? synthesizeMandolinPluck(ctx, masterOut(ctx), midi, rate, offset, dur, 0.7)
-        : synthesizeUkuleleBaritonePluck(ctx, masterOut(ctx), midi, rate, offset, dur, 0.7);
+        ? synthesizeMandolinPluck(ctx, masterOut(ctx), midi, offset, dur, 0.7)
+        : synthesizeUkuleleBaritonePluck(ctx, masterOut(ctx), midi, offset, dur, 0.7);
       activeSources.push(...nodes);
-      if (i === 0) schedulePitchCheck(ctx, nodes[0], midi, rate, `${stringNum}/${fret}`);
+      if (i === 0) schedulePitchCheck(ctx, nodes[0], midi, `${stringNum}/${fret}`);
       return;
     }
     const src = ctx.createBufferSource();
     const gain = ctx.createGain();
     src.buffer = buffer;
-    src.playbackRate.value = rate * pitchRatio(midi);
+    src.playbackRate.value = pitchRatio(midi);
     src.connect(gain);
     gain.connect(masterOut(ctx));
-    if (i === 0) schedulePitchCheck(ctx, src, midi, rate, `${stringNum}/${fret}`);
+    if (i === 0) schedulePitchCheck(ctx, src, midi, `${stringNum}/${fret}`);
     // Anchor each pluck's decay to ITS OWN offset — without this, every
     // ramp implicitly starts from the current gain value at the moment
     // this call executes (t=0, all 3 plucks scheduled in the same tick),
@@ -490,10 +496,10 @@ export async function playNoteSingle(stringNum: number, fret: number, rate = 1) 
   if (synthKind === 'mandolin' || synthKind === 'ukuleleBaritone') {
     const dur = 0.4 / rate;
     const nodes = synthKind === 'mandolin'
-      ? synthesizeMandolinPluck(ctx, masterOut(ctx), midi, rate, 0, dur, 0.6)
-      : synthesizeUkuleleBaritonePluck(ctx, masterOut(ctx), midi, rate, 0, dur, 0.6);
+      ? synthesizeMandolinPluck(ctx, masterOut(ctx), midi, 0, dur, 0.6)
+      : synthesizeUkuleleBaritonePluck(ctx, masterOut(ctx), midi, 0, dur, 0.6);
     activeSources.push(...nodes);
-    schedulePitchCheck(ctx, nodes[0], midi, rate, `${stringNum}/${fret}`);
+    schedulePitchCheck(ctx, nodes[0], midi, `${stringNum}/${fret}`);
     soundEndTime = Date.now() + dur * 1000;
     return;
   }
@@ -502,10 +508,10 @@ export async function playNoteSingle(stringNum: number, fret: number, rate = 1) 
   const src = ctx.createBufferSource();
   const gain = ctx.createGain();
   src.buffer = buffer;
-  src.playbackRate.value = rate * pitchRatio(midi);
+  src.playbackRate.value = pitchRatio(midi);
   src.connect(gain);
   gain.connect(masterOut(ctx));
-  schedulePitchCheck(ctx, src, midi, rate, `${stringNum}/${fret}`);
+  schedulePitchCheck(ctx, src, midi, `${stringNum}/${fret}`);
   gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
   src.start();
   src.stop(ctx.currentTime + 0.4);
@@ -525,10 +531,10 @@ export async function playNoteSequence(stringNum: number, frets: number[], total
       const dur = Math.min(slotSec * 0.9, 0.6);
       const midi = openMidi[stringNum - 1] + f;
       const nodes = synthKind === 'mandolin'
-        ? synthesizeMandolinPluck(ctx, masterOut(ctx), midi, 1, offset, dur, 0.6)
-        : synthesizeUkuleleBaritonePluck(ctx, masterOut(ctx), midi, 1, offset, dur, 0.6);
+        ? synthesizeMandolinPluck(ctx, masterOut(ctx), midi, offset, dur, 0.6)
+        : synthesizeUkuleleBaritonePluck(ctx, masterOut(ctx), midi, offset, dur, 0.6);
       activeSources.push(...nodes);
-      schedulePitchCheck(ctx, nodes[0], midi, 1, `${stringNum}/${f}`, offset * 1000);
+      schedulePitchCheck(ctx, nodes[0], midi, `${stringNum}/${f}`, offset * 1000);
     });
     soundEndTime = Date.now() + totalMs;
     return;
@@ -546,7 +552,7 @@ export async function playNoteSequence(stringNum: number, frets: number[], total
     src.playbackRate.value = pitchRatio(midi);
     src.connect(gain);
     gain.connect(masterOut(ctx));
-    schedulePitchCheck(ctx, src, midi, 1, `${stringNum}/${f}`, offset * 1000);
+    schedulePitchCheck(ctx, src, midi, `${stringNum}/${f}`, offset * 1000);
     gain.gain.setValueAtTime(0.6, ctx.currentTime + offset);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + offset + dur);
     src.start(ctx.currentTime + offset);
