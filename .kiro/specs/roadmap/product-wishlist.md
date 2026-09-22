@@ -49,7 +49,7 @@ A compressed, priority-ordered view of everything in this document that is **not
 ### D. Fully open decisions (no direction yet)
 - **Pro price and trial length** — blocks building the payment rail (phase 7, RevenueCat expected).
 - **Ads in Free** — undecided; current build has none.
-- Longer-horizon, explicitly parked/low-priority: named expertise tests, dedicated admin dashboard, public user profiles, a real social/friends layer, additional string instruments (ukulele/mandolin), iOS port — see §4 for each item's product-decision note.
+- Longer-horizon, explicitly parked/low-priority: named expertise tests, dedicated admin dashboard, public user profiles, a real social/friends layer, iOS port — see §4 for each item's product-decision note. (Additional string instruments — ukulele/mandolin/banjo — have since shipped, gated `pro` via `extraInstruments`; see §4's Built & Shipped note.)
 
 ---
 
@@ -878,7 +878,7 @@ Old-roadmap ideas that may still have value but were never re-affirmed under the
     - **A real social layer** (friends / follow, friend-scoped leaderboards, invite-accept flow, activity feed, per-friend daily challenges, notifications — none of which exist today): friends table + RLS, friend-scoped queries, an invite flow, a notifications channel from scratch, a privacy/blocking model. **≈ 4 – 8 weeks**, and it needs its own product decision — this is the "Daily challenge / friends" item still listed undone in §6.
 - **Monetization** (premium tier, ad-unlock, donations, community donation pool) — depends on both the backend decision and a separate, unmade business decision to monetize at all. The backend decision is now made (see above); the monetize-at-all decision is still open and is being actively drafted in §6.
 - **Walk Mode / hands-free voice drilling, ear training, additional instruments (bass, ukulele, mandolin, banjo), iOS port** — all plausible long-term directions from the later original roadmap, none rejected, none confirmed; each represents a significant scope commitment that hasn't been revisited under the current product direction. Bass has since shipped as a full second instrument (not "hands-free voice drilling," which remains unbuilt).
-  - **Additional instruments (ukulele / mandolin) — product decision 2026-09-08: yes, later, low priority.** The admin-only placeholder tiles already signal intent; promotion to real instruments is wanted eventually but not near-term.
+  - **Additional instruments (ukulele / mandolin / banjo) — product decision 2026-09-08: yes, later, low priority. OVERTAKEN BY EVENTS: now built and shipped.** `src/utils/instruments.ts` carries full tuning/string-count/fret-range data for mandolin (real-time synth), banjo (5-string, open-G, short 5th string modeled as a real fret restriction), and ukulele — including a baritone ukulele variant (real-time synth) and standard sizes on real licensed samples (FreePats CC0, `public/audio/ukulele/`). Gated behind Pro via the new `extraInstruments` feature (`src/utils/features.ts`; `PRO_ONLY_INSTRUMENTS = ['mandolin', 'banjo', 'ukulele']`) rather than left as admin-only placeholder tiles. The instrument picker was also split into two rows (Guitar/Bass, then the rest) to make room, and guitar/bass separately gained their own string-count/fret-count variant pickers plus an acoustic/electric type selector — a broader "instrument variants" feature beyond just the new families.
   - **iOS port — product decision 2026-09-08: later.** Android has real traction (a signed debug APK is built and handed to developers). iOS is blocked on not having an iPhone to test on; it will be done further down the line.
   - Walk Mode / hands-free voice drilling and ear training in this bullet are unchanged.
 
@@ -940,7 +940,7 @@ Does not exist yet; needs to be built to justify a price above Pro. Justified on
 - **Structured training plan / course**: daily goals, a guided path stage to stage
 - **Automatic weakness-targeted drills**: engine reads the mastery map and builds a session from what the user gets wrong, plus spaced repetition (SRS) for notes
 - **Real pitch detection from the microphone** — play the note on the guitar instead of tapping / speaking
-- Instruments from other families (ukulele, mandolin, violin)
+- Instruments from other families (ukulele, mandolin, violin) — **partially overtaken: ukulele, mandolin and banjo have shipped** (see §4's Built & Shipped note), but gated at **Pro**, not Premium (`extraInstruments`). Violin remains unbuilt and undecided.
 - Daily challenge / friends — (the leaderboard itself has shipped, as a free feature — see Free tier above; only per-friend / daily-challenge framing around it remains undone)
 
 ### DONE — Free/Pro features built (phases 1–6)
