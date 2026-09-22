@@ -9,7 +9,7 @@ import {
   COMING_SOON_INSTRUMENTS, type InstrumentId, type InstrumentConfig,
   type InstrumentVariants, type UkuleleSize, type GuitarType,
   getAvailableStringCounts, getAvailableFretCounts, getAvailableGuitarTypes,
-  getAvailableMandolinFretCounts, getAvailableUkuleleSizes, getUkuleleVariant, getAvailableBanjoTypes, getBanjoVariant,
+  getAvailableMandolinFretCounts, getAvailableUkuleleSizes, getUkuleleVariant, getAvailableBanjoTypes, getBanjoVariant, getUkuleleTuning,
 } from '../../../utils/instruments';
 import type { AccidentalMode, NotationMode } from '../../../utils/music';
 
@@ -164,9 +164,9 @@ export default function PlayingSection({
               onClick={click(() => withReload(size !== v.size, () => setUkuleleSize(size)))}
             >
               {/* Size name alone doesn't say what actually differs between
-                  the four — append the fret range so the row reads as sizes
+                  the four — append tuning and fret range so the row reads as sizes
                   the player can compare, not four interchangeable buttons. */}
-              {t(size.charAt(0).toUpperCase() + size.slice(1))} ({getUkuleleVariant(size).maxFret})
+              {t(size.charAt(0).toUpperCase() + size.slice(1))} • {getUkuleleTuning(size)} • {getUkuleleVariant(size).maxFret}
             </button>
           ))}
         </div>

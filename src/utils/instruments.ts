@@ -431,6 +431,11 @@ export function getAvailableUkuleleSizes(): UkuleleSize[] {
   return UKULELE_VARIANT_SPECS.map((s) => s.size);
 }
 
+export function getUkuleleTuning(size: UkuleleSize): string {
+  if (size === 'baritone') return 'D-G-B-E';
+  return 'A-E-C-G';
+}
+
 export function getUkuleleVariant(size: UkuleleSize): InstrumentConfig {
   const idx = UKULELE_VARIANT_SPECS.findIndex((s) => s.size === size);
   return UKULELE_VARIANTS[idx] ?? UKULELE_VARIANTS[UKULELE_VARIANT_SPECS.findIndex((s) => s.isDefault)];
