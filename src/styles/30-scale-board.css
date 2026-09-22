@@ -1,0 +1,72 @@
+/* ScaleShapeBoard — Exercise A ("build the scale") multi-string piano-tiles
+   board. One row (lane) per string, one tile per fret in the shape's window;
+   tiles that aren't part of the shape render as blank filler for lane
+   alignment. See src/components/ScaleShapeBoard.tsx. */
+
+.scale-board {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.scale-board-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.scale-board-string-label {
+  width: 18px;
+  flex-shrink: 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.scale-tile {
+  flex: 1;
+  height: 48px;
+  min-width: 0;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scale-tile-empty {
+  background: transparent;
+}
+
+.scale-tile-active {
+  background: var(--surface-border);
+  border: 2px solid var(--border-soft);
+  color: var(--text-0);
+  cursor: pointer;
+  transition: all 0.2s, box-shadow 0.6s;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+.scale-tile-active:active:not(:disabled) { transform: scale(0.93); }
+.scale-tile-active:disabled { cursor: default; }
+
+.scale-tile-root {
+  border-color: var(--accent, #4af) !important;
+  box-shadow: 0 0 8px 2px rgba(74, 170, 255, 0.4);
+}
+.scale-tile-root-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent, #4af);
+}
+
+.scale-tile-found {
+  background: #0a0 !important; border-color: #0f0 !important;
+  box-shadow: 0 0 8px 2px rgba(0, 255, 0, 0.4);
+}
+.scale-tile-wrong {
+  background: #a00 !important; border-color: #f00 !important;
+}
