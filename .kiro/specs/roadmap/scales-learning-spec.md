@@ -1,10 +1,96 @@
 # Scales Learning — Design Specification
 
 Status: **design resolved (§17), scope confirmed by the product owner,
-implementation not started.** This document was drafted by mirroring the
-shipped Intervals Learning domain (§0–§3 below explain how) so it could be
-reviewed against a concrete precedent rather than from a blank page. Nothing
-in `src/` is changed by this document.
+Slice 1 (Minor Pentatonic) implementation IN PROGRESS — see "Session 1
+progress" below before writing more code.** This document was drafted by
+mirroring the shipped Intervals Learning domain (§0–§3 below explain how) so
+it could be reviewed against a concrete precedent rather than from a blank
+page.
+
+## Session 1 progress (2026-09-22) — read this before continuing
+
+**Built and shipped to `main`, in this order (4 commits):**
+
+1. **Data layer** (§4) — `src/utils/scales.ts` (`SCALE_TYPES` with only
+   `minorPentatonic` so far, `stepPattern`, `scalePositionsFor`,
+   `shapeAtRoot`) and `src/learning/scaleItem.ts` (`scale:<type>:<position>`
+   id). Verified by `scripts/check-scales.mts` (21 checks, guitar + bass).
+2. **Exercise A question picking** — `src/learning/scaleDrill.ts`
+   (`buildScalePool`, `pickScaleQuestion`: picks a `(scaleType, position)` +
+   a root fret and resolves the concrete shape). Verified by
+   `scripts/check-scale-drill.mts` (16 checks incl. 200-draw randomised
+   stress on guitar + bass).
+3. **A new engine + answer surface** (see the "§8.1 correction" below) —
+   `src/hooks/useScaleDrillEngine.ts` (dedicated session/timer/scoring
+   runner, reuses `useScoring` + `audio.ts`/`feedback.ts`) and
+   `src/components/ScaleShapeBoard.tsx` (the "piano tiles" multi-string
+   board + `src/styles/30-scale-board.css`). Verified in a real browser
+   (dev server + Playwright) via `scale-spike.html` — a standalone harness
+   page, same pattern as the existing `pitch-spike.html` — before and after
+   fixing a real bug found there (see below).
+4. **Wired into the real app** — `scaleDrill` feature key in
+   `src/utils/features.ts` (Premium, mirrors `intervalDrill`); a live
+   "Scales" tile in `LearnHub.tsx` (`LearnDomain` gained `'scales'`,
+   replacing the old inert "coming soon" placeholder); a new
+   `ScalePracticeScreen.tsx`; a render branch in `App.tsx` right after the
+   Intervals one. Verified end-to-end in a real browser: drawer → Learn →
+   Scales tile (unlocked with `devSimulateTier` forced to `'premium'`) →
+   Scale training screen → Start → the board renders and taps register
+   inside the actual app, zero console errors.
+
+**Important correction to §2 / §8.1 — read before assuming any more "free"
+reuse.** §8.1 claimed Exercise A needs **no new engine capability** because
+it could reuse the existing `byNote` + `candidates` flow (`FretGrid` +
+`useGameEngine`'s `remainingFrets`/`foundFrets`). **This turned out to be
+false, verified by reading the code and then confirming live in a browser:**
+`FretGrid` renders exactly **one string** per question, and when a candidate
+set is active `useGameEngine.nextByNote` narrows every question to **one
+string + one specific note name** (`allFretsForNote = validFrets.filter(f
+=> notesMatch(notes[qString-1][f], note))` — every candidate frets on *that
+string* that share *that note's name*, nothing else). A scale shape spans
+several strings with several different note names — that flow cannot
+render or answer it. Building the multi-string "piano tiles" board
+(`ScaleShapeBoard.tsx`) as a genuinely new, self-contained capability — with
+its own dedicated engine (`useScaleDrillEngine.ts`) rather than any change to
+the shared ~1000-line `useGameEngine` — was necessary and is now done. A
+second bug was caught and fixed the same way (browser-verified): the first
+version of the board only rendered true shape members as tappable, so a
+question had no way to be answered wrong; it now renders every fret in the
+window, decoys included, exactly like `FretGrid` does for its filter range.
+**Any future increment that assumes "free" reuse from the Notes/Intervals
+mapping table in §2 should be re-verified the same way (read the actual code
+path, then confirm live in a browser) before being taken on faith.**
+
+**Not built yet — next steps, in a sensible order:**
+
+1. **Selector controls (§5).** `ScalePracticeScreen` currently has no
+   picker at all — it always runs Minor Pentatonic, all positions, a fixed
+   10-question/14s envelope. Needs `useScaleSelector.ts` (mirrors
+   `useIntervalSelector.ts`) plus the exercise/scale/position/difficulty
+   controls §5.1–§5.6 describe, once there is more than one scale type and
+   exercise to choose between.
+2. **Exercises B and C (§8.2/§8.3)** — "identify the scale" (chip row) and
+   "name the degree" (note-chip row). These two genuinely *are* cheap reuse
+   (chip-row answer surfaces, no new board), unlike Exercise A — good
+   candidates for the next session.
+3. **SRS + weakness + mastery (§10/§11)** — `scaleSrs` in
+   `InstrumentLearningState`, `scaleWeakness.ts`, `scaleMastery.ts`. Right
+   now a session's score is thrown away when the screen closes; nothing is
+   tracked.
+4. **Progress board (§12)** — the flat, grouped-by-scale-type board.
+5. **Daily/Teacher integration (§13/§14)**, **persistence/cloud sync
+   (§15)** — `scaleSrs`/`scaleDaily`/`scaleHistory` fields in
+   `learningState.ts` + `learningSync.ts`.
+6. **Curriculum ordering (§6)** and **per-scale content (§7)** —
+   `scaleCurriculum.ts`, `scaleContent.ts` — only matter once a second scale
+   type ships (§4.2's "2nd" row, Major Pentatonic).
+7. Only once the above are solid: ship scale type 2 (Major Pentatonic) as
+   the close-to-pure-data addition §4.2 describes — a new `SCALE_TYPES` row
+   in `scales.ts` + a `SCALE_POSITION_SPECS` pair + its `scaleContent.ts`
+   entry.
+
+Nothing in `src/` outside the files named above is changed by this
+document.
 
 **Ships incrementally, one scale type per implementation session — start
 with §4.2's "1st" row (Minor Pentatonic) only, build the whole generic

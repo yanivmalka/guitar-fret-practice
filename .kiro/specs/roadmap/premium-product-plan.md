@@ -435,10 +435,14 @@ possible — not "coolest feature first".
 ### P5 — Scales & triads
 - Build on P4's proven pattern; new answer forms (spell-it; play-a-sequence if the audio spike
   passed).
-- Scales half of this phase now has a drafted design: `scales-learning-spec.md` — item model
-  (scale type × neck position, root left free per question, mirroring how P4 left direction free),
-  the three practice exercises, curriculum ordering, and the open product questions still needing
-  a decision before implementation. Triads are not covered there yet.
+- Scales half of this phase has a resolved design (`scales-learning-spec.md`) and **Slice 1
+  (Minor Pentatonic) implementation is IN PROGRESS as of 2026-09-22**: the data layer, question
+  picking, a new dedicated engine + "piano tiles" multi-string board (a genuinely new capability —
+  the spec's original assumption that this could reuse the existing byFret/byNote flow turned out
+  to be wrong, see the spec's "Session 1 progress" note), and a live gated entry point (`Learn` →
+  `Scales`) are built and shipped. Still open: Selector controls, exercises B/C, SRS/mastery/
+  progress board, daily/Teacher integration, cloud sync — see the spec's own status section for the
+  ordered next-steps list. Triads are not covered there yet.
 
 ### P6 — Chords
 - Needs triads; new answer UI for chord shapes.
