@@ -24,10 +24,15 @@ export type Feature =
                            // Selector, with per-checkpoint % mastered and the
                            // planner steering sessions toward the current
                            // checkpoint (P3, notes only).
-  | 'intervalDrill';       // The interval training drill and its entry card
+  | 'intervalDrill'        // The interval training drill and its entry card
                            // (P4, first slice): "what is a 5th above G" /
                            // "tap a M6 above this fret", with its own interval
                            // SRS schedule. The second learning domain.
+  | 'scaleDrill';          // The scale training drill and its entry card
+                           // (P5 scales half, first slice): "build the scale"
+                           // on a multi-string board, with its own scale SRS
+                           // schedule. A sibling of intervalDrill, not a layer
+                           // on top of it — see scales-learning-spec.md.
 
 const MIN_TIER: Record<Feature, Tier> = {
   historyBeyond7Days: 'pro',
@@ -41,6 +46,7 @@ const MIN_TIER: Record<Feature, Tier> = {
   premiumTeacher:     'premium',
   learningPath:       'premium',
   intervalDrill:      'premium',
+  scaleDrill:         'premium',
 };
 // `fretRange` gates the precise "from fret N to fret M" window control that
 // lives in Settings → Playing (its "Precise fret range" toggle + two-handle

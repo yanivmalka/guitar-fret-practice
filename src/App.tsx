@@ -50,6 +50,7 @@ import GameFlow from './game/GameFlow';
 import LearningPathScreen from './components/LearningPathScreen';
 import DailyPracticeScreen from './components/DailyPracticeScreen';
 import IntervalPracticeScreen from './components/IntervalPracticeScreen';
+import ScalePracticeScreen from './components/ScalePracticeScreen';
 import LearnHub from './components/LearnHub';
 import TunerScreen from './components/TunerScreen';
 import { useLearning } from './hooks/useLearning';
@@ -770,6 +771,7 @@ export default function App() {
           activeDomain={activeDomain}
           canDaily={can('premiumTeacher', auth.tier)}
           canIntervals={can('intervalDrill', auth.tier)}
+          canScales={can('scaleDrill', auth.tier)}
           showGame={import.meta.env.DEV || auth.admin}
           showRoadmap={import.meta.env.DEV || auth.admin}
           onPick={(d) => {
@@ -1183,6 +1185,33 @@ export default function App() {
             the count-in. */}
         {!settingsOpen && countdown === null && renderQuickAccess()}
         {countdown !== null && <CountdownOverlay countdown={countdown} />}
+      </>
+    );
+  }
+
+  // The Scales page — same "second home screen" treatment as Intervals, but
+  // fully self-contained: it runs its own dedicated engine internally rather
+  // than handing a DrillConfig back to this component (see
+  // ScalePracticeScreen's header comment for why), so it needs none of the
+  // gameActive/countdown/intervalPlan coupling the Intervals branch above has.
+  if (activeDomain === 'scales' && can('scaleDrill', auth.tier)
+      && onboardingDone && !gameActive && !gameEnded) {
+    return (
+      <>
+        <ScalePracticeScreen
+          instrument={instrument}
+          showMenuButton={!settingsOpen}
+          onOpenMenu={() => { setDrawerSection(null); setSettingsOpen(true); }}
+        />
+        {settingsOpen && drawerSection === null && (
+          <SettingsDrawerNav
+            sections={settingsSections}
+            lang={lang}
+            t={t}
+            setSettingsOpen={setSettingsOpen}
+            setDrawerSection={setDrawerSection}
+          />
+        )}
       </>
     );
   }

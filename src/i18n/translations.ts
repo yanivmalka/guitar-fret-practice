@@ -781,6 +781,16 @@ const he: Record<string, string> = {
   'Name the note': 'לזהות את התו',
   'Start interval practice': 'התחל תרגול אינטרוולים',
   'above': 'מעל',
+
+  // Premium scale training — the P5 scales half, first slice (scales-learning-spec.md)
+  'Scale training': 'תרגול סולמות',
+  'Practise building scale shapes on the neck': 'תרגול בניית צורות סולם על הצוואר',
+  'The app marks a root note. Tap every other note of the minor pentatonic shape around it.':
+    'האפליקציה מסמנת תו שורש. הקישו על כל שאר תווי צורת הסולם הפנטטוני המינורי סביבו.',
+  'Question': 'שאלה',
+  'Found': 'נמצאו',
+  'Session complete!': 'הסשן הושלם!',
+  'Practice again': 'תרגלו שוב',
   // Intervals Learning — the two MVP exercises + the identify-the-interval
   // question (intervals-learning-spec §8.1, task T5).
   'Identify the interval': 'לזהות את האינטרוול',
