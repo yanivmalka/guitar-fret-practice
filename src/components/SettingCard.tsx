@@ -148,18 +148,25 @@ export function StepperMeter({
  * controls. Used for Note volume — five clearly-separated loudness steps.
  */
 export function LevelBar({
-  value, count, onChange, ariaLabel, formatValue,
+  value, count, onChange, ariaLabel, formatValue, onFeedback,
 }: {
   value: number;
   count: number;
   onChange: (v: number) => void;
   ariaLabel?: string;
   formatValue?: (v: number) => string;
+  /** Overrides the default click-sound + haptic tap for a pick. Needed when
+   *  the bar's own value controls the sound/haptic gate itself (the Sound &
+   *  vibration ladder): the gate still reflects the mode in effect BEFORE
+   *  this click, so the default feedback would silently skip confirming the
+   *  very tap that turns e.g. Vibrate on. The caller supplies feedback based
+   *  on the level being picked instead. */
+  onFeedback?: (level: number) => void;
 }) {
   const pick = (level: number) => {
     if (level === value) return;
-    playClickSound();
-    haptic.tap();
+    if (onFeedback) onFeedback(level);
+    else { playClickSound(); haptic.tap(); }
     onChange(level);
   };
   return (

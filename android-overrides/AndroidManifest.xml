@@ -61,5 +61,9 @@
     </application>
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Without this, navigator.vibrate() inside the WebView silently no-ops
+         on Android — the haptic.* pulses in src/utils/feedback.ts (button
+         taps, right/wrong, the Sound & vibration setting's Vibrate mode) -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 
 </manifest>

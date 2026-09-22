@@ -40,6 +40,21 @@ export function soundLevelToPrefs(level: number): { feedbackMode: FeedbackMode; 
   return { feedbackMode: 'sound', noteVolume: NOTE_VOLUME_LEVELS[idx] ?? NOTE_VOLUME_DEFAULT };
 }
 
+/** Immediate, ungated confirmation for picking a ladder stop directly on the
+ *  Sound & vibration control. `vibrate()`/`playClickSound()` are gated by the
+ *  mode already in effect, which on this control is always the mode BEFORE
+ *  this tap — that gate would silently skip confirming the very tap that
+ *  turns e.g. Vibrate on, since haptics don't apply their new setting until
+ *  the mode change round-trips through React state. */
+export function previewSoundLevel(level: number) {
+  const { feedbackMode } = soundLevelToPrefs(level);
+  if (feedbackMode === 'vibrate') {
+    try { navigator.vibrate?.(10); } catch { /* not supported */ }
+  } else if (feedbackMode === 'sound') {
+    playClickSound();
+  }
+}
+
 /** Human label for a ladder stop: "Silent" / "Vibrate" / "Sound N". */
 export function soundLevelLabel(level: number, t: (s: string) => string): string {
   const n = Math.round(level);

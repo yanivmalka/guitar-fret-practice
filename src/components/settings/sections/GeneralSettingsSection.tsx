@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { SettingCard, SegmentedControl, PickRow, LevelBar } from '../../SettingCard';
 import {
-  SOUND_LEVEL_COUNT, soundLevelFromPrefs, soundLevelToPrefs, soundLevelLabel,
+  SOUND_LEVEL_COUNT, soundLevelFromPrefs, soundLevelToPrefs, soundLevelLabel, previewSoundLevel,
 } from '../../../utils/feedback';
 import { ProGate } from '../../ProGate';
 import { QuickAccessEnableToggle, QuickAccessLegendLink, QuickAccessPinButton } from '../../QuickAccessPinButton';
@@ -153,6 +153,7 @@ export default function GeneralSettingsSection({
           value={soundLevelFromPrefs(feedbackMode, noteVolume) + 1}
           count={SOUND_LEVEL_COUNT}
           formatValue={() => soundLevelLabel(soundLevelFromPrefs(feedbackMode, noteVolume), t)}
+          onFeedback={(v) => previewSoundLevel(v - 1)}
           onChange={(v) => {
             const { feedbackMode: fm, noteVolume: nv } = soundLevelToPrefs(v - 1);
             setFeedbackMode(fm);
