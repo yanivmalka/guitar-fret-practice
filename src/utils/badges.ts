@@ -37,6 +37,7 @@
 
 import type { HistoryEntry } from './music';
 import type { InstrumentConfig, InstrumentId } from './instruments';
+import { INSTRUMENTS } from './instruments';
 import { dailyStats, practiceStreak, lifetimeTotals } from './progress';
 import { cloudPushBadges, retireBadgeFamily } from './badgeSync';
 
@@ -45,8 +46,9 @@ import { cloudPushBadges, retireBadgeFamily } from './badgeSync';
 export type FixedBadgeId =
   | 'perfect_session' | 'speed_demon' | 'flawless_sprint' | 'on_fire' | 'comeback'
   | 'every_string'
-  | 'string_master_all' | 'week_warrior' | 'dedicated' | 'century' | 'marathoner'
+  | 'string_master_all' | 'week_warrior' | 'dedicated' | 'total_reps'
   | 'sharpshooter' | 'most_improved' | 'both_ends' | 'quick_read' | 'doubling_up'
+  | 'multi_instrumentalist'
   | 'full_neck' | 'low_end'
   | 'admin';
 export type BadgeId = FixedBadgeId | `string_master_s${number}`;
@@ -54,12 +56,22 @@ export type BadgeId = FixedBadgeId | `string_master_s${number}`;
 export type BadgeKind = 'session' | 'lifetime' | 'role';
 
 // Bronze/Silver/Gold are levels of one achievement, not a fixed badge "type" —
-// a Session family can reach Gold exactly like a Lifetime one. Platinum exists
-// only on the handful of families big enough to earn a fourth rung.
-export type Tier = 'bronze' | 'silver' | 'gold' | 'platinum';
-export const TIERS: readonly Tier[] = ['bronze', 'silver', 'gold', 'platinum'];
+// a Session family can reach Gold exactly like a Lifetime one. Diamond and up
+// exist only on the handful of "flagship" lifetime families big enough to
+// carry a player's full first year (see `TOP_TIER_MIN_DAYS` below) — most
+// families stop at Platinum or even Gold.
+export type Tier =
+  | 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'master'
+  | 'legendary1' | 'legendary2' | 'legendary3' | 'legendary4';
+export const TIERS: readonly Tier[] = [
+  'bronze', 'silver', 'gold', 'platinum', 'diamond', 'master',
+  'legendary1', 'legendary2', 'legendary3', 'legendary4',
+];
 export const TIER_LABEL: Record<Tier, string> = {
   bronze: 'Bronze', silver: 'Silver', gold: 'Gold', platinum: 'Platinum',
+  diamond: 'Diamond', master: 'Master',
+  legendary1: 'Legendary I', legendary2: 'Legendary II',
+  legendary3: 'Legendary III', legendary4: 'Legendary IV',
 };
 
 export interface LevelDef {
@@ -145,6 +157,8 @@ export const FIXED_BADGES: readonly BadgeDef[] = [
       { tier: 'bronze', blurb: 'Earn String Master — Bronze on every string of this instrument.' },
       { tier: 'silver', blurb: 'Earn String Master — Silver on every string.' },
       { tier: 'gold', blurb: 'Earn String Master — Gold on every string.' },
+      { tier: 'platinum', blurb: 'Earn String Master — Platinum on every string.' },
+      { tier: 'diamond', blurb: 'Earn String Master — Diamond on every string.' },
     ],
   },
   {
@@ -153,6 +167,8 @@ export const FIXED_BADGES: readonly BadgeDef[] = [
       { tier: 'bronze', blurb: 'Answer at least one question on every fret of the neck.' },
       { tier: 'silver', blurb: 'Answer at least 3 questions on every fret of the neck.' },
       { tier: 'gold', blurb: 'Answer at least 5 questions on every fret of the neck.' },
+      { tier: 'platinum', blurb: 'Answer at least 10 questions on every fret, spread across 14+ practice days.' },
+      { tier: 'diamond', blurb: 'Answer at least 20 questions on every fret, spread across 30+ practice days.' },
     ],
   },
   {
@@ -161,6 +177,8 @@ export const FIXED_BADGES: readonly BadgeDef[] = [
       { tier: 'bronze', blurb: 'Answer 40+ questions above the 12th fret at 85% accuracy or better.' },
       { tier: 'silver', blurb: '100+ questions above the 12th fret at 88% accuracy or better.' },
       { tier: 'gold', blurb: '200+ questions above the 12th fret at 92% accuracy or better.' },
+      { tier: 'platinum', blurb: '400+ questions above the 12th fret at 93% accuracy or better, over 14+ practice days.' },
+      { tier: 'diamond', blurb: '800+ questions above the 12th fret at 94% accuracy or better, over 30+ practice days.' },
     ],
   },
   {
@@ -169,6 +187,8 @@ export const FIXED_BADGES: readonly BadgeDef[] = [
       { tier: 'bronze', blurb: 'Answer 40+ questions on the bass low-E string at 90% accuracy or better.' },
       { tier: 'silver', blurb: '100+ questions on the low-E string at 93% accuracy or better.' },
       { tier: 'gold', blurb: '200+ questions on the low-E string at 96% accuracy or better.' },
+      { tier: 'platinum', blurb: '400+ questions on the low-E string at 97% accuracy or better, over 14+ practice days.' },
+      { tier: 'diamond', blurb: '800+ questions on the low-E string at 98% accuracy or better, over 30+ practice days.' },
     ],
   },
   // Global player
@@ -187,24 +207,27 @@ export const FIXED_BADGES: readonly BadgeDef[] = [
       { tier: 'silver', blurb: '14 consecutive practice days.' },
       { tier: 'gold', blurb: '30 consecutive practice days.' },
       { tier: 'platinum', blurb: '60 consecutive practice days.' },
+      { tier: 'diamond', blurb: '90 consecutive practice days.' },
+      { tier: 'master', blurb: '120 consecutive practice days.' },
+      { tier: 'legendary1', blurb: '180 consecutive practice days.' },
+      { tier: 'legendary2', blurb: '250 consecutive practice days.' },
+      { tier: 'legendary3', blurb: '300 consecutive practice days.' },
+      { tier: 'legendary4', blurb: '365 consecutive practice days — a full year, every day.' },
     ],
   },
   {
-    id: 'century', name: 'Century', kind: 'lifetime', instrumentScoped: false,
+    id: 'total_reps', name: 'Total Reps', kind: 'lifetime', instrumentScoped: false,
     levels: [
       { tier: 'bronze', blurb: 'Answer 100 questions all-time, across every instrument.' },
       { tier: 'silver', blurb: '250 questions all-time.' },
       { tier: 'gold', blurb: '500 questions all-time.' },
       { tier: 'platinum', blurb: '1,000 questions all-time.' },
-    ],
-  },
-  {
-    id: 'marathoner', name: 'Marathoner', kind: 'lifetime', instrumentScoped: false,
-    levels: [
-      { tier: 'bronze', blurb: 'Answer 1,000 questions all-time, across every instrument.' },
-      { tier: 'silver', blurb: '2,500 questions all-time.' },
-      { tier: 'gold', blurb: '5,000 questions all-time.' },
-      { tier: 'platinum', blurb: '10,000 questions all-time.' },
+      { tier: 'diamond', blurb: '2,500 questions all-time, spread across 20+ practice days.' },
+      { tier: 'master', blurb: '5,000 questions all-time, spread across 40+ practice days.' },
+      { tier: 'legendary1', blurb: '10,000 questions all-time, spread across 70+ practice days.' },
+      { tier: 'legendary2', blurb: '20,000 questions all-time, spread across 110+ practice days.' },
+      { tier: 'legendary3', blurb: '35,000 questions all-time, spread across 160+ practice days.' },
+      { tier: 'legendary4', blurb: '50,000 questions all-time, spread across 220+ practice days.' },
     ],
   },
   {
@@ -213,6 +236,8 @@ export const FIXED_BADGES: readonly BadgeDef[] = [
       { tier: 'bronze', blurb: 'Hold 85% accuracy over at least 200 questions, across every instrument.' },
       { tier: 'silver', blurb: '88% accuracy over at least 500 questions.' },
       { tier: 'gold', blurb: '92% accuracy over at least 1,000 questions.' },
+      { tier: 'platinum', blurb: '93% accuracy over at least 2,500 questions, spread across 30+ practice days.' },
+      { tier: 'diamond', blurb: '94% accuracy over at least 5,000 questions, spread across 60+ practice days.' },
     ],
   },
   {
@@ -221,6 +246,8 @@ export const FIXED_BADGES: readonly BadgeDef[] = [
       { tier: 'bronze', blurb: 'Hold an average answer time under 2.0s over 200+ questions.' },
       { tier: 'silver', blurb: 'Under 1.6s over 500+ questions.' },
       { tier: 'gold', blurb: 'Under 1.3s over 1,000+ questions.' },
+      { tier: 'platinum', blurb: 'Under 1.15s over 2,500+ questions, spread across 30+ practice days.' },
+      { tier: 'diamond', blurb: 'Under 1.05s over 5,000+ questions, spread across 60+ practice days.' },
     ],
   },
   {
@@ -237,6 +264,18 @@ export const FIXED_BADGES: readonly BadgeDef[] = [
       { tier: 'bronze', blurb: 'Earn String Master on every string of both guitar and bass.' },
       { tier: 'silver', blurb: 'Earn Full String Master — Silver on both guitar and bass.' },
       { tier: 'gold', blurb: 'Earn Full String Master — Gold and Neck Runner — Gold on both guitar and bass.' },
+      { tier: 'platinum', blurb: 'Earn Full String Master — Platinum and Neck Runner — Platinum on both guitar and bass.' },
+      { tier: 'diamond', blurb: 'Earn Full String Master — Diamond and Neck Runner — Diamond on both guitar and bass.' },
+    ],
+  },
+  {
+    id: 'multi_instrumentalist', name: 'Multi-Instrumentalist', kind: 'lifetime', instrumentScoped: false,
+    levels: [
+      { tier: 'bronze', blurb: 'Earn Full String Master — Silver on 2 different instruments.' },
+      { tier: 'silver', blurb: 'Earn Full String Master — Silver on 3 different instruments.' },
+      { tier: 'gold', blurb: 'Earn Full String Master — Gold on 4 different instruments.' },
+      { tier: 'platinum', blurb: 'Earn Full String Master — Gold on all 5 instruments.' },
+      { tier: 'diamond', blurb: 'Earn Full String Master — Platinum on all 5 instruments.' },
     ],
   },
   // Role
@@ -259,6 +298,8 @@ export function stringMasterBadges(instrument: InstrumentConfig): BadgeDef[] {
         { tier: 'bronze' as const, blurb: `Answer 40+ questions on ${label} at 90% accuracy or better.` },
         { tier: 'silver' as const, blurb: `100+ questions on ${label} at 92% accuracy or better.` },
         { tier: 'gold' as const, blurb: `200+ questions on ${label} at 95% accuracy or better.` },
+        { tier: 'platinum' as const, blurb: `400+ questions on ${label} at 96% accuracy or better, over 14+ practice days.` },
+        { tier: 'diamond' as const, blurb: `800+ questions on ${label} at 97% accuracy or better, over 30+ practice days.` },
       ],
     };
   });
@@ -558,18 +599,102 @@ function meanAccuracy(days: { accuracy: number }[]): number {
   return days.reduce((s, d) => s + d.accuracy, 0) / days.length;
 }
 
+// Total distinct calendar days with any recorded practice — the "can't be
+// grinded in one sitting" floor the top 1-2 tiers of the big count-based
+// families require on top of their raw threshold (see badges.ts module doc).
+function distinctPracticeDays(entries: HistoryEntry[]): number {
+  return dailyStats(entries).length;
+}
+
+// Walks a `[count, minDays?]` threshold ladder (ascending) and returns the
+// highest tier whose count (and, where given, minimum distinct practice
+// days) is met. `tiers` must be given weakest-first, same order as `TIERS`.
+function highestTierMet(
+  count: number,
+  days: number,
+  ladder: readonly [Tier, number, number?][],
+): Tier | null {
+  let best: Tier | null = null;
+  for (const [tier, minCount, minDays] of ladder) {
+    if (count >= minCount && (minDays === undefined || days >= minDays)) best = tier;
+  }
+  return best;
+}
+
+// Same as `highestTierMet` but also gates on accuracy — for String Master,
+// Both Ends, Low End, Sharpshooter.
+function highestTierMetAcc(
+  count: number,
+  accuracy: number,
+  days: number,
+  ladder: readonly [Tier, number, number, number?][],
+): Tier | null {
+  let best: Tier | null = null;
+  for (const [tier, minCount, minAcc, minDays] of ladder) {
+    if (count >= minCount && accuracy >= minAcc && (minDays === undefined || days >= minDays)) best = tier;
+  }
+  return best;
+}
+
+// Same shape but "lower is better" (average answer time) — for Quick Read.
+function highestTierMetUnder(
+  count: number,
+  seconds: number,
+  days: number,
+  ladder: readonly [Tier, number, number, number?][],
+): Tier | null {
+  let best: Tier | null = null;
+  for (const [tier, minCount, maxSeconds, minDays] of ladder) {
+    if (count >= minCount && seconds > 0 && seconds < maxSeconds && (minDays === undefined || days >= minDays)) best = tier;
+  }
+  return best;
+}
+
+// Threshold ladders — see the module doc for why the top 1-2 rungs of the
+// big count-based families also require a minimum spread of distinct
+// practice days: without it a single long binge session/week could clear
+// them, defeating the point of a family meant to take months.
+const STRING_MASTER_LADDER: readonly [Tier, number, number, number?][] = [
+  ['bronze', 40, 0.90], ['silver', 100, 0.92], ['gold', 200, 0.95],
+  ['platinum', 400, 0.96, 14], ['diamond', 800, 0.97, 30],
+];
+const NECK_RUNNER_LADDER: readonly [Tier, number, number?][] = [
+  ['bronze', 1], ['silver', 3], ['gold', 5], ['platinum', 10, 14], ['diamond', 20, 30],
+];
+const BOTH_ENDS_LADDER: readonly [Tier, number, number, number?][] = [
+  ['bronze', 40, 0.85], ['silver', 100, 0.88], ['gold', 200, 0.92],
+  ['platinum', 400, 0.93, 14], ['diamond', 800, 0.94, 30],
+];
+const LOW_END_LADDER: readonly [Tier, number, number, number?][] = [
+  ['bronze', 40, 0.90], ['silver', 100, 0.93], ['gold', 200, 0.96],
+  ['platinum', 400, 0.97, 14], ['diamond', 800, 0.98, 30],
+];
+const TOTAL_REPS_LADDER: readonly [Tier, number, number?][] = [
+  ['bronze', 100], ['silver', 250], ['gold', 500], ['platinum', 1000],
+  ['diamond', 2500, 20], ['master', 5000, 40], ['legendary1', 10000, 70],
+  ['legendary2', 20000, 110], ['legendary3', 35000, 160], ['legendary4', 50000, 220],
+];
+const DEDICATED_LADDER: readonly number[] = [7, 14, 30, 60, 90, 120, 180, 250, 300, 365];
+const SHARPSHOOTER_LADDER: readonly [Tier, number, number, number?][] = [
+  ['bronze', 200, 0.85], ['silver', 500, 0.88], ['gold', 1000, 0.92],
+  ['platinum', 2500, 0.93, 30], ['diamond', 5000, 0.94, 60],
+];
+const QUICK_READ_LADDER: readonly [Tier, number, number, number?][] = [
+  ['bronze', 200, 2.0], ['silver', 500, 1.6], ['gold', 1000, 1.3],
+  ['platinum', 2500, 1.15, 30], ['diamond', 5000, 1.05, 60],
+];
+
 export function evaluateLifetime(l: LifetimeSnapshot): Partial<Record<BadgeId, Tier>> {
   const { instrumentEntries, allEntries, instrument } = l;
   const out: Partial<Record<BadgeId, Tier>> = {};
+  const instrumentDays = distinctPracticeDays(instrumentEntries);
 
   // ── Fretboard-shape badges — current instrument only ──────────────────────
   const stringTiers: (Tier | null)[] = [];
   for (let n = 1; n <= instrument.stringCount; n++) {
     const { count, accuracy } = stringStats(instrumentEntries, n);
-    let tier: Tier | null = null;
-    if (count >= 200 && accuracy >= 0.95) tier = 'gold';
-    else if (count >= 100 && accuracy >= 0.92) tier = 'silver';
-    else if (count >= 40 && accuracy >= 0.9) tier = 'bronze';
+    const stringDays = distinctPracticeDays(instrumentEntries.filter(e => e.string === n));
+    const tier = highestTierMetAcc(count, accuracy, stringDays, STRING_MASTER_LADDER);
     stringTiers.push(tier);
     if (tier) out[`string_master_s${n}` as BadgeId] = tier;
   }
@@ -581,22 +706,25 @@ export function evaluateLifetime(l: LifetimeSnapshot): Partial<Record<BadgeId, T
 
   const visits = fretVisitCounts(instrumentEntries);
   if (instrumentEntries.length > 0) {
-    if (everyFretAtLeast(visits, instrument, 5)) out.full_neck = 'gold';
-    else if (everyFretAtLeast(visits, instrument, 3)) out.full_neck = 'silver';
-    else if (everyFretAtLeast(visits, instrument, 1)) out.full_neck = 'bronze';
+    let neckTier: Tier | null = null;
+    for (const [tier, minVisits, minDays] of NECK_RUNNER_LADDER) {
+      if (everyFretAtLeast(visits, instrument, minVisits) && (minDays === undefined || instrumentDays >= minDays)) {
+        neckTier = tier;
+      }
+    }
+    if (neckTier) out.full_neck = neckTier;
   }
 
   const upper = instrumentEntries.filter(e => e.fret >= 12);
-  const upperAcc = accuracyOf(upper);
-  if (upper.length >= 200 && upperAcc >= 0.92) out.both_ends = 'gold';
-  else if (upper.length >= 100 && upperAcc >= 0.88) out.both_ends = 'silver';
-  else if (upper.length >= 40 && upperAcc >= 0.85) out.both_ends = 'bronze';
+  const upperDays = distinctPracticeDays(upper);
+  const bothEndsTier = highestTierMetAcc(upper.length, accuracyOf(upper), upperDays, BOTH_ENDS_LADDER);
+  if (bothEndsTier) out.both_ends = bothEndsTier;
 
   if (instrument.id === 'bass') {
     const lowE = stringStats(instrumentEntries, 4); // bass string 4 = low E
-    if (lowE.count >= 200 && lowE.accuracy >= 0.96) out.low_end = 'gold';
-    else if (lowE.count >= 100 && lowE.accuracy >= 0.93) out.low_end = 'silver';
-    else if (lowE.count >= 40 && lowE.accuracy >= 0.9) out.low_end = 'bronze';
+    const lowEDays = distinctPracticeDays(instrumentEntries.filter(e => e.string === 4));
+    const lowEndTier = highestTierMetAcc(lowE.count, lowE.accuracy, lowEDays, LOW_END_LADDER);
+    if (lowEndTier) out.low_end = lowEndTier;
   }
 
   // ── Player-progress badges — every instrument's history combined ──────────
@@ -604,33 +732,24 @@ export function evaluateLifetime(l: LifetimeSnapshot): Partial<Record<BadgeId, T
   const streak = practiceStreak(days);
   const totals = lifetimeTotals(allEntries, days);
   const bestWindow = maxDatesInWindow(practiceDates(allEntries));
+  const totalDays = days.length;
 
   if (bestWindow >= 7) out.week_warrior = 'gold';
   else if (bestWindow >= 6) out.week_warrior = 'silver';
   else if (bestWindow >= 5) out.week_warrior = 'bronze';
 
-  if (streak.longest >= 60) out.dedicated = 'platinum';
-  else if (streak.longest >= 30) out.dedicated = 'gold';
-  else if (streak.longest >= 14) out.dedicated = 'silver';
-  else if (streak.longest >= 7) out.dedicated = 'bronze';
+  for (let i = 0; i < DEDICATED_LADDER.length; i++) {
+    if (streak.longest >= DEDICATED_LADDER[i]) out.dedicated = TIERS[i];
+  }
 
-  if (totals.totalQuestions >= 1000) out.century = 'platinum';
-  else if (totals.totalQuestions >= 500) out.century = 'gold';
-  else if (totals.totalQuestions >= 250) out.century = 'silver';
-  else if (totals.totalQuestions >= 100) out.century = 'bronze';
+  const totalRepsTier = highestTierMet(totals.totalQuestions, totalDays, TOTAL_REPS_LADDER);
+  if (totalRepsTier) out.total_reps = totalRepsTier;
 
-  if (totals.totalQuestions >= 10000) out.marathoner = 'platinum';
-  else if (totals.totalQuestions >= 5000) out.marathoner = 'gold';
-  else if (totals.totalQuestions >= 2500) out.marathoner = 'silver';
-  else if (totals.totalQuestions >= 1000) out.marathoner = 'bronze';
+  const sharpshooterTier = highestTierMetAcc(totals.totalQuestions, totals.accuracy, totalDays, SHARPSHOOTER_LADDER);
+  if (sharpshooterTier) out.sharpshooter = sharpshooterTier;
 
-  if (totals.totalQuestions >= 1000 && totals.accuracy >= 0.92) out.sharpshooter = 'gold';
-  else if (totals.totalQuestions >= 500 && totals.accuracy >= 0.88) out.sharpshooter = 'silver';
-  else if (totals.totalQuestions >= 200 && totals.accuracy >= 0.85) out.sharpshooter = 'bronze';
-
-  if (totals.totalQuestions >= 1000 && totals.avgSeconds > 0 && totals.avgSeconds < 1.3) out.quick_read = 'gold';
-  else if (totals.totalQuestions >= 500 && totals.avgSeconds > 0 && totals.avgSeconds < 1.6) out.quick_read = 'silver';
-  else if (totals.totalQuestions >= 200 && totals.avgSeconds > 0 && totals.avgSeconds < 2) out.quick_read = 'bronze';
+  const quickReadTier = highestTierMetUnder(totals.totalQuestions, totals.avgSeconds, totalDays, QUICK_READ_LADDER);
+  if (quickReadTier) out.quick_read = quickReadTier;
 
   if (days.length >= 10) {
     const gain = meanAccuracy(days.slice(-5)) - meanAccuracy(days.slice(0, 5));
@@ -639,44 +758,62 @@ export function evaluateLifetime(l: LifetimeSnapshot): Partial<Record<BadgeId, T
     else if (gain >= 0.2) out.most_improved = 'bronze';
   }
 
-  // Cross-instrument capstone — reads only what's already persisted for each
+  // Cross-instrument capstones — read only what's already persisted for each
   // instrument (not `out`, which only reflects the current one), same as the
-  // pre-levels version: completing the second instrument's Full String Master
-  // unlocks Doubling Up the next time badges are evaluated, not mid-pass.
+  // pre-levels version: completing another instrument's Full String Master
+  // unlocks these the next time badges are evaluated, not mid-pass.
   const gFSM = earnedTier('string_master_all', 'guitar');
   const bFSM = earnedTier('string_master_all', 'bass');
   if (gFSM && bFSM) {
     const gNeck = earnedTier('full_neck', 'guitar');
     const bNeck = earnedTier('full_neck', 'bass');
-    if (
-      tierAtLeast(gFSM, 'gold') && tierAtLeast(bFSM, 'gold')
-      && tierAtLeast(gNeck, 'gold') && tierAtLeast(bNeck, 'gold')
-    ) {
-      out.doubling_up = 'gold';
-    } else if (tierAtLeast(gFSM, 'silver') && tierAtLeast(bFSM, 'silver')) {
-      out.doubling_up = 'silver';
-    } else {
-      out.doubling_up = 'bronze';
+    let tier: Tier = 'bronze';
+    for (const t of ['silver', 'gold', 'platinum', 'diamond'] as const) {
+      if (
+        tierAtLeast(gFSM, t) && tierAtLeast(bFSM, t)
+        && (t === 'silver' || (tierAtLeast(gNeck, t) && tierAtLeast(bNeck, t)))
+      ) {
+        tier = t;
+      }
     }
+    out.doubling_up = tier;
   }
+
+  const allInstrumentIds = Object.keys(INSTRUMENTS) as InstrumentId[];
+  const fsmTiers = allInstrumentIds.map(id => earnedTier('string_master_all', id));
+  const atLeast = (t: Tier) => fsmTiers.filter(ft => tierAtLeast(ft, t)).length;
+  let multiTier: Tier | null = null;
+  if (atLeast('silver') >= 2) multiTier = 'bronze';
+  if (atLeast('silver') >= 3) multiTier = 'silver';
+  if (atLeast('gold') >= 4) multiTier = 'gold';
+  if (atLeast('gold') >= 5) multiTier = 'platinum';
+  if (atLeast('platinum') >= 5) multiTier = 'diamond';
+  if (multiTier) out.multi_instrumentalist = multiTier;
 
   return out;
 }
 
+// Pulls the raw-count target for `nextTier` out of a `[tier, count, ...]`
+// ladder (the shape shared by every `*_LADDER` above) — used to keep the
+// progress bar's target in lockstep with the actual earning ladder.
+function ladderCountTarget(nextTier: Tier, ladder: readonly (readonly [Tier, number, ...unknown[]])[]): number {
+  return ladder.find(row => row[0] === nextTier)?.[1] ?? 0;
+}
+
 // Current / target for a locked tile's thin progress bar, aimed at the given
-// (next unearned) tier. Null → no bar for this badge.
+// (next unearned) tier. Null → no bar for this badge. Note this only tracks
+// the raw-count axis — the day-spread floor some top tiers also require
+// (see the `*_LADDER` tables) isn't shown on this bar, only in the blurb.
 export function badgeProgress(
   id: BadgeId,
   l: LifetimeSnapshot,
   nextTier: Tier,
 ): { current: number; target: number } | null {
   const { instrumentEntries, allEntries, instrument } = l;
-  const countTarget = (bronze: number, silver: number, gold: number) =>
-    nextTier === 'gold' ? gold : nextTier === 'silver' ? silver : bronze;
 
   if (id.startsWith('string_master_s')) {
     const n = Number(id.slice('string_master_s'.length));
-    const target = countTarget(40, 100, 200);
+    const target = ladderCountTarget(nextTier, STRING_MASTER_LADDER);
     return { current: Math.min(stringStats(instrumentEntries, n).count, target), target };
   }
   if (id === 'string_master_all') {
@@ -688,32 +825,39 @@ export function badgeProgress(
   }
   if (id === 'full_neck') {
     const visits = fretVisitCounts(instrumentEntries);
-    const minVisits = nextTier === 'gold' ? 5 : nextTier === 'silver' ? 3 : 1;
+    const minVisits = NECK_RUNNER_LADDER.find(row => row[0] === nextTier)?.[1] ?? 1;
     let seen = 0;
     for (let f = 0; f <= instrument.maxFret; f++) if ((visits.get(f) ?? 0) >= minVisits) seen++;
     return { current: seen, target: instrument.maxFret + 1 };
   }
   if (id === 'both_ends') {
-    const target = countTarget(40, 100, 200);
+    const target = ladderCountTarget(nextTier, BOTH_ENDS_LADDER);
     return { current: Math.min(instrumentEntries.filter(e => e.fret >= 12).length, target), target };
   }
   if (id === 'low_end') {
-    const target = countTarget(40, 100, 200);
+    const target = ladderCountTarget(nextTier, LOW_END_LADDER);
     return { current: Math.min(stringStats(instrumentEntries, 4).count, target), target };
   }
   if (id === 'doubling_up') {
-    const gates = nextTier === 'gold'
+    const gates = nextTier === 'bronze'
       ? [
-          tierAtLeast(earnedTier('string_master_all', 'guitar'), 'gold'),
-          tierAtLeast(earnedTier('string_master_all', 'bass'), 'gold'),
-          tierAtLeast(earnedTier('full_neck', 'guitar'), 'gold'),
-          tierAtLeast(earnedTier('full_neck', 'bass'), 'gold'),
+          tierAtLeast(earnedTier('string_master_all', 'guitar'), 'bronze'),
+          tierAtLeast(earnedTier('string_master_all', 'bass'), 'bronze'),
         ]
       : [
           tierAtLeast(earnedTier('string_master_all', 'guitar'), nextTier),
           tierAtLeast(earnedTier('string_master_all', 'bass'), nextTier),
+          tierAtLeast(earnedTier('full_neck', 'guitar'), nextTier),
+          tierAtLeast(earnedTier('full_neck', 'bass'), nextTier),
         ];
     return { current: gates.filter(Boolean).length, target: gates.length };
+  }
+  if (id === 'multi_instrumentalist') {
+    const allInstrumentIds = Object.keys(INSTRUMENTS) as InstrumentId[];
+    const gateTier: Tier = nextTier === 'bronze' || nextTier === 'silver' ? 'silver' : 'gold';
+    const target = nextTier === 'bronze' ? 2 : nextTier === 'silver' ? 3 : nextTier === 'gold' ? 4 : 5;
+    const count = allInstrumentIds.filter(id2 => tierAtLeast(earnedTier('string_master_all', id2), gateTier)).length;
+    return { current: Math.min(count, target), target };
   }
 
   const days = dailyStats(allEntries);
@@ -724,20 +868,19 @@ export function badgeProgress(
       return { current: Math.min(maxDatesInWindow(days.map(d => d.date)), target), target };
     }
     case 'dedicated': {
-      const target = nextTier === 'platinum' ? 60 : nextTier === 'gold' ? 30 : nextTier === 'silver' ? 14 : 7;
+      const target = DEDICATED_LADDER[tierIndex(nextTier)] ?? DEDICATED_LADDER[0];
       return { current: Math.min(practiceStreak(days).longest, target), target };
     }
-    case 'century': {
-      const target = nextTier === 'platinum' ? 1000 : nextTier === 'gold' ? 500 : nextTier === 'silver' ? 250 : 100;
+    case 'total_reps': {
+      const target = ladderCountTarget(nextTier, TOTAL_REPS_LADDER);
       return { current: Math.min(totals.totalQuestions, target), target };
     }
-    case 'marathoner': {
-      const target = nextTier === 'platinum' ? 10000 : nextTier === 'gold' ? 5000 : nextTier === 'silver' ? 2500 : 1000;
+    case 'sharpshooter': {
+      const target = ladderCountTarget(nextTier, SHARPSHOOTER_LADDER);
       return { current: Math.min(totals.totalQuestions, target), target };
     }
-    case 'sharpshooter':
     case 'quick_read': {
-      const target = countTarget(200, 500, 1000);
+      const target = ladderCountTarget(nextTier, QUICK_READ_LADDER);
       return { current: Math.min(totals.totalQuestions, target), target };
     }
     default:

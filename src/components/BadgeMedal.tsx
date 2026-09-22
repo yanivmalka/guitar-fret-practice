@@ -70,10 +70,6 @@ const EMBLEMS = {
     '<rect x="33" y="35" width="34" height="31" rx="4.5" fill="none" stroke="currentColor" stroke-width="3"/>' +
     '<path d="M33 44 h34" stroke="currentColor" stroke-width="3"/>' +
     '<path d="M40 55 l6 6 12 -13" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>',
-  hundred:
-    '<text x="50" y="51.5" text-anchor="middle" dominant-baseline="central" ' +
-    'font-family="Bricolage Grotesque, Arial Narrow, sans-serif" font-weight="700" ' +
-    'font-size="25" letter-spacing="-1" fill="currentColor">100</text>',
   trophy:
     '<path d="M39 33 h22 v7 c0 8.5 -4.9 14.5 -11 14.5 S39 48.5 39 40 Z" fill="currentColor"/>' +
     '<path d="M39 35 c-6.5 0 -8.5 9 -1 11.5" fill="none" stroke="currentColor" stroke-width="3"/>' +
@@ -128,14 +124,25 @@ const EMBLEMS = {
   lowstring:
     '<path d="M28 50 q11 -9 22 0 t22 0" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>' +
     '<circle cx="28" cy="50" r="4" fill="currentColor"/><circle cx="72" cy="50" r="4" fill="currentColor"/>',
+  // Multi-Instrumentalist — three interlocked rings (Doubling Up's "pair" plus one).
+  trio:
+    '<circle cx="38" cy="46" r="11.5" fill="none" stroke="currentColor" stroke-width="3.4"/>' +
+    '<circle cx="62" cy="46" r="11.5" fill="none" stroke="currentColor" stroke-width="3.4"/>' +
+    '<circle cx="50" cy="62" r="11.5" fill="none" stroke="currentColor" stroke-width="3.4"/>',
 } as const;
 
 const INLAY: Record<Metal, string> = {
-  bronze:   'rgba(46,23,7,0.86)',
-  silver:   'rgba(30,36,46,0.86)',
-  gold:     'rgba(62,42,4,0.86)',
-  platinum: 'rgba(20,30,44,0.88)',
-  onyx:     'rgba(224,230,244,0.9)',
+  bronze:     'rgba(46,23,7,0.86)',
+  silver:     'rgba(30,36,46,0.86)',
+  gold:       'rgba(62,42,4,0.86)',
+  platinum:   'rgba(20,30,44,0.88)',
+  diamond:    'rgba(10,40,48,0.86)',
+  master:     'rgba(40,14,54,0.86)',
+  legendary1: 'rgba(48,10,16,0.86)',
+  legendary2: 'rgba(46,26,4,0.86)',
+  legendary3: 'rgba(6,36,22,0.86)',
+  legendary4: 'rgba(46,34,4,0.9)',
+  onyx:       'rgba(224,230,244,0.9)',
 };
 
 // Which emblem a family wears — the instrument-identity axis. Metal (the tier)
@@ -155,12 +162,12 @@ function familyEmblem(id: BadgeId, instrumentId?: string): Emblem {
     comeback: 'comeback',
     week_warrior: 'calendar',
     dedicated: 'calcheck',
-    century: 'hundred',
-    marathoner: 'trophy',
+    total_reps: 'trophy',
     sharpshooter: 'crosshair',
     most_improved: 'trend',
     quick_read: 'eye',
     doubling_up: 'pair',
+    multi_instrumentalist: 'trio',
     admin: 'shield',
   };
   return map[id] ?? 'target';
@@ -227,6 +234,30 @@ export function BadgeMedalDefs() {
           <stop offset="0" stopColor="#7c7c93" /><stop offset="0.34" stopColor="#45454f" />
           <stop offset="0.7" stopColor="#26262f" /><stop offset="1" stopColor="#111117" />
         </radialGradient>
+        <radialGradient id="bm-dome-diamond" cx="35%" cy="30%" r="78%">
+          <stop offset="0" stopColor="#eafcff" /><stop offset="0.34" stopColor="#b9f0ff" />
+          <stop offset="0.7" stopColor="#57c8e0" /><stop offset="1" stopColor="#1f6d82" />
+        </radialGradient>
+        <radialGradient id="bm-dome-master" cx="35%" cy="30%" r="78%">
+          <stop offset="0" stopColor="#f0e2ff" /><stop offset="0.34" stopColor="#c9a0f0" />
+          <stop offset="0.7" stopColor="#8a4fd1" /><stop offset="1" stopColor="#4a1f80" />
+        </radialGradient>
+        <radialGradient id="bm-dome-legendary1" cx="35%" cy="30%" r="78%">
+          <stop offset="0" stopColor="#ffdada" /><stop offset="0.34" stopColor="#f0898a" />
+          <stop offset="0.7" stopColor="#c23b4e" /><stop offset="1" stopColor="#6e1420" />
+        </radialGradient>
+        <radialGradient id="bm-dome-legendary2" cx="35%" cy="30%" r="78%">
+          <stop offset="0" stopColor="#fff0d0" /><stop offset="0.34" stopColor="#ffcf7a" />
+          <stop offset="0.7" stopColor="#e08a1f" /><stop offset="1" stopColor="#8a4a06" />
+        </radialGradient>
+        <radialGradient id="bm-dome-legendary3" cx="35%" cy="30%" r="78%">
+          <stop offset="0" stopColor="#daffea" /><stop offset="0.34" stopColor="#7fe0b0" />
+          <stop offset="0.7" stopColor="#1f9d63" /><stop offset="1" stopColor="#0a5c37" />
+        </radialGradient>
+        <radialGradient id="bm-dome-legendary4" cx="35%" cy="30%" r="78%">
+          <stop offset="0" stopColor="#ffffff" /><stop offset="0.32" stopColor="#fff2c9" />
+          <stop offset="0.68" stopColor="#f0c94a" /><stop offset="1" stopColor="#ad7a12" />
+        </radialGradient>
         <linearGradient id="bm-rim-bronze" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#f4d0a9" /><stop offset="0.5" stopColor="#ac6c41" /><stop offset="1" stopColor="#61371b" />
         </linearGradient>
@@ -241,6 +272,24 @@ export function BadgeMedalDefs() {
         </linearGradient>
         <linearGradient id="bm-rim-onyx" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#9797ab" /><stop offset="0.5" stopColor="#3d3d49" /><stop offset="1" stopColor="#191920" />
+        </linearGradient>
+        <linearGradient id="bm-rim-diamond" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#dffaff" /><stop offset="0.5" stopColor="#6fcbe0" /><stop offset="1" stopColor="#2c7f96" />
+        </linearGradient>
+        <linearGradient id="bm-rim-master" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#ecd9ff" /><stop offset="0.5" stopColor="#a568de" /><stop offset="1" stopColor="#5c2a95" />
+        </linearGradient>
+        <linearGradient id="bm-rim-legendary1" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#ffc6c6" /><stop offset="0.5" stopColor="#d9576b" /><stop offset="1" stopColor="#7a1a29" />
+        </linearGradient>
+        <linearGradient id="bm-rim-legendary2" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#ffe0a3" /><stop offset="0.5" stopColor="#f0a635" /><stop offset="1" stopColor="#96570c" />
+        </linearGradient>
+        <linearGradient id="bm-rim-legendary3" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#bff5d6" /><stop offset="0.5" stopColor="#39b579" /><stop offset="1" stopColor="#0c6b40" />
+        </linearGradient>
+        <linearGradient id="bm-rim-legendary4" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#ffffff" /><stop offset="0.5" stopColor="#f5da84" /><stop offset="1" stopColor="#b8871c" />
         </linearGradient>
         <linearGradient id="bm-edge" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#ffffff" stopOpacity="0.55" />

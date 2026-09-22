@@ -213,7 +213,7 @@ function BadgeTile({
 
       {maxedOut && (
         <span className={`badge-crown tier-${medalTier}`} aria-hidden="true">
-          {medalTier === 'platinum' ? (
+          {TIERS.indexOf(medalTier as Tier) >= TIERS.indexOf('platinum') ? (
             <svg viewBox="0 0 24 24" width="14" height="14">
               <path d="M2 8l4.6 3.2L12 3l5.4 8.2L22 8l-2.1 11.3H4.1L2 8Z" fill="currentColor" />
             </svg>

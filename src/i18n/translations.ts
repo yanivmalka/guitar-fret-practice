@@ -389,6 +389,12 @@ const he: Record<string, string> = {
   'Silver': 'כסף',
   'Gold': 'זהב',
   'Platinum': 'פלטינה',
+  'Diamond': 'יהלום',
+  'Master': 'מאסטר',
+  'Legendary I': 'אגדי I',
+  'Legendary II': 'אגדי II',
+  'Legendary III': 'אגדי III',
+  'Legendary IV': 'אגדי IV',
   // Wall chrome
   'unlocked': 'נפתחו',
   'Max': 'שיא',
@@ -413,12 +419,12 @@ const he: Record<string, string> = {
   'Low End': 'הקצה הנמוך',
   'Week Warrior': 'לוחם השבוע',
   'Dedicated': 'מסור',
-  'Century': 'מאה',
-  'Marathoner': 'רץ מרתון',
+  'Total Reps': 'סך החזרות',
   'Sharpshooter': 'צלף',
   'Quick Read': 'קריאה מהירה',
   'Most Improved': 'המשתפר ביותר',
   'Doubling Up': 'הכפלה',
+  'Multi-Instrumentalist': 'רב-כליים',
   'Admin': 'מנהל',
   // Earning conditions — Perfect Session
   'Answer 10+ questions in a round with no mistakes at all.':
@@ -466,6 +472,10 @@ const he: Record<string, string> = {
     '100+ שאלות על {s} בדיוק של 92% ומעלה.',
   '200+ questions on {s} at 95% accuracy or better.':
     '200+ שאלות על {s} בדיוק של 95% ומעלה.',
+  '400+ questions on {s} at 96% accuracy or better, over 14+ practice days.':
+    '400+ שאלות על {s} בדיוק של 96% ומעלה, לאורך 14+ ימי תרגול.',
+  '800+ questions on {s} at 97% accuracy or better, over 30+ practice days.':
+    '800+ שאלות על {s} בדיוק של 97% ומעלה, לאורך 30+ ימי תרגול.',
   // Full String Master
   'Earn String Master — Bronze on every string of this instrument.':
     'השג דרגת ברונזה של שליטה במיתר בכל מיתרי הכלי.',
@@ -473,6 +483,10 @@ const he: Record<string, string> = {
     'השג דרגת כסף של שליטה במיתר בכל המיתרים.',
   'Earn String Master — Gold on every string.':
     'השג דרגת זהב של שליטה במיתר בכל המיתרים.',
+  'Earn String Master — Platinum on every string.':
+    'השג דרגת פלטינה של שליטה במיתר בכל המיתרים.',
+  'Earn String Master — Diamond on every string.':
+    'השג דרגת יהלום של שליטה במיתר בכל המיתרים.',
   // Neck Runner
   'Answer at least one question on every fret of the neck.':
     'ענה על לפחות שאלה אחת בכל סריג בצוואר.',
@@ -480,6 +494,10 @@ const he: Record<string, string> = {
     'ענה על לפחות 3 שאלות בכל סריג בצוואר.',
   'Answer at least 5 questions on every fret of the neck.':
     'ענה על לפחות 5 שאלות בכל סריג בצוואר.',
+  'Answer at least 10 questions on every fret, spread across 14+ practice days.':
+    'ענה על לפחות 10 שאלות בכל סריג, לאורך 14+ ימי תרגול.',
+  'Answer at least 20 questions on every fret, spread across 30+ practice days.':
+    'ענה על לפחות 20 שאלות בכל סריג, לאורך 30+ ימי תרגול.',
   // Both Ends
   'Answer 40+ questions above the 12th fret at 85% accuracy or better.':
     'ענה על 40+ שאלות מעל הסריג ה־12 בדיוק של 85% ומעלה.',
@@ -487,6 +505,10 @@ const he: Record<string, string> = {
     '100+ שאלות מעל הסריג ה־12 בדיוק של 88% ומעלה.',
   '200+ questions above the 12th fret at 92% accuracy or better.':
     '200+ שאלות מעל הסריג ה־12 בדיוק של 92% ומעלה.',
+  '400+ questions above the 12th fret at 93% accuracy or better, over 14+ practice days.':
+    '400+ שאלות מעל הסריג ה־12 בדיוק של 93% ומעלה, לאורך 14+ ימי תרגול.',
+  '800+ questions above the 12th fret at 94% accuracy or better, over 30+ practice days.':
+    '800+ שאלות מעל הסריג ה־12 בדיוק של 94% ומעלה, לאורך 30+ ימי תרגול.',
   // Low End
   'Answer 40+ questions on the bass low-E string at 90% accuracy or better.':
     'ענה על 40+ שאלות על מיתר המי הנמוך בבס בדיוק של 90% ומעלה.',
@@ -494,6 +516,10 @@ const he: Record<string, string> = {
     '100+ שאלות על מיתר המי הנמוך בבס בדיוק של 93% ומעלה.',
   '200+ questions on the low-E string at 96% accuracy or better.':
     '200+ שאלות על מיתר המי הנמוך בבס בדיוק של 96% ומעלה.',
+  '400+ questions on the low-E string at 97% accuracy or better, over 14+ practice days.':
+    '400+ שאלות על מיתר המי הנמוך בבס בדיוק של 97% ומעלה, לאורך 14+ ימי תרגול.',
+  '800+ questions on the low-E string at 98% accuracy or better, over 30+ practice days.':
+    '800+ שאלות על מיתר המי הנמוך בבס בדיוק של 98% ומעלה, לאורך 30+ ימי תרגול.',
   // Week Warrior
   'Practise on 5 separate days within a single 7-day window.':
     'תרגל ב־5 ימים שונים בתוך תקופה של 7 ימים.',
@@ -506,18 +532,31 @@ const he: Record<string, string> = {
   '14 consecutive practice days.': '14 ימי תרגול רצופים.',
   '30 consecutive practice days.': '30 ימי תרגול רצופים.',
   '60 consecutive practice days.': '60 ימי תרגול רצופים.',
-  // Century
+  '90 consecutive practice days.': '90 ימי תרגול רצופים.',
+  '120 consecutive practice days.': '120 ימי תרגול רצופים.',
+  '180 consecutive practice days.': '180 ימי תרגול רצופים.',
+  '250 consecutive practice days.': '250 ימי תרגול רצופים.',
+  '300 consecutive practice days.': '300 ימי תרגול רצופים.',
+  '365 consecutive practice days — a full year, every day.':
+    '365 ימי תרגול רצופים — שנה שלמה, כל יום.',
+  // Total Reps
   'Answer 100 questions all-time, across every instrument.':
     'ענה על 100 שאלות בסך הכול, בכל הכלים.',
   '250 questions all-time.': '250 שאלות בסך הכול.',
   '500 questions all-time.': '500 שאלות בסך הכול.',
   '1,000 questions all-time.': '1,000 שאלות בסך הכול.',
-  // Marathoner
-  'Answer 1,000 questions all-time, across every instrument.':
-    'ענה על 1,000 שאלות בסך הכול, בכל הכלים.',
-  '2,500 questions all-time.': '2,500 שאלות בסך הכול.',
-  '5,000 questions all-time.': '5,000 שאלות בסך הכול.',
-  '10,000 questions all-time.': '10,000 שאלות בסך הכול.',
+  '2,500 questions all-time, spread across 20+ practice days.':
+    '2,500 שאלות בסך הכול, לאורך 20+ ימי תרגול.',
+  '5,000 questions all-time, spread across 40+ practice days.':
+    '5,000 שאלות בסך הכול, לאורך 40+ ימי תרגול.',
+  '10,000 questions all-time, spread across 70+ practice days.':
+    '10,000 שאלות בסך הכול, לאורך 70+ ימי תרגול.',
+  '20,000 questions all-time, spread across 110+ practice days.':
+    '20,000 שאלות בסך הכול, לאורך 110+ ימי תרגול.',
+  '35,000 questions all-time, spread across 160+ practice days.':
+    '35,000 שאלות בסך הכול, לאורך 160+ ימי תרגול.',
+  '50,000 questions all-time, spread across 220+ practice days.':
+    '50,000 שאלות בסך הכול, לאורך 220+ ימי תרגול.',
   // Sharpshooter
   'Hold 85% accuracy over at least 200 questions, across every instrument.':
     'שמור על דיוק של 85% לפחות לאורך 200 שאלות לפחות, בכל הכלים.',
@@ -525,11 +564,19 @@ const he: Record<string, string> = {
     'דיוק של 88% לפחות לאורך 500 שאלות לפחות.',
   '92% accuracy over at least 1,000 questions.':
     'דיוק של 92% לפחות לאורך 1,000 שאלות לפחות.',
+  '93% accuracy over at least 2,500 questions, spread across 30+ practice days.':
+    'דיוק של 93% לפחות לאורך 2,500 שאלות לפחות, לאורך 30+ ימי תרגול.',
+  '94% accuracy over at least 5,000 questions, spread across 60+ practice days.':
+    'דיוק של 94% לפחות לאורך 5,000 שאלות לפחות, לאורך 60+ ימי תרגול.',
   // Quick Read
   'Hold an average answer time under 2.0s over 200+ questions.':
     'שמור על זמן מענה ממוצע של פחות מ־2.0 שנ׳ לאורך 200+ שאלות.',
   'Under 1.6s over 500+ questions.': 'פחות מ־1.6 שנ׳ לאורך 500+ שאלות.',
   'Under 1.3s over 1,000+ questions.': 'פחות מ־1.3 שנ׳ לאורך 1,000+ שאלות.',
+  'Under 1.15s over 2,500+ questions, spread across 30+ practice days.':
+    'פחות מ־1.15 שנ׳ לאורך 2,500+ שאלות, לאורך 30+ ימי תרגול.',
+  'Under 1.05s over 5,000+ questions, spread across 60+ practice days.':
+    'פחות מ־1.05 שנ׳ לאורך 5,000+ שאלות, לאורך 60+ ימי תרגול.',
   // Most Improved
   'Over 10+ practice days, lift your accuracy by 20 points from your first days to your latest.':
     'לאורך 10+ ימי תרגול, שפר את הדיוק שלך ב־20 נקודות אחוז מהימים הראשונים ועד האחרונים.',
@@ -544,6 +591,21 @@ const he: Record<string, string> = {
     'השג שליטה מלאה במיתרים בדרגת כסף, גם בגיטרה וגם בבס.',
   'Earn Full String Master — Gold and Neck Runner — Gold on both guitar and bass.':
     'השג שליטה מלאה במיתרים בדרגת זהב ורץ הצוואר בדרגת זהב, גם בגיטרה וגם בבס.',
+  'Earn Full String Master — Platinum and Neck Runner — Platinum on both guitar and bass.':
+    'השג שליטה מלאה במיתרים בדרגת פלטינה ורץ הצוואר בדרגת פלטינה, גם בגיטרה וגם בבס.',
+  'Earn Full String Master — Diamond and Neck Runner — Diamond on both guitar and bass.':
+    'השג שליטה מלאה במיתרים בדרגת יהלום ורץ הצוואר בדרגת יהלום, גם בגיטרה וגם בבס.',
+  // Multi-Instrumentalist
+  'Earn Full String Master — Silver on 2 different instruments.':
+    'השג שליטה מלאה במיתרים בדרגת כסף בשני כלים שונים.',
+  'Earn Full String Master — Silver on 3 different instruments.':
+    'השג שליטה מלאה במיתרים בדרגת כסף בשלושה כלים שונים.',
+  'Earn Full String Master — Gold on 4 different instruments.':
+    'השג שליטה מלאה במיתרים בדרגת זהב בארבעה כלים שונים.',
+  'Earn Full String Master — Gold on all 5 instruments.':
+    'השג שליטה מלאה במיתרים בדרגת זהב בכל 5 הכלים.',
+  'Earn Full String Master — Platinum on all 5 instruments.':
+    'השג שליטה מלאה במיתרים בדרגת פלטינה בכל 5 הכלים.',
   // Admin (role)
   'Granted to app administrators — read every Feedback board post, not just your own.':
     'מוענק למנהלי האפליקציה — מאפשר לקרוא את כל הפוסטים בלוח המשוב, לא רק את הפוסטים שלך.',

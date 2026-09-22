@@ -161,6 +161,12 @@
 .badge-toast-card.tier-silver { border-color: rgba(210, 224, 236, 0.7); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 22px rgba(200, 220, 240, 0.28); }
 .badge-toast-card.tier-bronze { border-color: rgba(214, 150, 100, 0.7); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 22px rgba(210, 140, 90, 0.28); }
 .badge-toast-card.tier-platinum { border-color: rgba(190, 220, 245, 0.8); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 24px rgba(190, 220, 245, 0.32); }
+.badge-toast-card.tier-diamond { border-color: rgba(140, 230, 250, 0.85); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 24px rgba(87, 200, 224, 0.35); }
+.badge-toast-card.tier-master { border-color: rgba(201, 160, 240, 0.85); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 24px rgba(138, 79, 209, 0.35); }
+.badge-toast-card.tier-legendary1 { border-color: rgba(240, 137, 138, 0.85); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 24px rgba(194, 59, 78, 0.35); }
+.badge-toast-card.tier-legendary2 { border-color: rgba(255, 207, 122, 0.85); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 24px rgba(224, 138, 31, 0.35); }
+.badge-toast-card.tier-legendary3 { border-color: rgba(127, 224, 176, 0.85); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 24px rgba(31, 157, 99, 0.35); }
+.badge-toast-card.tier-legendary4 { border-color: rgba(255, 236, 179, 0.9); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 28px rgba(240, 201, 74, 0.4); }
 .badge-toast-medal {
   flex: none;
   display: block;
@@ -184,6 +190,12 @@
 .badge-toast-card.tier-silver .badge-toast-kicker { color: #dbe6f0; }
 .badge-toast-card.tier-bronze .badge-toast-kicker { color: #e0a878; }
 .badge-toast-card.tier-platinum .badge-toast-kicker { color: #cfe6f7; }
+.badge-toast-card.tier-diamond .badge-toast-kicker { color: #b9f0ff; }
+.badge-toast-card.tier-master .badge-toast-kicker { color: #ecd9ff; }
+.badge-toast-card.tier-legendary1 .badge-toast-kicker { color: #ffc6c6; }
+.badge-toast-card.tier-legendary2 .badge-toast-kicker { color: #ffe0a3; }
+.badge-toast-card.tier-legendary3 .badge-toast-kicker { color: #bff5d6; }
+.badge-toast-card.tier-legendary4 .badge-toast-kicker { color: #fff2c9; }
 .badge-toast-name {
   font-size: 0.86rem;
   font-weight: 800;
@@ -363,6 +375,12 @@
 .badge-reveal-tier.tier-silver { color: #dbe6f0; }
 .badge-reveal-tier.tier-gold { color: var(--gold); }
 .badge-reveal-tier.tier-platinum { color: #cfe6f7; }
+.badge-reveal-tier.tier-diamond { color: #b9f0ff; }
+.badge-reveal-tier.tier-master { color: #ecd9ff; }
+.badge-reveal-tier.tier-legendary1 { color: #ffc6c6; }
+.badge-reveal-tier.tier-legendary2 { color: #ffe0a3; }
+.badge-reveal-tier.tier-legendary3 { color: #bff5d6; }
+.badge-reveal-tier.tier-legendary4 { color: #fff2c9; }
 .badge-reveal-count {
   font-size: 0.75rem;
   font-weight: 700;
