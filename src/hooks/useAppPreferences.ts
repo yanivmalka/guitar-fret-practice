@@ -7,7 +7,7 @@ import { NOTE_VOLUME_DEFAULT } from '../utils/audio';
 import type { FeedbackMode } from '../utils/feedback';
 import { DEFAULT_MASTERY_WINDOW, type MasteryWindow } from '../utils/mastery';
 
-type AnswerMode = 'tap' | 'voice';
+type AnswerMode = 'tap' | 'voice' | 'guitar';
 
 // Global display / behaviour preferences, each backed by its own `pref_*`
 // localStorage key (read once at mount, exactly as before). The setters are the

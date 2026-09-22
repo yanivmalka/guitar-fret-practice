@@ -7,6 +7,7 @@ import AnimatedScore from '../AnimatedScore';
 import IntervalPrompt from '../IntervalPrompt';
 import VoiceLevelMeter from '../VoiceLevelMeter';
 import VoiceStatusRow from './VoiceStatusRow';
+import GuitarStatusRow from './GuitarStatusRow';
 import { withClick as click } from '../../utils/withClick';
 import { displayNote } from '../../utils/music';
 import type { AccidentalMode, NotationMode } from '../../utils/music';
@@ -19,6 +20,7 @@ import type { useDerivedNotes } from '../../hooks/useDerivedNotes';
 import type { IntervalPromptState } from '../../hooks/useGameEngine';
 import type { SessionScore } from '../../hooks/useScoring';
 import type { UseVoiceAnswerResult } from '../../hooks/useVoiceAnswer';
+import type { UseGuitarAnswerResult } from '../../hooks/useGuitarAnswer';
 import type { Lang } from '../../i18n/translations';
 
 /**
@@ -38,6 +40,7 @@ export interface DrillBoardProps {
   derived: ReturnType<typeof useDerivedNotes>;
   eff: DerivedSettings;
   voice: UseVoiceAnswerResult;
+  guitar: UseGuitarAnswerResult;
   scoringSession: SessionScore;
   fretMastery: Record<number, MasteryStat>;
   noteMastery: Record<string, MasteryStat>;
@@ -61,6 +64,7 @@ export interface DrillBoardProps {
   showMastery: boolean;
   byString: boolean;
   voiceActive: boolean;
+  guitarActive: boolean;
   multiplierIcon: string;
   feedback: string;
 
@@ -88,10 +92,10 @@ export interface DrillBoardProps {
 }
 
 export default function DrillBoard({
-  t, lang, accidental, notation, instrument, derived, eff, voice, scoringSession,
+  t, lang, accidental, notation, instrument, derived, eff, voice, guitar, scoringSession,
   fretMastery, noteMastery, masteryDenominator, intervalPrompt, questionDisplayRef,
   gameActive, isStopped, gameEnded, stageExiting, isPlaying, boardLive, running, paused,
-  answered, showScore, showMastery, byString, voiceActive, multiplierIcon, feedback,
+  answered, showScore, showMastery, byString, voiceActive, guitarActive, multiplierIcon, feedback,
   safeGuitarString, currentNote, currentFret, questionSeq, remaining, questionTime,
   questionStart, questionNumber, remainingFrets, foundFrets, wrongFret,
   correctCofNote, wrongCofNote, wrongInterval,
@@ -169,6 +173,7 @@ export default function DrillBoard({
             {voiceActive && running && !paused && voice.permission !== 'denied' && (
               <VoiceLevelMeter active={running && !paused} />
             )}
+            {guitarActive && <GuitarStatusRow guitar={guitar} t={t} />}
           </>
         )}
 

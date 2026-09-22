@@ -18,7 +18,7 @@ import {
   markQaHintSeen,
 } from '../utils/quickAccess';
 
-type AnswerMode = 'tap' | 'voice';
+type AnswerMode = 'tap' | 'voice' | 'guitar';
 type Phase = 'sunk' | 'revealed' | 'open';
 
 // Reveal / sink timing and gesture tolerances. The summon gesture is a

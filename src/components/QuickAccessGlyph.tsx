@@ -125,12 +125,14 @@ function glyph(id: QuickAccessId, value: unknown) {
             <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3.5M8.5 21.5h7" {...CAP} />
           </>
         )
-        : (
-          <>
-            <circle cx="12" cy="12" r="4" fill="currentColor" />
-            <path d="M12 3v3M12 18v3M3 12h3M18 12h3M6 6l2 2M18 6l-2 2M6 18l2-2M18 18l-2-2" {...CAP} strokeWidth={1.8} />
-          </>
-        );
+        : value === 'guitar'
+          ? <path d="M12 3c4 0 7 3.8 7 8.5 0 5-3.6 8.7-7 9.5-3.4-.8-7-4.5-7-9.5C5 6.8 8 3 12 3z" fill="currentColor" />
+          : (
+            <>
+              <circle cx="12" cy="12" r="4" fill="currentColor" />
+              <path d="M12 3v3M12 18v3M3 12h3M18 12h3M6 6l2 2M18 6l-2 2M6 18l2-2M18 18l-2-2" {...CAP} strokeWidth={1.8} />
+            </>
+          );
 
     case 'showMastery':
       return value === false

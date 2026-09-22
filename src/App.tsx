@@ -59,6 +59,7 @@ import type { TeacherPlan } from './learning/planner';
 import { useHistory } from './hooks/useHistory';
 import { useScoring } from './hooks/useScoring';
 import { useVoiceAnswer } from './hooks/useVoiceAnswer';
+import { useGuitarAnswer } from './hooks/useGuitarAnswer';
 import ExitHintToast from './components/ExitHintToast';
 import QuickAccess from './components/QuickAccess';
 import QuickAccessManagePage from './components/QuickAccessManagePage';
@@ -519,6 +520,21 @@ export default function App() {
   // Fall back to tap input if voice is selected but no recogniser exists.
   const voiceActive = answerMode === 'voice' && voice.supported;
 
+  // Answer-by-guitar (admin-only, ahead of a written go/no-go on the
+  // underlying pitch-answer spike — see src/pitchSpike/README.md). Only
+  // supported for "by fret" questions; see useGuitarAnswer's own comment.
+  const guitar = useGuitarAnswer({
+    enabled: answerMode === 'guitar' && auth.admin,
+    running,
+    paused,
+    answered,
+    byNote: eff.byNote,
+    questionSeq,
+    hasActiveQuestion: eff.byNote ? currentNote !== null : currentFret !== null,
+    onNote: selectAnswer,
+  });
+  const guitarActive = answerMode === 'guitar' && auth.admin && guitar.supported && !eff.byNote;
+
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (!paused) setGuitarString(eff.guitarString); }, [eff.guitarString, paused]);
 
@@ -849,6 +865,7 @@ export default function App() {
           answerMode={answerMode}
           setAnswerMode={setAnswerMode}
           askForMic={askForMic}
+          isAdmin={auth.admin}
           voiceEnginePref={voiceEnginePref}
           pickVoiceEngine={pickVoiceEngine}
           voiceProfileStat={voiceProfileStat}
@@ -1287,6 +1304,7 @@ export default function App() {
           derived={derived}
           eff={eff}
           voice={voice}
+          guitar={guitar}
           scoringSession={scoring.session}
           fretMastery={fretMastery}
           noteMastery={noteMastery}
@@ -1306,6 +1324,7 @@ export default function App() {
           showMastery={showMastery}
           byString={byString}
           voiceActive={voiceActive}
+          guitarActive={guitarActive}
           multiplierIcon={multiplierIcon}
           feedback={feedback}
           safeGuitarString={safeGuitarString}

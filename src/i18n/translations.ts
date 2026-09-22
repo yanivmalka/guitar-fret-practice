@@ -124,6 +124,12 @@ const he: Record<string, string> = {
     'דברו ברור והשהו רגע קצר בין מילים — בתווי דיאז/במול, אמרו את האות, השהו רגע, ואז "דיאז"/"במול" כשתי מילים נפרדות.',
   'Tap': 'הקשה',
   'Voice': 'קול',
+  'Admin-only experiment: play the target note on your guitar instead of tapping. Only works for “by fret” questions — a played note can’t say which string it came from, so “by note” questions stay on tap.':
+    'ניסוי למנהלים בלבד: מנגנים את התו המבוקש על הגיטרה במקום להקיש עליו. עובד רק בשאלות מסוג "לפי פרט" — תו שמנגנים לא יכול להעיד על המיתר שממנו הגיע, ולכן שאלות מסוג "לפי תו" נשארות בהקשה.',
+  '🎸 Microphone blocked — enable it or switch to tap': '🎸 הגישה למיקרופון חסומה — אפשרו אותה או עברו להקשה',
+  '🎸 Pitch detection isn’t available on this device — use tap': '🎸 זיהוי גובה הצליל לא זמין במכשיר הזה — השתמשו בהקשה',
+  '🎸 Didn’t catch that': '🎸 לא זוהה בבירור',
+  '🎸 Play the note on your guitar': '🎸 נגנו את התו על הגיטרה',
   'Voice engine': 'מנוע זיהוי קולי',
   'Auto picks the best available. Personal uses your calibrated profile; General uses the built-in model.':
     'אוטומטי בוחר את האפשרות הטובה ביותר הזמינה. אישי משתמש בפרופיל הקול שכיילת; כללי משתמש במודל המובנה.',

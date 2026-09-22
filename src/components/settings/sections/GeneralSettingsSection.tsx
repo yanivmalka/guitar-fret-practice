@@ -16,7 +16,7 @@ import type { Season, Theme } from '../../../utils/theme';
 import type { VoiceEnginePref } from '../../../utils/speech';
 import type { FeedbackMode } from '../../../utils/feedback';
 
-type AnswerMode = 'tap' | 'voice';
+type AnswerMode = 'tap' | 'voice' | 'guitar';
 type WindowMode = MasteryWindow['kind'];
 
 /** Local-calendar `YYYY-MM-DD` for a Date, matching what an `<input type="date">` emits. */
@@ -68,6 +68,10 @@ export interface GeneralSettingsSectionProps {
   answerMode: AnswerMode;
   setAnswerMode: (m: AnswerMode) => void;
   askForMic: () => void;
+  /** Unlocks the "answer by playing the guitar" mode, an admin-only
+   *  experiment ahead of a written go/no-go on the underlying pitch-answer
+   *  spike (see src/pitchSpike/README.md). */
+  isAdmin: boolean;
   voiceEnginePref: VoiceEnginePref;
   pickVoiceEngine: (p: VoiceEnginePref) => void;
   voiceProfileStat: { enabled: boolean; count: number } | null;
@@ -84,6 +88,7 @@ export interface GeneralSettingsSectionProps {
 export default function GeneralSettingsSection({
   t, lang, setLang, showScore, setShowScore, feedbackMode, setFeedbackMode,
   noteVolume, setNoteVolume, theme, setTheme, season, setSeason, voiceSupported, answerMode, setAnswerMode, askForMic,
+  isAdmin,
   voiceEnginePref, pickVoiceEngine, voiceProfileStat, setSettingsOpen,
   setShowVoiceCalibration, showMastery, setShowMastery, masteryWindow, setMasteryWindow,
   leftHanded, setLeftHanded,
@@ -199,7 +204,7 @@ export default function GeneralSettingsSection({
           onChange={(v) => { setLeftHanded(v === 'on'); }}
         />
       </SettingCard>
-      {voiceSupported && (
+      {(voiceSupported || isAdmin) && (
         <>
           <SettingCard
             label={t('How you answer')}
@@ -211,7 +216,10 @@ export default function GeneralSettingsSection({
               value={answerMode}
               options={[
                 { value: 'tap', label: <>👆 {t('Tap')}</> },
-                { value: 'voice', label: <>🎤 {t('Voice')}</> },
+                ...(voiceSupported ? [{ value: 'voice' as const, label: <>🎤 {t('Voice')}</> }] : []),
+                // Admin-only ahead of a written go/no-go on the underlying
+                // pitch-answer spike — see src/pitchSpike/README.md.
+                ...(isAdmin ? [{ value: 'guitar' as const, label: <>🎸 {t('Guitar')}</> }] : []),
               ]}
               onChange={(m) => {
                 setAnswerMode(m);
@@ -222,6 +230,11 @@ export default function GeneralSettingsSection({
             {answerMode === 'voice' && (
               <p className="set-card-help">
                 {t('Speak clearly and pause briefly between words — for sharp/flat notes, say the letter, pause, then “sharp” / “flat” as two separate words.')}
+              </p>
+            )}
+            {answerMode === 'guitar' && (
+              <p className="set-card-help">
+                {t('Admin-only experiment: play the target note on your guitar instead of tapping. Only works for “by fret” questions — a played note can’t say which string it came from, so “by note” questions stay on tap.')}
               </p>
             )}
           </SettingCard>

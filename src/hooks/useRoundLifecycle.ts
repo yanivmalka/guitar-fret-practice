@@ -20,7 +20,7 @@ interface Params {
   preloaded: boolean;
   setPreloaded: (v: boolean) => void;
   askForMic: () => void;
-  answerMode: 'tap' | 'voice';
+  answerMode: 'tap' | 'voice' | 'guitar';
   running: boolean;
   paused: boolean;
   /** Clears the per-run celebration state (badges/toasts/PB guard) owned by
