@@ -56,6 +56,13 @@ function recompute() {
     }
   }
   const next: PresenceCounts = { users: uids.size + anonUsers, guests };
+  vlog('[presence] recompute', {
+    tabKey,
+    rawKeys: Object.keys(state).length,
+    rawEntries: Object.values(state).reduce((n, e) => n + e.length, 0),
+    next,
+    changed: next.users !== snapshot.users || next.guests !== snapshot.guests,
+  });
   if (next.users !== snapshot.users || next.guests !== snapshot.guests) {
     snapshot = next;
     emit();
@@ -67,7 +74,9 @@ function trackSelf() {
   const payload = selfUid
     ? { kind: 'user' as const, uid: selfUid }
     : { kind: 'guest' as const };
-  void channel.track(payload);
+  void channel.track(payload).then((status) => {
+    vlog('[presence] track result', { tabKey, payload, status }, status === 'ok' ? 'info' : 'error');
+  });
 }
 
 /** Start the presence channel. Idempotent; no-op without Supabase. */
