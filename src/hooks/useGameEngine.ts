@@ -37,6 +37,13 @@ export interface GameSettings {
   // sequence, or a note + interval) and the answer surface (a chip row) differ.
   // Absent → unchanged behaviour.
   interval?: IntervalDrillSpec;
+  // When true, suppress the audible preview of a "by fret" question's target
+  // note (the app playing the note itself before the learner answers). Set
+  // while answer-by-guitar is active: that mode's pitch detector can't tell
+  // the app's own speaker playback from the learner's guitar, so playing the
+  // answer aloud both gives it away and gets picked up by the mic as a false
+  // "heard" match the instant the question appears.
+  muteQuestionAudio?: boolean;
 }
 
 // What the interval branch exposes for the prompt renderer + the chip-row
@@ -116,7 +123,8 @@ export function useGameEngine(
   callbacks: EngineCallbacks = {},
 ) {
   const { guitarString, fretFrom, fretTo, wholeToneOnly, dotsOnly, byNote,
-          isMulti, activeStrings, time, accidental, order, candidates, interval } = settings;
+          isMulti, activeStrings, time, accidental, order, candidates, interval,
+          muteQuestionAudio } = settings;
 
   // An explicit candidate set confines every question to those exact
   // positions. Built into `string -> sorted frets` once per candidate-array
@@ -729,7 +737,7 @@ export function useGameEngine(
       // *identify the interval*: play the two-note sequence (never a note the
       // learner has to name). *find the target note*: sound the first note.
       playIntervalStimulus();
-    } else {
+    } else if (!muteQuestionAudio) {
       playNote(qString, fret, questionPlaybackRate());
     }
     beginCountdown(questionTimeRef.current, () => {
@@ -756,7 +764,7 @@ export function useGameEngine(
       }
       scheduleAdvance(() => { if (runningRef.current && sessionRef.current === mySession) next(); }, 1500);
     });
-  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, accidental, order, wholeToneOnly, dotsOnly, candidateFretsByString, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, onComplete, getQuestionTime, interval, buildIntervalQuestion, setIntervalPromptBoth, playIntervalStimulus, tagInterval]);
+  }, [guitarString, isMulti, activeStrings, fretFrom, fretTo, accidental, order, wholeToneOnly, dotsOnly, candidateFretsByString, pickSmartFret, addEntry, setters, onTimeout, scheduleAdvance, onComplete, getQuestionTime, interval, buildIntervalQuestion, setIntervalPromptBoth, playIntervalStimulus, tagInterval, muteQuestionAudio]);
 
   const selectAnswer = useCallback((selectedNote: string) => {
     vlog('[voice] selectAnswer', { selectedNote, running: runningRef.current, paused, answered: answeredRef.current, currentFret });
