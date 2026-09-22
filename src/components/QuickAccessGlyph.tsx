@@ -15,8 +15,12 @@ export default function QuickAccessGlyph({
   id: QuickAccessId;
   value: unknown;
 }) {
+  // The 4- and 5-wave speaker glyphs bulge past x=24 at this stroke width;
+  // widen the canvas just for soundLevel so every ladder stop stays
+  // unclipped while the rest of the glyph family keeps its tighter box.
+  const viewBox = id === 'soundLevel' ? '0 0 28 24' : '0 0 24 24';
   return (
-    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
+    <svg viewBox={viewBox} width="24" height="24" aria-hidden="true" focusable="false">
       {glyph(id, value)}
     </svg>
   );
