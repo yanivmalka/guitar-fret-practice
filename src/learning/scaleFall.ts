@@ -75,7 +75,9 @@ export function midiAt(pos: NeckPos, openMidi: readonly number[]): number {
  *  holds twice (a box can reach the same note on two neighbouring strings
  *  across the G–B major third) is played once, on the thicker string, the
  *  way a run goes through a box. */
-export function scaleRun(shape: readonly NeckPos[], openMidi: readonly number[]): NeckPos[] {
+export function scaleRun(
+  shape: readonly NeckPos[], openMidi: readonly number[], direction: 'up' | 'down' = 'up',
+): NeckPos[] {
   const sorted = [...shape].sort(
     (a, b) => midiAt(a, openMidi) - midiAt(b, openMidi) || b.string - a.string,
   );
@@ -87,7 +89,8 @@ export function scaleRun(shape: readonly NeckPos[], openMidi: readonly number[])
     out.push(p);
     lastMidi = m;
   }
-  return out;
+  // A descending run is the same notes, top to bottom.
+  return direction === 'down' ? out.reverse() : out;
 }
 
 /** Lays `questions` out as one stream: a banner row, then the run's notes,
@@ -99,7 +102,7 @@ export function buildFallStream(questions: readonly ScaleQuestion[], openMidi: r
   questions.forEach((q, qi) => {
     rows.push({ kind: 'banner', q: qi });
     let prevFret: number | null = null;
-    const run = scaleRun(q.shape, openMidi);
+    const run = scaleRun(q.shape, openMidi, q.direction);
     run.forEach((p, step) => {
       if (prevFret !== null) {
         const dir = Math.sign(p.fret - prevFret);
@@ -110,7 +113,7 @@ export function buildFallStream(questions: readonly ScaleQuestion[], openMidi: r
       const next = run[step + 1];
       rows.push({
         kind: 'note', q: qi, string: p.string, fret: p.fret, step,
-        ...(next ? { toNext: midiAt(next, openMidi) - midiAt(p, openMidi) } : {}),
+        ...(next ? { toNext: Math.abs(midiAt(next, openMidi) - midiAt(p, openMidi)) } : {}),
       });
       prevFret = p.fret;
     });

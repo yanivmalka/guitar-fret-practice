@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   pickScaleIdentifyQuestion, pickScaleDegreeQuestion,
-  type ScaleIdentifyQuestion, type ScaleDegreeQuestion, type ScalePoolItem,
+  type ScaleIdentifyQuestion, type ScaleDegreeQuestion, type ScalePoolItem, type ScaleDirection,
 } from '../learning/scaleDrill';
 import { playNoteSequence, beep } from '../utils/audio';
 import { haptic, playCorrectChime } from '../utils/feedback';
@@ -49,6 +49,10 @@ export interface ScaleChipEngineOptions {
   optionCount?: number;
   /** §9.1's "root bias": naturals-only at `focused`, any root otherwise. */
   naturalsOnly?: boolean;
+  /** Which way "identify the scale" plays the scale; `'both'` is decided per
+   *  question. "Name the degree" is direction-free (a degree is the same note
+   *  either way). */
+  direction?: ScaleDirection;
   onComplete?: () => void;
   /** Fired once per question, on a tap or a timeout. */
   onAnswer?: (answer: ScaleChipAnswer) => void;
@@ -59,7 +63,7 @@ export type ScaleChipQuestion = ScaleIdentifyQuestion | ScaleDegreeQuestion;
 const PLAYBACK_MS = 1400;
 
 export function useScaleChipEngine({
-  exercise, instrument, pool, questionCount, timeLimit, optionCount = 4, naturalsOnly = false, onComplete, onAnswer,
+  exercise, instrument, pool, questionCount, timeLimit, optionCount = 4, naturalsOnly = false, direction = 'up', onComplete, onAnswer,
 }: ScaleChipEngineOptions) {
   const { session, reset, beginRun, onCorrect, onWrong, onTimeout, getQuestionTime } = useScoring();
 
@@ -110,7 +114,7 @@ export function useScaleChipEngine({
     answeredRef.current = false;
 
     const q = exercise === 'identifyScale'
-      ? pickScaleIdentifyQuestion(pool, instrument.notes, instrument.stringCount, instrument.maxFret, optionCount, Math.random, naturalsOnly)
+      ? pickScaleIdentifyQuestion(pool, instrument.notes, instrument.stringCount, instrument.maxFret, optionCount, Math.random, naturalsOnly, direction)
       : pickScaleDegreeQuestion(pool, instrument.notes, instrument.stringCount, instrument.maxFret, optionCount, Math.random, naturalsOnly);
     if (!q) { finish(); return; }
     questionRef.current = q;
@@ -135,7 +139,7 @@ export function useScaleChipEngine({
       });
       setTimeout(() => { if (runningRef.current && sessionRef.current === mySession) nextQuestionRef.current(mySession); }, 1200);
     }, t * 1000);
-  }, [exercise, pool, instrument, questionCount, optionCount, naturalsOnly, getQuestionTime, timeLimit, onTimeout, finish, clearCountdown, playStimulus]);
+  }, [exercise, pool, instrument, questionCount, optionCount, naturalsOnly, direction, getQuestionTime, timeLimit, onTimeout, finish, clearCountdown, playStimulus]);
   useEffect(() => { nextQuestionRef.current = nextQuestion; }, [nextQuestion]);
 
   const start = useCallback(() => {

@@ -20,7 +20,7 @@
 
 import { useMemo, useState } from 'react';
 import { loadSetting, saveSetting } from '../utils/settings';
-import { buildScalePool, type ScalePoolItem } from '../learning/scaleDrill';
+import { buildScalePool, type ScalePoolItem, type ScaleDirection } from '../learning/scaleDrill';
 import { scalePositionsFor, type ScalePositionDef } from '../utils/scales';
 import type { ScaleChipExercise } from './useScaleChipEngine';
 import type { FallSpeed } from '../learning/scaleFall';
@@ -39,6 +39,7 @@ export type ScaleDifficulty = 'focused' | 'mixed' | 'full';
 const EXERCISES: readonly ScaleExercise[] = ['buildScale', 'identifyScale', 'nameDegree'];
 const POSITION_MODES: readonly ScalePositionMode[] = ['one', 'all'];
 const DIFFICULTIES: readonly ScaleDifficulty[] = ['focused', 'mixed', 'full'];
+const DIRECTIONS: readonly ScaleDirection[] = ['up', 'down', 'both'];
 
 function loadOneOf<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
   const raw = loadSetting<string>(key, fallback);
@@ -122,6 +123,27 @@ export function useScaleSelector(stringCount: number) {
     return (FALL_SPEED_LEVELS as readonly number[]).includes(raw) ? (raw as FallSpeedLevel) : 3;
   });
 
+  // Direction is stored as 'up' | 'down' | 'both' but presented as two
+  // independent tiles, exactly like the Intervals selector: either or both,
+  // never neither.
+  const [dirUp, setDirUpState] = useState<boolean>(() => {
+    const d = loadOneOf('ssel_direction', DIRECTIONS, 'up');
+    return d === 'up' || d === 'both';
+  });
+  const [dirDown, setDirDownState] = useState<boolean>(() => {
+    const d = loadOneOf('ssel_direction', DIRECTIONS, 'up');
+    return d === 'down' || d === 'both';
+  });
+  const direction: ScaleDirection = dirUp && dirDown ? 'both' : dirDown ? 'down' : 'up';
+  const toggleDirection = (which: 'up' | 'down') => {
+    const nextUp = which === 'up' ? !dirUp : dirUp;
+    const nextDown = which === 'down' ? !dirDown : dirDown;
+    if (!nextUp && !nextDown) return;
+    setDirUpState(nextUp);
+    setDirDownState(nextDown);
+    saveSetting('ssel_direction', nextUp && nextDown ? 'both' : nextDown ? 'down' : 'up');
+  };
+
   const activeScaleTypeIds = useMemo<readonly string[]>(
     () => (scaleChoiceStored === 'all' ? SHIPPED_SCALE_TYPE_IDS : [scaleChoiceStored]),
     [scaleChoiceStored],
@@ -161,6 +183,7 @@ export function useScaleSelector(stringCount: number) {
   const buildEnvelope = (isChipExercise: boolean): ScaleEnvelope => envelopeFor(difficulty, isChipExercise, speedLevel);
 
   return {
+    direction, dirUp, dirDown, toggleDirection,
     speedLevel, setSpeedLevel,
     exercise, setExercise,
     scaleChoice: scaleChoiceStored, setScaleChoice, shippedScaleTypeIds: SHIPPED_SCALE_TYPE_IDS,

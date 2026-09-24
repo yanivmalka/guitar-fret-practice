@@ -25,7 +25,7 @@
 // "Conventions": timer-read values in refs, state only for rendering).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { pickScaleQuestion, type ScaleQuestion, type ScalePoolItem } from '../learning/scaleDrill';
+import { pickScaleQuestion, type ScaleQuestion, type ScalePoolItem, type ScaleDirection } from '../learning/scaleDrill';
 import {
   buildFallStream, hasFallenOff, rowBottom, speedAt, VISIBLE_ROWS,
   type FallSpeed, type FallStream,
@@ -68,6 +68,8 @@ export interface ScaleFallOptions {
   questionCount: number;
   speed: FallSpeed;
   naturalsOnly?: boolean;
+  /** Which way the scales run; `'both'` is decided per scale. */
+  direction?: ScaleDirection;
   onComplete?: () => void;
   onAnswer?: (answer: ScaleFallAnswer) => void;
 }
@@ -85,7 +87,7 @@ function findNext(s: FallStream, states: readonly FallRowState[], from: number):
 }
 
 export function useScaleFallEngine({
-  instrument, pool, questionCount, speed, naturalsOnly = false, onComplete, onAnswer,
+  instrument, pool, questionCount, speed, naturalsOnly = false, direction = 'up', onComplete, onAnswer,
 }: ScaleFallOptions) {
   const { session, reset, beginRun, onCorrect, onWrong, onTimeout } = useScoring();
 
@@ -214,7 +216,7 @@ export function useScaleFallEngine({
     const questions: ScaleQuestion[] = [];
     for (let i = 0; i < questionCount; i++) {
       const q = pickScaleQuestion(
-        pool, instrument.notes, instrument.stringCount, instrument.maxFret, Math.random, naturalsOnly,
+        pool, instrument.notes, instrument.stringCount, instrument.maxFret, Math.random, naturalsOnly, direction,
       );
       if (!q) break;
       questions.push(q);
@@ -240,7 +242,7 @@ export function useScaleFallEngine({
     runningRef.current = true;
     setRunning(true);
     rafRef.current = requestAnimationFrame((t) => frameRef.current(t, mySession));
-  }, [clearTimers, reset, beginRun, questionCount, pool, instrument, naturalsOnly]);
+  }, [clearTimers, reset, beginRun, questionCount, pool, instrument, naturalsOnly, direction]);
 
   /** The learner tapped lane `string` of row `rowIndex`. */
   const tap = useCallback((rowIndex: number, string: number) => {

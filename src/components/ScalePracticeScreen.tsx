@@ -120,14 +120,16 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
     questionCount: buildEnvelope.questionCount,
     speed: buildEnvelope.fallSpeed,
     naturalsOnly: buildEnvelope.naturalsOnlyRoot,
+    direction: sel.direction,
     onComplete: () => setFinished(true),
     onAnswer: (a: ScaleFallAnswer) =>
       recordAnswer(scaleItemId(a.scaleTypeId, a.positionIndex), 'buildScale', a.correct, a.seconds),
   });
 
-  /** "Minor Pentatonic · A · Box 1" — the banner that opens each run. */
+  /** "Minor Pentatonic · A · Box 1 ↑" — the banner that opens each run; the
+   *  arrow says which way this run goes. */
   const scaleLabel = (q: ScaleQuestion) =>
-    `${t(scaleTypeById(q.scaleTypeId)?.nameKey ?? q.scaleTypeId)} · ${displayNote(q.rootName, accidental, notation)} · ${t('Box')} ${q.positionIndex}`;
+    `${t(scaleTypeById(q.scaleTypeId)?.nameKey ?? q.scaleTypeId)} · ${displayNote(q.rootName, accidental, notation)} · ${t('Box')} ${q.positionIndex} ${q.direction === 'down' ? '↓' : '↑'}`;
 
   const chipEngine = useScaleChipEngine({
     exercise: exercise === 'buildScale' ? 'identifyScale' : exercise,
@@ -137,6 +139,7 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
     timeLimit: chipEnvelope.timeLimit,
     optionCount: chipEnvelope.optionCount,
     naturalsOnly: chipEnvelope.naturalsOnlyRoot,
+    direction: sel.direction,
     onComplete: () => setFinished(true),
     onAnswer: (a: ScaleChipAnswer) =>
       recordAnswer(scaleItemId(a.scaleTypeId, a.positionIndex), a.form, a.correct, a.seconds),
@@ -307,6 +310,34 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
               </div>
             )}
 
+            {/* Ascending / descending — two on/off tiles, at least one lit, like the
+                Intervals selector. "Name the degree" has no direction. */}
+            {!running && tab === 'practice' && exercise !== 'nameDegree' && (
+              <div className="set-card scale-direction-switcher" role="group" aria-label={t('Direction')}>
+                <span className="set-card-label">{t('Direction')}</span>
+                <div className="difficulty-road interval-direction-road">
+                  <button
+                    type="button"
+                    className={`diff-btn ${sel.dirUp ? 'active' : ''}`}
+                    aria-pressed={sel.dirUp}
+                    onClick={() => { playClickSound(); haptic.tap(); sel.toggleDirection('up'); }}
+                  >
+                    <span className="diff-icon">↑</span>
+                    <span className="diff-label">{t('Ascending')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`diff-btn ${sel.dirDown ? 'active' : ''}`}
+                    aria-pressed={sel.dirDown}
+                    onClick={() => { playClickSound(); haptic.tap(); sel.toggleDirection('down'); }}
+                  >
+                    <span className="diff-icon">↓</span>
+                    <span className="diff-label">{t('Descending')}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {!running && tab === 'practice' && exercise === 'buildScale' && (
               <div className="set-card scale-speed-switcher" role="group" aria-label={t('Fall speed')}>
                 <span className="set-card-label">{t('Fall speed')}</span>
@@ -332,7 +363,7 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
             {!running && tab === 'practice' && !finished && exercise === 'buildScale' && (
               <div className="set-card">
                 <p className="set-card-help">
-                  {t('Rows of notes fall down the screen, one lane per string. Only the first note of the scale is lit — tap it, and the distance in tones to the next note appears on it. Find that next note before its row falls off, bottom row first — a run up the scale. Every note you tap plays its sound.')}
+                  {t('Rows of notes fall down the screen, one lane per string. Only the first note of the scale is lit — tap it, and the distance in tones to the next note appears on it. Find that next note before its row falls off, bottom row first — a run up or down the scale, as the arrow on the banner shows. Every note you tap plays its sound.')}
                 </p>
                 <button type="button" className="set-card-btn set-card-btn-primary" onClick={startSession}>
                   {t('Start')}
@@ -342,7 +373,7 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
             {!running && tab === 'practice' && !finished && exercise === 'identifyScale' && (
               <div className="set-card">
                 <p className="set-card-help">
-                  {t('The app plays the scale ascending, root to top. Pick which scale you heard.')}
+                  {t('The app plays the scale up or down. Pick which scale you heard.')}
                 </p>
                 <button type="button" className="set-card-btn set-card-btn-primary" onClick={startSession}>
                   {t('Start')}

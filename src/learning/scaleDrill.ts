@@ -39,6 +39,10 @@ export function buildScalePool(scaleTypeIds: readonly string[], stringCount: num
   );
 }
 
+/** Which way a scale is played: up from its lowest note, down from its highest,
+ *  or (in a Selector pick only) a per-question random mix. */
+export type ScaleDirection = 'up' | 'down' | 'both';
+
 /** One "build the scale" question: a concrete root + the full shape (incl.
  *  the root) the learner must tap every position of. */
 export interface ScaleQuestion {
@@ -50,6 +54,9 @@ export interface ScaleQuestion {
   rootName: string;
   /** Every position of the shape at this root, including the root itself. */
   shape: NeckPos[];
+  /** The way this particular scale is run — already resolved from a `'both'`
+   *  pick. */
+  direction: 'up' | 'down';
 }
 
 function isNaturalName(name: string): boolean {
@@ -73,6 +80,7 @@ export function pickScaleQuestion(
   maxFret: number,
   rng: () => number = Math.random,
   naturalsOnly = false,
+  direction: ScaleDirection = 'up',
 ): ScaleQuestion | null {
   if (pool.length === 0) return null;
   const order = shuffled(pool, rng);
@@ -108,6 +116,7 @@ export function pickScaleQuestion(
         rootFret,
         rootName,
         shape,
+        direction: direction === 'both' ? (rng() < 0.5 ? 'up' : 'down') : direction,
       };
     }
   }
@@ -124,8 +133,10 @@ export interface ScaleIdentifyQuestion {
   rootString: number;
   rootFret: number;
   rootName: string;
-  /** Frets on `rootString`, root to top, to play in sequence. */
+  /** Frets on `rootString` to play in sequence: root to top going up, top to
+   *  root going down. */
   playFrets: number[];
+  direction: 'up' | 'down';
   /** Scale-type ids, shuffled, always includes `scaleTypeId`. */
   options: string[];
 }
@@ -143,13 +154,15 @@ export function pickScaleIdentifyQuestion(
   optionCount = 4,
   rng: () => number = Math.random,
   naturalsOnly = false,
+  direction: ScaleDirection = 'up',
 ): ScaleIdentifyQuestion | null {
-  const base = pickScaleQuestion(pool, noteTable, stringCount, maxFret, rng, naturalsOnly);
+  const base = pickScaleQuestion(pool, noteTable, stringCount, maxFret, rng, naturalsOnly, direction);
   if (!base) return null;
   const scaleType = scaleTypeById(base.scaleTypeId);
   if (!scaleType) return null;
 
   const playFrets = [0, ...scaleType.degrees].map((s) => base.rootFret + s);
+  if (base.direction === 'down') playFrets.reverse();
 
   const poolTypeIds = [...new Set(pool.map((p) => p.scaleTypeId))];
   const allTypeIds = [...new Set(SCALE_TYPES.map((s) => s.id))];
@@ -170,6 +183,7 @@ export function pickScaleIdentifyQuestion(
     rootFret: base.rootFret,
     rootName: base.rootName,
     playFrets,
+    direction: base.direction,
     options: shuffled([...chips], rng),
   };
 }

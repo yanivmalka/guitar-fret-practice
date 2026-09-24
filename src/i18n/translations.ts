@@ -847,8 +847,8 @@ const he: Record<string, string> = {
   // Premium scale training — the P5 scales half, first slice (scales-learning-spec.md)
   'Scale training': 'תרגול סולמות',
   'Practise building scale shapes on the neck': 'תרגול בניית צורות סולם על הצוואר',
-  'Rows of notes fall down the screen, one lane per string. Only the first note of the scale is lit — tap it, and the distance in tones to the next note appears on it. Find that next note before its row falls off, bottom row first — a run up the scale. Every note you tap plays its sound.':
-    'שורות של תווים יורדות במסך, נתיב לכל מיתר. רק התו הראשון של הסולם מואר — הקישו עליו ועליו יופיע המרחק בטונים לתו הבא. מצאו את התו הבא לפני שהשורה שלו נופלת מהמסך, מהשורה התחתונה ומעלה — ריצה עולה על הסולם. כל תו שתקישו עליו משמיע את הצליל שלו.',
+  'Rows of notes fall down the screen, one lane per string. Only the first note of the scale is lit — tap it, and the distance in tones to the next note appears on it. Find that next note before its row falls off, bottom row first — a run up or down the scale, as the arrow on the banner shows. Every note you tap plays its sound.':
+    'שורות של תווים יורדות במסך, נתיב לכל מיתר. רק התו הראשון של הסולם מואר — הקישו עליו ועליו יופיע המרחק בטונים לתו הבא. מצאו את התו הבא לפני שהשורה שלו נופלת מהמסך, מהשורה התחתונה ומעלה — ריצה עולה או יורדת על הסולם, לפי החץ בכותרת. כל תו שתקישו עליו משמיע את הצליל שלו.',
   'Tones to the next note': 'טונים עד התו הבא',
   'Question': 'שאלה',
   'Scale': 'סולם',
@@ -857,8 +857,8 @@ const he: Record<string, string> = {
   'Build the scale': 'בנו את הסולם',
   'Identify the scale': 'זהו את הסולם',
   'Name the degree': 'ציינו את הדרגה',
-  'The app plays the scale ascending, root to top. Pick which scale you heard.':
-    'האפליקציה מנגנת את הסולם עולה, מהשורש ומעלה. בחרו איזה סולם שמעתם.',
+  'The app plays the scale up or down. Pick which scale you heard.':
+    'האפליקציה מנגנת את הסולם עולה או יורד. בחרו איזה סולם שמעתם.',
   'The app shows a scale, a root and a degree. Pick the note that matches.':
     'האפליקציה מציגה סולם, שורש ודרגה. בחרו את התו המתאים.',
   '🔊 hear it again': '🔊 השמיעו שוב',
