@@ -61,6 +61,11 @@ export interface ScaleEnvelope {
   fallSpeed: FallSpeed;
 }
 
+/** How Exercise A shows the distance to the next note: in tones (a half tone
+ *  is ½) or in frets (a half tone is one fret, a tone is two). */
+export const DISTANCE_UNITS = ['tones', 'frets'] as const;
+export type DistanceUnit = (typeof DISTANCE_UNITS)[number];
+
 /** Exercise A's fall-speed dial, slow (1) to fast (5). 3 is the difficulty's
  *  own tuned speed; the others scale start, cap and ramp together. */
 export const FALL_SPEED_LEVELS = [1, 2, 3, 4, 5] as const;
@@ -150,6 +155,10 @@ export function useScaleSelector(stringCount: number) {
   );
   // One entry per box number: with several scales active, "Box 1" means box 1
   // of every one of them.
+  const [distanceUnit, setDistanceUnitState] = useState<DistanceUnit>(
+    () => loadOneOf('ssel_distance_unit', DISTANCE_UNITS, 'tones'),
+  );
+
   const availablePositions = useMemo<ScalePositionDef[]>(() => {
     const all = activeScaleTypeIds.flatMap((id) => scalePositionsFor(id, stringCount));
     return all.filter((p, i) => all.findIndex((q) => q.positionIndex === p.positionIndex) === i);
@@ -170,6 +179,7 @@ export function useScaleSelector(stringCount: number) {
   const setDifficulty = (d: ScaleDifficulty) => { setDifficultyState(d); saveSetting('ssel_difficulty', d); };
 
   const setSpeedLevel = (l: FallSpeedLevel) => { setSpeedLevelState(l); saveSetting('ssel_fall_speed', l); };
+  const setDistanceUnit = (u: DistanceUnit) => { setDistanceUnitState(u); saveSetting('ssel_distance_unit', u); };
 
   const pool = useMemo<ScalePoolItem[]>(() => {
     const full = buildScalePool(activeScaleTypeIds, stringCount);
@@ -185,6 +195,7 @@ export function useScaleSelector(stringCount: number) {
   return {
     direction, dirUp, dirDown, toggleDirection,
     speedLevel, setSpeedLevel,
+    distanceUnit, setDistanceUnit,
     exercise, setExercise,
     scaleChoice: scaleChoiceStored, setScaleChoice, shippedScaleTypeIds: SHIPPED_SCALE_TYPE_IDS,
     positionMode, setPositionMode, positionChoiceAvailable,

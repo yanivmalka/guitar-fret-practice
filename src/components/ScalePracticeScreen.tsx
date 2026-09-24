@@ -29,7 +29,7 @@ import { useCallback, useMemo, useState } from 'react';
 import type { InstrumentConfig } from '../utils/instruments';
 import { useScaleFallEngine, type ScaleFallAnswer } from '../hooks/useScaleFallEngine';
 import { useScaleChipEngine, type ScaleChipAnswer } from '../hooks/useScaleChipEngine';
-import { useScaleSelector, FALL_SPEED_LEVELS } from '../hooks/useScaleSelector';
+import { useScaleSelector, FALL_SPEED_LEVELS, DISTANCE_UNITS } from '../hooks/useScaleSelector';
 import { scaleTypeById, SCALE_TYPES } from '../utils/scales';
 import { scaleItemId } from '../learning/scaleItem';
 import { buildScalePool, type ScaleQuestion } from '../learning/scaleDrill';
@@ -360,6 +360,27 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
               </div>
             )}
 
+            {!running && tab === 'practice' && exercise === 'buildScale' && (
+              <div className="set-card scale-difficulty-switcher" role="group" aria-label={t('Distance shown in')}>
+                <span className="set-card-label">{t('Distance shown in')}</span>
+                <div className="scale-difficulty-row">
+                  {DISTANCE_UNITS.map((u) => (
+                    <button
+                      key={u}
+                      type="button"
+                      className={`set-card-btn${sel.distanceUnit === u ? ' set-card-btn-primary' : ''}`}
+                      onClick={() => { playClickSound(); haptic.tap(); sel.setDistanceUnit(u); }}
+                    >
+                      {t(u === 'tones' ? 'Tones' : 'Frets')}
+                    </button>
+                  ))}
+                </div>
+                <p className="set-card-help">
+                  {t('A half tone is one fret, a whole tone is two.')}
+                </p>
+              </div>
+            )}
+
             {!running && tab === 'practice' && !finished && exercise === 'buildScale' && (
               <div className="set-card">
                 <p className="set-card-help">
@@ -401,6 +422,7 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
                 wrongTile={buildEngine.wrongTile}
                 noteTable={instrument.notes}
                 stringCount={instrument.stringCount}
+                distanceUnit={sel.distanceUnit}
                 accidental={accidental}
                 notation={notation}
                 frameListenerRef={buildEngine.frameListenerRef}

@@ -18,7 +18,7 @@
 // follows the UI language.
 
 import { useEffect, useLayoutEffect, useRef, useState, type MutableRefObject } from 'react';
-import { START_OFFSET, VISIBLE_ROWS, formatTones, isTurnRow, type FallStream } from '../learning/scaleFall';
+import { START_OFFSET, VISIBLE_ROWS, formatDistance, isTurnRow, type FallStream } from '../learning/scaleFall';
 import { useTranslation } from '../i18n/useTranslation';
 import type { FallRowState, WrongTile } from '../hooks/useScaleFallEngine';
 import { displayNote, type AccidentalMode, type NotationMode } from '../utils/music';
@@ -35,6 +35,8 @@ interface Props {
   /** `[string][fret] -> sharp-spelled note name` for the active instrument. */
   noteTable: readonly (readonly string[])[];
   stringCount: number;
+  /** Whether the distance badge counts tones or frets. */
+  distanceUnit: 'tones' | 'frets';
   accidental: AccidentalMode;
   notation: NotationMode;
   frameListenerRef: MutableRefObject<((scroll: number) => void) | null>;
@@ -49,7 +51,7 @@ interface Props {
 }
 
 export default function ScaleFallBoard({
-  stream, rowStates, rowSlips, hintRow, nextRow, wrongTile, noteTable, stringCount, accidental, notation,
+  stream, rowStates, rowSlips, hintRow, nextRow, wrongTile, noteTable, stringCount, distanceUnit, accidental, notation,
   frameListenerRef, onTap, bannerLabel, header, onExit, exitLabel, uiDir,
 }: Props) {
   const { t } = useTranslation();
@@ -166,8 +168,8 @@ export default function ScaleFallBoard({
                       <span className="scale-fall-note">{displayNote(name, accidental, notation)}</span>
                       {(isTarget || (isGap && laneIndex === 0)) && <span className="scale-fall-fret">{row.fret}</span>}
                       {revealed && state !== 'pending' && row.kind === 'note' && row.toNext != null && (
-                        <span className="scale-fall-tones" title={t('Tones to the next note')}>
-                          → {formatTones(row.toNext)}
+                        <span className="scale-fall-tones" title={distanceUnit === 'frets' ? t('Frets to the next note') : t('Tones to the next note')}>
+                          → {formatDistance(row.toNext, distanceUnit)}
                           {row.laneShift != null && (
                             <span
                               className="scale-fall-shift"

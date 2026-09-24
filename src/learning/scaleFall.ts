@@ -183,6 +183,12 @@ export function isScaleCorrect(notes: number, slips: number): boolean {
   return slips <= Math.floor(notes * SLIP_ALLOWED_FRACTION);
 }
 
+/** A semitone distance in the learner's unit: tones as below, or frets — one
+ *  fret is one semitone, so it is the number itself. */
+export function formatDistance(semitones: number, unit: 'tones' | 'frets'): string {
+  return unit === 'frets' ? String(semitones) : formatTones(semitones);
+}
+
 /** A semitone distance as tones: 1 → "½", 2 → "1", 3 → "1½", 4 → "2". */
 export function formatTones(semitones: number): string {
   const whole = Math.floor(semitones / 2);

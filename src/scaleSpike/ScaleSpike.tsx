@@ -47,6 +47,7 @@ export default function ScaleSpike() {
           wrongTile={engine.wrongTile}
           noteTable={inst.notes}
           stringCount={inst.stringCount}
+          distanceUnit="tones"
           accidental="sharps"
           notation="alpha"
           frameListenerRef={engine.frameListenerRef}
