@@ -30,7 +30,7 @@ register(
 );
 
 const { buildScalePool, pickScaleQuestion } = await import('../src/learning/scaleDrill.ts');
-const { scaleRun, buildFallStream, midiAt, rowBottom, hasFallenOff, speedAt, START_OFFSET } =
+const { scaleRun, buildFallStream, midiAt, rowBottom, hasFallenOff, speedAt, START_OFFSET, scaleAccuracy, isScaleCorrect } =
   await import('../src/learning/scaleFall.ts');
 const { INSTRUMENTS } = await import('../src/utils/instruments.ts');
 
@@ -122,6 +122,26 @@ console.log('buildFallStream');
   check('no gap row sits next to a banner', s.rows.every((r, i) =>
     r.kind !== 'gap' || (s.rows[i - 1].kind !== 'banner' && s.rows[i + 1]?.kind !== 'banner')));
   check('empty question list gives an empty stream', buildFallStream([], inst.openMidi).rows.length === 0);
+}
+
+console.log('slips + accuracy');
+{
+  const rows = [
+    { kind: 'banner', q: 0 },
+    { kind: 'note', q: 0, string: 1, fret: 1, step: 0 },
+    { kind: 'gap', q: 0, fret: 2 },
+    { kind: 'note', q: 0, string: 1, fret: 3, step: 1 },
+    { kind: 'banner', q: 1 },
+    { kind: 'note', q: 1, string: 1, fret: 1, step: 0 },
+  ] as const;
+  const acc = scaleAccuracy(rows, [false, false, true, true, false, false], 0);
+  check('counts the notes of one scale and its slipped notes, ignoring banners, gaps and other scales',
+    acc.notes === 2 && acc.slips === 1, JSON.stringify(acc));
+  check('a clean scale is correct', isScaleCorrect(10, 0));
+  check('two slips in ten notes is still correct', isScaleCorrect(10, 2));
+  check('three slips in ten notes is not', !isScaleCorrect(10, 3));
+  check('a short five-note scale tolerates one slip', isScaleCorrect(5, 1) && !isScaleCorrect(5, 2));
+  check('a very short run tolerates none', !isScaleCorrect(4, 1));
 }
 
 console.log('geometry + speed');

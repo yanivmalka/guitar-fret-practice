@@ -41,6 +41,8 @@ export default function ScaleSpike() {
         <ScaleFallBoard
           stream={engine.stream}
           rowStates={engine.rowStates}
+          rowSlips={engine.rowSlips}
+          hintRow={engine.hintRow}
           nextRow={engine.nextRow}
           wrongTile={engine.wrongTile}
           noteTable={inst.notes}

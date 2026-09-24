@@ -42,8 +42,11 @@ exit button were all checked there.
   scroll lives in a ref and is written to the board as a transform each
   frame. The speed ramps from `fallSpeed.start` to `fallSpeed.max`
   (`useScaleSelector`'s envelope, per difficulty). A lit tile that falls off
-  is a miss. One scale is one SRS answer, correct only with no wrong tap and
-  no miss.
+  is a miss. Only the first note starts lit; a hidden note that reaches the
+  last row of the screen is revealed as a rescue (`HINT_BOTTOM_ROWS`). A note
+  *slips* on a wrong tap while it is live, a miss, or a hint, and stays ringed
+  on the board. One scale is one SRS answer, correct when at most one note in
+  five slipped (`isScaleCorrect`) — a single stumble no longer voids the run.
 - `src/components/ScaleFallBoard.tsx` — a `position: fixed` full-screen
   overlay: a header (scale · root · box, progress, score, exit), the play
   area (5 rows tall), and string names under the lanes. The lowest string is

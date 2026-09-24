@@ -14,9 +14,15 @@
 //   real game's instant game over).
 // - A lit tile that falls off the bottom unhit is a miss: penalty, and the
 //   stream keeps falling.
+// - Only the scale's first note starts lit. When the next note reaches the
+//   last stretch of the screen (`HINT_BOTTOM_ROWS`) it is revealed as a
+//   rescue, without a penalty — but it counts as a slip.
 // - Every tap plays the tapped tile's own note, right or wrong.
-// - One scale is one SRS answer: correct only if every note of the run was
-//   hit with no wrong tap and no miss along the way.
+// - A note slips when a wrong tap landed while it was the live note, when it
+//   was missed, or when it needed the hint. Slipped notes stay marked on the
+//   board so the learner sees which ones to work on.
+// - One scale is one SRS answer: correct when at most one note in five
+//   slipped (`isScaleCorrect`), not voided by a single stumble.
 //
 // Motion is one `requestAnimationFrame` loop over `performance.now()`. The
 // scroll position lives in a ref and is pushed straight to the board through
@@ -27,7 +33,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { pickScaleQuestion, type ScaleQuestion, type ScalePoolItem, type ScaleDirection } from '../learning/scaleDrill';
 import {
-  buildFallStream, hasFallenOff, rowBottom, speedAt, VISIBLE_ROWS,
+  buildFallStream, hasFallenOff, HINT_BOTTOM_ROWS, isScaleCorrect, rowBottom, scaleAccuracy, speedAt, VISIBLE_ROWS,
   type FallSpeed, type FallStream,
 } from '../learning/scaleFall';
 import { playNoteSingle, beep } from '../utils/audio';
@@ -59,6 +65,9 @@ export interface ScaleFallAnswer {
   positionIndex: number;
   correct: boolean;
   seconds: number;
+  /** The scale's note count and how many of them slipped. */
+  notes: number;
+  slips: number;
 }
 
 export interface ScaleFallOptions {
@@ -96,20 +105,26 @@ export function useScaleFallEngine({
   const [rowStates, setRowStates] = useState<FallRowState[]>([]);
   const [nextRow, setNextRow] = useState(0);
   const [wrongTile, setWrongTile] = useState<WrongTile | null>(null);
+  /** Rows whose note slipped — wrong tap while live, miss, or hint. */
+  const [rowSlips, setRowSlips] = useState<boolean[]>([]);
+  /** The live row whose hidden note was revealed as a rescue. */
+  const [hintRow, setHintRow] = useState<number | null>(null);
 
   const runningRef = useRef(false);
   const sessionRef = useRef(0);
   const streamRef = useRef<FallStream | null>(null);
   const rowStatesRef = useRef<FallRowState[]>([]);
   const nextRowRef = useRef(0);
+  const rowSlipsRef = useRef<boolean[]>([]);
+  const hintRowRef = useRef<number | null>(null);
   const scrollRef = useRef(0);
   const elapsedRef = useRef(0);
   const lastTsRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
   const wrongTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const finishTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** Per question: wrong taps, misses, and the elapsed time it became live. */
-  const statsRef = useRef<{ wrong: number[]; miss: number[]; startedAt: number[] }>({ wrong: [], miss: [], startedAt: [] });
+  /** Per question: the elapsed time it became live. */
+  const statsRef = useRef<{ startedAt: number[] }>({ startedAt: [] });
   /** The board registers here to move the stream each frame. */
   const frameListenerRef = useRef<((scroll: number) => void) | null>(null);
   // `frame` schedules itself before its own `useCallback` has finished being
@@ -128,6 +143,15 @@ export function useScaleFallEngine({
     if (finishTimeoutRef.current != null) { clearTimeout(finishTimeoutRef.current); finishTimeoutRef.current = null; }
   }, []);
 
+  /** Flags row `index`'s note as slipped; a second slip on it changes nothing. */
+  const markSlip = useCallback((index: number) => {
+    if (rowSlipsRef.current[index]) return;
+    const next = [...rowSlipsRef.current];
+    next[index] = true;
+    rowSlipsRef.current = next;
+    setRowSlips(next);
+  }, []);
+
   const resolveRow = useCallback((index: number, kind: 'hit' | 'miss') => {
     const s = streamRef.current;
     const row = s?.rows[index];
@@ -144,7 +168,7 @@ export function useScaleFallEngine({
       const height = rowBottom(index, scrollRef.current) / VISIBLE_ROWS;
       onCorrect(1 - Math.min(1, Math.max(0, height)), 1);
     } else {
-      stats.miss[row.q] = (stats.miss[row.q] ?? 0) + 1;
+      markSlip(index);
       onTimeout();
       haptic.wrong();
       beep();
@@ -158,13 +182,16 @@ export function useScaleFallEngine({
     const nextRowQ = s.rows[next]?.q;
     if (nextRowQ !== row.q) {
       const q = s.questions[row.q];
-      const correct = (stats.wrong[row.q] ?? 0) === 0 && (stats.miss[row.q] ?? 0) === 0;
+      const { notes, slips } = scaleAccuracy(s.rows, rowSlipsRef.current, row.q);
+      const correct = isScaleCorrect(notes, slips);
       if (correct) playCorrectChime();
       onAnswerRef.current?.({
         scaleTypeId: q.scaleTypeId,
         positionIndex: q.positionIndex,
         correct,
         seconds: elapsedRef.current - (stats.startedAt[row.q] ?? 0),
+        notes,
+        slips,
       });
       if (nextRowQ != null) stats.startedAt[nextRowQ] = elapsedRef.current;
     }
@@ -179,7 +206,7 @@ export function useScaleFallEngine({
         onCompleteRef.current?.();
       }, FINISH_DELAY_MS);
     }
-  }, [onCorrect, onTimeout, clearTimers]);
+  }, [onCorrect, onTimeout, clearTimers, markSlip]);
 
   const frame = useCallback((ts: number, mySession: number) => {
     if (!runningRef.current || sessionRef.current !== mySession) return;
@@ -194,10 +221,21 @@ export function useScaleFallEngine({
       while (nextRowRef.current < s.rows.length && hasFallenOff(nextRowRef.current, scrollRef.current)) {
         resolveRow(nextRowRef.current, 'miss');
       }
+      // The live note is still hidden and about to be lost: reveal it.
+      const live = nextRowRef.current;
+      const liveRow = s.rows[live];
+      if (
+        liveRow?.kind === 'note' && liveRow.step > 0 && hintRowRef.current !== live
+        && rowBottom(live, scrollRef.current) <= HINT_BOTTOM_ROWS
+      ) {
+        hintRowRef.current = live;
+        setHintRow(live);
+        markSlip(live);
+      }
     }
     frameListenerRef.current?.(scrollRef.current);
     rafRef.current = requestAnimationFrame((t) => frameRef.current(t, mySession));
-  }, [resolveRow]);
+  }, [resolveRow, markSlip]);
   useEffect(() => { frameRef.current = frame; }, [frame]);
 
   const stop = useCallback(() => {
@@ -229,7 +267,11 @@ export function useScaleFallEngine({
     const states: FallRowState[] = s.rows.map(() => 'pending');
     rowStatesRef.current = states;
     setRowStates(states);
-    statsRef.current = { wrong: [], miss: [], startedAt: [0] };
+    statsRef.current = { startedAt: [0] };
+    rowSlipsRef.current = [];
+    setRowSlips([]);
+    hintRowRef.current = null;
+    setHintRow(null);
     scrollRef.current = 0;
     elapsedRef.current = 0;
     lastTsRef.current = null;
@@ -279,22 +321,21 @@ export function useScaleFallEngine({
       return;
     }
 
-    // A dim note, or a lit note of another scale. Charged to the scale being
+    // A dim note, or a lit note of another scale. Charged to the note being
     // played right now.
-    const liveQ = s.rows[nextRowRef.current]?.q ?? row.q;
-    statsRef.current.wrong[liveQ] = (statsRef.current.wrong[liveQ] ?? 0) + 1;
+    if (nextRowRef.current < s.rows.length) markSlip(nextRowRef.current);
     onWrong();
     haptic.wrong();
     setWrongTile({ row: rowIndex, string });
     if (wrongTimeoutRef.current != null) clearTimeout(wrongTimeoutRef.current);
     wrongTimeoutRef.current = setTimeout(() => setWrongTile(null), WRONG_FLASH_MS);
-  }, [onWrong, resolveRow]);
+  }, [onWrong, resolveRow, markSlip]);
 
   useEffect(() => clearTimers, [clearTimers]);
 
   const liveQ = stream?.rows[Math.min(nextRow, stream.rows.length - 1)]?.q ?? 0;
   return {
-    running, stream, rowStates, nextRow, wrongTile,
+    running, stream, rowStates, nextRow, wrongTile, rowSlips, hintRow,
     /** The scale being played now (1-based) and how many the session has. */
     questionNumber: stream ? liveQ + 1 : 0,
     questionCount: stream?.questions.length ?? questionCount,

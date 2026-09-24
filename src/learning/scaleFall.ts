@@ -144,6 +144,37 @@ export function isTurnRow(rows: readonly FallRow[], index: number): boolean {
   return false;
 }
 
+/** A hidden note is revealed (lit) once its row has fallen to this many rows
+ *  above the bottom of the play area — the last stretch before it would be
+ *  lost. A learner who is stuck gets the note as a rescue instead of a miss. */
+export const HINT_BOTTOM_ROWS = 1;
+
+/** The share of a scale's notes that may slip (wrong tap while it was the
+ *  live note, a miss, or a hint) and the scale still counts as correct: one
+ *  note in five. */
+export const SLIP_ALLOWED_FRACTION = 0.2;
+
+/** How many note rows of scale `q` there are, and how many of them slipped.
+ *  `slips[i]` is true when row `i` was flagged. */
+export function scaleAccuracy(
+  rows: readonly FallRow[], slips: readonly boolean[], q: number,
+): { notes: number; slips: number } {
+  let notes = 0;
+  let slipped = 0;
+  rows.forEach((r, i) => {
+    if (r.kind !== 'note' || r.q !== q) return;
+    notes++;
+    if (slips[i]) slipped++;
+  });
+  return { notes, slips: slipped };
+}
+
+/** One scale is one SRS answer: correct when at most one note in five slipped,
+ *  so a single stumble no longer voids the whole run. */
+export function isScaleCorrect(notes: number, slips: number): boolean {
+  return slips <= Math.floor(notes * SLIP_ALLOWED_FRACTION);
+}
+
 /** A semitone distance as tones: 1 → "½", 2 → "1", 3 → "1½", 4 → "2". */
 export function formatTones(semitones: number): string {
   const whole = Math.floor(semitones / 2);

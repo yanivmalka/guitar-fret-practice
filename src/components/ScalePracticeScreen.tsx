@@ -395,6 +395,8 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
               <ScaleFallBoard
                 stream={buildEngine.stream}
                 rowStates={buildEngine.rowStates}
+                rowSlips={buildEngine.rowSlips}
+                hintRow={buildEngine.hintRow}
                 nextRow={buildEngine.nextRow}
                 wrongTile={buildEngine.wrongTile}
                 noteTable={instrument.notes}

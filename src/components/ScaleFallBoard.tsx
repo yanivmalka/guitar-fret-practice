@@ -26,6 +26,10 @@ import { displayNote, type AccidentalMode, type NotationMode } from '../utils/mu
 interface Props {
   stream: FallStream;
   rowStates: readonly FallRowState[];
+  /** Rows whose note slipped (wrong tap while live, miss, or hint) — marked. */
+  rowSlips: readonly boolean[];
+  /** The live row whose hidden note was revealed as a rescue, if any. */
+  hintRow: number | null;
   nextRow: number;
   wrongTile: WrongTile | null;
   /** `[string][fret] -> sharp-spelled note name` for the active instrument. */
@@ -45,7 +49,7 @@ interface Props {
 }
 
 export default function ScaleFallBoard({
-  stream, rowStates, nextRow, wrongTile, noteTable, stringCount, accidental, notation,
+  stream, rowStates, rowSlips, hintRow, nextRow, wrongTile, noteTable, stringCount, accidental, notation,
   frameListenerRef, onTap, bannerLabel, header, onExit, exitLabel, uiDir,
 }: Props) {
   const { t } = useTranslation();
@@ -145,9 +149,12 @@ export default function ScaleFallBoard({
                   // note stays hidden among the dim tiles until it is tapped
                   // (or missed): the tone distance shown on the previous note
                   // is the only clue to where it is.
-                  const revealed = isTarget && row.kind === 'note' && (row.step === 0 || state !== 'pending');
+                  // The exception is the rescue hint: a note about to be lost.
+                  const revealed = isTarget && row.kind === 'note'
+                    && (row.step === 0 || state !== 'pending' || hintRow === i);
                   if (revealed) {
                     cls += ' scale-fall-tile-lit';
+                    if (rowSlips[i]) cls += ' scale-fall-tile-slip';
                     if (name === rootName) cls += ' scale-fall-tile-root';
                     if (i === nextRow) cls += ' scale-fall-tile-next';
                     if (state === 'hit') cls += ' scale-fall-tile-hit';

@@ -156,6 +156,13 @@
   color: #fff;
   box-shadow: none;
 }
+/* A note that slipped — wrong tap while it was live, a miss, or a hint. It
+   keeps a dashed gold ring after it is tapped, so the learner can see which
+   notes of the run to work on. */
+.scale-fall-tile-slip {
+  outline: 3px dashed var(--gold);
+  outline-offset: -4px;
+}
 
 .scale-fall-note { line-height: 1; }
 .scale-fall-fret {
