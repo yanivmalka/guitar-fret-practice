@@ -204,6 +204,7 @@
    switcher above, with a small uppercase group label mirroring
    `.interval-selector-label` (22-teacher.css). */
 .scale-position-switcher,
+.scale-speed-switcher,
 .scale-difficulty-switcher {
   display: flex;
   flex-direction: column;
@@ -221,6 +222,21 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+/* The speed dial: five equal steps, slow → fast, always laid out left to
+   right like a slider regardless of UI direction. */
+.scale-speed-row {
+  display: flex;
+  gap: 8px;
+  direction: ltr;
+}
+.scale-speed-row .set-card-btn { flex: 1; }
+.scale-speed-ends {
+  display: flex;
+  justify-content: space-between;
+  direction: ltr;
+  font-size: 0.72rem;
+  color: var(--text-2);
 }
 
 .scale-replay-btn {

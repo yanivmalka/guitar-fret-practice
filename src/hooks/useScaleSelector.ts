@@ -61,7 +61,25 @@ export interface ScaleEnvelope {
   fallSpeed: FallSpeed;
 }
 
-function envelopeFor(difficulty: ScaleDifficulty, isChipExercise: boolean): ScaleEnvelope {
+/** Exercise A's fall-speed dial, slow (1) to fast (5). 3 is the difficulty's
+ *  own tuned speed; the others scale start, cap and ramp together. */
+export const FALL_SPEED_LEVELS = [1, 2, 3, 4, 5] as const;
+export type FallSpeedLevel = (typeof FALL_SPEED_LEVELS)[number];
+const FALL_SPEED_FACTOR: Record<FallSpeedLevel, number> = { 1: 0.5, 2: 0.75, 3: 1, 4: 1.35, 5: 1.8 };
+
+function scaleFallSpeed(speed: FallSpeed, level: FallSpeedLevel): FallSpeed {
+  const k = FALL_SPEED_FACTOR[level];
+  return { start: speed.start * k, max: speed.max * k, accel: speed.accel * k };
+}
+
+function envelopeFor(
+  difficulty: ScaleDifficulty, isChipExercise: boolean, speedLevel: FallSpeedLevel,
+): ScaleEnvelope {
+  const env = baseEnvelopeFor(difficulty, isChipExercise);
+  return { ...env, fallSpeed: scaleFallSpeed(env.fallSpeed, speedLevel) };
+}
+
+function baseEnvelopeFor(difficulty: ScaleDifficulty, isChipExercise: boolean): ScaleEnvelope {
   switch (difficulty) {
     case 'focused':
       return {
@@ -96,6 +114,11 @@ export function useScaleSelector(stringCount: number) {
     () => loadOneOf('ssel_difficulty', DIFFICULTIES, 'mixed'),
   );
 
+  const [speedLevel, setSpeedLevelState] = useState<FallSpeedLevel>(() => {
+    const raw = loadSetting<number>('ssel_fall_speed', 3);
+    return (FALL_SPEED_LEVELS as readonly number[]).includes(raw) ? (raw as FallSpeedLevel) : 3;
+  });
+
   const availablePositions = useMemo<ScalePositionDef[]>(
     () => SHIPPED_SCALE_TYPE_IDS.flatMap((id) => scalePositionsFor(id, stringCount)),
     [stringCount],
@@ -114,6 +137,8 @@ export function useScaleSelector(stringCount: number) {
   const setPositionIndex = (i: number) => { setPositionIndexState(i); saveSetting('ssel_position_index', i); };
   const setDifficulty = (d: ScaleDifficulty) => { setDifficultyState(d); saveSetting('ssel_difficulty', d); };
 
+  const setSpeedLevel = (l: FallSpeedLevel) => { setSpeedLevelState(l); saveSetting('ssel_fall_speed', l); };
+
   const pool = useMemo<ScalePoolItem[]>(() => {
     const full = buildScalePool(SHIPPED_SCALE_TYPE_IDS, stringCount);
     if (positionMode === 'one') {
@@ -123,9 +148,10 @@ export function useScaleSelector(stringCount: number) {
     return full;
   }, [stringCount, positionMode, positionIndex]);
 
-  const buildEnvelope = (isChipExercise: boolean): ScaleEnvelope => envelopeFor(difficulty, isChipExercise);
+  const buildEnvelope = (isChipExercise: boolean): ScaleEnvelope => envelopeFor(difficulty, isChipExercise, speedLevel);
 
   return {
+    speedLevel, setSpeedLevel,
     exercise, setExercise,
     positionMode, setPositionMode, positionChoiceAvailable,
     positionIndex, setPositionIndex, availablePositions,

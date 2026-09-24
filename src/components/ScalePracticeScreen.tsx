@@ -29,7 +29,7 @@ import { useCallback, useMemo, useState } from 'react';
 import type { InstrumentConfig } from '../utils/instruments';
 import { useScaleFallEngine, type ScaleFallAnswer } from '../hooks/useScaleFallEngine';
 import { useScaleChipEngine, type ScaleChipAnswer } from '../hooks/useScaleChipEngine';
-import { useScaleSelector } from '../hooks/useScaleSelector';
+import { useScaleSelector, FALL_SPEED_LEVELS } from '../hooks/useScaleSelector';
 import { scaleTypeById, SCALE_TYPES } from '../utils/scales';
 import { scaleItemId } from '../learning/scaleItem';
 import { buildScalePool, type ScaleQuestion } from '../learning/scaleDrill';
@@ -286,6 +286,28 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
                     {t('One position selected — difficulty is focused.')}
                   </p>
                 )}
+              </div>
+            )}
+
+            {!running && tab === 'practice' && exercise === 'buildScale' && (
+              <div className="set-card scale-speed-switcher" role="group" aria-label={t('Fall speed')}>
+                <span className="set-card-label">{t('Fall speed')}</span>
+                <div className="scale-speed-row">
+                  {FALL_SPEED_LEVELS.map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      className={`set-card-btn${sel.speedLevel === level ? ' set-card-btn-primary' : ''}`}
+                      onClick={() => { playClickSound(); haptic.tap(); sel.setSpeedLevel(level); }}
+                    >
+                      {level}
+                    </button>
+                  ))}
+                </div>
+                <div className="scale-speed-ends" aria-hidden="true">
+                  <span>{t('Slow')}</span>
+                  <span>{t('Fast')}</span>
+                </div>
               </div>
             )}
 
