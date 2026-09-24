@@ -88,15 +88,39 @@ console.log('buildFallStream');
   const rng = seeded(7);
   const qs = [0, 1, 2].map(() => pickScaleQuestion(pool, inst.notes, inst.stringCount, inst.maxFret, rng, false)!);
   const s = buildFallStream(qs, inst.openMidi);
-  const expected = qs.reduce((n, q) => n + 1 + scaleRun(q.shape, inst.openMidi).length, 0);
-  check('row count = banner + run per question', s.rows.length === expected, `${s.rows.length} vs ${expected}`);
+  const expected = qs.reduce((n, q) => {
+    const run = scaleRun(q.shape, inst.openMidi);
+    const gaps = run.reduce((g, p, i) => (i === 0 ? g : g + Math.max(0, Math.abs(p.fret - run[i - 1].fret) - 1)), 0);
+    return n + 1 + run.length + gaps;
+  }, 0);
+  check('row count = banner + run + skipped-fret gaps per question', s.rows.length === expected, `${s.rows.length} vs ${expected}`);
   check('first row is the first banner', s.rows[0].kind === 'banner' && s.rows[0].q === 0);
   const banners = s.rows.filter((r) => r.kind === 'banner').map((r) => r.q);
   check('one banner per question, in order', JSON.stringify(banners) === '[0,1,2]');
   check('every note row targets a shape position of its question', s.rows.every((r) =>
-    r.kind === 'banner' || qs[r.q].shape.some((p) => p.string === r.string && p.fret === r.fret)));
-  check('steps count up from 0 within each run', s.rows.every((r, i) =>
-    r.kind === 'banner' || (r.step === 0 ? s.rows[i - 1].kind === 'banner' : (s.rows[i - 1] as { step: number }).step === r.step - 1)));
+    r.kind !== 'note' || qs[r.q].shape.some((p) => p.string === r.string && p.fret === r.fret)));
+  const notesOnly = s.rows.filter((r) => r.kind === 'note') as { q: number; step: number }[];
+  check('steps count up from 0 within each run', notesOnly.every((r, i) =>
+    r.step === 0 ? (i === 0 || notesOnly[i - 1].q !== r.q) : notesOnly[i - 1].step === r.step - 1 && notesOnly[i - 1].q === r.q));
+  // Every fret between two consecutive notes shows up as an empty row, in order.
+  let gapsOk = true;
+  let gapCount = 0;
+  s.rows.forEach((r, i) => {
+    if (r.kind !== 'note' || r.step === 0) return;
+    let j = i - 1;
+    const between: number[] = [];
+    while (s.rows[j].kind === 'gap') { between.unshift((s.rows[j] as { fret: number }).fret); j--; }
+    const prev = s.rows[j] as { kind: string; fret: number };
+    const dir = Math.sign(r.fret - prev.fret);
+    const want: number[] = [];
+    for (let f = prev.fret + dir; dir !== 0 && f !== r.fret; f += dir) want.push(f);
+    gapCount += between.length;
+    if (JSON.stringify(between) !== JSON.stringify(want)) gapsOk = false;
+  });
+  check('skipped frets between consecutive notes are all shown, in the direction of travel', gapsOk);
+  check('the sampled stream actually contains gap rows', gapCount > 0, `${gapCount}`);
+  check('no gap row sits next to a banner', s.rows.every((r, i) =>
+    r.kind !== 'gap' || (s.rows[i - 1].kind !== 'banner' && s.rows[i + 1]?.kind !== 'banner')));
   check('empty question list gives an empty stream', buildFallStream([], inst.openMidi).rows.length === 0);
 }
 

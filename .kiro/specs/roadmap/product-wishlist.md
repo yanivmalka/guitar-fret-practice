@@ -851,6 +851,7 @@ Features from the old roadmap that are clearly still desired and map cleanly ont
 ### OPEN (continued)
 
 - **Practice schedule / reminders** — local notification at a chosen time, gentle streak counter. **Not built** — no notification/reminder code anywhere in `src/`.
+- **Scales — "fret by fret" exercise (a new exercise type, not a change to Exercise A)** — requested 2026-09-24. One falling row per fret, ascending across the whole box (e.g. 5, 6, 7, 8), and every scale note sitting on that fret is lit on its string, so a row can hold several lit tiles and a fret with no scale note is an empty row. Unlike Exercise A it is not a run up by pitch. Open design question: within a row with several lit tiles, may they be tapped in any order or only left to right. **Not built.** Exercise A itself keeps its by-pitch run and only gained empty rows for the frets the run steps over (`gap` rows in `src/learning/scaleFall.ts`).
 
 ### DROPPED
 

@@ -66,18 +66,18 @@ function envelopeFor(difficulty: ScaleDifficulty, isChipExercise: boolean): Scal
     case 'focused':
       return {
         questionCount: isChipExercise ? 8 : 6, timeLimit: 12, optionCount: 2, naturalsOnlyRoot: true,
-        fallSpeed: { start: 0.9, max: 1.8, accel: 0.012 },
+        fallSpeed: { start: 1.05, max: 2.1, accel: 0.014 },
       };
     case 'full':
       return {
         questionCount: isChipExercise ? 12 : 10, timeLimit: 8, optionCount: 4, naturalsOnlyRoot: false,
-        fallSpeed: { start: 1.5, max: 3.2, accel: 0.02 },
+        fallSpeed: { start: 1.75, max: 3.7, accel: 0.023 },
       };
     case 'mixed':
     default:
       return {
         questionCount: isChipExercise ? 10 : 8, timeLimit: 10, optionCount: 4, naturalsOnlyRoot: false,
-        fallSpeed: { start: 1.2, max: 2.5, accel: 0.015 },
+        fallSpeed: { start: 1.4, max: 2.9, accel: 0.018 },
       };
   }
 }

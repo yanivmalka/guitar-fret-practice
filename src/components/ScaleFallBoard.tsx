@@ -127,10 +127,11 @@ export default function ScaleFallBoard({
             }
             const state = rowStates[i];
             const rootName = stream.questions[row.q]?.rootName;
+            const isGap = row.kind === 'gap';
             return (
               <div key={i} className="scale-fall-row" style={style} dir="ltr">
-                {lanes.map((s) => {
-                  const isTarget = s === row.string;
+                {lanes.map((s, laneIndex) => {
+                  const isTarget = row.kind === 'note' && s === row.string;
                   const name = noteTable[s - 1]?.[row.fret] ?? '';
                   let cls = 'scale-fall-tile';
                   if (isTarget) {
@@ -144,7 +145,7 @@ export default function ScaleFallBoard({
                   return (
                     <div key={s} className={cls} data-row={i} data-lane={s}>
                       <span className="scale-fall-note">{displayNote(name, accidental, notation)}</span>
-                      {isTarget && <span className="scale-fall-fret">{row.fret}</span>}
+                      {(isTarget || (isGap && laneIndex === 0)) && <span className="scale-fall-fret">{row.fret}</span>}
                     </div>
                   );
                 })}

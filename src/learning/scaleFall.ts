@@ -45,7 +45,16 @@ export interface FallNoteRow {
   step: number;
 }
 
-export type FallRow = FallBannerRow | FallNoteRow;
+/** A fret the run steps over between two notes — a neck slice with no lit
+ *  tile, so the fret numbers on screen count through without a jump. Nothing
+ *  to tap; tapping any tile of it is a wrong tap. */
+export interface FallGapRow {
+  kind: 'gap';
+  q: number;
+  fret: number;
+}
+
+export type FallRow = FallBannerRow | FallNoteRow | FallGapRow;
 
 export interface FallStream {
   questions: ScaleQuestion[];
@@ -78,13 +87,23 @@ export function scaleRun(shape: readonly NeckPos[], openMidi: readonly number[])
 }
 
 /** Lays `questions` out as one stream: a banner row, then the run's notes,
- *  per question, bottom (row 0) to top. */
+ *  per question, bottom (row 0) to top. Between two notes on different frets
+ *  every fret the run steps over gets an empty row, in the direction of
+ *  travel (5 → 8 shows 6, 7; 8 → 5 shows 7, 6). */
 export function buildFallStream(questions: readonly ScaleQuestion[], openMidi: readonly number[]): FallStream {
   const rows: FallRow[] = [];
   questions.forEach((q, qi) => {
     rows.push({ kind: 'banner', q: qi });
+    let prevFret: number | null = null;
     scaleRun(q.shape, openMidi).forEach((p, step) => {
+      if (prevFret !== null) {
+        const dir = Math.sign(p.fret - prevFret);
+        for (let f = prevFret + dir; dir !== 0 && f !== p.fret; f += dir) {
+          rows.push({ kind: 'gap', q: qi, fret: f });
+        }
+      }
       rows.push({ kind: 'note', q: qi, string: p.string, fret: p.fret, step });
+      prevFret = p.fret;
     });
   });
   return { questions: [...questions], rows };

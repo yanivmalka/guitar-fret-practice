@@ -246,13 +246,16 @@ export function useScaleFallEngine({
     if (!runningRef.current) return;
     const s = streamRef.current;
     const row = s?.rows[rowIndex];
-    if (!s || !row || row.kind !== 'note') return;
+    if (!s || !row || row.kind === 'banner') return;
     // Every tile is a playable note, right or wrong.
     playNoteSingle(string, row.fret);
 
+    // A gap row has no lit tile, so every tile of it falls through to the
+    // wrong-tap branch below.
+    const isTarget = row.kind === 'note' && string === row.string;
     const state = rowStatesRef.current[rowIndex];
-    if (state === 'hit' && string === row.string) { haptic.tap(); return; }
-    if (rowIndex === nextRowRef.current && string === row.string) {
+    if (state === 'hit' && isTarget) { haptic.tap(); return; }
+    if (rowIndex === nextRowRef.current && isTarget) {
       haptic.tap();
       resolveRow(rowIndex, 'hit');
       return;
