@@ -3,7 +3,7 @@
 // The Scales-domain counterpart of `useIntervalSelector.ts` (scales-learning-
 // spec.md §5, Session 2 plan step 2) — but simpler, because Scales doesn't
 // build a `DrillConfig` (it runs its own dedicated engines, see
-// `useScaleTilesEngine.ts` / `useScaleChipEngine.ts`'s header comments). This
+// `useScaleFallEngine.ts` / `useScaleChipEngine.ts`'s header comments). This
 // hook owns the picks + persistence and derives the `ScalePoolItem[]` pool
 // plus the question envelope (count/time/option-count/root-bias) those
 // engines consume. Wired into `ScalePracticeScreen.tsx`, which renders a
@@ -27,6 +27,7 @@ import { loadSetting, saveSetting } from '../utils/settings';
 import { buildScalePool, type ScalePoolItem } from '../learning/scaleDrill';
 import { scalePositionsFor, type ScalePositionDef } from '../utils/scales';
 import type { ScaleChipExercise } from './useScaleChipEngine';
+import type { FallSpeed } from '../learning/scaleFall';
 
 /** Widen this the moment a second scale type ships (§4.2) — nothing else in
  *  this file changes shape. */
@@ -55,17 +56,29 @@ export interface ScaleEnvelope {
   optionCount: number;
   /** §9.1's "root bias": naturals-only at `focused`, any root otherwise. */
   naturalsOnlyRoot: boolean;
+  /** Exercise A only: how fast the rows fall (rows/second) and how quickly
+   *  that ramps up over a session — `timeLimit` has no meaning there. */
+  fallSpeed: FallSpeed;
 }
 
 function envelopeFor(difficulty: ScaleDifficulty, isChipExercise: boolean): ScaleEnvelope {
   switch (difficulty) {
     case 'focused':
-      return { questionCount: 8, timeLimit: isChipExercise ? 12 : 18, optionCount: 2, naturalsOnlyRoot: true };
+      return {
+        questionCount: isChipExercise ? 8 : 6, timeLimit: 12, optionCount: 2, naturalsOnlyRoot: true,
+        fallSpeed: { start: 0.9, max: 1.8, accel: 0.012 },
+      };
     case 'full':
-      return { questionCount: 12, timeLimit: isChipExercise ? 8 : 11, optionCount: 4, naturalsOnlyRoot: false };
+      return {
+        questionCount: isChipExercise ? 12 : 10, timeLimit: 8, optionCount: 4, naturalsOnlyRoot: false,
+        fallSpeed: { start: 1.5, max: 3.2, accel: 0.02 },
+      };
     case 'mixed':
     default:
-      return { questionCount: 10, timeLimit: isChipExercise ? 10 : 14, optionCount: 4, naturalsOnlyRoot: false };
+      return {
+        questionCount: isChipExercise ? 10 : 8, timeLimit: 10, optionCount: 4, naturalsOnlyRoot: false,
+        fallSpeed: { start: 1.2, max: 2.5, accel: 0.015 },
+      };
   }
 }
 

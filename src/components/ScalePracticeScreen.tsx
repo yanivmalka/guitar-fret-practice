@@ -8,8 +8,8 @@
 //
 // Unlike Intervals, this screen does NOT hand a `DrillConfig` back to the
 // host's shared `useGameEngine` — every exercise runs on its own dedicated
-// engine (`useScaleBoardEngine` for Exercise A — the whole-neck lit/dim
-// board, see its header comment — `useScaleChipEngine` for B and C — see
+// engine (`useScaleFallEngine` for Exercise A — full-screen Piano Tiles, see
+// its header comment — `useScaleChipEngine` for B and C — see
 // their header comments for why: the shared engine's byNote flow can't
 // answer a multi-string, multi-note-name shape, and Scales is already a
 // sibling domain with its own everything, scales-learning-spec.md §0). So
@@ -27,15 +27,15 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import type { InstrumentConfig } from '../utils/instruments';
-import { useScaleBoardEngine, type ScaleBoardAnswer } from '../hooks/useScaleBoardEngine';
+import { useScaleFallEngine, type ScaleFallAnswer } from '../hooks/useScaleFallEngine';
 import { useScaleChipEngine, type ScaleChipAnswer } from '../hooks/useScaleChipEngine';
 import { useScaleSelector } from '../hooks/useScaleSelector';
 import { scaleTypeById, SCALE_TYPES } from '../utils/scales';
 import { scaleItemId } from '../learning/scaleItem';
-import { buildScalePool } from '../learning/scaleDrill';
+import { buildScalePool, type ScaleQuestion } from '../learning/scaleDrill';
 import { buildScaleBoard } from '../learning/scaleMastery';
 import { loadLearningState, saveLearningStateLocal, getInstrumentState, withInstrumentState, recordScaleAnswer } from '../learning/learningState';
-import ScaleShapeBoard from './ScaleShapeBoard';
+import ScaleFallBoard from './ScaleFallBoard';
 import ScaleProgressBoard from './ScaleProgressBoard';
 import IntervalChoiceRow from './IntervalChoiceRow';
 import { ProGate } from './ProGate';
@@ -109,16 +109,25 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
     });
   }, [instrument.id, instrument.stringCount, now]);
 
-  const buildEngine = useScaleBoardEngine({
-    instrument: chipInstrument,
+  const fallInstrument = useMemo(
+    () => ({ ...chipInstrument, openMidi: instrument.openMidi }),
+    [chipInstrument, instrument.openMidi],
+  );
+
+  const buildEngine = useScaleFallEngine({
+    instrument: fallInstrument,
     pool,
     questionCount: buildEnvelope.questionCount,
-    timeLimit: buildEnvelope.timeLimit,
+    speed: buildEnvelope.fallSpeed,
     naturalsOnly: buildEnvelope.naturalsOnlyRoot,
     onComplete: () => setFinished(true),
-    onAnswer: (a: ScaleBoardAnswer) =>
+    onAnswer: (a: ScaleFallAnswer) =>
       recordAnswer(scaleItemId(a.scaleTypeId, a.positionIndex), 'buildScale', a.correct, a.seconds),
   });
+
+  /** "Minor Pentatonic · A · Box 1" — the banner that opens each run. */
+  const scaleLabel = (q: ScaleQuestion) =>
+    `${t(scaleTypeById(q.scaleTypeId)?.nameKey ?? q.scaleTypeId)} · ${displayNote(q.rootName, accidental, notation)} · ${t('Box')} ${q.positionIndex}`;
 
   const chipEngine = useScaleChipEngine({
     exercise: exercise === 'buildScale' ? 'identifyScale' : exercise,
@@ -283,7 +292,7 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
             {!running && tab === 'practice' && !finished && exercise === 'buildScale' && (
               <div className="set-card">
                 <p className="set-card-help">
-                  {t('The whole neck is shown with every note. The scale\'s notes are lit — tap all of them. Any note you tap plays its sound.')}
+                  {t('Rows of notes fall down the screen, one lane per string. Tap each row\'s lit note before it falls off, bottom row first — a run up the scale. Every note you tap plays its sound.')}
                 </p>
                 <button type="button" className="set-card-btn set-card-btn-primary" onClick={startSession}>
                   {t('Start')}
@@ -311,26 +320,34 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
               </div>
             )}
 
-            {buildEngine.running && buildEngine.question && (
-              <div className="set-card">
-                <p className="set-card-help">
-                  {t('Question')} {buildEngine.questionNumber} / {buildEngine.questionCount}
-                  {' · '}{t('Found')} {buildEngine.found} / {buildEngine.question.shape.length}
-                </p>
-                <ScaleShapeBoard
-                  question={buildEngine.question}
-                  noteTable={instrument.notes}
-                  stringCount={instrument.stringCount}
-                  maxFret={instrument.maxFret}
-                  dotFrets={instrument.dotFrets}
-                  accidental={accidental}
-                  notation={notation}
-                  foundPositions={buildEngine.foundPositions}
-                  wrongPosition={buildEngine.wrongPosition}
-                  active={buildEngine.running}
-                  onSelect={buildEngine.selectPosition}
-                />
-              </div>
+            {buildEngine.running && buildEngine.stream && (
+              <ScaleFallBoard
+                stream={buildEngine.stream}
+                rowStates={buildEngine.rowStates}
+                nextRow={buildEngine.nextRow}
+                wrongTile={buildEngine.wrongTile}
+                noteTable={instrument.notes}
+                stringCount={instrument.stringCount}
+                accidental={accidental}
+                notation={notation}
+                frameListenerRef={buildEngine.frameListenerRef}
+                onTap={buildEngine.tap}
+                bannerLabel={(q) => scaleLabel(buildEngine.stream!.questions[q])}
+                header={
+                  <>
+                    <span className="scale-fall-header-title">
+                      {buildEngine.currentQuestion ? scaleLabel(buildEngine.currentQuestion) : ''}
+                    </span>
+                    <span>
+                      {t('Scale')} {buildEngine.questionNumber} / {buildEngine.questionCount}
+                      {' · '}{t('Score')}: {buildEngine.session.score}
+                    </span>
+                  </>
+                }
+                onExit={() => { playClickSound(); haptic.tap(); buildEngine.stop(); }}
+                exitLabel={t('Stop')}
+                uiDir={lang === 'he' ? 'rtl' : undefined}
+              />
             )}
 
             {chipEngine.running && chipEngine.question && exercise === 'identifyScale' && (

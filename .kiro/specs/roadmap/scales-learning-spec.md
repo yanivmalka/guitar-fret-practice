@@ -7,6 +7,55 @@ document was drafted by mirroring the shipped Intervals Learning domain
 (§0–§3 below explain how) so it could be reviewed against a concrete
 precedent rather than from a blank page.
 
+## Session 5 correction (2026-09-24) — Exercise A is full-screen Piano Tiles
+
+**This overrides the "Session 3 correction" below. Read it before touching
+Exercise A again.** The product owner explained that the Session 3 change
+came from a misunderstanding. The Session 2 falling-lane mechanic was what
+they wanted; what was wrong is that it ran inside a small card in the top
+part of the screen. They wanted it to **cover the whole app screen, like
+Piano Tiles**: all rows falling down together, the learner tapping the
+right notes to build the scale, every tap playing its note. Their answers,
+asked directly:
+
+- **Layout:** one lane per string; each row is a slice of the neck (one
+  tile per string at one fret) with one lit tile — the next note to tap.
+- **Wrong tap:** penalty, and the stream keeps falling (unchanged from
+  Session 2 — no instant game over).
+- **Order:** ascending, like a run up the scale. Tapping a lit tile of a
+  row above the one that is due counts as a wrong tap.
+- **Replaces** the whole-neck board; it is not an extra exercise.
+
+Built and verified live in a real browser (Playwright, 400×860, zero console
+errors): guitar and bass via `scale-spike.html` (`?bass` switches), and the
+real app in English and Hebrew with `devSimulateTier` forced to
+`'premium'`, including left-handed mode. Hits, the red wrong-tap flash, a
+miss when a lit tile falls off, a full scale reaching `scaleHistory`, and the
+exit button were all checked there.
+
+- `src/learning/scaleFall.ts` (pure) — `scaleRun` orders the shape by pitch
+  (a doubled pitch would be played once, on the thicker string; the check
+  found none in the current boxes), `buildFallStream` lays out a banner row
+  plus the run per scale, and the geometry/speed helpers work in rows, not
+  pixels. Checked by `scripts/check-scale-fall.mts`.
+- `src/hooks/useScaleFallEngine.ts` — one `requestAnimationFrame` loop; the
+  scroll lives in a ref and is written to the board as a transform each
+  frame. The speed ramps from `fallSpeed.start` to `fallSpeed.max`
+  (`useScaleSelector`'s envelope, per difficulty). A lit tile that falls off
+  is a miss. One scale is one SRS answer, correct only with no wrong tap and
+  no miss.
+- `src/components/ScaleFallBoard.tsx` — a `position: fixed` full-screen
+  overlay: a header (scale · root · box, progress, score, exit), the play
+  area (5 rows tall), and string names under the lanes. The lowest string is
+  on the left; lanes are `dir="ltr"` and only the left-handed setting mirrors
+  them. The tonic gets a gold ring.
+- Deleted: `ScaleShapeBoard.tsx`, `useScaleBoardEngine.ts`.
+
+**Open for the product owner:** the run starts at the **lowest note of the
+box**, not at the tonic. In box 1 these are the same note; in box 2 the
+box reaches below its tonic, so a run from the tonic would skip those notes.
+Change `scaleRun` if they want the run to start at the tonic instead.
+
 ## Session 1 progress (2026-09-22) — read this before continuing
 
 **Built and shipped to `main`, in this order (4 commits):**

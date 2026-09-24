@@ -1,0 +1,115 @@
+// ── scaleFall.ts — the falling-rows stream for Exercise A ("Build the scale")
+//
+// Pure, no React, no DOM. Exercise A plays like Piano Tiles across the whole
+// screen (scales-learning-spec.md's Session 5 correction): one lane per
+// string, rows falling together from the top, and the learner taps the lit
+// tile of each row, bottom row first, before it falls off the screen.
+//
+// A row is a **slice of the neck at one fret**: one tile per string, each
+// carrying the real note at `(string, fret)`. Exactly one tile per row is the
+// target — the next note of the scale run, ascending by pitch from the lowest
+// shape note (a run up the scale, product-owner instruction). The rest of the
+// slice is ordinary, tappable, "wrong" neck.
+//
+// Each scale (`ScaleQuestion`, picked by `pickScaleQuestion` unchanged) is
+// preceded by one banner row naming it, so the stream reads as a sequence of
+// runs. Geometry and speed are measured in **rows**, not pixels — the board
+// maps a row to whatever height the screen gives it.
+
+import type { ScaleQuestion } from './scaleDrill';
+import type { NeckPos } from '../utils/scales';
+
+/** How many rows fit on the play area at once — the board sizes a row as
+ *  `playHeight / VISIBLE_ROWS`. */
+export const VISIBLE_ROWS = 5;
+
+/** Where row 0's bottom edge sits (rows above the play area's bottom) when a
+ *  session starts — the banner of the first scale is on screen, its first
+ *  notes stacked above it. */
+export const START_OFFSET = 1;
+
+export interface FallBannerRow {
+  kind: 'banner';
+  /** Index into the stream's `questions`. */
+  q: number;
+}
+
+export interface FallNoteRow {
+  kind: 'note';
+  q: number;
+  /** The target tile: the lane (string) that must be tapped. */
+  string: number;
+  /** The neck slice this row shows — every lane's tile is `(lane, fret)`. */
+  fret: number;
+  /** 0-based position of this note in its scale's run. */
+  step: number;
+}
+
+export type FallRow = FallBannerRow | FallNoteRow;
+
+export interface FallStream {
+  questions: ScaleQuestion[];
+  rows: FallRow[];
+}
+
+/** `openMidi` is string-1-first (highest string first), as in
+ *  `InstrumentConfig.openMidi`. */
+export function midiAt(pos: NeckPos, openMidi: readonly number[]): number {
+  return (openMidi[pos.string - 1] ?? 0) + pos.fret;
+}
+
+/** The shape as a run up the scale: ascending by pitch. A pitch the shape
+ *  holds twice (a box can reach the same note on two neighbouring strings
+ *  across the G–B major third) is played once, on the thicker string, the
+ *  way a run goes through a box. */
+export function scaleRun(shape: readonly NeckPos[], openMidi: readonly number[]): NeckPos[] {
+  const sorted = [...shape].sort(
+    (a, b) => midiAt(a, openMidi) - midiAt(b, openMidi) || b.string - a.string,
+  );
+  const out: NeckPos[] = [];
+  let lastMidi = -Infinity;
+  for (const p of sorted) {
+    const m = midiAt(p, openMidi);
+    if (m === lastMidi) continue;
+    out.push(p);
+    lastMidi = m;
+  }
+  return out;
+}
+
+/** Lays `questions` out as one stream: a banner row, then the run's notes,
+ *  per question, bottom (row 0) to top. */
+export function buildFallStream(questions: readonly ScaleQuestion[], openMidi: readonly number[]): FallStream {
+  const rows: FallRow[] = [];
+  questions.forEach((q, qi) => {
+    rows.push({ kind: 'banner', q: qi });
+    scaleRun(q.shape, openMidi).forEach((p, step) => {
+      rows.push({ kind: 'note', q: qi, string: p.string, fret: p.fret, step });
+    });
+  });
+  return { questions: [...questions], rows };
+}
+
+/** Bottom edge of row `index`, in rows above the play area's bottom, after
+ *  the stream has scrolled `scroll` rows. */
+export function rowBottom(index: number, scroll: number): number {
+  return index + START_OFFSET - scroll;
+}
+
+/** A row is missed once it has fallen completely below the play area. */
+export function hasFallenOff(index: number, scroll: number): boolean {
+  return rowBottom(index, scroll) + 1 <= 0;
+}
+
+/** Fall speed in rows per second, ramping up linearly over the session and
+ *  capped — the real game's "it keeps getting faster". */
+export interface FallSpeed {
+  start: number;
+  max: number;
+  /** Rows/second gained per second of play. */
+  accel: number;
+}
+
+export function speedAt(speed: FallSpeed, elapsedSeconds: number): number {
+  return Math.min(speed.max, speed.start + speed.accel * Math.max(0, elapsedSeconds));
+}

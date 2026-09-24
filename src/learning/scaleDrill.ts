@@ -1,8 +1,8 @@
 // ── scaleDrill.ts — question picking for all three Scales exercises ──────
 //
 // Pure, no React. Exercise A (§8.1, "build the scale") needs a genuinely new
-// answer surface (a piano-tiles-style multi-string board — see
-// `ScaleShapeBoard.tsx` / `useScaleDrillEngine.ts`), NOT the single-string
+// answer surface (a full-screen Piano Tiles stream, one lane per string — see
+// `scaleFall.ts` / `ScaleFallBoard.tsx` / `useScaleFallEngine.ts`), NOT the single-string
 // `FretGrid` byNote flow the spec originally assumed: `FretGrid` renders one
 // string per question, but a scale shape spans several. Exercises B (§8.2,
 // "identify the scale") and C (§8.3, "name the degree") are the cheap reuse

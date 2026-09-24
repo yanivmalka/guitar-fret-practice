@@ -1,99 +1,166 @@
-/* ScaleShapeBoard — Exercise A ("build the scale"): the WHOLE neck at once,
-   every note of every string on screen (scales-learning-spec.md's Session 3
-   correction). The shape's notes are lit, every other note is dim but still
-   there and still tappable. `dir` is locked to ltr on the element itself;
-   only the left-handed setting mirrors it (27-left-handed.css), exactly as
-   `.fret-grid` does. See src/components/ScaleShapeBoard.tsx. */
+/* ScaleFallBoard — Exercise A ("build the scale") as Piano Tiles over the
+   whole screen (scales-learning-spec.md's Session 5 correction). One lane per
+   string, rows falling together; each row's lit tile is the next note of the
+   run. The lanes are pinned `dir="ltr"`; only the left-handed setting mirrors
+   them (27-left-handed.css). See src/components/ScaleFallBoard.tsx. */
 
-/* The whole neck has to be on screen at once (product-owner instruction):
-   the board takes the full width it is given and every fret shrinks to fit,
-   rather than the neck scrolling sideways — a drill where you must tap every
-   lit note can't hide half of them off-screen. */
-.scale-neck-scroll {
-  width: 100%;
-  overflow: hidden;
+.scale-fall {
+  position: fixed;
+  inset: 0;
+  z-index: 1200; /* above the app chrome, below badges/celebrations */
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--bg-0);
+  color: var(--text-0);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  overscroll-behavior: none;
 }
 
-.scale-neck {
+.scale-fall-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) 16px 8px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--surface-border);
+}
+.scale-fall-header-info {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  width: 100%;
-  padding: 4px 6px;
+  font-size: 0.85rem;
+  color: var(--text-1);
+}
+.scale-fall-header-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.scale-fall-exit {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--surface-border);
+  background: var(--bg-2);
+  color: var(--text-1);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.scale-fall-play {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.scale-fall-stream {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0;
+  will-change: transform;
+}
+
+.scale-fall-row,
+.scale-fall-banner {
+  position: absolute;
+  left: 0;
+  right: 0;
   box-sizing: border-box;
 }
-
-.scale-neck-row {
+.scale-fall-row,
+.scale-fall-lanes {
   display: grid;
-  grid-template-columns: repeat(var(--scale-neck-frets, 22), minmax(0, 1fr));
-  gap: 2px;
+  grid-template-columns: repeat(var(--fall-lanes, 6), minmax(0, 1fr));
 }
 
-.scale-neck-tile {
-  height: clamp(28px, 7.5vw, 44px);
-  min-width: 0;
-  padding: 0;
-  border-radius: clamp(4px, 1.4vw, 9px);
-  font-size: clamp(0.44rem, 2.1vw, 0.8rem);
-  font-weight: 700;
+.scale-fall-banner {
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  outline: none;
-  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
-  -webkit-tap-highlight-color: transparent;
-  -webkit-appearance: none;
-  user-select: none;
-  touch-action: manipulation;
-}
-.scale-neck-tile:active:not(:disabled) { transform: scale(0.9); }
-.scale-neck-tile:disabled { cursor: default; }
-
-/* Off: a note that isn't in the scale. Present and playable, visually out
-   of the way. */
-.scale-neck-tile-dim {
-  background: var(--surface-1, #14161f);
-  border: 1px solid var(--surface-border);
-  color: var(--text-2);
-  opacity: 0.45;
-}
-
-/* Lit: a note of the scale — what the learner is here to see and tap. */
-.scale-neck-tile-lit {
-  background: color-mix(in srgb, var(--accent, #4af) 22%, transparent);
-  border: 2px solid var(--accent, #4af);
-  color: var(--text-0);
-  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--accent, #4af) 35%, transparent);
-}
-
-/* The root of the shape, so the pattern has an anchor. */
-.scale-neck-tile-root {
-  background: var(--accent, #4af);
-  color: #04121f;
-}
-
-.scale-neck-tile-found {
-  background: #0a8a3c;
-  border-color: #17c95e;
-  color: #fff;
-  box-shadow: 0 0 10px 2px rgba(23, 201, 94, 0.45);
-  opacity: 1;
-}
-
-.scale-neck-tile-wrong {
-  background: #a01722;
-  border-color: #ff4d5e;
-  color: #fff;
-  opacity: 1;
-}
-
-.scale-neck-fretnums {
-  margin-top: 2px;
-}
-.scale-neck-fretnum {
+  padding: 0 16px;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--accent) 14%, transparent), transparent);
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 1.05rem;
   text-align: center;
-  font-size: clamp(0.38rem, 1.7vw, 0.62rem);
+  pointer-events: none;
+}
+
+/* A dim tile: an ordinary note of the neck slice — tapping it is wrong. */
+.scale-fall-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-inline-end: 1px solid var(--surface-border);
+  border-bottom: 1px solid var(--surface-border);
+  background: var(--bg-1);
+  color: var(--text-3);
+  font-weight: 700;
+  font-size: clamp(0.8rem, 3.6vw, 1.1rem);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.12s, color 0.12s;
+}
+
+/* The lit tile — the note of the scale to tap. */
+.scale-fall-tile-lit {
+  background: color-mix(in srgb, var(--accent) 30%, var(--bg-2));
+  color: var(--text-0);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+/* The lit tile that is due now — the lowest one still to tap. */
+.scale-fall-tile-next {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+/* The scale's tonic — the anchor of the run, ringed so it reads at a glance. */
+.scale-fall-tile-root {
+  box-shadow: inset 0 0 0 3px var(--gold);
+}
+.scale-fall-tile-hit {
+  background: color-mix(in srgb, var(--success) 35%, var(--bg-1));
+  color: var(--text-1);
+  box-shadow: none;
+}
+.scale-fall-tile-miss,
+.scale-fall-tile-wrong {
+  background: var(--danger);
+  color: #fff;
+  box-shadow: none;
+}
+
+.scale-fall-note { line-height: 1; }
+.scale-fall-fret {
+  font-size: 0.62em;
+  font-weight: 600;
+  opacity: 0.75;
+  line-height: 1;
+}
+
+/* The string names under the lanes — the "keyboard" the tiles land on. */
+.scale-fall-lanes {
+  padding: 6px 0 calc(env(safe-area-inset-bottom, 0px) + 6px);
+  background: var(--bg-1);
+  border-top: 2px solid var(--accent);
+}
+.scale-fall-lane-label {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
   color: var(--text-2);
 }
 
