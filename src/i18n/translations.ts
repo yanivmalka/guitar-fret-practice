@@ -863,6 +863,8 @@ const he: Record<string, string> = {
     'האפליקציה מציגה סולם, שורש ודרגה. בחרו את התו המתאים.',
   '🔊 hear it again': '🔊 השמיעו שוב',
   'Minor Pentatonic': 'פנטטוני מינורי',
+  'Major': 'מז\'ור',
+  'All scales': 'כל הסולמות',
   'Degree': 'דרגה',
   'Root': 'שורש',
   'Position': 'פוזיציה',

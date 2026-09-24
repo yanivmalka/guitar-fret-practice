@@ -7,8 +7,8 @@
 // Imports intervals.ts (`noteNameAtSemitones`) rather than duplicating its
 // pitch-class math — a scale degree IS an interval above the root.
 //
-// Ships one scale type at a time (spec §4.2): this file currently holds only
-// Minor Pentatonic (slice 1). Each later scale type is added as a new
+// Ships one scale type at a time (spec §4.2): this file currently holds Minor
+// Pentatonic (slice 1) and Major (slice 2). Each later scale type is added as a new
 // `ScaleTypeDef` row plus its `ScalePositionDef` rows — nothing else in this
 // file changes shape for a new type.
 
@@ -33,6 +33,12 @@ export const SCALE_TYPES: readonly ScaleTypeDef[] = [
     nameKey: 'Minor Pentatonic',
     degrees: [3, 5, 7, 10],
     degreeLabels: ['b3', '4', '5', 'b7'],
+  },
+  {
+    id: 'major',
+    nameKey: 'Major',
+    degrees: [2, 4, 5, 7, 9, 11],
+    degreeLabels: ['2', '3', '4', '5', '6', '7'],
   },
 ] as const;
 
@@ -89,6 +95,8 @@ export interface ScalePositionSpec {
 export const SCALE_POSITION_SPECS: readonly ScalePositionSpec[] = [
   { scaleTypeId: 'minorPentatonic', positionIndex: 1, fromLowestString: 0, window: { from: -1, to: 3 } },
   { scaleTypeId: 'minorPentatonic', positionIndex: 2, fromLowestString: 1, window: { from: -1, to: 3 } },
+  { scaleTypeId: 'major', positionIndex: 1, fromLowestString: 0, window: { from: -1, to: 3 } },
+  { scaleTypeId: 'major', positionIndex: 2, fromLowestString: 1, window: { from: -1, to: 3 } },
 ] as const;
 
 /** Resolve every `ScalePositionSpec` for `scaleTypeId` against a concrete

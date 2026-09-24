@@ -10,13 +10,9 @@
 // minimal segmented-button UI for each control (not yet the richer
 // `IntervalSelectorPanel`-style layout).
 //
-// §5.2 ("scale selection": one scale / group / all learned / all 5 types) is
-// deliberately NOT built yet — with only Minor Pentatonic shipped (§4.2's
-// phased rollout) that control would always resolve to the same single
-// choice, exactly the "meaningless with only one X to choose between"
-// reasoning the spec already applies to Exercise choice and to Exercise B's
-// option row. `SHIPPED_SCALE_TYPE_IDS` is the one place to widen once scale
-// type 2 ships.
+// §5.2 ("scale selection") is built in its simplest form now that a second
+// scale type ships: one scale, or all shipped scales. `SHIPPED_SCALE_TYPE_IDS`
+// is the one place to widen when the next scale type ships.
 //
 // Position (§5.3) and Difficulty (§5.4) ARE built: two positions already
 // exist per shipped scale type (§4.3's generative "box 1" / "box 2"), so
@@ -31,7 +27,10 @@ import type { FallSpeed } from '../learning/scaleFall';
 
 /** Widen this the moment a second scale type ships (§4.2) — nothing else in
  *  this file changes shape. */
-const SHIPPED_SCALE_TYPE_IDS: readonly string[] = ['minorPentatonic'];
+const SHIPPED_SCALE_TYPE_IDS: readonly string[] = ['minorPentatonic', 'major'];
+
+/** Which scale(s) a session draws from: one scale type id, or every shipped one. */
+export type ScaleChoice = 'all' | string;
 
 export type ScaleExercise = 'buildScale' | ScaleChipExercise;
 export type ScalePositionMode = 'one' | 'all';
@@ -104,6 +103,10 @@ export function useScaleSelector(stringCount: number) {
   const [exercise, setExerciseState] = useState<ScaleExercise>(
     () => loadOneOf('ssel_exercise', EXERCISES, 'buildScale'),
   );
+  const [scaleChoiceStored, setScaleChoiceState] = useState<ScaleChoice>(() => {
+    const raw = loadSetting<string>('ssel_scale', 'all');
+    return raw === 'all' || SHIPPED_SCALE_TYPE_IDS.includes(raw) ? raw : 'all';
+  });
   const [positionModeStored, setPositionModeState] = useState<ScalePositionMode>(
     () => loadOneOf('ssel_position_mode', POSITION_MODES, 'all'),
   );
@@ -119,10 +122,16 @@ export function useScaleSelector(stringCount: number) {
     return (FALL_SPEED_LEVELS as readonly number[]).includes(raw) ? (raw as FallSpeedLevel) : 3;
   });
 
-  const availablePositions = useMemo<ScalePositionDef[]>(
-    () => SHIPPED_SCALE_TYPE_IDS.flatMap((id) => scalePositionsFor(id, stringCount)),
-    [stringCount],
+  const activeScaleTypeIds = useMemo<readonly string[]>(
+    () => (scaleChoiceStored === 'all' ? SHIPPED_SCALE_TYPE_IDS : [scaleChoiceStored]),
+    [scaleChoiceStored],
   );
+  // One entry per box number: with several scales active, "Box 1" means box 1
+  // of every one of them.
+  const availablePositions = useMemo<ScalePositionDef[]>(() => {
+    const all = activeScaleTypeIds.flatMap((id) => scalePositionsFor(id, stringCount));
+    return all.filter((p, i) => all.findIndex((q) => q.positionIndex === p.positionIndex) === i);
+  }, [activeScaleTypeIds, stringCount]);
   // "This position / all positions" is only a meaningful choice once a scale
   // type actually has more than one authored position on this instrument.
   const positionChoiceAvailable = availablePositions.length > 1;
@@ -133,6 +142,7 @@ export function useScaleSelector(stringCount: number) {
   const difficulty: ScaleDifficulty = positionMode === 'one' ? 'focused' : difficultyStored;
 
   const setExercise = (e: ScaleExercise) => { setExerciseState(e); saveSetting('ssel_exercise', e); };
+  const setScaleChoice = (c: ScaleChoice) => { setScaleChoiceState(c); saveSetting('ssel_scale', c); };
   const setPositionMode = (m: ScalePositionMode) => { setPositionModeState(m); saveSetting('ssel_position_mode', m); };
   const setPositionIndex = (i: number) => { setPositionIndexState(i); saveSetting('ssel_position_index', i); };
   const setDifficulty = (d: ScaleDifficulty) => { setDifficultyState(d); saveSetting('ssel_difficulty', d); };
@@ -140,19 +150,20 @@ export function useScaleSelector(stringCount: number) {
   const setSpeedLevel = (l: FallSpeedLevel) => { setSpeedLevelState(l); saveSetting('ssel_fall_speed', l); };
 
   const pool = useMemo<ScalePoolItem[]>(() => {
-    const full = buildScalePool(SHIPPED_SCALE_TYPE_IDS, stringCount);
+    const full = buildScalePool(activeScaleTypeIds, stringCount);
     if (positionMode === 'one') {
       const chosen = full.filter((p) => p.positionIndex === positionIndex);
       return chosen.length > 0 ? chosen : full;
     }
     return full;
-  }, [stringCount, positionMode, positionIndex]);
+  }, [activeScaleTypeIds, stringCount, positionMode, positionIndex]);
 
   const buildEnvelope = (isChipExercise: boolean): ScaleEnvelope => envelopeFor(difficulty, isChipExercise, speedLevel);
 
   return {
     speedLevel, setSpeedLevel,
     exercise, setExercise,
+    scaleChoice: scaleChoiceStored, setScaleChoice, shippedScaleTypeIds: SHIPPED_SCALE_TYPE_IDS,
     positionMode, setPositionMode, positionChoiceAvailable,
     positionIndex, setPositionIndex, availablePositions,
     difficulty, difficultyStored, setDifficulty,

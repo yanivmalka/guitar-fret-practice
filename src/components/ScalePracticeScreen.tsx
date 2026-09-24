@@ -236,6 +236,24 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
               </div>
             )}
 
+            {!running && tab === 'practice' && (
+              <div className="set-card scale-position-switcher" role="group" aria-label={t('Scale')}>
+                <span className="set-card-label">{t('Scale')}</span>
+                <div className="scale-position-row">
+                  {['all', ...sel.shippedScaleTypeIds].map((id) => (
+                    <button
+                      key={id}
+                      type="button"
+                      className={`set-card-btn${sel.scaleChoice === id ? ' set-card-btn-primary' : ''}`}
+                      onClick={() => { playClickSound(); haptic.tap(); sel.setScaleChoice(id); }}
+                    >
+                      {id === 'all' ? t('All scales') : t(scaleTypeById(id)?.nameKey ?? id)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {!running && tab === 'practice' && sel.positionChoiceAvailable && (
               <div className="set-card scale-position-switcher" role="group" aria-label={t('Position')}>
                 <span className="set-card-label">{t('Position')}</span>
