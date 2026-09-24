@@ -167,10 +167,14 @@
 
 /* The tone distance to the next note, shown on a tile once it is tapped. */
 .scale-fall-tones {
-  font-size: 0.7em;
-  font-weight: 800;
-  color: var(--gold);
-  line-height: 1;
+  font-size: clamp(1.15rem, 5.5vw, 1.7rem);
+  font-weight: 900;
+  color: var(--bg-0);
+  background: var(--gold);
+  padding: 2px 8px;
+  border-radius: 999px;
+  line-height: 1.1;
+  white-space: nowrap;
 }
 
 /* The string names under the lanes — the "keyboard" the tiles land on. */

@@ -6,11 +6,12 @@
 // (`scaleFall.ts`, pure) falls continuously and speeds up; the learner taps
 // each row's lit tile in order, bottom row first — a run up the scale.
 //
-// - A tap on the next row's lit tile is a hit. Any other tile — a dim note,
-//   or a lit tile of a row above the next one (out of order) — is a wrong
-//   tap: penalty, red flash, and the stream keeps falling (the continue-on-
-//   mistake rule the product owner chose, unlike the real game's instant
-//   game over).
+// - A tap on the lit tile of the next row — or of any later row of the same
+//   scale, even high on the screen — is a hit; notes skipped below it are
+//   settled without penalty. Any other tile — a dim note, or a note of a
+//   different scale — is a wrong tap: penalty, red flash, and the stream keeps
+//   falling (the continue-on-mistake rule the product owner chose, unlike the
+//   real game's instant game over).
 // - A lit tile that falls off the bottom unhit is a miss: penalty, and the
 //   stream keeps falling.
 // - Every tap plays the tapped tile's own note, right or wrong.
@@ -261,7 +262,22 @@ export function useScaleFallEngine({
       return;
     }
 
-    // A dim note, or a lit note out of order. Charged to the scale being
+    // The right note of the same scale further up the screen: the learner ran
+    // ahead. Take it now — no need to wait for it to fall — and settle the
+    // notes skipped below it without any penalty or score.
+    const from = nextRowRef.current;
+    if (isTarget && state === 'pending' && rowIndex > from && s.rows[from]?.q === row.q) {
+      const states = [...rowStatesRef.current];
+      for (let i = from; i < rowIndex; i++) {
+        if (s.rows[i].kind === 'note' && states[i] === 'pending') states[i] = 'hit';
+      }
+      rowStatesRef.current = states;
+      haptic.tap();
+      resolveRow(rowIndex, 'hit');
+      return;
+    }
+
+    // A dim note, or a lit note of another scale. Charged to the scale being
     // played right now.
     const liveQ = s.rows[nextRowRef.current]?.q ?? row.q;
     statsRef.current.wrong[liveQ] = (statsRef.current.wrong[liveQ] ?? 0) + 1;
