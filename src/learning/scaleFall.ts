@@ -43,6 +43,10 @@ export interface FallNoteRow {
   fret: number;
   /** 0-based position of this note in its scale's run. */
   step: number;
+  /** Semitones from this note to the next note of the run — shown on the tile
+   *  once it is tapped, so the learner works out where the next note is.
+   *  Absent on the run's last note. */
+  toNext?: number;
 }
 
 /** A fret the run steps over between two notes — a neck slice with no lit
@@ -95,18 +99,54 @@ export function buildFallStream(questions: readonly ScaleQuestion[], openMidi: r
   questions.forEach((q, qi) => {
     rows.push({ kind: 'banner', q: qi });
     let prevFret: number | null = null;
-    scaleRun(q.shape, openMidi).forEach((p, step) => {
+    const run = scaleRun(q.shape, openMidi);
+    run.forEach((p, step) => {
       if (prevFret !== null) {
         const dir = Math.sign(p.fret - prevFret);
         for (let f = prevFret + dir; dir !== 0 && f !== p.fret; f += dir) {
           rows.push({ kind: 'gap', q: qi, fret: f });
         }
       }
-      rows.push({ kind: 'note', q: qi, string: p.string, fret: p.fret, step });
+      const next = run[step + 1];
+      rows.push({
+        kind: 'note', q: qi, string: p.string, fret: p.fret, step,
+        ...(next ? { toNext: midiAt(next, openMidi) - midiAt(p, openMidi) } : {}),
+      });
       prevFret = p.fret;
     });
   });
   return { questions: [...questions], rows };
+}
+
+/** Whether row `index` is where the run turns back — the frets were climbing
+ *  (14, 15, 16, 17) and now head down again (16, 15, 14 …), or the reverse.
+ *  The board draws a line on the boundary below this row so each pass reads
+ *  as its own stretch of the neck. */
+export function isTurnRow(rows: readonly FallRow[], index: number): boolean {
+  const row = rows[index];
+  if (!row || row.kind === 'banner') return false;
+  const prev = rows[index - 1];
+  if (!prev || prev.kind === 'banner' || prev.q !== row.q) return false;
+  const dir = Math.sign(row.fret - prev.fret);
+  if (dir === 0) return false;
+  // The direction the run was travelling before this row: the last non-zero
+  // fret step within the same scale.
+  for (let i = index - 1; i > 0; i--) {
+    const a = rows[i];
+    const b = rows[i - 1];
+    if (a.kind === 'banner' || b.kind === 'banner' || a.q !== row.q || b.q !== row.q) return false;
+    const before = Math.sign(a.fret - b.fret);
+    if (before !== 0) return before !== dir;
+  }
+  return false;
+}
+
+/** A semitone distance as tones: 1 → "½", 2 → "1", 3 → "1½", 4 → "2". */
+export function formatTones(semitones: number): string {
+  const whole = Math.floor(semitones / 2);
+  const half = semitones % 2 === 1;
+  if (!half) return String(whole);
+  return whole === 0 ? '½' : `${whole}½`;
 }
 
 /** Bottom edge of row `index`, in rows above the play area's bottom, after

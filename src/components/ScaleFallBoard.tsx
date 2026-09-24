@@ -18,7 +18,8 @@
 // follows the UI language.
 
 import { useEffect, useLayoutEffect, useRef, useState, type MutableRefObject } from 'react';
-import { START_OFFSET, VISIBLE_ROWS, type FallStream } from '../learning/scaleFall';
+import { START_OFFSET, VISIBLE_ROWS, formatTones, isTurnRow, type FallStream } from '../learning/scaleFall';
+import { useTranslation } from '../i18n/useTranslation';
 import type { FallRowState, WrongTile } from '../hooks/useScaleFallEngine';
 import { displayNote, type AccidentalMode, type NotationMode } from '../utils/music';
 
@@ -47,6 +48,7 @@ export default function ScaleFallBoard({
   stream, rowStates, nextRow, wrongTile, noteTable, stringCount, accidental, notation,
   frameListenerRef, onTap, bannerLabel, header, onExit, exitLabel, uiDir,
 }: Props) {
+  const { t } = useTranslation();
   const playRef = useRef<HTMLDivElement>(null);
   const streamElRef = useRef<HTMLDivElement>(null);
   const rowPxRef = useRef(0);
@@ -129,12 +131,22 @@ export default function ScaleFallBoard({
             const rootName = stream.questions[row.q]?.rootName;
             const isGap = row.kind === 'gap';
             return (
-              <div key={i} className="scale-fall-row" style={style} dir="ltr">
+              <div
+                key={i}
+                className={`scale-fall-row${isTurnRow(stream.rows, i) ? ' scale-fall-row-turn' : ''}`}
+                style={style}
+                dir="ltr"
+              >
                 {lanes.map((s, laneIndex) => {
                   const isTarget = row.kind === 'note' && s === row.string;
                   const name = noteTable[s - 1]?.[row.fret] ?? '';
                   let cls = 'scale-fall-tile';
-                  if (isTarget) {
+                  // Only the scale's first note is lit up front. Every other
+                  // note stays hidden among the dim tiles until it is tapped
+                  // (or missed): the tone distance shown on the previous note
+                  // is the only clue to where it is.
+                  const revealed = isTarget && row.kind === 'note' && (row.step === 0 || state !== 'pending');
+                  if (revealed) {
                     cls += ' scale-fall-tile-lit';
                     if (name === rootName) cls += ' scale-fall-tile-root';
                     if (i === nextRow) cls += ' scale-fall-tile-next';
@@ -146,6 +158,11 @@ export default function ScaleFallBoard({
                     <div key={s} className={cls} data-row={i} data-lane={s}>
                       <span className="scale-fall-note">{displayNote(name, accidental, notation)}</span>
                       {(isTarget || (isGap && laneIndex === 0)) && <span className="scale-fall-fret">{row.fret}</span>}
+                      {revealed && state !== 'pending' && row.kind === 'note' && row.toNext != null && (
+                        <span className="scale-fall-tones" title={t('Tones to the next note')}>
+                          → {formatTones(row.toNext)}
+                        </span>
+                      )}
                     </div>
                   );
                 })}

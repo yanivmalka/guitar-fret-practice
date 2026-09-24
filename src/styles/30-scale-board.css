@@ -85,6 +85,20 @@
   grid-template-columns: repeat(var(--fall-lanes, 6), minmax(0, 1fr));
 }
 
+/* Where the run turns back (frets 14→17, then down again): a line on the
+   boundary between the two passes, drawn over the tiles. */
+.scale-fall-row-turn::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 4px;
+  background: var(--gold);
+  pointer-events: none;
+  z-index: 1;
+}
+
 .scale-fall-banner {
   display: flex;
   align-items: center;
@@ -148,6 +162,14 @@
   font-size: 0.62em;
   font-weight: 600;
   opacity: 0.75;
+  line-height: 1;
+}
+
+/* The tone distance to the next note, shown on a tile once it is tapped. */
+.scale-fall-tones {
+  font-size: 0.7em;
+  font-weight: 800;
+  color: var(--gold);
   line-height: 1;
 }
 

@@ -292,7 +292,7 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
             {!running && tab === 'practice' && !finished && exercise === 'buildScale' && (
               <div className="set-card">
                 <p className="set-card-help">
-                  {t('Rows of notes fall down the screen, one lane per string. Tap each row\'s lit note before it falls off, bottom row first — a run up the scale. Every note you tap plays its sound.')}
+                  {t('Rows of notes fall down the screen, one lane per string. Only the first note of the scale is lit — tap it, and the distance in tones to the next note appears on it. Find that next note before its row falls off, bottom row first — a run up the scale. Every note you tap plays its sound.')}
                 </p>
                 <button type="button" className="set-card-btn set-card-btn-primary" onClick={startSession}>
                   {t('Start')}

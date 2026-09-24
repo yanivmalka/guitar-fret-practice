@@ -847,8 +847,9 @@ const he: Record<string, string> = {
   // Premium scale training — the P5 scales half, first slice (scales-learning-spec.md)
   'Scale training': 'תרגול סולמות',
   'Practise building scale shapes on the neck': 'תרגול בניית צורות סולם על הצוואר',
-  'Rows of notes fall down the screen, one lane per string. Tap each row\'s lit note before it falls off, bottom row first — a run up the scale. Every note you tap plays its sound.':
-    'שורות של תווים יורדות במסך, נתיב לכל מיתר. הקישו על התו המואר בכל שורה לפני שהוא נופל מהמסך, מהשורה התחתונה ומעלה — ריצה עולה על הסולם. כל תו שתקישו עליו משמיע את הצליל שלו.',
+  'Rows of notes fall down the screen, one lane per string. Only the first note of the scale is lit — tap it, and the distance in tones to the next note appears on it. Find that next note before its row falls off, bottom row first — a run up the scale. Every note you tap plays its sound.':
+    'שורות של תווים יורדות במסך, נתיב לכל מיתר. רק התו הראשון של הסולם מואר — הקישו עליו ועליו יופיע המרחק בטונים לתו הבא. מצאו את התו הבא לפני שהשורה שלו נופלת מהמסך, מהשורה התחתונה ומעלה — ריצה עולה על הסולם. כל תו שתקישו עליו משמיע את הצליל שלו.',
+  'Tones to the next note': 'טונים עד התו הבא',
   'Question': 'שאלה',
   'Scale': 'סולם',
   'Session complete!': 'הסשן הושלם!',
