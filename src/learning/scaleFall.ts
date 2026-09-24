@@ -47,6 +47,10 @@ export interface FallNoteRow {
    *  once it is tapped, so the learner works out where the next note is.
    *  Absent on the run's last note. */
   toNext?: number;
+  /** How many lanes the next note is from this one, on the board (lowest
+   *  string on the left): positive = to the right, negative = to the left.
+   *  Absent on the last note and when the next note is on the same string. */
+  laneShift?: number;
 }
 
 /** A fret the run steps over between two notes — a neck slice with no lit
@@ -111,9 +115,13 @@ export function buildFallStream(questions: readonly ScaleQuestion[], openMidi: r
         }
       }
       const next = run[step + 1];
+      // Lane 1 (the highest string) is on the right, so a lower string number
+      // than this one sits to the right.
+      const laneShift = next ? p.string - next.string : 0;
       rows.push({
         kind: 'note', q: qi, string: p.string, fret: p.fret, step,
         ...(next ? { toNext: Math.abs(midiAt(next, openMidi) - midiAt(p, openMidi)) } : {}),
+        ...(laneShift !== 0 ? { laneShift } : {}),
       });
       prevFret = p.fret;
     });

@@ -850,6 +850,7 @@ const he: Record<string, string> = {
   'Rows of notes fall down the screen, one lane per string. Only the first note of the scale is lit — tap it, and the distance in tones to the next note appears on it. Find that next note before its row falls off, bottom row first — a run up or down the scale, as the arrow on the banner shows. Every note you tap plays its sound.':
     'שורות של תווים יורדות במסך, נתיב לכל מיתר. רק התו הראשון של הסולם מואר — הקישו עליו ועליו יופיע המרחק בטונים לתו הבא. מצאו את התו הבא לפני שהשורה שלו נופלת מהמסך, מהשורה התחתונה ומעלה — ריצה עולה או יורדת על הסולם, לפי החץ בכותרת. כל תו שתקישו עליו משמיע את הצליל שלו.',
   'Tones to the next note': 'טונים עד התו הבא',
+  'The next note is on another string': 'התו הבא נמצא במיתר אחר',
   'Question': 'שאלה',
   'Scale': 'סולם',
   'Session complete!': 'הסשן הושלם!',

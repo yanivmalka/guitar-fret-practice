@@ -168,6 +168,14 @@ export default function ScaleFallBoard({
                       {revealed && state !== 'pending' && row.kind === 'note' && row.toNext != null && (
                         <span className="scale-fall-tones" title={t('Tones to the next note')}>
                           → {formatTones(row.toNext)}
+                          {row.laneShift != null && (
+                            <span
+                              className="scale-fall-shift"
+                              title={t('The next note is on another string')}
+                            >
+                              {(row.laneShift > 0 ? '▶' : '◀').repeat(Math.abs(row.laneShift))}
+                            </span>
+                          )}
                         </span>
                       )}
                     </div>

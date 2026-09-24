@@ -184,6 +184,14 @@
   white-space: nowrap;
 }
 
+/* Arrows on the tones badge: the next note is on a neighbouring string, to
+   the right (▶) or left (◀) — one arrow per string crossed. */
+.scale-fall-shift {
+  margin-inline-start: 4px;
+  font-size: 0.7em;
+  letter-spacing: -1px;
+}
+
 /* The string names under the lanes — the "keyboard" the tiles land on. */
 .scale-fall-lanes {
   padding: 6px 0 calc(env(safe-area-inset-bottom, 0px) + 6px);
