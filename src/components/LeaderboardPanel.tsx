@@ -289,6 +289,12 @@ export function LeaderboardPanel({
               {t(instrument.label).toLowerCase()} — le même total global que dans tes Statistiques. Les
               bonus de vitesse et de série augmentent ton score en jeu, pas ton XP.
             </>
+          ) : lang === 'it' ? (
+            <>
+              1&nbsp;XP per ogni risposta giusta, sommati in tutta la tua pratica di{' '}
+              {t(instrument.label).toLowerCase()} — lo stesso totale di sempre che vedi nelle Statistiche. I
+              bonus di velocità e di serie aumentano il tuo punteggio nel gioco, non i tuoi XP.
+            </>
           ) : (
             <>
               1&nbsp;XP for every correct answer, added up across all your {instrument.label.toLowerCase()}{' '}

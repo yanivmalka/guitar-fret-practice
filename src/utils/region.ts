@@ -82,10 +82,14 @@ const FRENCH_ZONE = new RegExp(
   + '|Indian/(Reunion|Mayotte)|Pacific/(Tahiti|Noumea|Wallis|Marquesas|Gambier))$',
 );
 
+// Italy, plus San Marino and Vatican City, which share its time zone.
+const ITALIAN_ZONES = new Set(['Europe/Rome', 'Europe/San_Marino', 'Europe/Vatican']);
+
 export function detectLanguage(tz: string = detectTimeZone()): Lang {
   if (HEBREW_ZONES.has(tz)) return 'he';
   if (SPANISH_ZONE.test(tz)) return 'es';
   if (BRAZIL_ZONE.test(tz)) return 'pt-BR';
   if (FRENCH_ZONE.test(tz)) return 'fr';
+  if (ITALIAN_ZONES.has(tz)) return 'it';
   return 'en';
 }
