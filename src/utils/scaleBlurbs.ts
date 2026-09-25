@@ -52,8 +52,3 @@ export const SCALE_BLURBS: Record<string, string> = {
   hirajoshi:
     'A five-note Japanese scale with wide gaps between its notes. It sounds sparse and haunting, like a koto.',
 };
-
-/** Shown once at the top of an open blurb: how to read the numbers beside a
- *  scale's name. */
-export const SCALE_FORMULA_LEGEND =
-  'How to read the numbers: 1 is the starting note. Each other number is the matching note of the major scale, counted from it. A b means one fret lower, and a # means one fret higher.';

@@ -33,7 +33,8 @@ import { useScaleChipEngine, type ScaleChipAnswer } from '../hooks/useScaleChipE
 import { useScaleOrderEngine, type ScaleOrderAnswer } from '../hooks/useScaleOrderEngine';
 import { useScaleSelector, FALL_SPEED_LEVELS, DISTANCE_UNITS } from '../hooks/useScaleSelector';
 import { scaleTypeById, SCALE_TYPES, BASIC_SCALE_TYPE_IDS, MORE_SCALE_GROUPS } from '../utils/scales';
-import { SCALE_BLURBS, SCALE_FORMULA_LEGEND } from '../utils/scaleBlurbs';
+import { SCALE_BLURBS } from '../utils/scaleBlurbs';
+import ScaleInfoBody from './ScaleInfoBody';
 import { Chevron } from './Chevron';
 import { scaleItemId } from '../learning/scaleItem';
 import { buildScalePool, type ScaleQuestion } from '../learning/scaleDrill';
@@ -263,8 +264,7 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
                       </div>
                       {blurb && infoOpen && (
                         <div className="mode-card-info-bubble" role="status" aria-live="polite">
-                          <span className="mode-card-info-summary">{t(blurb)}</span>
-                          {t(SCALE_FORMULA_LEGEND)}
+                          <ScaleInfoBody scaleTypeId={id} accidental={accidental} notation={notation} />
                         </div>
                       )}
                     </div>
@@ -407,9 +407,7 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
                 </div>
                 {basicInfoType && SCALE_BLURBS[basicInfoType.id] && (
                   <div className="mode-card-info-bubble" role="status" aria-live="polite">
-                    <span className="mode-card-info-summary">{t(SCALE_BLURBS[basicInfoType.id])}</span>
-                    <span className="scale-more-formula" dir="ltr">{['1', ...basicInfoType.degreeLabels].join(' ')}</span>
-                    {' '}{t(SCALE_FORMULA_LEGEND)}
+                    <ScaleInfoBody scaleTypeId={basicInfoType.id} accidental={accidental} notation={notation} />
                   </div>
                 )}
               </div>

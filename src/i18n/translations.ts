@@ -909,8 +909,11 @@ const he: Record<string, string> = {
   'World': 'מוזיקת עולם',
   'Other': 'אחר',
   // "?" explanations on the More scales page (src/utils/scaleBlurbs.ts).
-  'How to read the numbers: 1 is the starting note. Each other number is the matching note of the major scale, counted from it. A b means one fret lower, and a # means one fret higher.':
-    'איך קוראים את המספרים: 1 הוא תו ההתחלה. כל מספר אחר הוא התו המתאים בסולם המז\'ורי, כשסופרים ממנו. b פירושו סריג אחד נמוך יותר, ו-# פירושו סריג אחד גבוה יותר.',
+  "Each number is a note's place in the scale, counted from the starting note (1).":
+    'כל מספר הוא מקומו של תו בסולם, כשסופרים מתו ההתחלה (1).',
+  'Example, starting on the note': 'לדוגמה, כשמתחילים מהתו',
+  'Highlighted numbers differ from the major scale: b means one fret lower, # means one fret higher.':
+    'המספרים המודגשים שונים מהסולם המז\'ורי: b פירושו סריג אחד נמוך יותר, ו-# פירושו סריג אחד גבוה יותר.',
   'Like natural minor, but with a major 6th instead of a flat 6th. It sounds minor yet lighter and more open — common in funk, jazz and rock.':
     'כמו מינור טבעי, אבל עם דרגה שישית מז\'ורית במקום מינורית. הוא נשמע מינורי אך קליל ופתוח יותר, ושכיח בפאנק, בג\'אז וברוק.',
   'Like natural minor, but the 2nd note sits just one fret above the root. It sounds dark and tense, with a Spanish flavour — common in flamenco and metal.':
