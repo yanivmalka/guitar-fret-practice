@@ -176,6 +176,11 @@ function buildVariant(
   };
 }
 
+// The site base path for the bundled ukulele samples. `import.meta.env` only
+// exists under Vite; the hand-run scripts/check-*.mts load this module in plain
+// Node, where it is undefined, so fall back to the root there.
+const BASE_URL = import.meta.env?.BASE_URL ?? '/';
+
 const ACOUSTIC_GUITAR_SOUNDFONT = 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/acoustic_guitar_nylon-mp3/';
 const ELECTRIC_GUITAR_SOUNDFONT = 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/electric_guitar_clean-mp3/';
 const BASS_SOUNDFONT = 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/electric_bass_finger-mp3/';
@@ -415,7 +420,7 @@ function buildUkuleleVariant(spec: UkuleleVariantSpec): InstrumentConfig {
     ],
     openMidi: [69, 64, 60, 67],
     maxFret: fretCount,
-    soundfontUrl: `${import.meta.env.BASE_URL}audio/ukulele/`,
+    soundfontUrl: `${BASE_URL}audio/ukulele/`,
     sampleMap: UKULELE_SAMPLES,
     stringLabels: {
       1: 'String 1 · A', 2: 'String 2 · E', 3: 'String 3 · C', 4: 'String 4 · G (high)',
@@ -690,7 +695,7 @@ const UKULELE: InstrumentConfig = {
   ],
   openMidi: [69, 64, 60, 67], // A4, E4, C4, G4
   maxFret: UKULELE_MAX_FRET,
-  soundfontUrl: `${import.meta.env.BASE_URL}audio/ukulele/`,
+  soundfontUrl: `${BASE_URL}audio/ukulele/`,
   sampleMap: UKULELE_SAMPLES,
   stringLabels: {
     1: 'String 1 · A', 2: 'String 2 · E', 3: 'String 3 · C', 4: 'String 4 · G (high)',
