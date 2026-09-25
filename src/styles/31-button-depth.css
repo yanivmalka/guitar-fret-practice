@@ -26,7 +26,7 @@
   .fret-range-conflict-btn,
   .interval-choice-btn, .interval-replay-btn, .scale-replay-btn,
   .desc-question-btn, .desc-question-btn-bottom,
-  .play-btn, .pro-cta, .ap-tile
+  .play-btn, .pro-cta, .ap-tile, .level-seg
 ) {
   box-shadow: inset 0 1px 0 var(--btn-lift-hi), inset 0 -4px 0 var(--btn-lift-shade);
   transition: box-shadow 0.08s, transform 0.08s;
@@ -44,7 +44,7 @@
   .fret-range-conflict-btn,
   .interval-choice-btn, .interval-replay-btn, .scale-replay-btn,
   .desc-question-btn, .desc-question-btn-bottom,
-  .play-btn, .pro-cta, .ap-tile
+  .play-btn, .pro-cta, .ap-tile, .level-seg
 ):active:not(:disabled) {
   transform: translateY(var(--depth-press, 2px));
   box-shadow: inset 0 1px 0 var(--btn-lift-hi), inset 0 -1px 0 var(--btn-lift-shade);
