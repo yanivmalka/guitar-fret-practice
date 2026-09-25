@@ -32,7 +32,8 @@ import { useScaleFallEngine, type ScaleFallAnswer } from '../hooks/useScaleFallE
 import { useScaleChipEngine, type ScaleChipAnswer } from '../hooks/useScaleChipEngine';
 import { useScaleOrderEngine, type ScaleOrderAnswer } from '../hooks/useScaleOrderEngine';
 import { useScaleSelector, FALL_SPEED_LEVELS, DISTANCE_UNITS } from '../hooks/useScaleSelector';
-import { scaleTypeById, SCALE_TYPES } from '../utils/scales';
+import { scaleTypeById, SCALE_TYPES, BASIC_SCALE_TYPE_IDS } from '../utils/scales';
+import { Chevron } from './Chevron';
 import { scaleItemId } from '../learning/scaleItem';
 import { buildScalePool, type ScaleQuestion } from '../learning/scaleDrill';
 import { buildScaleBoard } from '../learning/scaleMastery';
@@ -70,6 +71,13 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
 
   const sel = useScaleSelector(instrument.stringCount);
   const { exercise, pool } = sel;
+
+  // The five basic scales sit on the screen itself; the rest live on the
+  // "More scales" page, whose button carries the pick when one is chosen.
+  const [morePage, setMorePage] = useState(false);
+  const basicScaleIds = sel.shippedScaleTypeIds.filter((id) => BASIC_SCALE_TYPE_IDS.includes(id));
+  const moreScaleIds = sel.shippedScaleTypeIds.filter((id) => !BASIC_SCALE_TYPE_IDS.includes(id));
+  const moreChosen = moreScaleIds.includes(sel.scaleChoice);
 
   const chipInstrument = useMemo(
     () => ({ notes: instrument.notes, stringCount: instrument.stringCount, maxFret: instrument.maxFret }),
@@ -187,6 +195,42 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
     : exercise === 'orderScale' ? orderEngine.session.score
     : chipEngine.session.score;
 
+  if (morePage && !running) {
+    return (
+      <div className="app settings-page">
+        <div className="sp2 settings-page-inner" dir={lang === 'he' ? 'rtl' : undefined}>
+          <div className="sp2-head settings-page-head">
+            <button className="sp2-back" onClick={() => { playClickSound(); haptic.tap(); setMorePage(false); }}>
+              <Chevron dir="back" /> {t('Back')}
+            </button>
+          </div>
+          <header className="settings-page-hero">
+            <span className="settings-page-emoji" aria-hidden="true">🎼</span>
+            <h2 className="settings-page-name">{t('More scales')}</h2>
+          </header>
+          <div className="settings-page-body">
+            <div className="set-card scale-more-list" role="group" aria-label={t('More scales')}>
+              {moreScaleIds.map((id) => {
+                const type = scaleTypeById(id);
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`set-card-btn scale-more-btn${sel.scaleChoice === id ? ' set-card-btn-primary' : ''}`}
+                    onClick={() => { playClickSound(); haptic.tap(); sel.setScaleChoice(id); setMorePage(false); }}
+                  >
+                    <span>{t(type?.nameKey ?? id)}</span>
+                    {type && <span className="scale-more-formula" dir="ltr">{['1', ...type.degreeLabels].join(' ')}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app settings-page lp-page interval-home">
       {showMenuButton && (
@@ -274,7 +318,7 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
               <div className="set-card scale-position-switcher" role="group" aria-label={t('Scale')}>
                 <span className="set-card-label">{t('Scale')}</span>
                 <div className="scale-position-row">
-                  {['all', ...sel.shippedScaleTypeIds].map((id) => (
+                  {['all', ...basicScaleIds].map((id) => (
                     <button
                       key={id}
                       type="button"
@@ -284,6 +328,16 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
                       {id === 'all' ? t('All scales') : t(scaleTypeById(id)?.nameKey ?? id)}
                     </button>
                   ))}
+                  {moreScaleIds.length > 0 && (
+                    <button
+                      type="button"
+                      className={`set-card-btn${moreChosen ? ' set-card-btn-primary' : ''}`}
+                      onClick={() => { playClickSound(); haptic.tap(); setMorePage(true); }}
+                    >
+                      {moreChosen ? t(scaleTypeById(sel.scaleChoice)?.nameKey ?? sel.scaleChoice) : t('More scales')}
+                      <Chevron dir="forward" />
+                    </button>
+                  )}
                 </div>
               </div>
             )}

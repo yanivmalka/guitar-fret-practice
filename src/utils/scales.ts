@@ -102,6 +102,12 @@ export const SCALE_TYPES: readonly ScaleTypeDef[] = [
   },
 ] as const;
 
+/** The five most basic scales, shown straight on the Scales screen; every
+ *  other `SCALE_TYPES` row lives on the "More scales" page. */
+export const BASIC_SCALE_TYPE_IDS: readonly string[] = [
+  'major', 'naturalMinor', 'minorPentatonic', 'majorPentatonic', 'blues',
+];
+
 const BY_ID = new Map(SCALE_TYPES.map((s) => [s.id, s]));
 
 export function scaleTypeById(id: string): ScaleTypeDef | undefined {

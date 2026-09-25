@@ -892,6 +892,7 @@ const he: Record<string, string> = {
   'Mixolydian': 'מיקסולידי',
   'Locrian': 'לוקרי',
   'All scales': 'כל הסולמות',
+  'More scales': 'סולמות נוספים',
   'Degree': 'דרגה',
   'Root': 'שורש',
   'Position': 'פוזיציה',
