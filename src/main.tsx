@@ -5,6 +5,7 @@ import './index.css'
 import App from './App'
 import { LanguageProvider } from './i18n/LanguageContext'
 import AdBanner from './components/AdBanner'
+import { detectLanguage } from './utils/region'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -52,8 +53,11 @@ createRoot(document.getElementById('root')!).render(
   const HANDOVER_WAIT_MS = 3000
 
   const lang: 'he' | 'en' = (() => {
-    try { return JSON.parse(localStorage.getItem('pref_language') || '""') === 'he' ? 'he' : 'en' }
-    catch { return 'en' }
+    try {
+      const stored = localStorage.getItem('pref_language')
+      // First launch: the provider has not stored its regional guess yet.
+      return stored === null ? detectLanguage() : JSON.parse(stored) === 'he' ? 'he' : 'en'
+    } catch { return 'en' }
   })()
   const COPY = {
     slow: { he: 'עדיין טוען…', en: 'Still loading…' },

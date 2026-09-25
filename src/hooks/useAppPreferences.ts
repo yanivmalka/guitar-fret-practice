@@ -1,8 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { loadSetting, saveSetting } from '../utils/settings';
 import type { AccidentalMode, NotationMode, OrderMode } from '../utils/music';
 import type { VoiceEnginePref } from '../utils/speech';
-import type { Season, Theme } from '../utils/theme';
+import {
+  SEASONS, THEME_MODES, modeForHour, type Season, type SeasonPref, type Theme, type ThemePref,
+} from '../utils/theme';
+import { currentSeason, resolveSeason } from '../utils/region';
 import { NOTE_VOLUME_DEFAULT } from '../utils/audio';
 import type { FeedbackMode } from '../utils/feedback';
 import { DEFAULT_MASTERY_WINDOW, type MasteryWindow } from '../utils/mastery';
@@ -52,21 +55,61 @@ export function useAppPreferences() {
     if (typeof raw === 'number') return raw;
     return { low: 1.6, normal: 2.6, high: 3.6, max: 4.8 }[raw] ?? NOTE_VOLUME_DEFAULT;
   });
-  const [theme, setThemeState] = useState<Theme>(() => loadSetting<Theme>('pref_theme', 'dark'));
-  const setTheme = useCallback((t: Theme) => {
-    setThemeState(t);
+  // 'auto' (the default) is light by day and the dim palette by night, by the
+  // device clock; a fixed pick stays put. `theme` is the mode in effect,
+  // `themePref` what the player picked.
+  const [themePref, setThemePrefState] = useState<ThemePref>(() => {
+    const v = loadSetting<ThemePref>('pref_theme', 'auto');
+    return THEME_MODES.includes(v as Theme) ? v : 'auto';
+  });
+  const setTheme = useCallback((t: ThemePref) => {
+    setThemePrefState(t);
     saveSetting('pref_theme', t);
   }, []);
+  const [hour, setHour] = useState(() => new Date().getHours());
+  useEffect(() => {
+    if (themePref !== 'auto') return;
+    const tick = () => setHour(new Date().getHours());
+    tick();
+    const id = setInterval(tick, 60_000);
+    return () => clearInterval(id);
+  }, [themePref]);
+  const theme: Theme = themePref === 'auto' ? modeForHour(hour) : themePref;
   // The seasonal palette axis, orthogonal to `theme` (the light/dim/dark
-  // mode). 'winter' reproduces the pre-seasons look. Persists internally,
-  // like setTheme.
-  const [season, setSeasonState] = useState<Season>(
-    () => loadSetting<Season>('pref_season', 'winter'),
-  );
-  const setSeason = useCallback((s: Season) => {
-    setSeasonState(s);
+  // mode). By default it follows the real season where the player is (see
+  // utils/region.ts). A manual pick (`pref_season`) holds only for the season
+  // it was made in (`pref_seasonPickedIn`); when the calendar moves on, the
+  // palette goes back to following it. Persists internally, like setTheme.
+  // `season` is the one in effect, `seasonPref` what the tile row shows ('auto'
+  // = following the calendar, including after a pick has expired).
+  const [seasonState, setSeasonState] = useState<{ pref: SeasonPref; season: Season }>(() => {
+    const actual = currentSeason();
+    const pick = loadSetting<string | null>('pref_season', null);
+    if (!pick || !SEASONS.includes(pick as Season)) return { pref: 'auto', season: actual };
+    let pickedIn = loadSetting<Season | null>('pref_seasonPickedIn', null);
+    if (!pickedIn) {
+      // A pick saved before pickedIn existed: it was made deliberately, so let
+      // it hold for the season that is running now.
+      pickedIn = actual;
+      try { localStorage.setItem('pref_seasonPickedIn', JSON.stringify(actual)); } catch { /* ignore */ }
+    }
+    return {
+      pref: pickedIn === actual ? (pick as Season) : 'auto',
+      season: resolveSeason(pick as Season, pickedIn, actual),
+    };
+  });
+  const setSeason = useCallback((s: SeasonPref) => {
+    if (s === 'auto') {
+      setSeasonState({ pref: 'auto', season: currentSeason() });
+      saveSetting('pref_season', 'auto');
+      return;
+    }
+    setSeasonState({ pref: s, season: s });
+    saveSetting('pref_seasonPickedIn', currentSeason());
     saveSetting('pref_season', s);
   }, []);
+  const season = seasonState.season;
+  const seasonPref = seasonState.pref;
   // Left-handed layout. An axis of its own, independent of language direction:
   // Hebrew only flips reading order, whereas this mirrors the fretboard
   // geometry and moves the on-screen chrome (menu, Quick Access, back
@@ -113,8 +156,8 @@ export function useAppPreferences() {
     masteryWindow, setMasteryWindow,
     feedbackMode, setFeedbackMode,
     noteVolume, setNoteVolume,
-    theme, setTheme,
-    season, setSeason,
+    theme, themePref, setTheme,
+    season, seasonPref, setSeason,
     leftHanded, setLeftHanded,
     buttonDepth, setButtonDepth,
     colorblindHeat, setColorblindHeat,

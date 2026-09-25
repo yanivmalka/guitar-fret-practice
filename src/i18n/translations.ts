@@ -82,8 +82,8 @@ const he: Record<string, string> = {
   'Night is a warmer, dimmer palette for a dark room. Day is a light palette.':
     'לילה היא ערכת צבעים חמה ועמומה יותר לחדר חשוך. יום היא ערכת צבעים בהירה.',
   'Appearance': 'מראה',
-  'Theme sets how light or dark the app is: Night is a warmer, dimmer palette for a dark room, Day is a light one. Season sets the colours layered over it — Winter is the original look. Each tile previews the palette you would get.':
-    'ערכת הנושא קובעת כמה האפליקציה בהירה או כהה: לילה היא ערכה חמה ועמומה לחדר חשוך, ויום היא ערכה בהירה. העונה קובעת את הצבעים שמונחים מעליה — חורף הוא המראה המקורי. כל אריח מציג תצוגה מקדימה של הערכה שתתקבל.',
+  'Theme sets how light or dark the app is: Night is a warmer, dimmer palette for a dark room, Day is a light one. Season sets the colours layered over it — Winter is the original look. Auto follows your clock (Day from 07:00 to 19:00, Night after) and the real season where you are; picking a season by hand holds until that season ends.':
+    'ערכת הנושא קובעת כמה האפליקציה בהירה או כהה: לילה היא ערכה חמה ועמומה לחדר חשוך, ויום היא ערכה בהירה. העונה קובעת את הצבעים שמונחים מעליה — חורף הוא המראה המקורי. אוטומטי עוקב אחרי השעון (יום מ־07:00 עד 19:00, לילה אחר כך) ואחרי העונה האמיתית במקום שבו אתה נמצא; בחירה ידנית של עונה נשארת עד סוף אותה עונה.',
   'Season': 'עונה',
   'Winter': 'חורף',
   'Spring': 'אביב',

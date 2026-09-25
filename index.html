@@ -182,10 +182,22 @@
           try {
             var m = JSON.parse(localStorage.getItem('pref_theme') || '""');
             if (MODES[m]) mode = m;
+            else { var h = new Date().getHours(); mode = h >= 7 && h < 19 ? 'day' : 'night'; } // auto: mirrors modeForHour in src/utils/theme.ts
           } catch (e) {}
+          // The real season where the player is (mirrors src/utils/region.ts:
+          // southern-hemisphere time zones run six months apart), unless a
+          // manual pick was made during this same season.
+          var tz = '';
+          try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
+          var south = /^(Australia\/|Antarctica\/|Pacific\/(Auckland|Chatham|Fiji|Tongatapu|Apia|Noumea|Norfolk|Efate|Tahiti|Pago_Pago|Rarotonga)|Africa\/(Johannesburg|Maputo|Harare|Lusaka|Windhoek|Gaborone|Maseru|Mbabane|Luanda|Blantyre|Lubumbashi)|America\/(Sao_Paulo|Argentina\/|Buenos_Aires|Santiago|Punta_Arenas|Lima|La_Paz|Montevideo|Asuncion|Cuiaba|Campo_Grande|Bahia|Fortaleza|Recife|Belem|Manaus)|Indian\/(Antananarivo|Mauritius|Reunion))/.test(tz);
+          var SEASON_ORDER = ['winter', 'spring', 'summer', 'autumn'];
+          var idx = Math.floor(((new Date().getMonth() + 1) % 12) / 3);
+          season = SEASON_ORDER[south ? (idx + 2) % 4 : idx];
           try {
             var s = JSON.parse(localStorage.getItem('pref_season') || '""');
-            if (SEASONS[s]) season = s;
+            var inSeason = localStorage.getItem('pref_seasonPickedIn');
+            inSeason = inSeason === null ? season : JSON.parse(inSeason);
+            if (SEASONS[s] && inSeason === season) season = s;
           } catch (e) {}
           var attr = season + '-' + mode;
           root.dataset.theme = attr;

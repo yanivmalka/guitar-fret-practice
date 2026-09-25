@@ -1,6 +1,6 @@
 import { playClickSound, haptic } from '../../utils/feedback';
 import {
-  SEASONS, THEME_MODES, type Season, type ThemeMode,
+  SEASONS, THEME_MODES, type SeasonPref, type ThemePref,
 } from '../../utils/theme';
 
 /**
@@ -13,11 +13,11 @@ import {
  * combination you're not currently on.
  */
 
-const MODE_LABEL: Record<ThemeMode, string> = {
-  dark: 'Dark', night: 'Night', day: 'Day',
+const MODE_LABEL: Record<ThemePref, string> = {
+  auto: 'Auto', dark: 'Dark', night: 'Night', day: 'Day',
 };
-const SEASON_LABEL: Record<Season, string> = {
-  winter: 'Winter', spring: 'Spring', summer: 'Summer', autumn: 'Autumn',
+const SEASON_LABEL: Record<SeasonPref, string> = {
+  auto: 'Auto', winter: 'Winter', spring: 'Spring', summer: 'Summer', autumn: 'Autumn',
 };
 
 function Tile({
@@ -46,10 +46,10 @@ function Tile({
 
 export interface AppearancePickerProps {
   t: (s: string) => string;
-  mode: ThemeMode;
-  setMode: (m: ThemeMode) => void;
-  season: Season;
-  setSeason: (s: Season) => void;
+  mode: ThemePref;
+  setMode: (m: ThemePref) => void;
+  season: SeasonPref;
+  setSeason: (s: SeasonPref) => void;
 }
 
 export default function AppearancePicker({
@@ -59,8 +59,8 @@ export default function AppearancePicker({
     <div className="ap">
       <div className="ap-axis">
         <span className="ap-axis-k">{t('Theme')}</span>
-        <div className="ap-row ap-row-3" role="group" aria-label={t('Theme')}>
-          {THEME_MODES.map((m) => (
+        <div className="ap-row ap-row-4" role="group" aria-label={t('Theme')}>
+          {(['auto', ...THEME_MODES] as ThemePref[]).map((m) => (
             <Tile
               key={m}
               on={m === mode}
@@ -72,8 +72,8 @@ export default function AppearancePicker({
       </div>
       <div className="ap-axis">
         <span className="ap-axis-k">{t('Season')}</span>
-        <div className="ap-row ap-row-4" role="group" aria-label={t('Season')}>
-          {SEASONS.map((s) => (
+        <div className="ap-row ap-row-5" role="group" aria-label={t('Season')}>
+          {(['auto', ...SEASONS] as SeasonPref[]).map((s) => (
             <Tile
               key={s}
               on={s === season}

@@ -15,6 +15,19 @@
 export type ThemeMode = 'dark' | 'night' | 'day';
 export type Season = 'winter' | 'spring' | 'summer' | 'autumn';
 
+// What the player can pick for each axis: a fixed value, or 'auto' to follow
+// the clock (mode) / the real season where they are (season, utils/region.ts).
+export type ThemePref = ThemeMode | 'auto';
+export type SeasonPref = Season | 'auto';
+
+// In auto mode the app is light by day and the warm dim palette by night.
+// Mirrored in the inline boot script in index.html — keep the two in sync.
+export const AUTO_DAY_START_HOUR = 7;
+export const AUTO_DAY_END_HOUR = 19;
+export function modeForHour(hour: number): ThemeMode {
+  return hour >= AUTO_DAY_START_HOUR && hour < AUTO_DAY_END_HOUR ? 'day' : 'night';
+}
+
 // Back-compat alias: `Theme` used to name the mode axis. Kept so existing
 // imports keep compiling while call sites migrate to `ThemeMode`.
 export type Theme = ThemeMode;

@@ -306,8 +306,8 @@ export default function App() {
     showScore, setShowScore, showMastery, setShowMastery,
     masteryWindow, setMasteryWindow, feedbackMode, setFeedbackMode,
     noteVolume, setNoteVolume,
-    theme, setTheme,
-    season, setSeason,
+    theme, themePref, setTheme,
+    season, seasonPref, setSeason,
     leftHanded, setLeftHanded,
     buttonDepth, setButtonDepth,
     colorblindHeat, setColorblindHeat,
@@ -867,9 +867,9 @@ export default function App() {
           setFeedbackMode={setFeedbackMode}
           noteVolume={noteVolume}
           setNoteVolume={setNoteVolume}
-          theme={theme}
+          theme={themePref}
           setTheme={setTheme}
-          season={season}
+          season={seasonPref}
           setSeason={setSeason}
           voiceSupported={voice.supported}
           answerMode={answerMode}

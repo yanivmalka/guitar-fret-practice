@@ -12,7 +12,7 @@ import { LANGUAGES, type Lang } from '../../../i18n/translations';
 import {
   PRO_MASTERY_LASTN_CHOICES, describeMasteryWindow, type MasteryWindow,
 } from '../../../utils/mastery';
-import type { Season, Theme } from '../../../utils/theme';
+import type { SeasonPref, ThemePref } from '../../../utils/theme';
 import type { VoiceEnginePref } from '../../../utils/speech';
 import type { FeedbackMode } from '../../../utils/feedback';
 
@@ -60,10 +60,10 @@ export interface GeneralSettingsSectionProps {
   setFeedbackMode: (v: FeedbackMode) => void;
   noteVolume: number;
   setNoteVolume: (v: number) => void;
-  theme: Theme;
-  setTheme: (t: Theme) => void;
-  season: Season;
-  setSeason: (s: Season) => void;
+  theme: ThemePref;
+  setTheme: (t: ThemePref) => void;
+  season: SeasonPref;
+  setSeason: (s: SeasonPref) => void;
   voiceSupported: boolean;
   answerMode: AnswerMode;
   setAnswerMode: (m: AnswerMode) => void;
@@ -176,7 +176,7 @@ export default function GeneralSettingsSection({
       </SettingCard>
       <SettingCard
         label={t('Appearance')}
-        help={t('Theme sets how light or dark the app is: Night is a warmer, dimmer palette for a dark room, Day is a light one. Season sets the colours layered over it — Winter is the original look. Each tile previews the palette you would get.')}
+        help={t('Theme sets how light or dark the app is: Night is a warmer, dimmer palette for a dark room, Day is a light one. Season sets the colours layered over it — Winter is the original look. Auto follows your clock (Day from 07:00 to 19:00, Night after) and the real season where you are; picking a season by hand holds until that season ends.')}
       >
         <AppearancePicker
           t={t}
