@@ -45,6 +45,7 @@ export const ptBR: Record<string, string> = {
   'Written as': 'Escritas como',
   "Display only — the drill itself doesn't change.":
     'Só muda a exibição — o exercício continua igual.',
+  'Solfège (Do Re Mi)': 'Solfejo (Dó Ré Mi)',
   'Letters (A, B, C…) or solfège syllables (Do, Re, Mi…).':
     'Letras (A, B, C…) ou sílabas de solfejo (Dó, Ré, Mi…).',
   'A sharp (♯) is a half-step higher; a flat (♭) is a half-step lower. The same pitch can be written either way — C♯ and D♭ are one note. Pick which sign you see.':

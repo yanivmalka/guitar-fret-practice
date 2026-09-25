@@ -63,7 +63,7 @@ type RecState = 'idle' | 'recording' | 'thinking';
 // saved as a template, and each take can be deleted individually if it
 // still came out wrong.
 export default function VoiceCalibration({ notation, accidental, onClose, onProfileChanged }: Props) {
-  const { t, lang } = useTranslation();
+  const { t } = useTranslation();
   const vocabId = profileVocabId(notation as SpeechNotation);
   const [profile, setProfile] = useState(() => getActiveProfile() ?? 'My profile');
   const [idx, setIdx] = useState(0);
@@ -327,9 +327,8 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
             const a = labelText(labels[i]);
             const b = labelText(labels[j]);
             warns.push(
-              lang === 'he'
-                ? `“${a}” ו-“${b}” נשמעים דומים מדי — הקלט מחדש אחד מהם.`
-                : `“${a}” and “${b}” sound very similar — re-record one of them.`,
+              t('“{a}” and “{b}” sound very similar — re-record one of them.')
+                .replace('{a}', a).replace('{b}', b),
             );
             pairs.push({ a: labels[i], b: labels[j] });
           }
@@ -340,7 +339,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
     } finally {
       setTesting(false);
     }
-  }, [profile, vocabId, labelText, lang]);
+  }, [profile, vocabId, labelText, t]);
 
   // Start a focused round of extra takes for one flagged pair, on top of the
   // takes already recorded — more calibration data on the exact pair a user
@@ -507,9 +506,8 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
         <div className="vcal-hint">{hint}</div>
         {extraPair && (
           <div className="vcal-hint vcal-extra-hint">
-            {lang === 'he'
-              ? `מקליט עוד טייקים כדי להבחין בין “${labelText(extraPair.a)}” ל-“${labelText(extraPair.b)}”`
-              : `Recording extra takes to tell “${labelText(extraPair.a)}” and “${labelText(extraPair.b)}” apart`}
+            {t('Recording extra takes to tell “{a}” and “{b}” apart')
+              .replace('{a}', labelText(extraPair.a)).replace('{b}', labelText(extraPair.b))}
           </div>
         )}
 
@@ -555,7 +553,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
         <div className="vcal-takes">
           {takes.length === 0
             ? <span className="vcal-here">
-                {lang === 'he' ? `אין הקלטות עבור “${prompt}” עדיין` : `No recordings for “${prompt}” yet`}
+                {t('No recordings for “{prompt}” yet').replace('{prompt}', prompt)}
               </span>
             : takes.map((tk, i) => (
               <span key={tk.key} className="vcal-take">
@@ -564,7 +562,7 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
                   className="vcal-take-x"
                   onClick={() => void removeTake(tk.key)}
                   disabled={rec !== 'idle' || running}
-                  aria-label={lang === 'he' ? `מחק הקלטה ${i + 1} של ${prompt}` : `Delete take ${i + 1} of ${prompt}`}
+                  aria-label={t('Delete take {n} of {prompt}').replace('{n}', String(i + 1)).replace('{prompt}', prompt)}
                 >✕</button>
               </span>
             ))}
@@ -609,9 +607,10 @@ export default function VoiceCalibration({ notation, accidental, onClose, onProf
                       onClick={() => startExtraTakes(closePairs[i])}
                       disabled={rec !== 'idle' || running}
                     >
-                      {lang === 'he'
-                        ? `הקלט עוד ${EXTRA_TAKES} טייקים ל-“${labelText(closePairs[i].a)}” ו-“${labelText(closePairs[i].b)}”`
-                        : `Record ${EXTRA_TAKES} more takes for “${labelText(closePairs[i].a)}” and “${labelText(closePairs[i].b)}”`}
+                      {t('Record {n} more takes for “{a}” and “{b}”')
+                        .replace('{n}', String(EXTRA_TAKES))
+                        .replace('{a}', labelText(closePairs[i].a))
+                        .replace('{b}', labelText(closePairs[i].b))}
                     </button>
                   )}
                 </div>

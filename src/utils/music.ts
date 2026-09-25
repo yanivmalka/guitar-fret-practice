@@ -63,14 +63,19 @@ const alphaToSolfege: Record<string, string> = {
   'B':'Si',
 };
 
-// French writes the second solfège degree with an accent ("Ré"); the table
-// above uses the unaccented Italian/Spanish spelling. Display-only, like the
-// rest of `displayNote`: set from the UI language by `LanguageProvider`, so
-// every note label follows the language without threading it through each
-// call site. Parsing (`speechVocab`) and note comparison never see it.
-let solfegeAccentedRe = false;
+// Accented syllables per UI language; the table above uses the unaccented
+// Italian/Spanish spelling. French writes "Ré"; Brazilian Portuguese writes
+// "Dó", "Ré", "Fá" and "Lá". Display-only, like the rest of `displayNote`:
+// set from the UI language by `LanguageProvider`, so every note label follows
+// the language without threading it through each call site. Parsing
+// (`speechVocab`) and note comparison never see it.
+const SOLFEGE_ACCENTS: Record<string, Record<string, string>> = {
+  fr: { Re: 'Ré' },
+  'pt-BR': { Do: 'Dó', Re: 'Ré', Fa: 'Fá', La: 'Lá' },
+};
+let solfegeAccents: Record<string, string> = {};
 export function setSolfegeLanguage(lang: string): void {
-  solfegeAccentedRe = lang === 'fr';
+  solfegeAccents = SOLFEGE_ACCENTS[lang] ?? {};
 }
 
 // "Do Re Mi" in the active language's spelling — the label of the solfège
@@ -143,7 +148,7 @@ export function displayNote(note: string, mode: AccidentalMode, notation: Notati
   if (mode === 'sharps') resolved = flatToSharp[note] || note;
   // Then apply notation
   let named = notation === 'solfege' ? (alphaToSolfege[resolved] || resolved) : resolved;
-  if (notation === 'solfege' && solfegeAccentedRe) named = named.replace(/^Re/, 'Ré');
+  if (notation === 'solfege') named = named.replace(/^[A-Z][a-z]+?(?=[#♭]|$)/, s => solfegeAccents[s] ?? s);
   // Finally swap ASCII #/b for the ♯/♭ signs.
   return withAccidentalGlyphs(named);
 }

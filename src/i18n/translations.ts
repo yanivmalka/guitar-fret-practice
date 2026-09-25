@@ -734,6 +734,13 @@ const he: Record<string, string> = {
   'Self-test recordings': 'בדיקה עצמית של ההקלטות',
   'All words are distinct enough — looks good.': 'כל המילים שונות מספיק זו מזו — נראה טוב.',
   'Finish & enable': 'סיים והפעל',
+  '“{a}” and “{b}” sound very similar — re-record one of them.':
+    '“{a}” ו-“{b}” נשמעים דומים מדי — הקלט מחדש אחד מהם.',
+  'Recording extra takes to tell “{a}” and “{b}” apart':
+    'מקליט עוד טייקים כדי להבחין בין “{a}” ל-“{b}”',
+  'No recordings for “{prompt}” yet': 'אין הקלטות עבור “{prompt}” עדיין',
+  'Delete take {n} of {prompt}': 'מחק הקלטה {n} של {prompt}',
+  'Record {n} more takes for “{a}” and “{b}”': 'הקלט עוד {n} טייקים ל-“{a}” ו-“{b}”',
   'to go': 'נותרו',
 
   // VoiceLevelMeter
