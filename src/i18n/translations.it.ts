@@ -464,4 +464,393 @@ export const it: Record<string, string> = {
   'Custom range': 'Estensione personalizzata',
   'Keep as is': 'Lascia così',
   'Set fret range': 'Imposta l’estensione dei tasti',
+
+  // ── Stage 2a: badges, guest merge, voice calibration, feedback board,
+  // quick access and the tuner ──────────────────────────────────────────
+  // Badges / Achievements wall — tiers
+  'Bronze': 'Bronzo',
+  'Silver': 'Argento',
+  'Gold': 'Oro',
+  'Platinum': 'Platino',
+  'Diamond': 'Diamante',
+  'Master': 'Maestro',
+  'Legendary I': 'Leggendario I',
+  'Legendary II': 'Leggendario II',
+  'Legendary III': 'Leggendario III',
+  'Legendary IV': 'Leggendario IV',
+  // Wall chrome
+  'unlocked': 'sbloccate',
+  'Max': 'Max',
+  'Earned': 'Ottenuta',
+  // Admin test controls
+  'Grant': 'Assegna',
+  'Reset': 'Azzera',
+  'Admin tools: Grant or Reset each badge to test it. History-based badges re-appear on reopen unless you also clear history.':
+    'Strumenti di amministrazione: assegna o azzera ogni medaglia per provarla. Le medaglie basate sulla cronologia ricompaiono alla riapertura, a meno che tu non cancelli anche la cronologia.',
+  // Family names
+  'Perfect Session': 'Sessione perfetta',
+  'Speed Demon': 'Demone della velocità',
+  'Flawless Sprint': 'Sprint impeccabile',
+  'On Fire': 'In fiamme',
+  'Comeback': 'Rimonta',
+  'Every String': 'Tutte le corde',
+  'String Master': 'Maestro della corda',
+  'String Master · {s}': 'Maestro · {s}',
+  'Full String Master': 'Maestro di tutte le corde',
+  'Neck Runner': 'Corridore del manico',
+  'Both Ends': 'Entrambi gli estremi',
+  'Low End': 'Registro grave',
+  'Week Warrior': 'Guerriero della settimana',
+  'Dedicated': 'Costante',
+  'Total Reps': 'Ripetizioni totali',
+  'Sharpshooter': 'Tiratore scelto',
+  'Quick Read': 'Lettura rapida',
+  'Most Improved': 'Il più migliorato',
+  'Doubling Up': 'Doppietta',
+  'Multi-Instrumentalist': 'Polistrumentista',
+  'Admin': 'Amministratore',
+  // Earning conditions — Perfect Session
+  'Answer 10+ questions in a round with no mistakes at all.':
+    'Rispondi a 10+ domande in un round senza nessun errore.',
+  '25+ questions in a round, still zero mistakes.': '25+ domande in un round, ancora zero errori.',
+  '50+ questions in a round, still zero mistakes — a full clean run.':
+    '50+ domande in un round, ancora zero errori — un round completamente pulito.',
+  // Speed Demon
+  'Get 10+ correct answers in a round, at least 8 of them under 1.5s.':
+    'Dai 10+ risposte giuste in un round, almeno 8 in meno di 1,5 s.',
+  '20+ correct answers, at least 16 of them under 1.5s.': '20+ risposte giuste, almeno 16 in meno di 1,5 s.',
+  '40+ correct answers, at least 32 of them under 1.2s.': '40+ risposte giuste, almeno 32 in meno di 1,2 s.',
+  // Flawless Sprint
+  'Finish a whole round at 90% accuracy or better.':
+    'Completa un intero round con il 90% di precisione o più.',
+  'Finish a whole round at 95% accuracy or better.':
+    'Completa un intero round con il 95% di precisione o più.',
+  'Finish a whole round at 100% accuracy.': 'Completa un intero round con il 100% di precisione.',
+  // On Fire
+  'Reach a streak of 15 in a single round.': 'Raggiungi una serie di 15 in un solo round.',
+  'Reach a streak of 20 in a single round.': 'Raggiungi una serie di 20 in un solo round.',
+  'Reach a streak of 30 in a single round.': 'Raggiungi una serie di 30 in un solo round.',
+  // Comeback
+  'Miss 3+ of your first 20 questions, then answer the next 8 in a row correctly.':
+    'Sbaglia 3+ delle prime 20 domande, poi rispondi giusto alle 8 successive di fila.',
+  'Miss 5+ of your first 20 questions, then answer the next 12 in a row correctly.':
+    'Sbaglia 5+ delle prime 20 domande, poi rispondi giusto alle 12 successive di fila.',
+  'Miss 8+ of your first 20 questions, then answer the next 18 in a row correctly.':
+    'Sbaglia 8+ delle prime 20 domande, poi rispondi giusto alle 18 successive di fila.',
+  // Every String
+  'Finish a round that visited every string: 2x that many questions, 90% accuracy.':
+    'Completa un round che passi per tutte le corde: il doppio delle domande rispetto alle corde, 90% di precisione.',
+  'Visited every string: 4x that many questions, 90% accuracy.':
+    'Passando per tutte le corde: 4 volte più domande che corde, 90% di precisione.',
+  'Visited every string: 6x that many questions, 95% accuracy.':
+    'Passando per tutte le corde: 6 volte più domande che corde, 95% di precisione.',
+  // Per-string String Master — {s} is the translated string label
+  'Answer 40+ questions on {s} at 90% accuracy or better.':
+    'Rispondi a 40+ domande su {s} con il 90% di precisione o più.',
+  '100+ questions on {s} at 92% accuracy or better.': '100+ domande su {s} con il 92% di precisione o più.',
+  '200+ questions on {s} at 95% accuracy or better.': '200+ domande su {s} con il 95% di precisione o più.',
+  '400+ questions on {s} at 96% accuracy or better, over 14+ practice days.':
+    '400+ domande su {s} con il 96% di precisione o più, in 14+ giorni di pratica.',
+  '800+ questions on {s} at 97% accuracy or better, over 30+ practice days.':
+    '800+ domande su {s} con il 97% di precisione o più, in 30+ giorni di pratica.',
+  // Full String Master
+  'Earn String Master — Bronze on every string of this instrument.':
+    'Ottieni Maestro della corda — Bronzo su tutte le corde di questo strumento.',
+  'Earn String Master — Silver on every string.': 'Ottieni Maestro della corda — Argento su tutte le corde.',
+  'Earn String Master — Gold on every string.': 'Ottieni Maestro della corda — Oro su tutte le corde.',
+  'Earn String Master — Platinum on every string.':
+    'Ottieni Maestro della corda — Platino su tutte le corde.',
+  'Earn String Master — Diamond on every string.':
+    'Ottieni Maestro della corda — Diamante su tutte le corde.',
+  // Neck Runner
+  'Answer at least one question on every fret of the neck.':
+    'Rispondi ad almeno una domanda su ogni tasto del manico.',
+  'Answer at least 3 questions on every fret of the neck.':
+    'Rispondi ad almeno 3 domande su ogni tasto del manico.',
+  'Answer at least 5 questions on every fret of the neck.':
+    'Rispondi ad almeno 5 domande su ogni tasto del manico.',
+  'Answer at least 10 questions on every fret, spread across 14+ practice days.':
+    'Rispondi ad almeno 10 domande su ogni tasto, distribuite in 14+ giorni di pratica.',
+  'Answer at least 20 questions on every fret, spread across 30+ practice days.':
+    'Rispondi ad almeno 20 domande su ogni tasto, distribuite in 30+ giorni di pratica.',
+  // Both Ends
+  'Answer 40+ questions above the 12th fret at 85% accuracy or better.':
+    'Rispondi a 40+ domande oltre il 12° tasto con l’85% di precisione o più.',
+  '100+ questions above the 12th fret at 88% accuracy or better.':
+    '100+ domande oltre il 12° tasto con l’88% di precisione o più.',
+  '200+ questions above the 12th fret at 92% accuracy or better.':
+    '200+ domande oltre il 12° tasto con il 92% di precisione o più.',
+  '400+ questions above the 12th fret at 93% accuracy or better, over 14+ practice days.':
+    '400+ domande oltre il 12° tasto con il 93% di precisione o più, in 14+ giorni di pratica.',
+  '800+ questions above the 12th fret at 94% accuracy or better, over 30+ practice days.':
+    '800+ domande oltre il 12° tasto con il 94% di precisione o più, in 30+ giorni di pratica.',
+  // Low End
+  'Answer 40+ questions on the bass low-E string at 90% accuracy or better.':
+    'Rispondi a 40+ domande sulla corda Mi (E) grave del basso con il 90% di precisione o più.',
+  '100+ questions on the low-E string at 93% accuracy or better.':
+    '100+ domande sulla corda Mi (E) grave con il 93% di precisione o più.',
+  '200+ questions on the low-E string at 96% accuracy or better.':
+    '200+ domande sulla corda Mi (E) grave con il 96% di precisione o più.',
+  '400+ questions on the low-E string at 97% accuracy or better, over 14+ practice days.':
+    '400+ domande sulla corda Mi (E) grave con il 97% di precisione o più, in 14+ giorni di pratica.',
+  '800+ questions on the low-E string at 98% accuracy or better, over 30+ practice days.':
+    '800+ domande sulla corda Mi (E) grave con il 98% di precisione o più, in 30+ giorni di pratica.',
+  // Week Warrior
+  'Practise on 5 separate days within a single 7-day window.':
+    'Esercitati in 5 giorni diversi nello stesso arco di 7 giorni.',
+  '6 separate days within a single 7-day window.': '6 giorni diversi nello stesso arco di 7 giorni.',
+  'All 7 days within a single 7-day window — a perfect week.':
+    'Tutti i 7 giorni dello stesso arco di 7 giorni — una settimana perfetta.',
+  // Dedicated
+  'Build a run of 7 consecutive practice days.': 'Metti in fila 7 giorni di pratica consecutivi.',
+  '14 consecutive practice days.': '14 giorni di pratica consecutivi.',
+  '30 consecutive practice days.': '30 giorni di pratica consecutivi.',
+  '60 consecutive practice days.': '60 giorni di pratica consecutivi.',
+  '90 consecutive practice days.': '90 giorni di pratica consecutivi.',
+  '120 consecutive practice days.': '120 giorni di pratica consecutivi.',
+  '180 consecutive practice days.': '180 giorni di pratica consecutivi.',
+  '250 consecutive practice days.': '250 giorni di pratica consecutivi.',
+  '300 consecutive practice days.': '300 giorni di pratica consecutivi.',
+  '365 consecutive practice days — a full year, every day.':
+    '365 giorni di pratica consecutivi — un anno intero, ogni giorno.',
+  // Total Reps
+  'Answer 100 questions all-time, across every instrument.':
+    'Rispondi a 100 domande in totale, sommando tutti gli strumenti.',
+  '250 questions all-time.': '250 domande in totale.',
+  '500 questions all-time.': '500 domande in totale.',
+  '1,000 questions all-time.': '1.000 domande in totale.',
+  '2,500 questions all-time, spread across 20+ practice days.':
+    '2.500 domande in totale, distribuite in 20+ giorni di pratica.',
+  '5,000 questions all-time, spread across 40+ practice days.':
+    '5.000 domande in totale, distribuite in 40+ giorni di pratica.',
+  '10,000 questions all-time, spread across 70+ practice days.':
+    '10.000 domande in totale, distribuite in 70+ giorni di pratica.',
+  '20,000 questions all-time, spread across 110+ practice days.':
+    '20.000 domande in totale, distribuite in 110+ giorni di pratica.',
+  '35,000 questions all-time, spread across 160+ practice days.':
+    '35.000 domande in totale, distribuite in 160+ giorni di pratica.',
+  '50,000 questions all-time, spread across 220+ practice days.':
+    '50.000 domande in totale, distribuite in 220+ giorni di pratica.',
+  // Sharpshooter
+  'Hold 85% accuracy over at least 200 questions, across every instrument.':
+    'Mantieni l’85% di precisione su almeno 200 domande, sommando tutti gli strumenti.',
+  '88% accuracy over at least 500 questions.': '88% di precisione su almeno 500 domande.',
+  '92% accuracy over at least 1,000 questions.': '92% di precisione su almeno 1.000 domande.',
+  '93% accuracy over at least 2,500 questions, spread across 30+ practice days.':
+    '93% di precisione su almeno 2.500 domande, distribuite in 30+ giorni di pratica.',
+  '94% accuracy over at least 5,000 questions, spread across 60+ practice days.':
+    '94% di precisione su almeno 5.000 domande, distribuite in 60+ giorni di pratica.',
+  // Quick Read
+  'Hold an average answer time under 2.0s over 200+ questions.':
+    'Mantieni un tempo medio di risposta sotto i 2,0 s su 200+ domande.',
+  'Under 1.6s over 500+ questions.': 'Sotto 1,6 s su 500+ domande.',
+  'Under 1.3s over 1,000+ questions.': 'Sotto 1,3 s su 1.000+ domande.',
+  'Under 1.15s over 2,500+ questions, spread across 30+ practice days.':
+    'Sotto 1,15 s su 2.500+ domande, distribuite in 30+ giorni di pratica.',
+  'Under 1.05s over 5,000+ questions, spread across 60+ practice days.':
+    'Sotto 1,05 s su 5.000+ domande, distribuite in 60+ giorni di pratica.',
+  // Most Improved
+  'Over 10+ practice days, lift your accuracy by 20 points from your first days to your latest.':
+    'In 10+ giorni di pratica, alza la tua precisione di 20 punti dai primi giorni ai più recenti.',
+  'Over 15+ practice days, lift your accuracy by 30 points.':
+    'In 15+ giorni di pratica, alza la tua precisione di 30 punti.',
+  'Over 20+ practice days, lift your accuracy by 40 points.':
+    'In 20+ giorni di pratica, alza la tua precisione di 40 punti.',
+  // Doubling Up
+  'Earn String Master on every string of both guitar and bass.':
+    'Ottieni Maestro della corda su tutte le corde, sia alla chitarra sia al basso.',
+  'Earn Full String Master — Silver on both guitar and bass.':
+    'Ottieni Maestro di tutte le corde — Argento, sia alla chitarra sia al basso.',
+  'Earn Full String Master — Gold and Neck Runner — Gold on both guitar and bass.':
+    'Ottieni Maestro di tutte le corde — Oro e Corridore del manico — Oro, sia alla chitarra sia al basso.',
+  'Earn Full String Master — Platinum and Neck Runner — Platinum on both guitar and bass.':
+    'Ottieni Maestro di tutte le corde — Platino e Corridore del manico — Platino, sia alla chitarra sia al basso.',
+  'Earn Full String Master — Diamond and Neck Runner — Diamond on both guitar and bass.':
+    'Ottieni Maestro di tutte le corde — Diamante e Corridore del manico — Diamante, sia alla chitarra sia al basso.',
+  // Multi-Instrumentalist
+  'Earn Full String Master — Silver on 2 different instruments.':
+    'Ottieni Maestro di tutte le corde — Argento su 2 strumenti diversi.',
+  'Earn Full String Master — Silver on 3 different instruments.':
+    'Ottieni Maestro di tutte le corde — Argento su 3 strumenti diversi.',
+  'Earn Full String Master — Gold on 4 different instruments.':
+    'Ottieni Maestro di tutte le corde — Oro su 4 strumenti diversi.',
+  'Earn Full String Master — Gold on all 5 instruments.':
+    'Ottieni Maestro di tutte le corde — Oro su tutti e 5 gli strumenti.',
+  'Earn Full String Master — Platinum on all 5 instruments.':
+    'Ottieni Maestro di tutte le corde — Platino su tutti e 5 gli strumenti.',
+  // Admin (role)
+  'Granted to app administrators — read every Feedback board post, not just your own.':
+    'Assegnata agli amministratori dell’app — permette di leggere tutti i messaggi della bacheca dei suggerimenti, non solo i tuoi.',
+  // Guest-merge prompt — first sign-in on a device with local guest history
+  'Add this device’s progress to your account?':
+    'Aggiungere i progressi di questo dispositivo al tuo account?',
+  'You’ve practiced on this device without an account. Add that progress to your account, or keep only what’s already on your account?':
+    'Ti sei esercitato su questo dispositivo senza account. Vuoi aggiungere quei progressi al tuo account o tenere solo quello che c’è già?',
+  'Merge my progress': 'Unisci i miei progressi',
+  'Use account only': 'Usa solo l’account',
+  'Leave this practice off your account?': 'Lasciare questa pratica fuori dal tuo account?',
+  'You have {n} rounds of practice saved on this device. If you continue, they stay on this device but are not added to your account.':
+    'Hai {n} round di pratica salvati su questo dispositivo. Se continui, restano su questo dispositivo ma non vengono aggiunti al tuo account.',
+  // VoiceCalibration
+  'Voice calibration': 'Calibrazione vocale',
+  'Personal voice calibration': 'Calibrazione vocale personale',
+  'Profile name': 'Nome del profilo',
+  'Say just this word, on its own': 'Di’ solo questa parola, da sola',
+  'Say just the note name, on its own': 'Di’ solo il nome della nota, da solo',
+  'Speak clearly and pause briefly between words — later, when answering, say the letter, pause, then “sharp” / “flat” as two separate words.':
+    'Parla chiaramente e fai una breve pausa tra le parole — poi, quando rispondi, di’ la lettera, fai una pausa e poi “sharp” / “flat” come due parole separate.',
+  'Could not use the microphone — try again': 'Impossibile usare il microfono — riprova',
+  'No sound captured — try again, closer to the mic':
+    'Nessun suono rilevato — riprova, più vicino al microfono',
+  'Recording too short — try again': 'Registrazione troppo breve — riprova',
+  "That didn't sound like a note — try again": 'Non sembrava una nota — riprova',
+  'Saving the recording failed': 'Impossibile salvare la registrazione',
+  'Recorded': 'Registrate',
+  'notes': 'note',
+  'accidentals': 'alterazioni',
+  'Say:': 'Di’:',
+  'Play last recording': 'Riproduci l’ultima registrazione',
+  'Export recordings to a folder (dev)': 'Esporta le registrazioni in una cartella (dev)',
+  'Stop exporting recordings': 'Interrompi l’esportazione delle registrazioni',
+  'Every accepted take is also saved as a WAV, named for scripts/eval-voice.mts.':
+    'Ogni ripresa accettata viene salvata anche come WAV, con il nome atteso da scripts/eval-voice.mts.',
+  'Could not write to the export folder — pick it again':
+    'Impossibile scrivere nella cartella di esportazione — sceglila di nuovo',
+  'Speak the word on screen — calibration advances on its own':
+    'Di’ la parola sullo schermo — la calibrazione avanza da sola',
+  'Take': 'Ripresa',
+  'Previous': 'Precedente',
+  'Next': 'Successivo',
+  'Delete profile': 'Elimina profilo',
+  'Reset automatic learning of the general mode': 'Azzera l’apprendimento automatico della modalità generale',
+  'Checking recordings…': 'Controllo delle registrazioni…',
+  'Self-test recordings': 'Autotest delle registrazioni',
+  'All words are distinct enough — looks good.': 'Tutte le parole sono abbastanza distinte — va bene.',
+  'Finish & enable': 'Termina e attiva',
+  '“{a}” and “{b}” sound very similar — re-record one of them.':
+    '“{a}” e “{b}” suonano troppo simili — registra di nuovo uno dei due.',
+  'Recording extra takes to tell “{a}” and “{b}” apart':
+    'Registrazione di riprese extra per distinguere “{a}” da “{b}”',
+  'No recordings for “{prompt}” yet': 'Ancora nessuna registrazione per “{prompt}”',
+  'Delete take {n} of {prompt}': 'Elimina la ripresa {n} di {prompt}',
+  'Record {n} more takes for “{a}” and “{b}”': 'Registra altre {n} riprese per “{a}” e “{b}”',
+  'to go': 'mancanti',
+  // VoiceLevelMeter
+  'Microphone level good': 'Livello del microfono buono',
+  'Microphone level low, speak louder': 'Livello del microfono basso, parla più forte',
+  'Good level': 'Livello buono',
+  'Too quiet — speak up': 'Troppo basso — parla più forte',
+  // DebugLogPanel
+  'Debug log': 'Registro di debug',
+  'Open debug log': 'Apri il registro di debug',
+  'Errors + voice · auto-clears daily': 'Errori + voce · si svuota ogni giorno',
+  'Errors · auto-clears daily': 'Errori · si svuota ogni giorno',
+  'Voice: on': 'Voce: attiva',
+  'Voice: off': 'Voce: disattivata',
+  'Copied': 'Copiato',
+  'Copy': 'Copia',
+  'Clear': 'Svuota',
+  'Close': 'Chiudi',
+  '(no errors)': '(nessun errore)',
+  // FeedbackBoard
+  'Couldn’t load the board. Check your connection and try again.':
+    'Impossibile caricare la bacheca. Controlla la connessione e riprova.',
+  'Couldn’t send that. Check your connection and try again.':
+    'Impossibile inviare. Controlla la connessione e riprova.',
+  'Sign in with Google to leave a comment, idea, or suggestion. Only admins can read the full board.':
+    'Accedi con Google per lasciare un commento, un’idea o un suggerimento. Solo gli amministratori possono leggere l’intera bacheca.',
+  'Microphone access is off — turn it on to dictate.':
+    'L’accesso al microfono è disattivato — attivalo per dettare.',
+  'Voice typing isn’t available on this device.':
+    'La dettatura vocale non è disponibile su questo dispositivo.',
+  'Couldn’t hear that — try again.': 'Non ho sentito — riprova.',
+  'What’s on your mind?': 'Cosa vuoi dirci?',
+  'Stop voice typing': 'Ferma la dettatura vocale',
+  'Start voice typing': 'Avvia la dettatura vocale',
+  'Sending…': 'Invio…',
+  'Send': 'Invia',
+  'Listening… say one sentence — it stops on its own.': 'In ascolto… di’ una frase — si ferma da solo.',
+  'Thanks — your message was sent.': 'Grazie — il tuo messaggio è stato inviato.',
+  'Unknown': 'Sconosciuto',
+  'You': 'Tu',
+  'Handled': 'Gestito',
+  'Mark unhandled': 'Segna come da gestire',
+  'Mark handled': 'Segna come gestito',
+  'Delete': 'Elimina',
+  'You haven’t sent anything yet.': 'Non hai ancora inviato niente.',
+  'Share a comment, idea, or suggestion. Admins read every post; below you can see the ones you’ve sent.':
+    'Condividi un commento, un’idea o un suggerimento. Gli amministratori leggono ogni messaggio; qui sotto vedi quelli che hai inviato.',
+  'Write': 'Scrivi',
+  'Inbox': 'Posta in arrivo',
+  'Post a comment, idea, or suggestion of your own.': 'Pubblica un tuo commento, idea o suggerimento.',
+  'Every post from every user': 'Tutti i messaggi di tutti gli utenti',
+  'still to handle': 'da gestire',
+  'Mark one handled once you’ve dealt with it, or delete it.':
+    'Segna un messaggio come gestito quando l’hai risolto, oppure eliminalo.',
+  'No posts yet.': 'Ancora nessun messaggio.',
+  'Nothing open — all caught up.': 'Niente in sospeso — tutto in pari.',
+  'Delete post': 'Elimina messaggio',
+  'Delete this post?': 'Eliminare questo messaggio?',
+  'This permanently removes it for everyone, including':
+    'Verrà eliminato definitivamente per tutti, compreso',
+  'the author': 'l’autore',
+  'It can’t be undone.': 'Non si può annullare.',
+  'Delete for everyone': 'Elimina per tutti',
+  // Quick Access — the floating home-screen control, its Settings row and pushpins
+  'Quick access': 'Accesso rapido',
+  'A floating button on the home screen for the settings you flip most. Pin up to 5 with the pushpins below, then double-tap the lower-right of the screen outside a drill to open it.':
+    'Un pulsante mobile nella schermata iniziale per le impostazioni che cambi più spesso. Fissane fino a 5 con le puntine qui sotto, poi tocca due volte l’angolo in basso a destra dello schermo, fuori da un esercizio, per aprirlo.',
+  'Pin to quick access?': 'Fissare nell’accesso rapido?',
+  'Remove from quick access?': 'Togliere dall’accesso rapido?',
+  'You can pin up to {n} settings. Remove one first.':
+    'Puoi fissare fino a {n} impostazioni. Prima togline una.',
+  'Quick access is full': 'L’accesso rapido è pieno',
+  'You already have {n} shortcuts. Remove one to make room?':
+    'Hai già {n} scorciatoie. Toglierne una per fare spazio?',
+  'Remove one': 'Togline una',
+  'Leave as is': 'Lascia così',
+  'Remove a quick access shortcut': 'Togli una scorciatoia dall’accesso rapido',
+  'Quick access holds five shortcuts. Remove one to make room.':
+    'L’accesso rapido contiene cinque scorciatoie. Togline una per fare spazio.',
+  'Remove {name} from quick access': 'Togli {name} dall’accesso rapido',
+  'Yes': 'Sì',
+  'No': 'No',
+  'Double-tap the lower-right of the screen for quick access':
+    'Tocca due volte l’angolo in basso a destra dello schermo per l’accesso rapido',
+  'Double-tap the lower-left of the screen for quick access':
+    'Tocca due volte l’angolo in basso a sinistra dello schermo per l’accesso rapido',
+  'Quick access is off': 'L’accesso rapido è disattivato',
+  "You haven't pinned any quick access shortcuts yet":
+    'Non hai ancora fissato nessuna scorciatoia nell’accesso rapido',
+  'What do the icons mean?': 'Cosa significano le icone?',
+  'Quick access symbol legend': 'Legenda dei simboli dell’accesso rapido',
+  'What each icon on the Quick Access widget means. Tapping a pinned shortcut cycles through these states in order.':
+    'Cosa significa ogni icona dell’accesso rapido. Toccando una scorciatoia fissata si passa da uno stato all’altro in quest’ordine.',
+  'Letters (A B C)': 'Lettere (A B C)',
+  'Solfège (Do Re Mi)': 'Solfeggio (Do Re Mi)',
+  'Sharps (♯)': 'Diesis (♯)',
+  'Flats (♭)': 'Bemolle (♭)',
+  // Tuner — the Learn-tab tile that opens a live chromatic tuner
+  'Tuner': 'Accordatore',
+  'Tune your strings using the microphone.': 'Accorda le corde con il microfono.',
+  'Start listening': 'Inizia ad ascoltare',
+  'Requesting microphone permission…': 'Richiesta del permesso per il microfono…',
+  'Microphone access was denied. Allow it in your browser settings, then try again.':
+    'L’accesso al microfono è stato negato. Consentilo nelle impostazioni del browser, poi riprova.',
+  'Try again': 'Riprova',
+  "Couldn't start the microphone.": 'Impossibile avviare il microfono.',
+  'Listening… play a note.': 'In ascolto… suona una nota.',
+  "Tap a note on the wheel to lock it as the string you're tuning. Tap it again to switch back to auto-detect.":
+    'Tocca una nota sulla ruota per fissarla come la corda che stai accordando. Toccala di nuovo per tornare al rilevamento automatico.',
+  'Tuning': 'Accordatura',
+  'Detected': 'Rilevata',
+  'String {n}': 'Corda {n}',
+  'or': 'o',
+  'Unpin': 'Sblocca',
+  "Tap to lock this note at 12 o'clock": 'Tocca per fissare questa nota in alto, a ore 12',
+  'Tap to unpin': 'Tocca per sbloccarla',
+  'In tune': 'Intonata',
+  'Tighten (raise pitch)': 'Tendi (alza l’intonazione)',
+  'Loosen (lower pitch)': 'Allenta (abbassa l’intonazione)',
+  '~{pct}% of the audible threshold': '~{pct}% della soglia udibile',
 };
