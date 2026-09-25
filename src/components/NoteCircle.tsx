@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import { notesMatch, notes as allNotes, displayNote } from '../utils/music';
 import type { AccidentalMode, NotationMode } from '../utils/music';
 import { playNoteSequence, stopPlayback } from '../utils/audio';
@@ -222,7 +222,7 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
               key={note}
               onClick={() => handleClick(note)}
               disabled={!inRange}
-              className={`note-btn ${isGlowing ? 'note-glow' : ''}`}
+              className={`note-btn note-wheel-btn ${isGlowing ? 'note-glow' : ''}`}
               style={{
                 position: 'absolute', left: x, top: y,
                 width: btnSize, height: btnSize, borderRadius: '50%',
@@ -231,7 +231,11 @@ export default function NoteCircle({ notes, activeNotes, active, correctNote, wr
                 cursor: inRange ? 'pointer' : 'default',
                 opacity: inRange ? 1 : 0.25,
                 flexDirection: 'column', gap: 0,
-              }}
+                // Counter-rotation for the Button depth band (::before in
+                // 31-button-depth.css), so it stays on the bottom lip while
+                // the wheel turns — same trick as the label span below.
+                '--wheel-counter': `${-wheelAngle}deg`,
+              } as CSSProperties}
             >
               <span style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0,

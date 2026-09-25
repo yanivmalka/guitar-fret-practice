@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import TunerCompass from './TunerCompass';
 import { classifyCents, zoneColor } from './tuningZones';
 import { STANDARD_TUNING_STRINGS } from './standardTuning';
@@ -125,6 +125,7 @@ export default function NoteWheel({ targetNote, pinnedNote, cents, onSelectNote,
               key={note}
               onClick={() => onSelectNote(note)}
               title={isPinned ? unpinLabel : pinLabel}
+              className="tn-note-btn"
               style={{
                 position: 'absolute',
                 left: x,
@@ -149,7 +150,10 @@ export default function NoteWheel({ targetNote, pinnedNote, cents, onSelectNote,
                 fontSize: 15,
                 cursor: 'pointer',
                 padding: 0,
-              }}
+                // Keeps the Button depth band (31-button-depth.css) on the
+                // bottom lip while the wheel turns.
+                '--wheel-counter': `${-wheelAngle}deg`,
+              } as CSSProperties}
             >
               <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0, transform: `rotate(${-wheelAngle}deg)` }}>
                 <span style={{ lineHeight: 1 }}>{note}</span>
