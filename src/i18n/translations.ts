@@ -945,6 +945,16 @@ const he: Record<string, string> = {
     'סולם בעל צליל מז\'ורי עם דרגה שנייה מונמכת ודרגה שישית מונמכת, ולכן יש בו שני פערים של טון וחצי. יש לו טעם מזרחי עשיר.',
   'A five-note Japanese scale with wide gaps between its notes. It sounds sparse and haunting, like a koto.':
     'סולם יפני בן חמישה תווים עם פערים רחבים ביניהם. הוא נשמע דליל ומהפנט, כמו קוטו.',
+  'The scale behind most pop, folk and classical music. It sounds bright and happy, and every other scale is easiest to understand by comparing it to this one.':
+    'הסולם שעומד מאחורי רוב מוזיקת הפופ, הפולק והמוזיקה הקלאסית. הוא נשמע בהיר ושמח, ואת כל שאר הסולמות הכי קל להבין בהשוואה אליו.',
+  'The basic minor scale. Compared to major, its 3rd, 6th and 7th are one fret lower, which gives it a sad, serious sound.':
+    'סולם המינור הבסיסי. בהשוואה למז\'ור, הדרגות השלישית, השישית והשביעית שלו נמוכות בסריג אחד, וזה נותן לו צליל עצוב ורציני.',
+  'Five notes: the minor scale without its 2nd and 6th. It is the most common scale for rock and blues solos, and easy to play because it has no awkward notes.':
+    'חמישה תווים: סולם המינור בלי הדרגה השנייה והשישית. זה הסולם הנפוץ ביותר לסולואים ברוק ובבלוז, וקל לנגן אותו כי אין בו תווים מסובכים.',
+  'Five notes: the major scale without its 4th and 7th. It sounds sweet and open, and is common in country, pop and rock solos.':
+    'חמישה תווים: הסולם המז\'ורי בלי הדרגה הרביעית והשביעית. הוא נשמע מתוק ופתוח, ושכיח בסולואים של קאנטרי, פופ ורוק.',
+  'The minor pentatonic scale plus one extra "blue note", the flat 5th, which adds a gritty, bluesy tension.':
+    'הפנטטוני המינורי בתוספת "תו כחול" אחד, הדרגה החמישית המונמכת, שמוסיפה מתח גס ובלוזי.',
   'Degree': 'דרגה',
   'Root': 'שורש',
   'Position': 'פוזיציה',

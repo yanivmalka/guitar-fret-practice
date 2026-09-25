@@ -464,3 +464,14 @@
   padding-top: 6px;
   border-top: 1px solid var(--surface-border);
 }
+
+/* Main-screen scale chip with its "?" attached; the pair wraps as one unit. */
+.scale-chip-group {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 4px;
+}
+.scale-chip-info {
+  width: 34px;
+  border-radius: 12px;
+}

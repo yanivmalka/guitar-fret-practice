@@ -79,6 +79,8 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
   // Which row's "?" explanation is open on the "More scales" page (one at a time).
   const [infoScaleId, setInfoScaleId] = useState<string | null>(null);
   const basicScaleIds = sel.shippedScaleTypeIds.filter((id) => BASIC_SCALE_TYPE_IDS.includes(id));
+  // The open "?" explanation on the main screen — only the five basic scales live there.
+  const basicInfoType = infoScaleId && basicScaleIds.includes(infoScaleId) ? scaleTypeById(infoScaleId) : undefined;
   const moreScaleIds = sel.shippedScaleTypeIds.filter((id) => !BASIC_SCALE_TYPE_IDS.includes(id));
   const moreChosen = moreScaleIds.includes(sel.scaleChoice);
   // Any extra scale missing from MORE_SCALE_GROUPS still gets listed, under
@@ -354,16 +356,35 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
               <div className="set-card scale-position-switcher" role="group" aria-label={t('Scale')}>
                 <span className="set-card-label">{t('Scale')}</span>
                 <div className="scale-position-row">
-                  {['all', ...basicScaleIds].map((id) => (
-                    <button
-                      key={id}
-                      type="button"
-                      className={`set-card-btn${sel.scaleChoice === id ? ' set-card-btn-primary' : ''}`}
-                      onClick={() => { playClickSound(); haptic.tap(); sel.setScaleChoice(id); }}
-                    >
-                      {id === 'all' ? t('All scales') : t(scaleTypeById(id)?.nameKey ?? id)}
-                    </button>
-                  ))}
+                  {['all', ...basicScaleIds].map((id) => {
+                    const chip = (
+                      <button
+                        key={id}
+                        type="button"
+                        className={`set-card-btn${sel.scaleChoice === id ? ' set-card-btn-primary' : ''}`}
+                        onClick={() => { playClickSound(); haptic.tap(); sel.setScaleChoice(id); }}
+                      >
+                        {id === 'all' ? t('All scales') : t(scaleTypeById(id)?.nameKey ?? id)}
+                      </button>
+                    );
+                    if (!SCALE_BLURBS[id]) return chip;
+                    const infoOpen = infoScaleId === id;
+                    return (
+                      <div key={id} className="scale-chip-group">
+                        {chip}
+                        <button
+                          type="button"
+                          className={`scale-more-info scale-chip-info${infoOpen ? ' scale-more-info-open' : ''}`}
+                          aria-label={t('How this works')}
+                          title={t('How this works')}
+                          aria-expanded={infoOpen}
+                          onClick={() => { playClickSound(); haptic.tap(); setInfoScaleId(infoOpen ? null : id); }}
+                        >
+                          ?
+                        </button>
+                      </div>
+                    );
+                  })}
                   {moreScaleIds.length > 0 && (
                     <button
                       type="button"
@@ -375,6 +396,15 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
                     </button>
                   )}
                 </div>
+                {basicInfoType && SCALE_BLURBS[basicInfoType.id] && (
+                  <div className="scale-more-blurb" role="status" aria-live="polite">
+                    <span className="scale-more-blurb-text">{t(SCALE_BLURBS[basicInfoType.id])}</span>
+                    <span className="scale-more-blurb-legend">
+                      <span className="scale-more-formula" dir="ltr">{['1', ...basicInfoType.degreeLabels].join(' ')}</span>
+                      {' '}{t(SCALE_FORMULA_LEGEND)}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 

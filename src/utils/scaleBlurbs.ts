@@ -7,6 +7,16 @@
 // `he` entry in `translations.ts`.
 
 export const SCALE_BLURBS: Record<string, string> = {
+  major:
+    'The scale behind most pop, folk and classical music. It sounds bright and happy, and every other scale is easiest to understand by comparing it to this one.',
+  naturalMinor:
+    'The basic minor scale. Compared to major, its 3rd, 6th and 7th are one fret lower, which gives it a sad, serious sound.',
+  minorPentatonic:
+    'Five notes: the minor scale without its 2nd and 6th. It is the most common scale for rock and blues solos, and easy to play because it has no awkward notes.',
+  majorPentatonic:
+    'Five notes: the major scale without its 4th and 7th. It sounds sweet and open, and is common in country, pop and rock solos.',
+  blues:
+    'The minor pentatonic scale plus one extra "blue note", the flat 5th, which adds a gritty, bluesy tension.',
   dorian:
     'Like natural minor, but with a major 6th instead of a flat 6th. It sounds minor yet lighter and more open — common in funk, jazz and rock.',
   phrygian:
