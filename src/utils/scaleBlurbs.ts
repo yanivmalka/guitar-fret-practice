@@ -1,0 +1,49 @@
+// ── Plain-language blurbs for the "More scales" page ──────────────────────
+//
+// One short explanation per scale type, shown when the learner taps the "?"
+// beside a row. Written for someone who has never met the scale: how it
+// differs from a scale they already know, and what it sounds like. Every
+// string is also an i18n key (English source = lookup key), so each needs a
+// `he` entry in `translations.ts`.
+
+export const SCALE_BLURBS: Record<string, string> = {
+  dorian:
+    'Like natural minor, but with a major 6th instead of a flat 6th. It sounds minor yet lighter and more open — common in funk, jazz and rock.',
+  phrygian:
+    'Like natural minor, but the 2nd note sits just one fret above the root. It sounds dark and tense, with a Spanish flavour — common in flamenco and metal.',
+  lydian:
+    'Like the major scale, but with a raised 4th. It sounds bright, dreamy and floating — common in film music.',
+  mixolydian:
+    'Like the major scale, but with a flat 7th. It sounds relaxed and bluesy — common in rock, blues and folk.',
+  locrian:
+    'The most unstable of the modes: it has both a flat 2nd and a flat 5th. It is rarely used as a home key and mostly heard over half-diminished chords.',
+  harmonicMinor:
+    'Natural minor with a raised 7th, so the 7th sits one fret below the root. That gives a strong pull back home and a dramatic, classical sound.',
+  melodicMinor:
+    'A minor scale (flat 3rd) that keeps the major 6th and 7th. It sounds smooth and jazzy.',
+  hungarianMinor:
+    'Harmonic minor with a raised 4th. It has two wide gaps of a step and a half, which gives it a dramatic, exotic sound.',
+  majorBlues:
+    'The major pentatonic scale plus the flat 3rd "blue note". It sounds sunny, with a country and blues feel.',
+  lydianDominant:
+    'A major scale with a raised 4th and a flat 7th. It sounds bright but bluesy, and jazz players use it over dominant 7th chords.',
+  altered:
+    'It bends every colour note of a dominant chord: it has both a flat and a raised 2nd, and both a flat and a raised 5th. It sounds very tense, and is played right before resolving to the next chord.',
+  halfWholeDiminished:
+    'Eight notes, alternating a half step and a whole step. It is symmetrical and tense, and jazz players use it over dominant 7th chords.',
+  wholeHalfDiminished:
+    'Eight notes, alternating a whole step and a half step. It is symmetrical, and is used over diminished chords.',
+  wholeTone:
+    'Six notes, every step a whole tone. With no half steps it has no clear home note, so it sounds dreamy and floating.',
+  phrygianDominant:
+    'Phrygian with a major 3rd. It is the classic Middle-Eastern sound, common in flamenco, klezmer and Arabic music.',
+  doubleHarmonic:
+    'A major-sounding scale with a flat 2nd and a flat 6th, so it has two gaps of a step and a half. It has a rich Middle-Eastern flavour.',
+  hirajoshi:
+    'A five-note Japanese scale with wide gaps between its notes. It sounds sparse and haunting, like a koto.',
+};
+
+/** Shown once at the top of an open blurb: how to read the numbers beside a
+ *  scale's name. */
+export const SCALE_FORMULA_LEGEND =
+  'How to read the numbers: 1 is the starting note. Each other number is the matching note of the major scale, counted from it. A b means one fret lower, and a # means one fret higher.';

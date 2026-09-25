@@ -908,6 +908,43 @@ const he: Record<string, string> = {
   'Blues & jazz': 'בלוז וג\'אז',
   'World': 'מוזיקת עולם',
   'Other': 'אחר',
+  // "?" explanations on the More scales page (src/utils/scaleBlurbs.ts).
+  'How to read the numbers: 1 is the starting note. Each other number is the matching note of the major scale, counted from it. A b means one fret lower, and a # means one fret higher.':
+    'איך קוראים את המספרים: 1 הוא תו ההתחלה. כל מספר אחר הוא התו המתאים בסולם המז\'ורי, כשסופרים ממנו. b פירושו סריג אחד נמוך יותר, ו-# פירושו סריג אחד גבוה יותר.',
+  'Like natural minor, but with a major 6th instead of a flat 6th. It sounds minor yet lighter and more open — common in funk, jazz and rock.':
+    'כמו מינור טבעי, אבל עם דרגה שישית מז\'ורית במקום מינורית. הוא נשמע מינורי אך קליל ופתוח יותר, ושכיח בפאנק, בג\'אז וברוק.',
+  'Like natural minor, but the 2nd note sits just one fret above the root. It sounds dark and tense, with a Spanish flavour — common in flamenco and metal.':
+    'כמו מינור טבעי, אבל התו השני נמצא סריג אחד בלבד מעל תו הבסיס. הוא נשמע כהה ומתוח, עם טעם ספרדי, ושכיח בפלמנקו ובמטאל.',
+  'Like the major scale, but with a raised 4th. It sounds bright, dreamy and floating — common in film music.':
+    'כמו הסולם המז\'ורי, אבל עם דרגה רביעית מוגבהת. הוא נשמע בהיר, חלומי ומרחף, ושכיח במוזיקת קולנוע.',
+  'Like the major scale, but with a flat 7th. It sounds relaxed and bluesy — common in rock, blues and folk.':
+    'כמו הסולם המז\'ורי, אבל עם דרגה שביעית מונמכת. הוא נשמע רגוע ובלוזי, ושכיח ברוק, בבלוז ובפולק.',
+  'The most unstable of the modes: it has both a flat 2nd and a flat 5th. It is rarely used as a home key and mostly heard over half-diminished chords.':
+    'הכי לא יציב מבין המודוסים: יש בו גם דרגה שנייה מונמכת וגם דרגה חמישית מונמכת. כמעט לא משתמשים בו כסולם בית, והוא נשמע בעיקר מעל אקורדים חצי־מוקטנים.',
+  'Natural minor with a raised 7th, so the 7th sits one fret below the root. That gives a strong pull back home and a dramatic, classical sound.':
+    'מינור טבעי עם דרגה שביעית מוגבהת, כך שהיא נמצאת סריג אחד מתחת לתו הבסיס. זה יוצר משיכה חזקה חזרה הביתה וצליל דרמטי וקלאסי.',
+  'A minor scale (flat 3rd) that keeps the major 6th and 7th. It sounds smooth and jazzy.':
+    'סולם מינורי (דרגה שלישית מונמכת) ששומר על דרגות שישית ושביעית מז\'וריות. הוא נשמע חלק וג\'זי.',
+  'Harmonic minor with a raised 4th. It has two wide gaps of a step and a half, which gives it a dramatic, exotic sound.':
+    'מינור הרמוני עם דרגה רביעית מוגבהת. יש בו שני פערים רחבים של טון וחצי, שנותנים לו צליל דרמטי ואקזוטי.',
+  'The major pentatonic scale plus the flat 3rd "blue note". It sounds sunny, with a country and blues feel.':
+    'הפנטטוני המז\'ורי בתוספת ה"תו הכחול", דרגה שלישית מונמכת. הוא נשמע שמשי, עם תחושה של קאנטרי ובלוז.',
+  'A major scale with a raised 4th and a flat 7th. It sounds bright but bluesy, and jazz players use it over dominant 7th chords.':
+    'סולם מז\'ורי עם דרגה רביעית מוגבהת ודרגה שביעית מונמכת. הוא נשמע בהיר אך בלוזי, ונגני ג\'אז משתמשים בו מעל אקורדי דומיננטה שביעית.',
+  'It bends every colour note of a dominant chord: it has both a flat and a raised 2nd, and both a flat and a raised 5th. It sounds very tense, and is played right before resolving to the next chord.':
+    'הוא מעוות כל תו צבע של אקורד דומיננטה: יש בו גם דרגה שנייה מונמכת וגם מוגבהת, וגם דרגה חמישית מונמכת וגם מוגבהת. הוא נשמע מתוח מאוד, ומנגנים אותו ממש לפני המעבר לאקורד הבא.',
+  'Eight notes, alternating a half step and a whole step. It is symmetrical and tense, and jazz players use it over dominant 7th chords.':
+    'שמונה תווים, לסירוגין חצי טון וטון שלם. הוא סימטרי ומתוח, ונגני ג\'אז משתמשים בו מעל אקורדי דומיננטה שביעית.',
+  'Eight notes, alternating a whole step and a half step. It is symmetrical, and is used over diminished chords.':
+    'שמונה תווים, לסירוגין טון שלם וחצי טון. הוא סימטרי, ומשתמשים בו מעל אקורדים מוקטנים.',
+  'Six notes, every step a whole tone. With no half steps it has no clear home note, so it sounds dreamy and floating.':
+    'שישה תווים, וכל צעד בו הוא טון שלם. בלי חצאי טון אין לו תו בית ברור, ולכן הוא נשמע חלומי ומרחף.',
+  'Phrygian with a major 3rd. It is the classic Middle-Eastern sound, common in flamenco, klezmer and Arabic music.':
+    'פריגי עם דרגה שלישית מז\'ורית. זה הצליל המזרחי הקלאסי, ושכיח בפלמנקו, בכליזמר ובמוזיקה ערבית.',
+  'A major-sounding scale with a flat 2nd and a flat 6th, so it has two gaps of a step and a half. It has a rich Middle-Eastern flavour.':
+    'סולם בעל צליל מז\'ורי עם דרגה שנייה מונמכת ודרגה שישית מונמכת, ולכן יש בו שני פערים של טון וחצי. יש לו טעם מזרחי עשיר.',
+  'A five-note Japanese scale with wide gaps between its notes. It sounds sparse and haunting, like a koto.':
+    'סולם יפני בן חמישה תווים עם פערים רחבים ביניהם. הוא נשמע דליל ומהפנט, כמו קוטו.',
   'Degree': 'דרגה',
   'Root': 'שורש',
   'Position': 'פוזיציה',

@@ -407,3 +407,60 @@
   opacity: 0.7;
   font-variant-numeric: tabular-nums;
 }
+/* Each row carries a "?" beside it; tapping it opens a plain-language
+   explanation of the scale right under the row (same marker as the "?" on
+   the notes mode cards, but inline so it never covers the rows below). */
+.scale-more-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.scale-more-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+.scale-more-row .scale-more-btn {
+  flex: 1;
+  min-width: 0;
+}
+.scale-more-info {
+  flex: none;
+  width: 42px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.scale-more-info:hover,
+.scale-more-info-open {
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.1);
+}
+.scale-more-blurb {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-1);
+  text-align: start;
+  background: var(--bg-1);
+  border: 1px solid var(--surface-border);
+  border-radius: 10px;
+}
+.scale-more-blurb-text {
+  color: var(--text-0);
+  font-weight: 500;
+}
+.scale-more-blurb-legend {
+  padding-top: 6px;
+  border-top: 1px solid var(--surface-border);
+}

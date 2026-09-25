@@ -33,6 +33,7 @@ import { useScaleChipEngine, type ScaleChipAnswer } from '../hooks/useScaleChipE
 import { useScaleOrderEngine, type ScaleOrderAnswer } from '../hooks/useScaleOrderEngine';
 import { useScaleSelector, FALL_SPEED_LEVELS, DISTANCE_UNITS } from '../hooks/useScaleSelector';
 import { scaleTypeById, SCALE_TYPES, BASIC_SCALE_TYPE_IDS, MORE_SCALE_GROUPS } from '../utils/scales';
+import { SCALE_BLURBS, SCALE_FORMULA_LEGEND } from '../utils/scaleBlurbs';
 import { Chevron } from './Chevron';
 import { scaleItemId } from '../learning/scaleItem';
 import { buildScalePool, type ScaleQuestion } from '../learning/scaleDrill';
@@ -75,6 +76,8 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
   // The five basic scales sit on the screen itself; the rest live on the
   // "More scales" page, whose button carries the pick when one is chosen.
   const [morePage, setMorePage] = useState(false);
+  // Which row's "?" explanation is open on the "More scales" page (one at a time).
+  const [infoScaleId, setInfoScaleId] = useState<string | null>(null);
   const basicScaleIds = sel.shippedScaleTypeIds.filter((id) => BASIC_SCALE_TYPE_IDS.includes(id));
   const moreScaleIds = sel.shippedScaleTypeIds.filter((id) => !BASIC_SCALE_TYPE_IDS.includes(id));
   const moreChosen = moreScaleIds.includes(sel.scaleChoice);
@@ -221,16 +224,39 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
                 <span className="set-card-label">{t(group.titleKey)}</span>
                 {group.ids.map((id) => {
                   const type = scaleTypeById(id);
+                  const blurb = SCALE_BLURBS[id];
+                  const infoOpen = infoScaleId === id;
                   return (
-                    <button
-                      key={id}
-                      type="button"
-                      className={`set-card-btn scale-more-btn${sel.scaleChoice === id ? ' set-card-btn-primary' : ''}`}
-                      onClick={() => { playClickSound(); haptic.tap(); sel.setScaleChoice(id); setMorePage(false); }}
-                    >
-                      <span>{t(type?.nameKey ?? id)}</span>
-                      {type && <span className="scale-more-formula" dir="ltr">{['1', ...type.degreeLabels].join(' ')}</span>}
-                    </button>
+                    <div key={id} className="scale-more-item">
+                      <div className="scale-more-row">
+                        <button
+                          type="button"
+                          className={`set-card-btn scale-more-btn${sel.scaleChoice === id ? ' set-card-btn-primary' : ''}`}
+                          onClick={() => { playClickSound(); haptic.tap(); sel.setScaleChoice(id); setMorePage(false); }}
+                        >
+                          <span>{t(type?.nameKey ?? id)}</span>
+                          {type && <span className="scale-more-formula" dir="ltr">{['1', ...type.degreeLabels].join(' ')}</span>}
+                        </button>
+                        {blurb && (
+                          <button
+                            type="button"
+                            className={`scale-more-info${infoOpen ? ' scale-more-info-open' : ''}`}
+                            aria-label={t('How this works')}
+                            title={t('How this works')}
+                            aria-expanded={infoOpen}
+                            onClick={() => { playClickSound(); haptic.tap(); setInfoScaleId(infoOpen ? null : id); }}
+                          >
+                            ?
+                          </button>
+                        )}
+                      </div>
+                      {blurb && infoOpen && (
+                        <div className="scale-more-blurb" role="status" aria-live="polite">
+                          <span className="scale-more-blurb-text">{t(blurb)}</span>
+                          <span className="scale-more-blurb-legend">{t(SCALE_FORMULA_LEGEND)}</span>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
