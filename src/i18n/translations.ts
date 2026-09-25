@@ -614,6 +614,11 @@ const he: Record<string, string> = {
 
   // Free / Pro / Premium tiering — ProGate lock states + the Upgrade card
   'Premium': 'פרימיום',
+  // Free-tier ad strip
+  'Advertisement': 'פרסומת',
+  'Ad': 'פרסומת',
+  'Close ad': 'סגירת הפרסומת',
+  'Your ad could be here. Go Pro to remove ads.': 'כאן יכולה להופיע הפרסומת שלך. עברו ל-Pro כדי להסיר פרסומות.',
   'Unlock with Pro': 'זמין במסלול Pro',
   'Unlock with Premium': 'זמין במסלול Premium',
   'You have Pro': 'יש לך Pro',

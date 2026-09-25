@@ -14,6 +14,7 @@ import { intervalItemId } from '../learning/intervalItem';
 import { playNote, playNoteSingle, playNoteSequence, stopPlayback, beep, isSoundPlaying, soundRemainingMs, pauseAudioContext, resumeAudioContext } from '../utils/audio';
 import { haptic, playCorrectChime, correctChimeRemainingMs, showFloatingText } from '../utils/feedback';
 import { vlog, verror } from '../utils/debugLog';
+import { noteRoundCompleted, noteRoundStarted } from '../utils/adPacing';
 
 export interface GameSettings {
   guitarString: number;
@@ -471,7 +472,7 @@ export function useGameEngine(
     if (!runningRef.current || countRef.current >= maxQuestionsRef.current) {
       const completedNaturally = runningRef.current && countRef.current >= maxQuestionsRef.current;
       setRunning(false); runningRef.current = false;
-      if (completedNaturally) onComplete?.();
+      if (completedNaturally) { noteRoundCompleted(); onComplete?.(); }
       return;
     }
     const mySession = sessionRef.current;
@@ -680,7 +681,7 @@ export function useGameEngine(
     if (!runningRef.current || countRef.current >= maxQuestionsRef.current) {
       const completedNaturally = runningRef.current && countRef.current >= maxQuestionsRef.current;
       setRunning(false); runningRef.current = false;
-      if (completedNaturally) onComplete?.();
+      if (completedNaturally) { noteRoundCompleted(); onComplete?.(); }
       return;
     }
     const mySession = sessionRef.current;
@@ -860,6 +861,7 @@ export function useGameEngine(
   // ── CONTROLS ─────────────────────────────────────────────────
   const start = useCallback((maxQ: number, currentTime: number, isByNote: boolean) => {
     sessionRef.current++;
+    noteRoundStarted();
     maxQuestionsRef.current = maxQ;
     baseTimeRef.current = currentTime;
     questionTimeRef.current = currentTime;

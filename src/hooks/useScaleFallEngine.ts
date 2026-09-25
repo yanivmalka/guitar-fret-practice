@@ -39,6 +39,7 @@ import {
 import { playNoteSingle, beep } from '../utils/audio';
 import { haptic, playCorrectChime } from '../utils/feedback';
 import { useScoring } from './useScoring';
+import { noteRoundCompleted, noteRoundStarted } from '../utils/adPacing';
 
 /** Milliseconds a wrong tap stays red. */
 const WRONG_FLASH_MS = 350;
@@ -203,6 +204,7 @@ export function useScaleFallEngine({
         runningRef.current = false;
         setRunning(false);
         clearTimers();
+        noteRoundCompleted();
         onCompleteRef.current?.();
       }, FINISH_DELAY_MS);
     }
@@ -249,6 +251,7 @@ export function useScaleFallEngine({
     clearTimers();
     reset();
     sessionRef.current += 1;
+    noteRoundStarted();
     const mySession = sessionRef.current;
 
     const questions: ScaleQuestion[] = [];

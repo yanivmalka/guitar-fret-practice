@@ -54,6 +54,8 @@ jobs:
           # guest-only mode (no "Sign in with Google").
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_ADMOB_ANDROID_BANNER_ID: ${{ vars.VITE_ADMOB_ANDROID_BANNER_ID }}
+          VITE_ADS_TESTING: ${{ vars.VITE_ADS_TESTING }}
 
       # android/ is gitignored and generated, so recreate it in the runner.
       - run: npx cap add android

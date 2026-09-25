@@ -21,6 +21,7 @@ import {
 import { playNoteSequence, beep } from '../utils/audio';
 import { haptic, playCorrectChime } from '../utils/feedback';
 import { useScoring } from './useScoring';
+import { noteRoundCompleted, noteRoundStarted } from '../utils/adPacing';
 
 export type ScaleChipExercise = 'identifyScale' | 'nameDegree';
 
@@ -97,6 +98,7 @@ export function useScaleChipEngine({
   const finish = useCallback(() => {
     setRunning(false); runningRef.current = false;
     clearCountdown();
+    noteRoundCompleted();
     onComplete?.();
   }, [clearCountdown, onComplete]);
 
@@ -145,6 +147,7 @@ export function useScaleChipEngine({
   const start = useCallback(() => {
     reset();
     sessionRef.current += 1;
+    noteRoundStarted();
     const mySession = sessionRef.current;
     runningRef.current = true;
     setRunning(true);

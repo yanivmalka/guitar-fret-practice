@@ -4,11 +4,13 @@ import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import App from './App'
 import { LanguageProvider } from './i18n/LanguageContext'
+import AdBanner from './components/AdBanner'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <LanguageProvider>
       <App />
+      <AdBanner />
     </LanguageProvider>
   </StrictMode>,
 )

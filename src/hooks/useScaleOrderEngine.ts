@@ -28,6 +28,7 @@ import { isScaleCorrect } from '../learning/scaleFall';
 import { playNoteSingle } from '../utils/audio';
 import { haptic, playCorrectChime } from '../utils/feedback';
 import { useScoring } from './useScoring';
+import { noteRoundCompleted, noteRoundStarted } from '../utils/adPacing';
 
 /** Milliseconds a wrong tap stays red. */
 const WRONG_FLASH_MS = 350;
@@ -120,6 +121,7 @@ export function useScaleOrderEngine({
     runningRef.current = false;
     setRunning(false);
     clearTimers();
+    noteRoundCompleted();
     onCompleteRef.current?.();
   }, [clearTimers]);
 
@@ -173,6 +175,7 @@ export function useScaleOrderEngine({
     clearTimers();
     reset();
     sessionRef.current += 1;
+    noteRoundStarted();
     countRef.current = 0;
     runningRef.current = true;
     setRunning(true);
