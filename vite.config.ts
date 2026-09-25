@@ -103,8 +103,19 @@ export default defineConfig({
         // The synthetic-voice template set (~280 KB) is a lazy import used
         // only by the "General" voice engine — keep it out of the precache
         // and cache it at runtime the first time that engine runs.
-        globIgnores: ['**/generalVoiceTemplates-*.js'],
+        // Same for the per-language dictionaries (src/i18n/translations.*.ts,
+        // ~55–100 KB each): only the player's own language is ever fetched, so
+        // precaching all of them would download every language on install.
+        globIgnores: ['**/generalVoiceTemplates-*.js', '**/translations.*-*.js'],
         runtimeCaching: [
+          {
+            urlPattern: /\/assets\/translations\.[^/]*\.js$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'languages',
+              expiration: { maxEntries: 12, maxAgeSeconds: 60 * 60 * 24 * 180 },
+            },
+          },
           {
             urlPattern: /\/assets\/generalVoiceTemplates-.*\.js$/,
             handler: 'CacheFirst',

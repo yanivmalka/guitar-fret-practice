@@ -161,6 +161,8 @@ export const fr: Record<string, string> = {
   'See the full list and what earns each one': 'Voir la liste complète et comment obtenir chacun',
   'Badges': 'Badges',
   'Language': 'Langue',
+  'Downloading the language…': 'Téléchargement de la langue…',
+  'Could not download the language. Check your connection and try again.': 'Impossible de télécharger la langue. Vérifie ta connexion et réessaie.',
   'Left-handed': 'Gaucher',
   'Button depth': 'Relief des boutons',
   'Gives the buttons a raised, 3D look: a light rim on top, a solid edge underneath, and they sink a little when pressed. Off keeps them flat.':

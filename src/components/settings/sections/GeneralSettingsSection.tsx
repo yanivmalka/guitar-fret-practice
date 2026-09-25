@@ -9,6 +9,7 @@ import AppearancePicker from '../AppearancePicker';
 import { withClick as click } from '../../../utils/withClick';
 import { saveSetting } from '../../../utils/settings';
 import { LANGUAGES, type Lang } from '../../../i18n/translations';
+import { useTranslation } from '../../../i18n/useTranslation';
 import {
   PRO_MASTERY_LASTN_CHOICES, describeMasteryWindow, type MasteryWindow,
 } from '../../../utils/mastery';
@@ -97,6 +98,8 @@ export default function GeneralSettingsSection({
   setShowVoiceCalibration, showMastery, setShowMastery, masteryWindow, setMasteryWindow,
   leftHanded, setLeftHanded, buttonDepth, setButtonDepth, colorblindHeat, setColorblindHeat,
 }: GeneralSettingsSectionProps) {
+  // Progress of a switch to a language whose dictionary is still downloading.
+  const { languageLoad } = useTranslation();
   const todayStr = localDayStr(new Date());
   // Which sub-control of the "Mastery time window" card is visible. Seeded from
   // the persisted window, but tracked separately so "A range" can be shown while
@@ -200,7 +203,12 @@ export default function GeneralSettingsSection({
           onChange={(v) => { setButtonDepth(v === 'on'); }}
         />
       </SettingCard>
-      <SettingCard label={t('Language')}>
+      <SettingCard
+        label={t('Language')}
+        help={languageLoad === 'loading' ? t('Downloading the language…')
+          : languageLoad === 'failed' ? t('Could not download the language. Check your connection and try again.')
+          : undefined}
+      >
         <PickRow
           ariaLabel={t('Language')}
           value={lang}

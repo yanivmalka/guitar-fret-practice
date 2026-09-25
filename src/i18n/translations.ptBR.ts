@@ -161,6 +161,8 @@ export const ptBR: Record<string, string> = {
   'See the full list and what earns each one': 'Veja a lista completa e como ganhar cada uma',
   'Badges': 'Medalhas',
   'Language': 'Idioma',
+  'Downloading the language…': 'Baixando o idioma…',
+  'Could not download the language. Check your connection and try again.': 'Não foi possível baixar o idioma. Verifique sua conexão e tente de novo.',
   'Left-handed': 'Canhoto',
   'Button depth': 'Relevo dos botões',
   'Gives the buttons a raised, 3D look: a light rim on top, a solid edge underneath, and they sink a little when pressed. Off keeps them flat.':

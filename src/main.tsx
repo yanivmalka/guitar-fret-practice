@@ -5,17 +5,27 @@ import './index.css'
 import App from './App'
 import { LanguageProvider } from './i18n/LanguageContext'
 import AdBanner from './components/AdBanner'
-import { detectLanguage } from './utils/region'
-import { isLang, type Lang } from './i18n/translations'
+import { loadDictionary, type Lang } from './i18n/translations'
+import { initialLanguage } from './i18n/initialLanguage'
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <LanguageProvider>
-      <App />
-      <AdBanner />
-    </LanguageProvider>
-  </StrictMode>,
-)
+// Fetch the starting language's dictionary (only that one) behind the boot
+// splash, so the first render is already translated. Capped so a stalled
+// download never holds the app: past the cap it renders in English and the
+// LanguageProvider switches over when the dictionary arrives.
+const DICTIONARY_WAIT_MS = 4000
+Promise.race([
+  loadDictionary(initialLanguage()).catch(() => {}),
+  new Promise((resolve) => setTimeout(resolve, DICTIONARY_WAIT_MS)),
+]).then(() => {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <LanguageProvider>
+        <App />
+        <AdBanner />
+      </LanguageProvider>
+    </StrictMode>,
+  )
+})
 
 // Retire the inline boot splash (index.html) once the app has done its first
 // real work behind it. Two things must settle before we fade it out:
@@ -53,15 +63,7 @@ createRoot(document.getElementById('root')!).render(
   // well under a second; the cap only covers the case where it never comes.
   const HANDOVER_WAIT_MS = 3000
 
-  const lang: Lang = (() => {
-    try {
-      const stored = localStorage.getItem('pref_language')
-      // First launch: the provider has not stored its regional guess yet.
-      if (stored === null) return detectLanguage()
-      const parsed: unknown = JSON.parse(stored)
-      return isLang(parsed) ? parsed : 'en'
-    } catch { return 'en' }
-  })()
+  const lang: Lang = initialLanguage()
   const COPY = {
     slow: { he: 'עדיין טוען…', en: 'Still loading…', es: 'Todavía cargando…', 'pt-BR': 'Ainda carregando…', fr: 'Chargement en cours…', it: 'Ancora in caricamento…' },
     crash: { he: 'האפליקציה נתקלה בשגיאה בטעינה.', en: 'The app hit an error while loading.', es: 'La app tuvo un error al cargar.', 'pt-BR': 'O app encontrou um erro ao carregar.', fr: 'L’app a rencontré une erreur au chargement.', it: 'L’app ha riscontrato un errore durante il caricamento.' },

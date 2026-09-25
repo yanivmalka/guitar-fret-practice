@@ -506,7 +506,8 @@ for (const [label, inst] of [['guitar', guitar], ['bass', bass]] as const) {
 
 // ── i18n coverage for the new T1 strings ───────────────────────────
 {
-  const { translate } = await import('../src/i18n/translations.ts');
+  const { translate, loadDictionary } = await import('../src/i18n/translations.ts');
+  await loadDictionary('he');
   const { INTERVAL_CURRICULUM } = await import('../src/learning/intervalCurriculum.ts');
   const { INTERVAL_CONTENT } = await import('../src/learning/intervalContent.ts');
 
