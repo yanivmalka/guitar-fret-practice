@@ -414,19 +414,21 @@
   position: relative;
 }
 .scale-more-row {
+  position: relative;
   display: flex;
-  align-items: center;
-  gap: 8px;
 }
 .scale-more-row .scale-more-btn {
   flex: 1;
   min-width: 0;
+  padding-inline-end: 44px;
 }
 /* The "?" is the same small round badge as .mode-card-info on the notes mode
-   cards; the ::after widens the tap area without growing the circle. */
+   cards, sitting inside its tile; the ::after widens the tap area without growing the circle. */
 .scale-more-info {
-  position: relative;
-  flex: none;
+  position: absolute;
+  top: 50%;
+  inset-inline-end: 12px;
+  transform: translateY(-50%);
   width: 20px;
   height: 20px;
   padding: 0;
@@ -450,15 +452,27 @@
   position: absolute;
   inset: -10px;
 }
+/* On the selected (accent-filled) tile the badge switches to the tile ink. */
+.set-card-btn-primary + .scale-more-info {
+  color: var(--accent-ink);
+  border-color: var(--accent-ink);
+}
 .scale-more-info:hover,
 .scale-more-info-open {
   border-color: var(--accent);
   background: rgba(var(--accent-rgb), 0.1);
 }
+.set-card-btn-primary + .scale-more-info:hover,
+.set-card-btn-primary + .scale-more-info-open {
+  border-color: var(--accent-ink);
+  background: rgba(0, 0, 0, 0.12);
+}
 
-/* Main-screen scale chip with its "?" attached; the pair wraps as one unit. */
+/* Main-screen scale chip with its "?" badge inside it, at the reading end. */
 .scale-chip-group {
+  position: relative;
   display: inline-flex;
-  align-items: center;
-  gap: 6px;
+}
+.scale-chip-group > .set-card-btn {
+  padding-inline-end: 40px;
 }
