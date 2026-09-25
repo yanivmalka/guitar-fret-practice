@@ -66,8 +66,16 @@ const SPANISH_ZONE = new RegExp(
   + '|Santiago|Punta_Arenas|Asuncion|Montevideo))$',
 );
 
+// Brazil, including the legacy `Brazil/*` aliases. Portugal stays on English
+// until a European Portuguese dictionary exists.
+const BRAZIL_ZONE = new RegExp(
+  '^(Brazil/.+|America/(Sao_Paulo|Rio_Branco|Porto_Acre|Manaus|Eirunepe|Porto_Velho|Boa_Vista'
+  + '|Cuiaba|Campo_Grande|Santarem|Belem|Araguaina|Fortaleza|Recife|Maceio|Bahia|Noronha))$',
+);
+
 export function detectLanguage(tz: string = detectTimeZone()): Lang {
   if (HEBREW_ZONES.has(tz)) return 'he';
   if (SPANISH_ZONE.test(tz)) return 'es';
+  if (BRAZIL_ZONE.test(tz)) return 'pt-BR';
   return 'en';
 }

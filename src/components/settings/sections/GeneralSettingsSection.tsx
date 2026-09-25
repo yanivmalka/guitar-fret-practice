@@ -205,6 +205,7 @@ export default function GeneralSettingsSection({
           ariaLabel={t('Language')}
           value={lang}
           options={LANGUAGES}
+          wrap
           onChange={(l) => { setLang(l); }}
         />
       </SettingCard>

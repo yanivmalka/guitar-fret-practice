@@ -63,9 +63,9 @@ createRoot(document.getElementById('root')!).render(
     } catch { return 'en' }
   })()
   const COPY = {
-    slow: { he: 'עדיין טוען…', en: 'Still loading…', es: 'Todavía cargando…' },
-    crash: { he: 'האפליקציה נתקלה בשגיאה בטעינה.', en: 'The app hit an error while loading.', es: 'La app tuvo un error al cargar.' },
-    retry: { he: 'נסה שוב', en: 'Try again', es: 'Reintentar' },
+    slow: { he: 'עדיין טוען…', en: 'Still loading…', es: 'Todavía cargando…', 'pt-BR': 'Ainda carregando…' },
+    crash: { he: 'האפליקציה נתקלה בשגיאה בטעינה.', en: 'The app hit an error while loading.', es: 'La app tuvo un error al cargar.', 'pt-BR': 'O app encontrou um erro ao carregar.' },
+    retry: { he: 'נסה שוב', en: 'Try again', es: 'Reintentar', 'pt-BR': 'Tentar de novo' },
   } as const
   const say = (k: keyof typeof COPY) => COPY[k][lang]
 

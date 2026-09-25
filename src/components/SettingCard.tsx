@@ -51,15 +51,17 @@ export function SegmentedControl<T extends string>({
  * `SegmentedControl`.
  */
 export function PickRow<T extends string>({
-  options, value, onChange, ariaLabel,
+  options, value, onChange, ariaLabel, wrap = false,
 }: {
   options: ReadonlyArray<SegOption<T>>;
   value: T;
   onChange: (v: T) => void;
   ariaLabel?: string;
+  // Wrap onto two-per-row lines instead of squeezing every option into one row.
+  wrap?: boolean;
 }) {
   return (
-    <div className="pick-row" role="group" aria-label={ariaLabel}>
+    <div className={`pick-row${wrap ? ' pick-row-wrap' : ''}`} role="group" aria-label={ariaLabel}>
       {options.map(o => (
         <button
           key={o.value}

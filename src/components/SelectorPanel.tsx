@@ -110,6 +110,7 @@ export default function SelectorPanel({
     : selectedStringLabels.length === 1
       ? (lang === 'he' ? `מיתר ${selectedStringLabels[0]}`
         : lang === 'es' ? `la cuerda ${selectedStringLabels[0]}`
+        : lang === 'pt-BR' ? `a corda ${selectedStringLabels[0]}`
         : `the ${selectedStringLabels[0]} string`)
       : `${t('strings')} ${selectedStringLabels.join(', ')}`;
   const fretsPhrase = preciseActive

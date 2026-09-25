@@ -277,6 +277,12 @@ export function LeaderboardPanel({
               {t(instrument.label).toLowerCase()} — el mismo total histórico que ves en Estadísticas. Las
               bonificaciones por velocidad y racha suben tu puntuación en el juego, no tu XP.
             </>
+          ) : lang === 'pt-BR' ? (
+            <>
+              1&nbsp;XP por cada resposta certa, somado em toda a sua prática de{' '}
+              {t(instrument.label).toLowerCase()} — o mesmo total geral que você vê em Estatísticas. Os
+              bônus de velocidade e sequência aumentam a sua pontuação no jogo, não o seu XP.
+            </>
           ) : (
             <>
               1&nbsp;XP for every correct answer, added up across all your {instrument.label.toLowerCase()}{' '}
