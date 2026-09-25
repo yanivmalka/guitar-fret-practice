@@ -1,0 +1,168 @@
+/* ────────────────────────────────────────────────────────────────
+   Seasonal backdrop — a light decorative layer behind the whole app,
+   chosen by the season half of `data-theme` on <html> (so it follows
+   the Appearance season pick, including 'auto', with no JS):
+
+     winter — falling snowflakes
+     spring — anemones (kalaniyot), with a few petals drifting
+     summer — sunflowers, with golden motes floating up
+     autumn — falling leaves
+
+   Two layers, drawn on #root::before / #root::after so they sit under
+   every screen whatever App.tsx returns. z-index:-1 puts them above
+   body's background but below all app content (body is position:fixed,
+   so it is the stacking context; on desktop the transformed #root phone
+   frame is, which also confines the layer to the frame). They never take
+   pointer events.
+
+   Motion is a transform on an oversized layer shifted by exactly one
+   tile, so the loop is seamless and composited (no per-frame repaint).
+   Flowers stay still; only snow, leaves, petals and motes move. Dimmed
+   further while a drill is running, and still under reduced motion.
+──────────────────────────────────────────────────────────────── */
+
+#root::before,
+#root::after {
+  content: none;
+  position: fixed;
+  inset: calc(-1 * var(--deco-tile, 200px));
+  z-index: -1;
+  pointer-events: none;
+  background-repeat: repeat;
+  background-size: var(--deco-tile, 200px) var(--deco-tile, 200px);
+  -webkit-mask-repeat: repeat;
+  mask-repeat: repeat;
+  -webkit-mask-size: var(--deco-tile, 200px) var(--deco-tile, 200px);
+  mask-size: var(--deco-tile, 200px) var(--deco-tile, 200px);
+  opacity: var(--deco-o, 0.14);
+  transition: opacity 0.6s ease;
+}
+
+/* Per-mode strength: the light 'day' palettes need a touch more to show;
+   the dim 'night' palettes a touch less. */
+html { --deco-k: 1; --deco-ink: #e4ecff; }
+html[data-theme$="-night"] { --deco-k: 0.75; }
+html[data-theme$="-day"] { --deco-k: 1.5; --deco-ink: #7d99c4; }
+
+/* Quieter while a drill is on screen, so it never competes with the board. */
+#root:has(.app.playing)::before,
+#root:has(.app.playing)::after {
+  opacity: calc(var(--deco-o, 0.14) * 0.55);
+}
+
+@keyframes deco-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(var(--deco-dx, 0px), var(--deco-dy, 0px), 0); }
+}
+
+/* ── Winter: snowflakes (monochrome → a mask tinted by --deco-ink) ── */
+html[data-theme^="winter-"] #root::before,
+html[data-theme^="winter-"] #root::after {
+  content: "";
+  background-color: var(--deco-ink);
+  animation: deco-drift var(--deco-t) linear infinite;
+}
+html[data-theme^="winter-"] #root::before {
+  --deco-tile: 260px;
+  --deco-dx: 0px;
+  --deco-dy: 260px;
+  --deco-t: 48s;
+  --deco-o: calc(0.2 * var(--deco-k));
+  -webkit-mask-image: var(--deco-snow);
+  mask-image: var(--deco-snow);
+}
+html[data-theme^="winter-"] #root::after {
+  --deco-tile: 180px;
+  --deco-dx: 180px;
+  --deco-dy: 360px;
+  --deco-t: 34s;
+  --deco-o: calc(0.24 * var(--deco-k));
+  -webkit-mask-image: var(--deco-snow-dots);
+  mask-image: var(--deco-snow-dots);
+}
+
+/* ── Spring: anemones, still; red petals drifting down ── */
+html[data-theme^="spring-"] #root::before {
+  content: "";
+  --deco-tile: 300px;
+  --deco-o: calc(0.22 * var(--deco-k));
+  background-image: var(--deco-anemones);
+}
+html[data-theme^="spring-"] #root::after {
+  content: "";
+  --deco-tile: 220px;
+  --deco-dx: -220px;
+  --deco-dy: 220px;
+  --deco-t: 60s;
+  --deco-o: calc(0.2 * var(--deco-k));
+  background-image: var(--deco-petals);
+  animation: deco-drift var(--deco-t) linear infinite;
+}
+
+/* ── Summer: sunflowers, still; golden motes rising ── */
+html[data-theme^="summer-"] #root::before {
+  content: "";
+  --deco-tile: 320px;
+  --deco-o: calc(0.16 * var(--deco-k));
+  background-image: var(--deco-sunflowers);
+}
+html[data-theme^="summer-"] #root::after {
+  content: "";
+  --deco-tile: 200px;
+  --deco-dx: 200px;
+  --deco-dy: -200px;
+  --deco-t: 70s;
+  --deco-o: calc(0.26 * var(--deco-k));
+  background-image: var(--deco-motes);
+  animation: deco-drift var(--deco-t) linear infinite;
+}
+
+/* ── Autumn: two layers of leaves falling on a slant ── */
+html[data-theme^="autumn-"] #root::before,
+html[data-theme^="autumn-"] #root::after {
+  content: "";
+  animation: deco-drift var(--deco-t) linear infinite;
+}
+html[data-theme^="autumn-"] #root::before {
+  --deco-tile: 300px;
+  --deco-dx: 300px;
+  --deco-dy: 300px;
+  --deco-t: 58s;
+  --deco-o: calc(0.26 * var(--deco-k));
+  background-image: var(--deco-leaves);
+}
+html[data-theme^="autumn-"] #root::after {
+  --deco-tile: 210px;
+  --deco-dx: -210px;
+  --deco-dy: 420px;
+  --deco-t: 44s;
+  --deco-o: calc(0.2 * var(--deco-k));
+  background-image: var(--deco-leaves-small);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #root::before,
+  #root::after {
+    animation: none !important;
+    transition: none;
+  }
+}
+
+/* ── The tiles (inline SVG). Single quotes inside, '#' as %23. ── */
+:root {
+  --deco-snow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 260 260'%3E%3Cdefs%3E%3Cpath id='a' d='M0 0V-10M-3-7.4L0-5.2L3-7.4' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cg id='f'%3E%3Cuse href='%23a'/%3E%3Cuse href='%23a' transform='rotate(60)'/%3E%3Cuse href='%23a' transform='rotate(120)'/%3E%3Cuse href='%23a' transform='rotate(180)'/%3E%3Cuse href='%23a' transform='rotate(240)'/%3E%3Cuse href='%23a' transform='rotate(300)'/%3E%3C/g%3E%3C/defs%3E%3Cuse href='%23f' transform='translate(40 48) scale(1.25)'/%3E%3Cuse href='%23f' transform='translate(172 28) rotate(20) scale(0.8)'/%3E%3Cuse href='%23f' transform='translate(118 138) rotate(10) scale(1.6)'/%3E%3Cuse href='%23f' transform='translate(222 192) rotate(35) scale(1)'/%3E%3Cuse href='%23f' transform='translate(58 218) rotate(5) scale(0.7)'/%3E%3C/svg%3E");
+
+  --deco-snow-dots: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Cg fill='%23000'%3E%3Ccircle cx='20' cy='30' r='2.2'/%3E%3Ccircle cx='95' cy='12' r='1.5'/%3E%3Ccircle cx='150' cy='60' r='2.6'/%3E%3Ccircle cx='60' cy='88' r='1.4'/%3E%3Ccircle cx='128' cy='122' r='1.9'/%3E%3Ccircle cx='30' cy='150' r='2.4'/%3E%3Ccircle cx='88' cy='165' r='1.3'/%3E%3C/g%3E%3C/svg%3E");
+
+  --deco-anemones: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 300'%3E%3Cdefs%3E%3Cellipse id='p' cx='0' cy='-7' rx='5.4' ry='8'/%3E%3Cg id='k'%3E%3Cg fill='%23d7263d'%3E%3Cuse href='%23p'/%3E%3Cuse href='%23p' transform='rotate(60)'/%3E%3Cuse href='%23p' transform='rotate(120)'/%3E%3Cuse href='%23p' transform='rotate(180)'/%3E%3Cuse href='%23p' transform='rotate(240)'/%3E%3Cuse href='%23p' transform='rotate(300)'/%3E%3C/g%3E%3Ccircle r='4' fill='%23f2f0f4' opacity='0.55'/%3E%3Ccircle r='3.2' fill='%231d1119'/%3E%3Cg fill='%231d1119'%3E%3Ccircle cx='5.2' cy='0' r='0.9'/%3E%3Ccircle cx='-5.2' cy='0' r='0.9'/%3E%3Ccircle cx='2.6' cy='4.5' r='0.9'/%3E%3Ccircle cx='-2.6' cy='4.5' r='0.9'/%3E%3Ccircle cx='2.6' cy='-4.5' r='0.9'/%3E%3Ccircle cx='-2.6' cy='-4.5' r='0.9'/%3E%3C/g%3E%3C/g%3E%3C/defs%3E%3Cg fill='none' stroke='%234c8a3c' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M60 78Q64 104 58 128'/%3E%3Cpath d='M204 44Q200 66 206 86'/%3E%3Cpath d='M150 198Q156 226 148 252'/%3E%3Cpath d='M258 222Q262 240 256 258'/%3E%3C/g%3E%3Cuse href='%23k' transform='translate(60 72) rotate(8)'/%3E%3Cuse href='%23k' transform='translate(204 40) rotate(-12) scale(0.8)'/%3E%3Cuse href='%23k' transform='translate(150 190) rotate(20) scale(1.25)'/%3E%3Cuse href='%23k' transform='translate(258 218) scale(0.65)'/%3E%3Cuse href='%23k' transform='translate(30 250) rotate(30) scale(0.55)'/%3E%3C/svg%3E");
+
+  --deco-petals: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 220'%3E%3Cg fill='%23e0455a'%3E%3Cellipse cx='30' cy='40' rx='3.2' ry='5.2' transform='rotate(30 30 40)'/%3E%3Cellipse cx='150' cy='26' rx='2.6' ry='4.4' transform='rotate(-40 150 26)'/%3E%3Cellipse cx='100' cy='120' rx='3.4' ry='5.4' transform='rotate(70 100 120)'/%3E%3Cellipse cx='190' cy='160' rx='2.4' ry='4' transform='rotate(10 190 160)'/%3E%3Cellipse cx='44' cy='186' rx='2.8' ry='4.6' transform='rotate(-65 44 186)'/%3E%3C/g%3E%3C/svg%3E");
+
+  --deco-sunflowers: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 320'%3E%3Cdefs%3E%3Cellipse id='p' cx='0' cy='-11' rx='3.4' ry='6.6'/%3E%3Cg id='r'%3E%3Cuse href='%23p'/%3E%3Cuse href='%23p' transform='rotate(30)'/%3E%3Cuse href='%23p' transform='rotate(60)'/%3E%3Cuse href='%23p' transform='rotate(90)'/%3E%3Cuse href='%23p' transform='rotate(120)'/%3E%3Cuse href='%23p' transform='rotate(150)'/%3E%3Cuse href='%23p' transform='rotate(180)'/%3E%3Cuse href='%23p' transform='rotate(210)'/%3E%3Cuse href='%23p' transform='rotate(240)'/%3E%3Cuse href='%23p' transform='rotate(270)'/%3E%3Cuse href='%23p' transform='rotate(300)'/%3E%3Cuse href='%23p' transform='rotate(330)'/%3E%3C/g%3E%3Cg id='s'%3E%3Cuse href='%23r' fill='%23e39400' transform='rotate(15)'/%3E%3Cuse href='%23r' fill='%23f7c21a'/%3E%3Ccircle r='7' fill='%236b3a12'/%3E%3Ccircle r='4' fill='%23472407'/%3E%3C/g%3E%3C/defs%3E%3Cg fill='none' stroke='%23557f2a' stroke-width='2.6' stroke-linecap='round'%3E%3Cpath d='M74 96Q80 140 72 184'/%3E%3Cpath d='M236 60Q230 92 238 124'/%3E%3Cpath d='M170 236Q176 270 168 300'/%3E%3C/g%3E%3Cg fill='%23557f2a'%3E%3Cellipse cx='86' cy='146' rx='9' ry='4' transform='rotate(-30 86 146)'/%3E%3Cellipse cx='225' cy='96' rx='8' ry='3.6' transform='rotate(35 225 96)'/%3E%3Cellipse cx='181' cy='272' rx='7' ry='3.2' transform='rotate(-25 181 272)'/%3E%3C/g%3E%3Cuse href='%23s' transform='translate(74 88) rotate(6) scale(1.35)'/%3E%3Cuse href='%23s' transform='translate(236 54) rotate(-8)'/%3E%3Cuse href='%23s' transform='translate(170 228) rotate(12) scale(1.15)'/%3E%3Cuse href='%23s' transform='translate(28 262) scale(0.6)'/%3E%3C/svg%3E");
+
+  --deco-motes: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cg fill='%23ffcf4a'%3E%3Ccircle cx='24' cy='34' r='1.8'/%3E%3Ccircle cx='120' cy='18' r='1.2'/%3E%3Ccircle cx='170' cy='84' r='2.1'/%3E%3Ccircle cx='70' cy='110' r='1.3'/%3E%3Ccircle cx='140' cy='150' r='1.7'/%3E%3Ccircle cx='40' cy='176' r='1.1'/%3E%3C/g%3E%3C/svg%3E");
+
+  --deco-leaves: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 300'%3E%3Cdefs%3E%3Cg id='l'%3E%3Cpath d='M0-13C8-8 9 5 0 13C-9 5-8-8 0-13Z'/%3E%3Cpath d='M0-10V16' fill='none' stroke='%23000' stroke-opacity='0.25' stroke-width='1.2' stroke-linecap='round'/%3E%3C/g%3E%3Cg id='m'%3E%3Cpath d='M0-14L3-7L8-9L6-2L12 0L6 3L8 8L2 6L0 12L-2 6L-8 8L-6 3L-12 0L-6-2L-8-9L-3-7Z'/%3E%3Cpath d='M0-8V18' fill='none' stroke='%23000' stroke-opacity='0.25' stroke-width='1.2' stroke-linecap='round'/%3E%3C/g%3E%3C/defs%3E%3Cuse href='%23l' fill='%23d9622b' transform='translate(44 52) rotate(35) scale(1.2)'/%3E%3Cuse href='%23m' fill='%23c2412a' transform='translate(190 34) rotate(-20) scale(1.1)'/%3E%3Cuse href='%23l' fill='%23e3a02d' transform='translate(132 144) rotate(-60) scale(1.3)'/%3E%3Cuse href='%23m' fill='%23e07a25' transform='translate(250 190) rotate(15)'/%3E%3Cuse href='%23l' fill='%23a8612f' transform='translate(64 236) rotate(100) scale(0.95)'/%3E%3C/svg%3E");
+
+  --deco-leaves-small: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 210 210'%3E%3Cdefs%3E%3Cpath id='l' d='M0-13C8-8 9 5 0 13C-9 5-8-8 0-13Z'/%3E%3C/defs%3E%3Cuse href='%23l' fill='%23e3a02d' transform='translate(36 40) rotate(-25) scale(0.6)'/%3E%3Cuse href='%23l' fill='%23c2412a' transform='translate(150 90) rotate(50) scale(0.7)'/%3E%3Cuse href='%23l' fill='%23d9622b' transform='translate(80 170) rotate(140) scale(0.55)'/%3E%3C/svg%3E");
+}
