@@ -4,7 +4,8 @@
 // It hosts every "what should I practise today?" card as a full page (the
 // same page-replacing treatment as Stats / the Learning Path), instead of a
 // card stacked on the home screen: the notes Teacher's Today card and — when
-// the user also has the interval tier — the guided "Today's intervals" card.
+// the user also has the interval tier — the guided "Today's intervals" card,
+// and — with Staff reading — the staff goal card (each domain its own card).
 // Anything daily-plan-shaped belongs here; the Intervals tab is left as just
 // the free Interval Selector. Premium-only: the host mounts it behind
 // `can('premiumTeacher', tier)` and it is wrapped in <ProGate> as a second
@@ -19,6 +20,7 @@ import type { DailyGoal } from '../learning/learningState';
 import type { IntervalExercise } from '../utils/intervals';
 import TodayCard from './TodayCard';
 import IntervalTodayCard from './IntervalTodayCard';
+import StaffTodayCard from './StaffTodayCard';
 import { ProGate } from './ProGate';
 import { Chevron } from './Chevron';
 import { useTranslation } from '../i18n/useTranslation';
@@ -41,6 +43,10 @@ interface Props {
   /** Today's separate *interval* goal (OD-5). */
   intervalDailyGoal: DailyGoal;
   intervalGoalComplete: boolean;
+  /** Whether to show the staff-reading goal card (Staff reading tier). */
+  canStaff: boolean;
+  /** Open the Staff reading page. */
+  onOpenStaff: () => void;
   /** Disable the actions while a session is starting / running. */
   busy?: boolean;
   onStart: (plan: TeacherPlan) => void;
@@ -65,6 +71,8 @@ export default function DailyPracticeScreen({
   intervalWeakSpotsPlan,
   intervalDailyGoal,
   intervalGoalComplete,
+  canStaff,
+  onOpenStaff,
   busy,
   onStart,
   onStartIntervalPlan,
@@ -124,6 +132,9 @@ export default function DailyPracticeScreen({
                 busy={busy}
                 onStart={onStartIntervalPlan}
               />
+            )}
+            {canStaff && (
+              <StaffTodayCard instrumentId={instrument.id} busy={busy} onOpen={onOpenStaff} />
             )}
           </ProGate>
         </div>

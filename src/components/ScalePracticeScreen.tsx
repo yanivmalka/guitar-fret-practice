@@ -40,6 +40,7 @@ import { scaleItemId } from '../learning/scaleItem';
 import { buildScalePool, type ScaleQuestion } from '../learning/scaleDrill';
 import { buildScaleBoard } from '../learning/scaleMastery';
 import { loadLearningState, saveLearningStateLocal, getInstrumentState, withInstrumentState, recordScaleAnswer } from '../learning/learningState';
+import { cloudPushLearning } from '../learning/learningSync';
 import ScaleFallBoard from './ScaleFallBoard';
 import ScaleOrderBoard from './ScaleOrderBoard';
 import ScaleProgressBoard from './ScaleProgressBoard';
@@ -70,6 +71,12 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
   // whatever it showed when this screen mounted — and so the board is
   // derived from state rather than calling `Date.now()` during render.
   const [now, setNow] = useState(() => Date.now());
+  // A background reconcile that brought in another device's answers.
+  useEffect(() => {
+    const reread = () => setNow(Date.now());
+    window.addEventListener('learning-synced', reread);
+    return () => window.removeEventListener('learning-synced', reread);
+  }, []);
 
   const sel = useScaleSelector(instrument.stringCount);
   const { exercise, pool } = sel;
@@ -110,10 +117,9 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
   const chipEnvelope = sel.buildEnvelope(true);
 
   // Feed every scale answer, from any of the three exercises, into the
-  // per-item SRS schedule (scales-learning-spec.md §10) — local-only so far,
-  // see `learningState.ts`'s `InstrumentLearningState` header note (§15's
-  // cloud wiring is a later increment). Score used to be thrown away when
-  // the screen closed (Session 2 plan step 3's own framing); it no longer is.
+  // per-item SRS schedule (scales-learning-spec.md §10), then push the blob
+  // to the cloud (§15 — a no-op for a guest / offline; the reconcile merges
+  // per item, so another device's scale reviews are never lost).
   const recordAnswer = useCallback(
     (itemId: string, form: 'buildScale' | 'orderScale' | 'identifyScale' | 'nameDegree', correct: boolean, seconds: number) => {
       const ts = Date.now();
@@ -121,6 +127,7 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
       const inst = getInstrumentState(state, instrument.id, ts);
       const next = recordScaleAnswer(inst, itemId, form, correct, seconds, ts);
       saveLearningStateLocal(withInstrumentState(state, instrument.id, next));
+      cloudPushLearning();
       setNow(ts);
     },
     [instrument.id],

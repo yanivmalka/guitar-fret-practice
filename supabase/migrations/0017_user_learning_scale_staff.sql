@@ -1,0 +1,31 @@
+-- Scale and Staff reading learning state (scales-learning-spec.md §15,
+-- staff-reading-spec.md §8).
+--
+-- NO DDL. Like 0014 / 0015's interval keys, the scale and staff fields live
+-- inside the SAME per-user JSONB blob that 0012_user_learning_state.sql
+-- created (public.user_learning_state.data), and ride its existing reconcile
+-- (pull -> merge -> write-back -> upsert in src/learning/learningSync.ts):
+-- no new table, RLS policy or bootstrap path.
+--
+-- Extended per-instrument shape (see src/learning/learningState.ts):
+--
+--   "guitar": {
+--     ...0012-0015 keys, unchanged...
+--     "scaleSrs":     { "scale:<type>:<position>": { SrsItem } },  -- merged per item
+--     "scaleHistory": [ { itemId, form, correct, seconds, createdAt } ],
+--                     -- union by (createdAt, itemId, form), newest 200 kept
+--     "staffSrs":     { "staff:<sounding midi>": { SrsItem } },    -- merged per item
+--     "staffHistory": [ { itemId, form, correct, seconds, createdAt } ],
+--                     -- form: nameNote | findOnNeck | findOnStaff | readPhrase;
+--                     -- union by (createdAt, itemId, form), newest 300 kept
+--     "staffDaily":   { "dateISO": "YYYY-MM-DD", "target": 12, "completed": 5 }
+--                     -- same day: max of each field; different days: later wins
+--   }
+--
+-- These keys were already carried whenever another part of the app pushed the
+-- blob; since this note the Scales and Staff reading screens also push it
+-- after every answer, so their progress survives a sign-out, a reinstall and
+-- a second device.
+--
+-- Nothing to run. This file documents the blob change so the migration
+-- sequence stays a complete record of the schema's shape over time.

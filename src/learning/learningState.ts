@@ -19,16 +19,16 @@
 //   • scaleSrs        — (scaleType, position)-item id → SrsItem (P5, a separate
 //                        lane — scales-learning-spec.md §10.1)
 //   • scaleHistory    — a capped ring buffer of scale-drill answers (§10.3,
-//                        §15) — LOCAL ONLY so far: `learningSync.ts` does not
-//                        carry `scaleSrs`/`scaleHistory` yet (spec §15's cloud
-//                        wiring is a later increment; these two fields persist
-//                        to localStorage today exactly like every other field
-//                        here, they just don't survive a sign-out/reinstall
-//                        until that wiring lands)
+//                        §15)
 //   • staffSrs        — written-pitch item id → SrsItem (Staff reading, its own
 //                        lane — staff-reading-spec.md §8)
-//   • staffHistory    — a capped ring buffer of staff-reading answers — LOCAL
-//                        ONLY, exactly like `scaleSrs`/`scaleHistory` above
+//   • staffHistory    — a capped ring buffer of staff-reading answers
+//   • staffDaily      — today's staff-reading goal (its own record, like
+//                        `intervalDaily`, never the note `daily`)
+//
+// Every field above rides the same synced blob (`learningSync.ts`): the
+// scale and staff fields are merged per item like the rest, and the scale and
+// staff screens trigger the cloud push after each answer.
 //   • updatedAt
 //
 // This module is pure model + persistence. It does NOT import the sync layer
@@ -69,12 +69,16 @@ export const DEFAULT_INTERVAL_DAILY_TARGET = 10;
 // (spec §15.2 / OD-6).
 export const INTERVAL_HISTORY_CAP = 200;
 
-// Same idea, scale domain (scales-learning-spec.md §10.3 / §15.2). Local-only
-// for now — see the `InstrumentLearningState` header note above.
+// Same idea, scale domain (scales-learning-spec.md §10.3 / §15.2).
 export const SCALE_HISTORY_CAP = 200;
 
-// Same idea, staff-reading domain (staff-reading-spec.md §8). Local-only.
-export const STAFF_HISTORY_CAP = 200;
+// Same idea, staff-reading domain (staff-reading-spec.md §8). A little larger:
+// one "read a phrase" session records a row per note (6 phrases × 4 notes).
+export const STAFF_HISTORY_CAP = 300;
+
+// One staff-reading session of single notes is 12 questions; the daily goal
+// is "do one session" (staff-reading-spec.md §8).
+export const DEFAULT_STAFF_DAILY_TARGET = 12;
 
 export interface DailyGoal {
   /** Local calendar day, `YYYY-MM-DD`. */
@@ -123,13 +127,16 @@ export interface ScaleHistoryRow {
   createdAt: number;
 }
 
+export type StaffForm = 'nameNote' | 'findOnNeck' | 'findOnStaff' | 'readPhrase';
+const STAFF_FORMS: readonly StaffForm[] = ['nameNote', 'findOnNeck', 'findOnStaff', 'readPhrase'];
+
 /** One recorded staff-reading answer (staff-reading-spec.md §8). Never merged
  *  into note/interval/scale history, mastery, badges or the leaderboard. */
 export interface StaffHistoryRow {
   /** `staff:<midi>` — the written pitch this answer reviews. */
   itemId: string;
   /** Which exercise produced the answer (§6). */
-  form: 'nameNote' | 'findOnNeck';
+  form: StaffForm;
   correct: boolean;
   seconds: number;
   createdAt: number;
@@ -163,16 +170,18 @@ export interface InstrumentLearningState {
    *  from `srs`/`intervalSrs` so notes/intervals code never sees scale ids.
    *  Keyed by `scaleItemId(type, position)`. Absent in a pre-P5 blob ⇒ `{}`. */
   scaleSrs: SrsMap;
-  /** Capped (`SCALE_HISTORY_CAP`) ring buffer of scale-drill answers. Local
-   *  only for now — see this interface's header note. Absent in a pre-P5
-   *  blob ⇒ `[]`. */
+  /** Capped (`SCALE_HISTORY_CAP`) ring buffer of scale-drill answers.
+   *  Absent in a pre-P5 blob ⇒ `[]`. */
   scaleHistory: ScaleHistoryRow[];
   /** Leitner schedule for written pitches (Staff reading). A separate map so
    *  no other domain ever sees staff ids. Absent in an older blob ⇒ `{}`. */
   staffSrs: SrsMap;
-  /** Capped (`STAFF_HISTORY_CAP`) ring buffer of staff-reading answers. Local
-   *  only, like `scaleHistory`. Absent in an older blob ⇒ `[]`. */
+  /** Capped (`STAFF_HISTORY_CAP`) ring buffer of staff-reading answers.
+   *  Absent in an older blob ⇒ `[]`. */
   staffHistory: StaffHistoryRow[];
+  /** Today's staff-reading goal — its own record, like `intervalDaily`.
+   *  Absent in an older blob ⇒ a fresh goal for today. */
+  staffDaily: DailyGoal;
   /** Epoch ms of the last Teacher answer, for merge tie-breaking. */
   lastAnswerAt: number;
   /** ISO timestamp of the last change. */
@@ -209,6 +218,7 @@ export function emptyInstrumentState(now: number): InstrumentLearningState {
     scaleHistory: [],
     staffSrs: {},
     staffHistory: [],
+    staffDaily: freshDaily(now, DEFAULT_STAFF_DAILY_TARGET),
     lastAnswerAt: 0,
     updatedAt: new Date(now).toISOString(),
   };
@@ -338,7 +348,7 @@ export function normalizeStaffHistory(raw: unknown): StaffHistoryRow[] {
         ? Math.round(r.createdAt)
         : NaN;
     if (!Number.isFinite(createdAt)) continue;
-    const form = r.form === 'nameNote' || r.form === 'findOnNeck' ? r.form : null;
+    const form = STAFF_FORMS.find((f) => f === r.form);
     if (form == null) continue;
     const seconds =
       typeof r.seconds === 'number' && Number.isFinite(r.seconds) && r.seconds >= 0
@@ -379,6 +389,7 @@ export function normalizeInstrumentState(
     scaleHistory: normalizeScaleHistory(r.scaleHistory),
     staffSrs: readSrsMap(r.staffSrs),
     staffHistory: normalizeStaffHistory(r.staffHistory),
+    staffDaily: normalizeDaily(r.staffDaily, now, DEFAULT_STAFF_DAILY_TARGET),
     lastAnswerAt:
       typeof r.lastAnswerAt === 'number' && Number.isFinite(r.lastAnswerAt)
         ? r.lastAnswerAt
@@ -499,6 +510,7 @@ export function recordTeacherAnswer(
     scaleHistory: st.scaleHistory,
     staffSrs: st.staffSrs,
     staffHistory: st.staffHistory,
+    staffDaily: st.staffDaily,
     lastAnswerAt: now,
     updatedAt: new Date(now).toISOString(),
   };
@@ -531,6 +543,7 @@ export function recordPracticeAnswer(
     scaleHistory: st.scaleHistory,
     staffSrs: st.staffSrs,
     staffHistory: st.staffHistory,
+    staffDaily: st.staffDaily,
     lastAnswerAt: now,
     updatedAt: new Date(now).toISOString(),
   };
@@ -669,8 +682,10 @@ export function recordScaleAnswer(
 // ── Apply one staff-reading answer (Premium only) ──────────────────────
 //
 // The staff-domain sibling of `recordScaleAnswer`: folds the written pitch
-// into `staffSrs` and appends a capped row to `staffHistory`. Every other
-// domain's fields are left as they are. Pure.
+// into `staffSrs`, appends a capped row to `staffHistory` and ticks the
+// SEPARATE `staffDaily` goal (never the note `daily`, which is only rolled to
+// today for stale-day hygiene). Every other domain's fields are left as they
+// are. Pure.
 export function recordStaffAnswer(
   st: InstrumentLearningState,
   itemId: string,
@@ -680,6 +695,7 @@ export function recordStaffAnswer(
   now: number,
 ): InstrumentLearningState {
   const srsItem = getOrCreate(st.staffSrs, itemId, now);
+  const staffDaily = rollDailyGoal(st.staffDaily, now, st.staffDaily.target);
   const nextItem = reviewSrsItem(srsItem, correct, now);
   const row: StaffHistoryRow = {
     itemId,
@@ -696,6 +712,7 @@ export function recordStaffAnswer(
       history.length > STAFF_HISTORY_CAP
         ? history.slice(history.length - STAFF_HISTORY_CAP)
         : history,
+    staffDaily: { ...staffDaily, completed: staffDaily.completed + 1 },
     daily: rollDailyGoal(st.daily, now, st.daily.target),
     lastAnswerAt: now,
     updatedAt: new Date(now).toISOString(),
@@ -823,6 +840,10 @@ export function mergeInstrumentState(
     scaleHistory: mergeScaleHistory(a.scaleHistory ?? [], b.scaleHistory ?? []),
     staffSrs: mergeSrsMaps(a.staffSrs ?? {}, b.staffSrs ?? {}),
     staffHistory: mergeStaffHistory(a.staffHistory ?? [], b.staffHistory ?? []),
+    staffDaily: mergeDailyGoal(
+      a.staffDaily ?? freshDaily(0, DEFAULT_STAFF_DAILY_TARGET),
+      b.staffDaily ?? freshDaily(0, DEFAULT_STAFF_DAILY_TARGET),
+    ),
     lastAnswerAt: Math.max(a.lastAnswerAt, b.lastAnswerAt),
     updatedAt: a.updatedAt >= b.updatedAt ? a.updatedAt : b.updatedAt,
   };

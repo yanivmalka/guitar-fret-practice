@@ -98,3 +98,102 @@ export function ledgerLines(position: number): number[] {
   for (let p = 10; p <= position; p += 2) out.push(p);
   return out;
 }
+
+// ── Key signatures (staff-reading-spec.md §3.1) ────────────────────────
+//
+// The keys offered go up to four sharps / four flats. In every one of them
+// the plain sharp-or-flat spelling of each pitch class is already the
+// correct one (no E♯ / C♭ needed), so a key simply decides which way black
+// keys are spelled and which letters are altered by default.
+
+export type KeyId = 'C' | 'G' | 'D' | 'A' | 'E' | 'F' | 'Bb' | 'Eb' | 'Ab';
+export const KEY_IDS: readonly KeyId[] = ['C', 'G', 'D', 'A', 'E', 'F', 'Bb', 'Eb', 'Ab'];
+
+/** Signed count: +n sharps, −n flats. */
+const KEY_ACCIDENTALS: Record<KeyId, number> = {
+  C: 0, G: 1, D: 2, A: 3, E: 4, F: -1, Bb: -2, Eb: -3, Ab: -4,
+};
+const KEY_TONIC_PC: Record<KeyId, number> = {
+  C: 0, G: 7, D: 2, A: 9, E: 4, F: 5, Bb: 10, Eb: 3, Ab: 8,
+};
+const SHARP_ORDER: readonly Letter[] = ['F', 'C', 'G', 'D', 'A', 'E', 'B'];
+const FLAT_ORDER: readonly Letter[] = ['B', 'E', 'A', 'D', 'G', 'C', 'F'];
+const MAJOR_STEPS = [0, 2, 4, 5, 7, 9, 11];
+
+/** The sign drawn in front of a note head — `n` is a natural (♮). */
+export type StaffSign = '' | '#' | 'b' | 'n';
+
+export function keyAccidentalCount(key: KeyId): number {
+  return KEY_ACCIDENTALS[key];
+}
+
+/** How black keys are spelled in `key`; C major follows the app setting. */
+export function keySpelling(key: KeyId, fallback: AccidentalMode): AccidentalMode {
+  const n = KEY_ACCIDENTALS[key];
+  return n > 0 ? 'sharps' : n < 0 ? 'flats' : fallback;
+}
+
+/** The seven pitch classes of the (major) key, as numbers 0–11. */
+export function keyPitchClasses(key: KeyId): Set<number> {
+  return new Set(MAJOR_STEPS.map((s) => (KEY_TONIC_PC[key] + s) % 12));
+}
+
+/** Letter → the alteration the key signature gives it ('' when none). */
+export function keyLetterAccidentals(key: KeyId): Record<Letter, '' | '#' | 'b'> {
+  const out = { C: '', D: '', E: '', F: '', G: '', A: '', B: '' } as Record<Letter, '' | '#' | 'b'>;
+  const n = KEY_ACCIDENTALS[key];
+  const order = n > 0 ? SHARP_ORDER : FLAT_ORDER;
+  for (let i = 0; i < Math.abs(n); i++) out[order[i]] = n > 0 ? '#' : 'b';
+  return out;
+}
+
+// Where each sign of the signature sits, in the conventional order. Treble
+// positions (0 = bottom line E4); the bass clef is the same shape two steps
+// lower.
+const TREBLE_SHARP_POS = [8, 5, 9, 6, 3, 7, 4];
+const TREBLE_FLAT_POS = [4, 7, 3, 6, 2, 5, 1];
+
+export function keySignaturePositions(key: KeyId, clef: Clef): { position: number; sign: '#' | 'b' }[] {
+  const n = KEY_ACCIDENTALS[key];
+  const table = n > 0 ? TREBLE_SHARP_POS : TREBLE_FLAT_POS;
+  const shift = clef === 'bass' ? -2 : 0;
+  return table.slice(0, Math.abs(n)).map((p) => ({ position: p + shift, sign: n > 0 ? '#' : 'b' }));
+}
+
+/**
+ * The sign to draw in front of each note of a passage in `key`. An
+ * accidental holds for the rest of the passage (one bar) on that same
+ * line/space, so a note needs a sign only when its alteration differs from
+ * what is in force there — the key signature, or an earlier accidental.
+ */
+export function passageSigns(
+  notes: readonly { position: number; accidental: '' | '#' | 'b'; letter: Letter }[],
+  key: KeyId,
+): StaffSign[] {
+  const byKey = keyLetterAccidentals(key);
+  const inForce = new Map<number, '' | '#' | 'b'>();
+  return notes.map((n) => {
+    const current = inForce.get(n.position) ?? byKey[n.letter];
+    if (current === n.accidental) return '';
+    inForce.set(n.position, n.accidental);
+    return n.accidental === '' ? 'n' : n.accidental;
+  });
+}
+
+const NATURAL_PC: Record<Letter, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+
+/**
+ * The WRITTEN pitch a note placed at `position` stands for, with `sign` in
+ * front of it (`''` = whatever the key signature says). The inverse of
+ * `staffPosition` — used by "Where is it written?".
+ */
+export function writtenMidiAt(position: number, clef: Clef, sign: StaffSign, key: KeyId): number {
+  const step = position + BOTTOM_LINE_STEP[clef];
+  const letter = LETTERS[((step % 7) + 7) % 7];
+  const octave = Math.floor(step / 7);
+  const alteration = sign === ''
+    ? keyLetterAccidentals(key)[letter]
+    : sign === 'n' ? '' : sign;
+  const offset = alteration === '#' ? 1 : alteration === 'b' ? -1 : 0;
+  return (octave + 1) * 12 + NATURAL_PC[letter] + offset;
+}

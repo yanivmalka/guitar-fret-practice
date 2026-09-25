@@ -1115,6 +1115,8 @@ export default function App() {
           intervalWeakSpotsPlan={learning.intervalWeakSpotsPlan}
           intervalDailyGoal={learning.intervalDailyGoal}
           intervalGoalComplete={learning.intervalGoalComplete}
+          canStaff={can('staffReading', auth.tier)}
+          onOpenStaff={() => setActiveDomain('staff')}
           busy={gameActive || countdown !== null}
           onStart={(plan) => setTeacherPlan(plan)}
           onStartIntervalPlan={(exercise, kind) => {

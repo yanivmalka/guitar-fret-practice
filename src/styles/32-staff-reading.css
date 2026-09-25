@@ -27,8 +27,61 @@
   stroke: currentColor;
   stroke-width: 1.6;
 }
-.staff-note-correct .staff-note { color: var(--success); }
-.staff-note-wrong .staff-note { color: var(--danger); }
+.staff-bar-thick {
+  stroke: currentColor;
+  stroke-width: 3.5;
+}
+/* Note colours: after an answer, the note being read in a phrase, the note
+   the learner is placing ("Where is it written?"), and the Progress board's
+   three statuses (the same heat colours as the other boards). */
+.staff-note-correct { color: var(--success); }
+.staff-note-wrong { color: var(--danger); }
+.staff-note-current { color: var(--accent); }
+.staff-note-ghost { color: var(--accent); opacity: 0.75; }
+.staff-note-mastered { color: var(--heat-known-cell); }
+.staff-note-learning { color: var(--heat-needs-work); }
+.staff-note-notStarted { color: var(--text-2); }
+.staff-note-label { font-family: inherit; }
+/* The staff as an input: the whole box is the tap target. */
+.staff-svg-input {
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.staff-place-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+.staff-place-controls .set-card-btn { min-width: 44px; }
+.staff-sign-btn { font-size: 1.15rem; }
+.staff-goal { margin: 4px 0 2px; }
+/* Progress tab */
+.staff-board {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.staff-board-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.staff-board-key::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-inline-end: 6px;
+  background: currentColor;
+}
+.staff-board-key-mastered { color: var(--heat-known-cell); }
+.staff-board-key-learning { color: var(--heat-needs-work); }
+.staff-board-key-notStarted { color: var(--text-2); }
 .staff-answer {
   margin: 0;
   min-height: 1.6em;
@@ -45,9 +98,15 @@
   box-shadow: inset 0 0 0 2px var(--success);
 }
 .staff-neck-tile.scale-order-tile-wrong { background: var(--danger); }
-.staff-neck-tile:disabled {
+.staff-neck-tile:disabled,
+.staff-neck-unplayable {
   opacity: 0.35;
   cursor: default;
+}
+/* "Where is it written?": the place the question points at. */
+.staff-neck-tile.staff-neck-marked {
+  background: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent-ink);
 }
 /* The open-string column reads as the nut. */
 .staff-neck-open { border-inline-end: 3px solid var(--text-2); }

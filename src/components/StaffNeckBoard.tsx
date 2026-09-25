@@ -1,10 +1,13 @@
-// ── StaffNeckBoard — "Find it on the neck"'s tap board ───────────────────
+// ── StaffNeckBoard — the neck section of the Staff reading exercises ─────
 //
-// staff-reading-spec.md §6.2. A still section of the neck, frets 0…top, one
+// staff-reading-spec.md §6.2 / §6.3. A still section of the neck, frets
+// bottom…top (0…3 up to 12…the last fret), one
 // row per string with the lowest string on top like every other neck in the
 // app. The tiles are blank — naming them would give the answer away. After
 // an answer, every place that plays the written pitch is revealed in green
 // and a wrong tap turns red, so the learner sees all the places it lives.
+// "Where is it written?" shows it read-only (no `onTap`) with one place
+// `marked` — the note to find on the staff.
 //
 // Reuses ScaleOrderBoard's grid classes (30-scale-board.css), including the
 // left-handed mirroring in 27-left-handed.css; pinned `dir="ltr"` because
@@ -14,6 +17,8 @@ import type { StaffPosition } from '../learning/staffDrill';
 import { displayNote, activeDotFrets, type AccidentalMode, type NotationMode } from '../utils/music';
 
 interface Props {
+  /** First fret shown (0, or 12 for the high range). */
+  bottomFret?: number;
   topFret: number;
   /** `[string][fret] -> note name`, used only for the open-string labels. */
   noteTable: readonly (readonly string[])[];
@@ -22,16 +27,19 @@ interface Props {
   /** Revealed after the answer: every place that plays the written pitch. */
   reveal: readonly StaffPosition[] | null;
   tapped: (StaffPosition & { correct: boolean }) | null;
+  /** The place the question points at ("Where is it written?"). */
+  marked?: StaffPosition | null;
   accidental: AccidentalMode;
   notation: NotationMode;
-  onTap: (string: number, fret: number) => void;
+  /** Omitted ⇒ a read-only board. */
+  onTap?: (string: number, fret: number) => void;
 }
 
 export default function StaffNeckBoard({
-  topFret, noteTable, stringCount, minFrets, reveal, tapped, accidental, notation, onTap,
+  bottomFret = 0, topFret, noteTable, stringCount, minFrets, reveal, tapped, marked, accidental, notation, onTap,
 }: Props) {
   const frets: number[] = [];
-  for (let f = 0; f <= topFret; f++) frets.push(f);
+  for (let f = bottomFret; f <= topFret; f++) frets.push(f);
   const strings = Array.from({ length: stringCount }, (_, i) => stringCount - i);
   const dots = new Set(activeDotFrets);
   const isRevealed = (s: number, f: number) => reveal?.some((p) => p.string === s && p.fret === f) ?? false;
@@ -51,8 +59,11 @@ export default function StaffNeckBoard({
             const playable = f >= (minFrets?.[s - 1] ?? 0);
             let cls = 'scale-order-tile staff-neck-tile';
             if (f === 0) cls += ' staff-neck-open';
+            if (!playable) cls += ' staff-neck-unplayable';
             if (isRevealed(s, f)) cls += ' scale-order-tile-found';
             if (tapped && !tapped.correct && tapped.string === s && tapped.fret === f) cls += ' scale-order-tile-wrong';
+            if (marked && marked.string === s && marked.fret === f) cls += ' staff-neck-marked';
+            if (!onTap) return <span key={f} className={cls} />;
             return (
               <button
                 key={f}
