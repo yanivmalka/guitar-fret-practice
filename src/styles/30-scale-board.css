@@ -288,7 +288,7 @@
 }
 
 /* ScaleOrderBoard — "Tap the scale in order": a still neck section, one row
-   per string (highest on top), one column per fret of the box, every note of
+   per string (lowest on top), one column per fret of the box, every note of
    the scale lit. Pinned `dir="ltr"`; only the left-handed setting mirrors it
    (27-left-handed.css). See src/components/ScaleOrderBoard.tsx. */
 .scale-order-card {
@@ -378,4 +378,16 @@
   font-size: 0.7rem;
   font-weight: 600;
   color: var(--text-2);
+}
+/* Learning mode: the note the app is playing right now, before the learner's
+   turn. */
+.scale-order-tile-demo {
+  background: var(--accent);
+  color: var(--accent-ink);
+  transform: scale(1.06);
+}
+.scale-order-tile-demo .scale-order-step { color: var(--accent-ink); }
+.scale-order-status {
+  font-weight: 800;
+  color: var(--accent);
 }

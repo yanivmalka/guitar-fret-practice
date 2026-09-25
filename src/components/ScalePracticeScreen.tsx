@@ -156,6 +156,7 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
     pool,
     questionCount: buildEnvelope.questionCount,
     noteTime: Math.max(2, buildEnvelope.timeLimit / 4),
+    demo: sel.orderDemo,
     naturalsOnly: buildEnvelope.naturalsOnlyRoot,
     direction: sel.direction,
     onComplete: () => setFinished(true),
@@ -421,6 +422,31 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
                 </button>
               </div>
             )}
+            {!running && tab === 'practice' && exercise === 'orderScale' && (
+              <div className="set-card scale-difficulty-switcher" role="group" aria-label={t('Learning mode')}>
+                <span className="set-card-label">{t('Learning mode')}</span>
+                <div className="scale-difficulty-row">
+                  <button
+                    type="button"
+                    className={`set-card-btn${!sel.orderDemo ? ' set-card-btn-primary' : ''}`}
+                    onClick={() => { playClickSound(); haptic.tap(); sel.setOrderDemo(false); }}
+                  >
+                    {t('Play on my own')}
+                  </button>
+                  <button
+                    type="button"
+                    className={`set-card-btn${sel.orderDemo ? ' set-card-btn-primary' : ''}`}
+                    onClick={() => { playClickSound(); haptic.tap(); sel.setOrderDemo(true); }}
+                  >
+                    {t('Watch, then play')}
+                  </button>
+                </div>
+                <p className="set-card-help">
+                  {t('The app plays each scale first, lighting its notes one by one — then you play it after.')}
+                </p>
+              </div>
+            )}
+
             {!running && tab === 'practice' && !finished && exercise === 'orderScale' && (
               <div className="set-card">
                 <p className="set-card-help">
@@ -493,12 +519,18 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
                     {t('Scale')} {orderEngine.questionNumber} / {orderEngine.questionCount}
                     {' · '}{t('Score')}: {orderEngine.session.score}
                   </span>
+                  {sel.orderDemo && (
+                    <span className="scale-order-status" aria-live="polite">
+                      {orderEngine.demoStep != null ? t('Watch and listen…') : t('Your turn — play it back')}
+                    </span>
+                  )}
                 </div>
                 <ScaleOrderBoard
                   board={orderEngine.board}
                   step={orderEngine.step}
                   slips={orderEngine.slips}
                   wrongTile={orderEngine.wrongTile}
+                  demoStep={orderEngine.demoStep}
                   rootName={orderEngine.question.rootName}
                   noteTable={instrument.notes}
                   stringCount={instrument.stringCount}

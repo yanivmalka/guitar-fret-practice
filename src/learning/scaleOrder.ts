@@ -17,6 +17,9 @@ export interface ScaleOrderBoard {
   /** First and last fret shown, inclusive. */
   fromFret: number;
   toFret: number;
+  /** The run in the order it must be tapped — one tile per step (for a
+   *  pitch on two strings, the one on the thicker string). */
+  run: NeckPos[];
   /** The run's pitches in the order they must be tapped. */
   runMidi: number[];
   /** `"<string>:<fret>"` → the run step that tile answers. Only scale notes
@@ -42,6 +45,7 @@ export function buildOrderBoard(q: ScaleQuestion, openMidi: readonly number[]): 
   return {
     fromFret: Math.min(...frets),
     toFret: Math.max(...frets),
+    run,
     runMidi,
     stepAt,
   };

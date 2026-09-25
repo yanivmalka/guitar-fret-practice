@@ -11,6 +11,10 @@
 //   step being looked for slips. The scale keeps going.
 // - One scale is one SRS answer, judged like Exercise A: correct when at most
 //   one note in five slipped (`isScaleCorrect`).
+// - Learning mode (`demo`): before each scale the app plays it itself,
+//   lighting each note in turn, and only then hands over — the learner plays
+//   it after the app. Taps during the demo are ignored, and the time taken is
+//   measured from the end of the demo.
 //
 // Timer-read values live in refs, state only for rendering (CLAUDE.md
 // "Conventions").
@@ -27,6 +31,10 @@ import { useScoring } from './useScoring';
 const WRONG_FLASH_MS = 350;
 /** Pause after a scale's last note before the next scale appears. */
 const NEXT_SCALE_MS = 900;
+/** Learning mode: a pause before the demo starts, and the time each note of
+ *  the demo is lit and sounding. */
+const DEMO_LEAD_MS = 500;
+const DEMO_NOTE_MS = 550;
 
 export interface ScaleOrderInstrument {
   notes: readonly (readonly string[])[];
@@ -48,6 +56,8 @@ export interface ScaleOrderOptions {
   questionCount: number;
   /** Seconds per note that still earn a speed bonus. */
   noteTime: number;
+  /** Learning mode: the app plays each scale first, then the learner. */
+  demo?: boolean;
   naturalsOnly?: boolean;
   direction?: ScaleDirection;
   onComplete?: () => void;
@@ -60,7 +70,7 @@ export interface OrderTile {
 }
 
 export function useScaleOrderEngine({
-  instrument, pool, questionCount, noteTime, naturalsOnly = false, direction = 'up', onComplete, onAnswer,
+  instrument, pool, questionCount, noteTime, demo = false, naturalsOnly = false, direction = 'up', onComplete, onAnswer,
 }: ScaleOrderOptions) {
   const { session, reset, beginRun, onCorrect, onWrong } = useScoring();
 
@@ -73,6 +83,9 @@ export function useScaleOrderEngine({
   const [slips, setSlips] = useState<boolean[]>([]);
   const [wrongTile, setWrongTile] = useState<OrderTile | null>(null);
   const [questionNumber, setQuestionNumber] = useState(0);
+  /** Learning mode: the run step the demo is lighting now, `-1` in the
+   *  pause before it starts, `null` when it's the learner's turn. */
+  const [demoStep, setDemoStep] = useState<number | null>(null);
 
   const runningRef = useRef(false);
   const sessionRef = useRef(0);
@@ -85,6 +98,8 @@ export function useScaleOrderEngine({
   const lastHitRef = useRef(0);
   const wrongTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nextTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const demoTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const demoRunningRef = useRef(false);
 
   const onAnswerRef = useRef(onAnswer);
   useEffect(() => { onAnswerRef.current = onAnswer; }, [onAnswer]);
@@ -94,6 +109,9 @@ export function useScaleOrderEngine({
   const clearTimers = useCallback(() => {
     if (wrongTimeoutRef.current != null) { clearTimeout(wrongTimeoutRef.current); wrongTimeoutRef.current = null; }
     if (nextTimeoutRef.current != null) { clearTimeout(nextTimeoutRef.current); nextTimeoutRef.current = null; }
+    demoTimeoutsRef.current.forEach(clearTimeout);
+    demoTimeoutsRef.current = [];
+    demoRunningRef.current = false;
   }, []);
 
   const finish = useCallback(() => {
@@ -124,7 +142,30 @@ export function useScaleOrderEngine({
     setWrongTile(null);
     questionStartRef.current = Date.now();
     lastHitRef.current = questionStartRef.current;
-  }, [questionCount, pool, instrument, naturalsOnly, direction, finish]);
+
+    if (!demo) { setDemoStep(null); return; }
+    // Learning mode: light and play each note of the run in turn, then hand
+    // over. The clock for this scale starts when the demo ends.
+    const mySession = sessionRef.current;
+    const later = (ms: number, fn: () => void) => {
+      demoTimeoutsRef.current.push(setTimeout(() => { if (sessionRef.current === mySession) fn(); }, ms));
+    };
+    demoTimeoutsRef.current.forEach(clearTimeout);
+    demoTimeoutsRef.current = [];
+    demoRunningRef.current = true;
+    setDemoStep(-1);
+    b.run.forEach((p, i) => later(DEMO_LEAD_MS + i * DEMO_NOTE_MS, () => {
+      setDemoStep(i);
+      playNoteSingle(p.string, p.fret);
+    }));
+    later(DEMO_LEAD_MS + b.run.length * DEMO_NOTE_MS, () => {
+      demoRunningRef.current = false;
+      demoTimeoutsRef.current = [];
+      setDemoStep(null);
+      questionStartRef.current = Date.now();
+      lastHitRef.current = questionStartRef.current;
+    });
+  }, [questionCount, pool, instrument, naturalsOnly, direction, demo, finish]);
 
   const start = useCallback(() => {
     clearTimers();
@@ -149,6 +190,8 @@ export function useScaleOrderEngine({
     const q = questionRef.current;
     const b = boardRef.current;
     if (!runningRef.current || !q || !b) return;
+    // Learning mode: the app is still playing the scale — watch first.
+    if (demoRunningRef.current) return;
     // Every tile is a playable note, right or wrong.
     playNoteSingle(string, fret);
     const total = b.runMidi.length;
@@ -198,7 +241,7 @@ export function useScaleOrderEngine({
   useEffect(() => clearTimers, [clearTimers]);
 
   return {
-    running, question, board, step, slips, wrongTile,
+    running, question, board, step, slips, wrongTile, demoStep,
     questionNumber, questionCount,
     session, start, stop, tap,
   };

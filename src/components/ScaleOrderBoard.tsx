@@ -1,10 +1,11 @@
 // ── ScaleOrderBoard — "Tap the scale in order"'s still neck section ──────
 //
-// One row per string (the highest string on top, the way a box diagram or a
-// tab reads), one column per fret of the box, fret numbers underneath. Every
+// One row per string (the lowest string on top, like every other neck in the
+// app), one column per fret of the box, fret numbers underneath. Every
 // note of the scale is lit; the learner taps them in the order of the run.
 // A found note turns green and shows its number in the run; the scale's tonic
-// keeps a gold ring.
+// keeps a gold ring. In learning mode the note the app is playing right now
+// is lit brighter and numbered, so the learner can follow the run.
 //
 // The grid carries `dir="ltr"` permanently — Hebrew changes text direction
 // only, never the instrument's layout; mirroring is the left-handed setting's
@@ -21,6 +22,8 @@ interface Props {
   /** Steps that slipped — a wrong tap while they were being looked for. */
   slips: readonly boolean[];
   wrongTile: OrderTile | null;
+  /** Learning mode: the run step the app is playing now, or `null`. */
+  demoStep: number | null;
   rootName: string;
   /** `[string][fret] -> sharp-spelled note name` for the active instrument. */
   noteTable: readonly (readonly string[])[];
@@ -31,11 +34,12 @@ interface Props {
 }
 
 export default function ScaleOrderBoard({
-  board, step, slips, wrongTile, rootName, noteTable, stringCount, accidental, notation, onTap,
+  board, step, slips, wrongTile, demoStep, rootName, noteTable, stringCount, accidental, notation, onTap,
 }: Props) {
   const frets: number[] = [];
   for (let f = board.fromFret; f <= board.toFret; f++) frets.push(f);
-  const strings = Array.from({ length: stringCount }, (_, i) => i + 1);
+  // Lowest (thickest) string on top — string `stringCount` first.
+  const strings = Array.from({ length: stringCount }, (_, i) => stringCount - i);
 
   return (
     <div
@@ -53,10 +57,12 @@ export default function ScaleOrderBoard({
             const tileStep = board.stepAt.get(`${s}:${f}`);
             const lit = tileStep != null;
             const found = lit && tileStep < step;
+            const demoing = lit && demoStep != null && tileStep === demoStep;
             let cls = 'scale-order-tile';
             if (lit) cls += ' scale-order-tile-lit';
             if (lit && name === rootName) cls += ' scale-order-tile-root';
             if (found) cls += ' scale-order-tile-found';
+            if (demoing) cls += ' scale-order-tile-demo';
             if (found && slips[tileStep]) cls += ' scale-order-tile-slip';
             if (wrongTile && wrongTile.string === s && wrongTile.fret === f) cls += ' scale-order-tile-wrong';
             return (
@@ -67,7 +73,7 @@ export default function ScaleOrderBoard({
                 onClick={() => onTap(s, f)}
               >
                 {lit && <span className="scale-order-note">{displayNote(name, accidental, notation)}</span>}
-                {found && <span className="scale-order-step">{tileStep + 1}</span>}
+                {(found || demoing) && <span className="scale-order-step">{tileStep + 1}</span>}
               </button>
             );
           })}

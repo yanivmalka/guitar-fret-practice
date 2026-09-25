@@ -178,6 +178,11 @@ export function useScaleSelector(stringCount: number) {
   const setPositionIndex = (i: number) => { setPositionIndexState(i); saveSetting('ssel_position_index', i); };
   const setDifficulty = (d: ScaleDifficulty) => { setDifficultyState(d); saveSetting('ssel_difficulty', d); };
 
+  // "Tap the scale in order"'s learning mode: the app plays each scale first,
+  // lighting its notes in turn, and the learner plays it after.
+  const [orderDemo, setOrderDemoState] = useState<boolean>(() => loadSetting<boolean>('ssel_order_demo', false) === true);
+  const setOrderDemo = (on: boolean) => { setOrderDemoState(on); saveSetting('ssel_order_demo', on); };
+
   const setSpeedLevel = (l: FallSpeedLevel) => { setSpeedLevelState(l); saveSetting('ssel_fall_speed', l); };
   const setDistanceUnit = (u: DistanceUnit) => { setDistanceUnitState(u); saveSetting('ssel_distance_unit', u); };
 
@@ -196,6 +201,7 @@ export function useScaleSelector(stringCount: number) {
     direction, dirUp, dirDown, toggleDirection,
     speedLevel, setSpeedLevel,
     distanceUnit, setDistanceUnit,
+    orderDemo, setOrderDemo,
     exercise, setExercise,
     scaleChoice: scaleChoiceStored, setScaleChoice, shippedScaleTypeIds: SHIPPED_SCALE_TYPE_IDS,
     positionMode, setPositionMode, positionChoiceAvailable,

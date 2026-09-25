@@ -36,6 +36,16 @@ Verified live (Playwright, 400×860, zero console errors) in English and in
 Hebrew + left-handed: the board renders, a wrong tap flashes, a full run
 records an `orderScale` row in `scaleHistory` and moves to the next scale.
 
+**Follow-up, same day (product owner):**
+
+- **The lowest string is on top**, like every other neck in the app — not
+  the tab/box-diagram order the first version used.
+- **Learning mode** ("Watch, then play", `ssel_order_demo`, off by default):
+  before each scale the app plays the run itself, lighting and sounding each
+  note in turn (`DEMO_NOTE_MS` apart), then hands over and the learner plays
+  it back. Taps during the demo are ignored; the scale's time is measured
+  from the end of the demo. A header line says whose turn it is.
+
 ## Session 5 correction (2026-09-24) — Exercise A is full-screen Piano Tiles
 
 **This overrides the "Session 3 correction" below. Read it before touching
