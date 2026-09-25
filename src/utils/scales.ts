@@ -105,7 +105,7 @@ export const SCALE_TYPES: readonly ScaleTypeDef[] = [
   },
   {
     id: 'phrygianDominant',
-    nameKey: 'Phrygian Dominant',
+    nameKey: 'Phrygian Dominant (Hijaz)',
     degrees: [1, 4, 5, 7, 8, 10],
     degreeLabels: ['b2', '3', '4', '5', 'b6', 'b7'],
   },
@@ -139,25 +139,25 @@ export const SCALE_TYPES: readonly ScaleTypeDef[] = [
   },
   {
     id: 'lydianDominant',
-    nameKey: 'Lydian Dominant',
+    nameKey: 'Lydian Dominant (Acoustic)',
     degrees: [2, 4, 6, 7, 9, 10],
     degreeLabels: ['2', '3', '#4', '5', '6', 'b7'],
   },
   {
     id: 'altered',
-    nameKey: 'Altered',
+    nameKey: 'Altered (Super Locrian)',
     degrees: [1, 3, 4, 6, 8, 10],
     degreeLabels: ['b2', '#2', '3', 'b5', '#5', 'b7'],
   },
   {
     id: 'doubleHarmonic',
-    nameKey: 'Double Harmonic',
+    nameKey: 'Double Harmonic (Arabic)',
     degrees: [1, 4, 5, 7, 8, 11],
     degreeLabels: ['b2', '3', '4', '5', 'b6', '7'],
   },
   {
     id: 'hungarianMinor',
-    nameKey: 'Hungarian Minor',
+    nameKey: 'Hungarian Minor (Gypsy Minor)',
     degrees: [2, 3, 6, 7, 8, 11],
     degreeLabels: ['2', 'b3', '#4', '5', 'b6', '7'],
   },
