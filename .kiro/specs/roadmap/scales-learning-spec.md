@@ -93,10 +93,12 @@ exit button were all checked there.
   them. The tonic gets a gold ring.
 - Deleted: `ScaleShapeBoard.tsx`, `useScaleBoardEngine.ts`.
 
-**Open for the product owner:** the run starts at the **lowest note of the
-box**, not at the tonic. In box 1 these are the same note; in box 2 the
-box reaches below its tonic, so a run from the tonic would skip those notes.
-Change `scaleRun` if they want the run to start at the tonic instead.
+**Resolved (2026-09-25):** the run used to start at the box's lowest note,
+which confused the product owner (a B major run did not start on B). Both
+"Build the scale" and "Tap the scale in order" now play `tonicRun`: it starts
+and ends on the tonic and still covers the whole box — going up, tonic →
+highest note → lowest note → tonic; going down, the mirror. Runs are about
+twice as long as before. Checked by `scripts/check-scale-fall.mts`.
 
 ## Session 1 progress (2026-09-22) — read this before continuing
 

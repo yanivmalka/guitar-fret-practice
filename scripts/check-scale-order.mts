@@ -4,10 +4,10 @@
 //   node --experimental-strip-types scripts/check-scale-order.mts
 //
 // Covers, on guitar and bass, both scale types, both directions:
-//   • every shape tile maps to a step of the run, and every step has a tile
-//   • the steps follow the run's pitch order (ascending up, descending down)
-//   • a pitch held on two strings maps both tiles to the same step
+//   • the run starts and ends on the tonic
+//   • every shape tile is lit with its own pitch and is played at some step
 //   • the section's fret range covers every shape tile
+//   • lastStepOf: which number a note played twice shows
 
 import { register } from 'node:module';
 
@@ -29,7 +29,7 @@ register(
 
 const { buildScalePool, pickScaleQuestion } = await import('../src/learning/scaleDrill.ts');
 const { midiAt } = await import('../src/learning/scaleFall.ts');
-const { buildOrderBoard, tileKey } = await import('../src/learning/scaleOrder.ts');
+const { buildOrderBoard, tileKey, lastStepOf } = await import('../src/learning/scaleOrder.ts');
 const { INSTRUMENTS } = await import('../src/utils/instruments.ts');
 
 let failures = 0;
@@ -49,28 +49,30 @@ for (const id of ['guitar', 'bass'] as const) {
     const pool = buildScalePool(['minorPentatonic', 'major'], inst.stringCount);
     const rng = seeded(7);
     let bad = '';
-    let shared = 0;
     for (let n = 0; n < 400 && !bad; n++) {
       const q = pickScaleQuestion(pool, inst.notes, inst.stringCount, inst.maxFret, rng, false, dir);
       if (!q) { bad = 'no question'; break; }
       const b = buildOrderBoard(q, inst.openMidi);
-      const m = b.runMidi;
-      const ordered = m.every((x, i) => i === 0 || (dir === 'up' ? x > m[i - 1] : x < m[i - 1]));
-      if (!ordered) bad = `run not ${dir}: ${m}`;
-      if (b.stepAt.size !== q.shape.length) bad = 'a shape tile has no step';
+      const rootMidi = midiAt({ string: q.rootString, fret: q.rootFret }, inst.openMidi);
+      if (b.runMidi[0] !== rootMidi || b.runMidi[b.runMidi.length - 1] !== rootMidi) bad = 'run is not tonic to tonic';
+      if (b.tileMidi.size !== q.shape.length) bad = 'a shape tile is not lit';
       for (const p of q.shape) {
-        const step = b.stepAt.get(tileKey(p));
-        if (step == null || m[step] !== midiAt(p, inst.openMidi)) bad = `tile ${tileKey(p)} on the wrong step`;
+        const m = b.tileMidi.get(tileKey(p));
+        if (m !== midiAt(p, inst.openMidi)) bad = `tile ${tileKey(p)} has the wrong pitch`;
+        if (!b.runMidi.includes(m!)) bad = `tile ${tileKey(p)} is never played`;
         if (p.fret < b.fromFret || p.fret > b.toFret) bad = `tile ${tileKey(p)} outside the section`;
       }
-      const steps = new Set(b.stepAt.values());
-      if (steps.size !== m.length) bad = 'a step has no tile';
-      if (b.stepAt.size > m.length) shared++;
+      if (!b.runMidi.every((m) => [...b.tileMidi.values()].includes(m))) bad = 'a step has no tile';
+      if (!b.run.every((p, i) => midiAt(p, inst.openMidi) === b.runMidi[i])) bad = 'run and runMidi disagree';
     }
-    check(`${id} ${dir}: 400 random boards map every tile to its run step`, bad === '', bad);
-    console.log(`      (${shared} boards had a pitch on two strings)`);
+    check(`${id} ${dir}: 400 random boards light every tile and play every step`, bad === '', bad);
   }
 }
+
+console.log('lastStepOf');
+check('the latest earlier step with that pitch', lastStepOf([60, 62, 64, 62, 60], 62, 4) === 3);
+check('only steps before the current one count', lastStepOf([60, 62, 64, 62, 60], 62, 3) === 1);
+check('-1 when not played yet', lastStepOf([60, 62, 64], 64, 2) === -1);
 
 if (failures > 0) { console.error(`\n${failures} check(s) failed`); process.exit(1); }
 console.log('\nall checks passed');

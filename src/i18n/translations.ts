@@ -863,8 +863,8 @@ const he: Record<string, string> = {
   'Practice again': 'תרגלו שוב',
   'Build the scale': 'בנו את הסולם',
   'Tap the scale in order': 'הקישו את הסולם לפי הסדר',
-  'A section of the neck is shown with every note of the scale lit. Tap them in order to play the scale — up from its lowest note or down from its highest, as the arrow shows.':
-    'מוצג מקטע של הצוואר ובו כל תווי הסולם מוארים. הקישו עליהם לפי הסדר כדי לנגן את הסולם — עולה מהתו הנמוך ביותר או יורד מהגבוה ביותר, לפי החץ.',
+  'A section of the neck is shown with every note of the scale lit. Tap them in order to play the scale: start on the root (gold ring), go to one end of the section, then to the other end, and back to the root — up first or down first, as the arrow shows.':
+    'מוצג מקטע של הצוואר ובו כל תווי הסולם מוארים. הקישו עליהם לפי הסדר כדי לנגן את הסולם: מתחילים בתו הבסיס (המסגרת הזהובה), ממשיכים עד קצה אחד של המקטע, משם עד הקצה השני, וחוזרים לתו הבסיס — קודם עולים או קודם יורדים, לפי החץ.',
   'Learning mode': 'מצב למידה',
   'Play on my own': 'לנגן לבד',
   'Watch, then play': 'לצפות ואז לנגן',

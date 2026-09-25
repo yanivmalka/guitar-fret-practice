@@ -4,8 +4,10 @@
 // every note of the scale lit; the learner taps them in the order of the run.
 // No falling, no countdown — the order is the whole question.
 //
-// - A tap on a tile of the next step is a hit: it plays, turns green and
-//   shows its number in the run.
+// - The run starts and ends on the tonic and covers the whole box
+//   (`tonicRun`), so most notes come up twice. A tap on a tile with the next
+//   step's pitch is a hit: it plays, turns green and shows its number in the
+//   run (the latest one, for a note played twice).
 // - Any other tile — a lit note out of order, or a dim note that isn't in the
 //   scale — is a wrong tap: it still plays, flashes red, penalises, and the
 //   step being looked for slips. The scale keeps going.
@@ -197,9 +199,10 @@ export function useScaleOrderEngine({
     const total = b.runMidi.length;
     if (stepRef.current >= total) return; // scale done, waiting for the next
 
-    const tileStep = b.stepAt.get(`${string}:${fret}`);
-    if (tileStep != null && tileStep < stepRef.current) { haptic.tap(); return; } // already found
-    if (tileStep === stepRef.current) {
+    const midi = b.tileMidi.get(`${string}:${fret}`);
+    // A second tap on the note just played is not a mistake.
+    if (midi != null && stepRef.current > 0 && midi === b.runMidi[stepRef.current - 1]) { haptic.tap(); return; }
+    if (midi != null && midi === b.runMidi[stepRef.current]) {
       const now = Date.now();
       onCorrect((now - lastHitRef.current) / 1000, noteTime);
       lastHitRef.current = now;

@@ -7,8 +7,8 @@
 //
 // A row is a **slice of the neck at one fret**: one tile per string, each
 // carrying the real note at `(string, fret)`. Exactly one tile per row is the
-// target — the next note of the scale run, ascending by pitch from the lowest
-// shape note (a run up the scale, product-owner instruction). The rest of the
+// target — the next note of the scale run (`tonicRun`: from the tonic up to
+// the top of the box, down to its lowest note and back to the tonic). The rest of the
 // slice is ordinary, tappable, "wrong" neck.
 //
 // Each scale (`ScaleQuestion`, picked by `pickScaleQuestion` unchanged) is
@@ -97,6 +97,41 @@ export function scaleRun(
   return direction === 'down' ? out.reverse() : out;
 }
 
+/** The run the learner actually plays: it starts and ends on the tonic and
+ *  still covers the whole box (product-owner decision, 2026-09-25). Going
+ *  up: tonic → the box's highest note → its lowest note → back up to the
+ *  tonic. Going down: tonic → lowest → highest → back down to the tonic. A
+ *  box whose tonic is already its lowest note is simply up to the top and
+ *  back (and mirrored for down). The pitches come from `scaleRun`, so a
+ *  pitch held on two strings is still played once, on the thicker string. */
+export function tonicRun(
+  shape: readonly NeckPos[], openMidi: readonly number[], direction: 'up' | 'down', root: NeckPos,
+): NeckPos[] {
+  const asc = scaleRun(shape, openMidi, 'up');
+  const rootMidi = midiAt(root, openMidi);
+  const r = asc.findIndex((p) => midiAt(p, openMidi) === rootMidi);
+  if (r < 0) return direction === 'down' ? [...asc].reverse() : asc;
+  const top = asc.length - 1;
+  const span = (from: number, to: number): NeckPos[] => {
+    const out: NeckPos[] = [];
+    const d = Math.sign(to - from);
+    for (let i = from; ; i += d) { out.push(asc[i]); if (i === to || d === 0) break; }
+    return out;
+  };
+  if (direction === 'up') {
+    return [
+      ...span(r, top),
+      ...(top > 0 ? span(top - 1, 0) : []),
+      ...(r > 0 ? span(1, r) : []),
+    ];
+  }
+  return [
+    ...span(r, 0),
+    ...(top > 0 ? span(1, top) : []),
+    ...(r < top ? span(top - 1, r) : []),
+  ];
+}
+
 /** Lays `questions` out as one stream: a banner row, then the run's notes,
  *  per question, bottom (row 0) to top. Between two notes on different frets
  *  every fret the run steps over gets an empty row, in the direction of
@@ -106,7 +141,7 @@ export function buildFallStream(questions: readonly ScaleQuestion[], openMidi: r
   questions.forEach((q, qi) => {
     rows.push({ kind: 'banner', q: qi });
     let prevFret: number | null = null;
-    const run = scaleRun(q.shape, openMidi, q.direction);
+    const run = tonicRun(q.shape, openMidi, q.direction, { string: q.rootString, fret: q.rootFret });
     run.forEach((p, step) => {
       if (prevFret !== null) {
         const dir = Math.sign(p.fret - prevFret);

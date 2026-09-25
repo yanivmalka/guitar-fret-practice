@@ -11,7 +11,7 @@
 // only, never the instrument's layout; mirroring is the left-handed setting's
 // job (`[data-hand="left"]` in 27-left-handed.css).
 
-import type { ScaleOrderBoard as Board } from '../learning/scaleOrder';
+import { lastStepOf, type ScaleOrderBoard as Board } from '../learning/scaleOrder';
 import type { OrderTile } from '../hooks/useScaleOrderEngine';
 import { displayNote, type AccidentalMode, type NotationMode } from '../utils/music';
 
@@ -54,10 +54,13 @@ export default function ScaleOrderBoard({
           </span>
           {frets.map((f) => {
             const name = noteTable[s - 1]?.[f] ?? '';
-            const tileStep = board.stepAt.get(`${s}:${f}`);
-            const lit = tileStep != null;
-            const found = lit && tileStep < step;
-            const demoing = lit && demoStep != null && tileStep === demoStep;
+            const midi = board.tileMidi.get(`${s}:${f}`);
+            const lit = midi != null;
+            const demoing = lit && demoStep != null && board.runMidi[demoStep] === midi;
+            // The number shown: the step now being demoed, or the latest step
+            // already played on this pitch.
+            const tileStep = !lit ? -1 : demoing ? demoStep : lastStepOf(board.runMidi, midi, step);
+            const found = lit && !demoing && tileStep >= 0;
             let cls = 'scale-order-tile';
             if (lit) cls += ' scale-order-tile-lit';
             if (lit && name === rootName) cls += ' scale-order-tile-root';

@@ -450,7 +450,7 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
             {!running && tab === 'practice' && !finished && exercise === 'orderScale' && (
               <div className="set-card">
                 <p className="set-card-help">
-                  {t('A section of the neck is shown with every note of the scale lit. Tap them in order to play the scale — up from its lowest note or down from its highest, as the arrow shows.')}
+                  {t('A section of the neck is shown with every note of the scale lit. Tap them in order to play the scale: start on the root (gold ring), go to one end of the section, then to the other end, and back to the root — up first or down first, as the arrow shows.')}
                 </p>
                 <button type="button" className="set-card-btn set-card-btn-primary" onClick={startSession}>
                   {t('Start')}

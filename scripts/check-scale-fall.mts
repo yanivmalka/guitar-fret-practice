@@ -30,7 +30,7 @@ register(
 );
 
 const { buildScalePool, pickScaleQuestion } = await import('../src/learning/scaleDrill.ts');
-const { scaleRun, buildFallStream, midiAt, rowBottom, hasFallenOff, speedAt, START_OFFSET, scaleAccuracy, isScaleCorrect } =
+const { scaleRun, tonicRun, buildFallStream, midiAt, rowBottom, hasFallenOff, speedAt, START_OFFSET, scaleAccuracy, isScaleCorrect } =
   await import('../src/learning/scaleFall.ts');
 const { INSTRUMENTS } = await import('../src/utils/instruments.ts');
 
@@ -81,6 +81,34 @@ for (const id of ['guitar', 'bass'] as const) {
   console.log(`      (${doubled} of 400 shapes held a doubled pitch)`);
 }
 
+console.log('tonicRun');
+for (const id of ['guitar', 'bass'] as const) {
+  const inst = INSTRUMENTS[id];
+  const pool = buildScalePool(['minorPentatonic', 'major'], inst.stringCount);
+  for (const dir of ['up', 'down'] as const) {
+    const rng = seeded(11);
+    let bad = '';
+    for (let n = 0; n < 400 && !bad; n++) {
+      const q = pickScaleQuestion(pool, inst.notes, inst.stringCount, inst.maxFret, rng, false, dir);
+      if (!q) { bad = 'no question'; break; }
+      const root = { string: q.rootString, fret: q.rootFret };
+      const rootMidi = midiAt(root, inst.openMidi);
+      const box = scaleRun(q.shape, inst.openMidi).map((p) => midiAt(p, inst.openMidi));
+      const run = tonicRun(q.shape, inst.openMidi, dir, root).map((p) => midiAt(p, inst.openMidi));
+      if (run[0] !== rootMidi || run[run.length - 1] !== rootMidi) { bad = `not tonic to tonic: ${run}`; break; }
+      if (new Set(run).size !== box.length) { bad = 'does not cover the whole box'; break; }
+      // Neighbouring steps are neighbouring notes of the box, and the run turns
+      // exactly at the box's top and bottom.
+      const idx = run.map((m) => box.indexOf(m));
+      if (!idx.every((k, i) => i === 0 || Math.abs(k - idx[i - 1]) === 1)) { bad = `skips a note: ${idx}`; break; }
+      const first = Math.sign(idx[1] - idx[0]);
+      if (idx.length > 1 && first !== (dir === 'up' ? 1 : -1) && box.length > 1 && idx[0] !== (dir === 'up' ? box.length - 1 : 0)) { bad = `starts the wrong way: ${idx}`; break; }
+      if (!idx.includes(0) || !idx.includes(box.length - 1)) { bad = 'misses an end of the box'; break; }
+    }
+    check(`${id} ${dir}: tonic → one end → the other end → tonic, no skipped note`, bad === '', bad);
+  }
+}
+
 console.log('buildFallStream');
 {
   const inst = INSTRUMENTS.guitar;
@@ -89,7 +117,7 @@ console.log('buildFallStream');
   const qs = [0, 1, 2].map(() => pickScaleQuestion(pool, inst.notes, inst.stringCount, inst.maxFret, rng, false)!);
   const s = buildFallStream(qs, inst.openMidi);
   const expected = qs.reduce((n, q) => {
-    const run = scaleRun(q.shape, inst.openMidi);
+    const run = tonicRun(q.shape, inst.openMidi, q.direction, { string: q.rootString, fret: q.rootFret });
     const gaps = run.reduce((g, p, i) => (i === 0 ? g : g + Math.max(0, Math.abs(p.fret - run[i - 1].fret) - 1)), 0);
     return n + 1 + run.length + gaps;
   }, 0);
