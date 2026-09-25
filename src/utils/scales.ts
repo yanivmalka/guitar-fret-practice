@@ -7,10 +7,10 @@
 // Imports intervals.ts (`noteNameAtSemitones`) rather than duplicating its
 // pitch-class math — a scale degree IS an interval above the root.
 //
-// Ships one scale type at a time (spec §4.2): this file currently holds Minor
-// Pentatonic (slice 1) and Major (slice 2). Each later scale type is added as a new
-// `ScaleTypeDef` row plus its `ScalePositionDef` rows — nothing else in this
-// file changes shape for a new type.
+// Holds twelve basic scale types: Minor Pentatonic, Major, natural/harmonic/
+// melodic minor, major pentatonic, blues, and the five other church modes.
+// A new scale type is one more `ScaleTypeDef` row — its two boxes are
+// generated from `SCALE_TYPES`, so nothing else in this file changes shape.
 
 import { noteNameAtSemitones } from './intervals';
 
@@ -39,6 +39,66 @@ export const SCALE_TYPES: readonly ScaleTypeDef[] = [
     nameKey: 'Major',
     degrees: [2, 4, 5, 7, 9, 11],
     degreeLabels: ['2', '3', '4', '5', '6', '7'],
+  },
+  {
+    id: 'naturalMinor',
+    nameKey: 'Natural Minor',
+    degrees: [2, 3, 5, 7, 8, 10],
+    degreeLabels: ['2', 'b3', '4', '5', 'b6', 'b7'],
+  },
+  {
+    id: 'majorPentatonic',
+    nameKey: 'Major Pentatonic',
+    degrees: [2, 4, 7, 9],
+    degreeLabels: ['2', '3', '5', '6'],
+  },
+  {
+    id: 'blues',
+    nameKey: 'Blues',
+    degrees: [3, 5, 6, 7, 10],
+    degreeLabels: ['b3', '4', 'b5', '5', 'b7'],
+  },
+  {
+    id: 'harmonicMinor',
+    nameKey: 'Harmonic Minor',
+    degrees: [2, 3, 5, 7, 8, 11],
+    degreeLabels: ['2', 'b3', '4', '5', 'b6', '7'],
+  },
+  {
+    id: 'melodicMinor',
+    nameKey: 'Melodic Minor',
+    degrees: [2, 3, 5, 7, 9, 11],
+    degreeLabels: ['2', 'b3', '4', '5', '6', '7'],
+  },
+  {
+    id: 'dorian',
+    nameKey: 'Dorian',
+    degrees: [2, 3, 5, 7, 9, 10],
+    degreeLabels: ['2', 'b3', '4', '5', '6', 'b7'],
+  },
+  {
+    id: 'phrygian',
+    nameKey: 'Phrygian',
+    degrees: [1, 3, 5, 7, 8, 10],
+    degreeLabels: ['b2', 'b3', '4', '5', 'b6', 'b7'],
+  },
+  {
+    id: 'lydian',
+    nameKey: 'Lydian',
+    degrees: [2, 4, 6, 7, 9, 11],
+    degreeLabels: ['2', '3', '#4', '5', '6', '7'],
+  },
+  {
+    id: 'mixolydian',
+    nameKey: 'Mixolydian',
+    degrees: [2, 4, 5, 7, 9, 10],
+    degreeLabels: ['2', '3', '4', '5', '6', 'b7'],
+  },
+  {
+    id: 'locrian',
+    nameKey: 'Locrian',
+    degrees: [1, 3, 5, 6, 8, 10],
+    degreeLabels: ['b2', 'b3', '4', 'b5', 'b6', 'b7'],
   },
 ] as const;
 
@@ -92,12 +152,12 @@ export interface ScalePositionSpec {
   window: { from: number; to: number };
 }
 
-export const SCALE_POSITION_SPECS: readonly ScalePositionSpec[] = [
-  { scaleTypeId: 'minorPentatonic', positionIndex: 1, fromLowestString: 0, window: { from: -1, to: 3 } },
-  { scaleTypeId: 'minorPentatonic', positionIndex: 2, fromLowestString: 1, window: { from: -1, to: 3 } },
-  { scaleTypeId: 'major', positionIndex: 1, fromLowestString: 0, window: { from: -1, to: 3 } },
-  { scaleTypeId: 'major', positionIndex: 2, fromLowestString: 1, window: { from: -1, to: 3 } },
-] as const;
+/** Every scale type gets the same two boxes: position 1 rooted on the lowest
+ *  string, position 2 on the next string up. */
+export const SCALE_POSITION_SPECS: readonly ScalePositionSpec[] = SCALE_TYPES.flatMap((t) => [
+  { scaleTypeId: t.id, positionIndex: 1, fromLowestString: 0, window: { from: -1, to: 3 } },
+  { scaleTypeId: t.id, positionIndex: 2, fromLowestString: 1, window: { from: -1, to: 3 } },
+]);
 
 /** Resolve every `ScalePositionSpec` for `scaleTypeId` against a concrete
  *  `stringCount` into 1-based `rootString` values (string 1 = highest-pitched,

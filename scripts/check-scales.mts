@@ -61,14 +61,15 @@ const bass = INSTRUMENTS.bass;
 
 // ── Scale type table ─────────────────────────────────────────────────
 {
-  check('SCALE_TYPES has exactly minor pentatonic (slice 1)',
-    SCALE_TYPES.length === 1 && SCALE_TYPES[0].id === 'minorPentatonic');
+  check('SCALE_TYPES holds the twelve basic scales, minor pentatonic first',
+    SCALE_TYPES.length === 12 && SCALE_TYPES[0].id === 'minorPentatonic' &&
+    new Set(SCALE_TYPES.map((s: { id: string }) => s.id)).size === 12);
   const mp = scaleTypeById('minorPentatonic');
   check('minor pentatonic degrees are 3,5,7,10 (b3,4,5,b7)',
     !!mp && mp.degrees.join(',') === '3,5,7,10' &&
     mp.degreeLabels.join(',') === 'b3,4,5,b7');
   check('scaleTypeById returns undefined for an unshipped type',
-    scaleTypeById('major') === undefined);
+    scaleTypeById('noSuchScale') === undefined);
 }
 
 // ── Step pattern is derived, not authored ────────────────────────────
@@ -99,7 +100,7 @@ const bass = INSTRUMENTS.bass;
     bassPositions[0].rootString === 4 && bassPositions[1].rootString === 3);
 
   check('an unshipped scale type resolves to no positions',
-    scalePositionsFor('major', guitar.stringCount).length === 0);
+    scalePositionsFor('noSuchScale', guitar.stringCount).length === 0);
 }
 
 // ── shapeAtRoot ───────────────────────────────────────────────────────

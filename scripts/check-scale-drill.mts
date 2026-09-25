@@ -51,7 +51,7 @@ const bass = INSTRUMENTS.bass;
     pool.every((p: { scaleTypeId: string }) => p.scaleTypeId === 'minorPentatonic') &&
     pool.map((p: { positionIndex: number }) => p.positionIndex).sort().join(',') === '1,2');
   check('buildScalePool: an unshipped type contributes nothing',
-    buildScalePool(['major', 'minorPentatonic'], guitar.stringCount).length === 2);
+    buildScalePool(['noSuchScale', 'minorPentatonic'], guitar.stringCount).length === 2);
   check('buildScalePool: empty type list -> empty pool',
     buildScalePool([], guitar.stringCount).length === 0);
 }
@@ -85,7 +85,7 @@ const bass = INSTRUMENTS.bass;
   check('pickScaleQuestion(empty pool) -> null',
     pickScaleQuestion([], guitar.notes, guitar.stringCount, guitar.maxFret) === null);
   check('pickScaleQuestion(pool of an unshipped type) -> null',
-    pickScaleQuestion([{ scaleTypeId: 'major', positionIndex: 1 }], guitar.notes, guitar.stringCount, guitar.maxFret) === null);
+    pickScaleQuestion([{ scaleTypeId: 'noSuchScale', positionIndex: 1 }], guitar.notes, guitar.stringCount, guitar.maxFret) === null);
   check('pickScaleQuestion(pool referencing a position index that doesn\'t exist) -> null',
     pickScaleQuestion([{ scaleTypeId: 'minorPentatonic', positionIndex: 99 }], guitar.notes, guitar.stringCount, guitar.maxFret) === null);
   check('pickScaleQuestion on an instrument with maxFret too small for the window -> null',

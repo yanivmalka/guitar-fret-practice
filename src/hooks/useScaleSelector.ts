@@ -21,13 +21,13 @@
 import { useMemo, useState } from 'react';
 import { loadSetting, saveSetting } from '../utils/settings';
 import { buildScalePool, type ScalePoolItem, type ScaleDirection } from '../learning/scaleDrill';
-import { scalePositionsFor, type ScalePositionDef } from '../utils/scales';
+import { scalePositionsFor, SCALE_TYPES, type ScalePositionDef } from '../utils/scales';
 import type { ScaleChipExercise } from './useScaleChipEngine';
 import type { FallSpeed } from '../learning/scaleFall';
 
-/** Widen this the moment a second scale type ships (§4.2) — nothing else in
- *  this file changes shape. */
-const SHIPPED_SCALE_TYPE_IDS: readonly string[] = ['minorPentatonic', 'major'];
+/** Every row in `SCALE_TYPES` is offered — adding a scale type there is all
+ *  it takes for the Selector to show it. */
+const SHIPPED_SCALE_TYPE_IDS: readonly string[] = SCALE_TYPES.map((s) => s.id);
 
 /** Which scale(s) a session draws from: one scale type id, or every shipped one. */
 export type ScaleChoice = 'all' | string;

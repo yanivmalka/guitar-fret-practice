@@ -62,8 +62,8 @@ const bass = INSTRUMENTS.bass;
       return noteNameAtSemitones(q!.rootName, semis) === guitar.notes[q!.rootString - 1][f];
     }));
   check('options always include the answer', !!q && q.options.includes(q.scaleTypeId));
-  check('with one shipped scale type, options degrades to exactly 1 (always-correct)',
-    !!q && q.options.length === 1);
+  check('a one-scale pool still fills the chips from the other shipped scales',
+    !!q && q.options.length === 4 && new Set(q.options).size === 4);
 
   check('null pool -> null',
     pickScaleIdentifyQuestion([], guitar.notes, guitar.stringCount, guitar.maxFret) === null);
