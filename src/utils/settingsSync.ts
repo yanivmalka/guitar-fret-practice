@@ -34,8 +34,15 @@ const SYNCED_KEYS = new Set([
   'pref_feedbackMode', 'pref_colorblindHeat',
   'pref_quickAccessEnabled', 'pref_pinnedQuickAccess', 'qaHintSeen',
   'onboardingDone', 'infoBubbleSeen',
+  // Precise Pro fret window (global, clamped to the active neck on read).
+  'sel_useFretRange', 'sel_fretLo', 'sel_fretHi',
+  // Staff / Tab reading screen picks (each validated on read by loadOneOf).
+  'staff_exercise', 'staff_range', 'staff_key', 'staff_naturalsOnly',
+  'tab_exercise', 'tab_range', 'tab_naturalsOnly',
 ]);
-const SYNCED_PREFIXES = ['sel_strings_', 'sel_multi_'];
+// `ssel_` = every Scales screen pick (scale, exercise, direction, position,
+// fall speed, info-bubble root, ...).
+const SYNCED_PREFIXES = ['sel_strings_', 'sel_multi_', 'ssel_'];
 
 export function isSyncedKey(key: string): boolean {
   return SYNCED_KEYS.has(key) || SYNCED_PREFIXES.some(p => key.startsWith(p));
