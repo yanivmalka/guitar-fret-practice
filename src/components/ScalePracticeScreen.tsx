@@ -26,7 +26,7 @@
 // `IntervalSelectorPanel`-style layout Intervals uses — good enough while
 // there's one scale type and two positions.
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { InstrumentConfig } from '../utils/instruments';
 import { useScaleFallEngine, type ScaleFallAnswer } from '../hooks/useScaleFallEngine';
 import { useScaleChipEngine, type ScaleChipAnswer } from '../hooks/useScaleChipEngine';
@@ -78,6 +78,15 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
   const [morePage, setMorePage] = useState(false);
   // Which row's "?" explanation is open on the "More scales" page (one at a time).
   const [infoScaleId, setInfoScaleId] = useState<string | null>(null);
+  // The "?" bubble floats, so a tap anywhere outside a "?" dismisses it.
+  useEffect(() => {
+    if (infoScaleId === null) return;
+    const close = (e: PointerEvent) => {
+      if (!(e.target as Element | null)?.closest?.('.scale-more-info')) setInfoScaleId(null);
+    };
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, [infoScaleId]);
   const basicScaleIds = sel.shippedScaleTypeIds.filter((id) => BASIC_SCALE_TYPE_IDS.includes(id));
   // The open "?" explanation on the main screen — only the five basic scales live there.
   const basicInfoType = infoScaleId && basicScaleIds.includes(infoScaleId) ? scaleTypeById(infoScaleId) : undefined;
@@ -253,9 +262,9 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
                         )}
                       </div>
                       {blurb && infoOpen && (
-                        <div className="scale-more-blurb" role="status" aria-live="polite">
-                          <span className="scale-more-blurb-text">{t(blurb)}</span>
-                          <span className="scale-more-blurb-legend">{t(SCALE_FORMULA_LEGEND)}</span>
+                        <div className="mode-card-info-bubble" role="status" aria-live="polite">
+                          <span className="mode-card-info-summary">{t(blurb)}</span>
+                          {t(SCALE_FORMULA_LEGEND)}
                         </div>
                       )}
                     </div>
@@ -397,12 +406,10 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
                   )}
                 </div>
                 {basicInfoType && SCALE_BLURBS[basicInfoType.id] && (
-                  <div className="scale-more-blurb" role="status" aria-live="polite">
-                    <span className="scale-more-blurb-text">{t(SCALE_BLURBS[basicInfoType.id])}</span>
-                    <span className="scale-more-blurb-legend">
-                      <span className="scale-more-formula" dir="ltr">{['1', ...basicInfoType.degreeLabels].join(' ')}</span>
-                      {' '}{t(SCALE_FORMULA_LEGEND)}
-                    </span>
+                  <div className="mode-card-info-bubble" role="status" aria-live="polite">
+                    <span className="mode-card-info-summary">{t(SCALE_BLURBS[basicInfoType.id])}</span>
+                    <span className="scale-more-formula" dir="ltr">{['1', ...basicInfoType.degreeLabels].join(' ')}</span>
+                    {' '}{t(SCALE_FORMULA_LEGEND)}
                   </div>
                 )}
               </div>

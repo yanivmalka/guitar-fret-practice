@@ -407,13 +407,11 @@
   opacity: 0.7;
   font-variant-numeric: tabular-nums;
 }
-/* Each row carries a "?" beside it; tapping it opens a plain-language
-   explanation of the scale right under the row (same marker as the "?" on
-   the notes mode cards, but inline so it never covers the rows below). */
+/* Each row carries a "?" beside it; tapping it floats a plain-language
+   explanation under the row, using the same bubble (.mode-card-info-bubble,
+   08-mode-info.css) as the "?" on the notes mode cards. */
 .scale-more-item {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  position: relative;
 }
 .scale-more-row {
   display: flex;
@@ -443,28 +441,6 @@
   border-color: var(--accent);
   background: rgba(var(--accent-rgb), 0.1);
 }
-.scale-more-blurb {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
-  font-size: 0.78rem;
-  line-height: 1.5;
-  color: var(--text-1);
-  text-align: start;
-  background: var(--bg-1);
-  border: 1px solid var(--surface-border);
-  border-radius: 10px;
-}
-.scale-more-blurb-text {
-  color: var(--text-0);
-  font-weight: 500;
-}
-.scale-more-blurb-legend {
-  padding-top: 6px;
-  border-top: 1px solid var(--surface-border);
-}
-
 /* Main-screen scale chip with its "?" attached; the pair wraps as one unit. */
 .scale-chip-group {
   display: inline-flex;
