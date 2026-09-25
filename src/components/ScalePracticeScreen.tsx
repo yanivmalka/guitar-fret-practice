@@ -32,7 +32,7 @@ import { useScaleFallEngine, type ScaleFallAnswer } from '../hooks/useScaleFallE
 import { useScaleChipEngine, type ScaleChipAnswer } from '../hooks/useScaleChipEngine';
 import { useScaleOrderEngine, type ScaleOrderAnswer } from '../hooks/useScaleOrderEngine';
 import { useScaleSelector, FALL_SPEED_LEVELS, DISTANCE_UNITS } from '../hooks/useScaleSelector';
-import { scaleTypeById, SCALE_TYPES, BASIC_SCALE_TYPE_IDS } from '../utils/scales';
+import { scaleTypeById, SCALE_TYPES, BASIC_SCALE_TYPE_IDS, MORE_SCALE_GROUPS } from '../utils/scales';
 import { Chevron } from './Chevron';
 import { scaleItemId } from '../learning/scaleItem';
 import { buildScalePool, type ScaleQuestion } from '../learning/scaleDrill';
@@ -78,6 +78,13 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
   const basicScaleIds = sel.shippedScaleTypeIds.filter((id) => BASIC_SCALE_TYPE_IDS.includes(id));
   const moreScaleIds = sel.shippedScaleTypeIds.filter((id) => !BASIC_SCALE_TYPE_IDS.includes(id));
   const moreChosen = moreScaleIds.includes(sel.scaleChoice);
+  // Any extra scale missing from MORE_SCALE_GROUPS still gets listed, under
+  // "Other", so a new SCALE_TYPES row can never go unreachable.
+  const grouped = new Set(MORE_SCALE_GROUPS.flatMap((g) => g.ids));
+  const moreScaleGroups = [
+    ...MORE_SCALE_GROUPS.map((g) => ({ ...g, ids: g.ids.filter((id) => moreScaleIds.includes(id)) })),
+    { titleKey: 'Other', ids: moreScaleIds.filter((id) => !grouped.has(id)) },
+  ].filter((g) => g.ids.length > 0);
 
   const chipInstrument = useMemo(
     () => ({ notes: instrument.notes, stringCount: instrument.stringCount, maxFret: instrument.maxFret }),
@@ -209,22 +216,25 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
             <h2 className="settings-page-name">{t('More scales')}</h2>
           </header>
           <div className="settings-page-body">
-            <div className="set-card scale-more-list" role="group" aria-label={t('More scales')}>
-              {moreScaleIds.map((id) => {
-                const type = scaleTypeById(id);
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    className={`set-card-btn scale-more-btn${sel.scaleChoice === id ? ' set-card-btn-primary' : ''}`}
-                    onClick={() => { playClickSound(); haptic.tap(); sel.setScaleChoice(id); setMorePage(false); }}
-                  >
-                    <span>{t(type?.nameKey ?? id)}</span>
-                    {type && <span className="scale-more-formula" dir="ltr">{['1', ...type.degreeLabels].join(' ')}</span>}
-                  </button>
-                );
-              })}
-            </div>
+            {moreScaleGroups.map((group) => (
+              <div key={group.titleKey} className="set-card scale-more-list" role="group" aria-label={t(group.titleKey)}>
+                <span className="set-card-label">{t(group.titleKey)}</span>
+                {group.ids.map((id) => {
+                  const type = scaleTypeById(id);
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      className={`set-card-btn scale-more-btn${sel.scaleChoice === id ? ' set-card-btn-primary' : ''}`}
+                      onClick={() => { playClickSound(); haptic.tap(); sel.setScaleChoice(id); setMorePage(false); }}
+                    >
+                      <span>{t(type?.nameKey ?? id)}</span>
+                      {type && <span className="scale-more-formula" dir="ltr">{['1', ...type.degreeLabels].join(' ')}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         </div>
       </div>

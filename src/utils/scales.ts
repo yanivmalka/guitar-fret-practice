@@ -7,8 +7,11 @@
 // Imports intervals.ts (`noteNameAtSemitones`) rather than duplicating its
 // pitch-class math — a scale degree IS an interval above the root.
 //
-// Holds twelve basic scale types: Minor Pentatonic, Major, natural/harmonic/
-// melodic minor, major pentatonic, blues, and the five other church modes.
+// Holds twelve basic scale types (Minor Pentatonic, Major, natural/harmonic/
+// melodic minor, major pentatonic, blues, the five other church modes) plus
+// ten more: jazz (diminished, whole tone, lydian dominant, altered), blues
+// (major blues) and world colours (phrygian dominant, double harmonic,
+// hungarian minor, hirajoshi).
 // A new scale type is one more `ScaleTypeDef` row — its two boxes are
 // generated from `SCALE_TYPES`, so nothing else in this file changes shape.
 
@@ -100,12 +103,85 @@ export const SCALE_TYPES: readonly ScaleTypeDef[] = [
     degrees: [1, 3, 5, 6, 8, 10],
     degreeLabels: ['b2', 'b3', '4', 'b5', 'b6', 'b7'],
   },
+  {
+    id: 'phrygianDominant',
+    nameKey: 'Phrygian Dominant',
+    degrees: [1, 4, 5, 7, 8, 10],
+    degreeLabels: ['b2', '3', '4', '5', 'b6', 'b7'],
+  },
+  {
+    id: 'majorBlues',
+    nameKey: 'Major Blues',
+    degrees: [2, 3, 4, 7, 9],
+    degreeLabels: ['2', 'b3', '3', '5', '6'],
+  },
+  // The two diminished scales have eight notes, so one letter name carries
+  // two degrees. Labels follow the jazz convention: half-whole reads its
+  // minor third as #2 (the #9 over a dominant chord), whole-half spells its
+  // sixth degree as a plain 6 rather than bb7.
+  {
+    id: 'halfWholeDiminished',
+    nameKey: 'Half-Whole Diminished',
+    degrees: [1, 3, 4, 6, 7, 9, 10],
+    degreeLabels: ['b2', '#2', '3', '#4', '5', '6', 'b7'],
+  },
+  {
+    id: 'wholeHalfDiminished',
+    nameKey: 'Whole-Half Diminished',
+    degrees: [2, 3, 5, 6, 8, 9, 11],
+    degreeLabels: ['2', 'b3', '4', 'b5', 'b6', '6', '7'],
+  },
+  {
+    id: 'wholeTone',
+    nameKey: 'Whole Tone',
+    degrees: [2, 4, 6, 8, 10],
+    degreeLabels: ['2', '3', '#4', '#5', 'b7'],
+  },
+  {
+    id: 'lydianDominant',
+    nameKey: 'Lydian Dominant',
+    degrees: [2, 4, 6, 7, 9, 10],
+    degreeLabels: ['2', '3', '#4', '5', '6', 'b7'],
+  },
+  {
+    id: 'altered',
+    nameKey: 'Altered',
+    degrees: [1, 3, 4, 6, 8, 10],
+    degreeLabels: ['b2', '#2', '3', 'b5', '#5', 'b7'],
+  },
+  {
+    id: 'doubleHarmonic',
+    nameKey: 'Double Harmonic',
+    degrees: [1, 4, 5, 7, 8, 11],
+    degreeLabels: ['b2', '3', '4', '5', 'b6', '7'],
+  },
+  {
+    id: 'hungarianMinor',
+    nameKey: 'Hungarian Minor',
+    degrees: [2, 3, 6, 7, 8, 11],
+    degreeLabels: ['2', 'b3', '#4', '5', 'b6', '7'],
+  },
+  {
+    id: 'hirajoshi',
+    nameKey: 'Hirajoshi',
+    degrees: [2, 3, 7, 8],
+    degreeLabels: ['2', 'b3', '5', 'b6'],
+  },
 ] as const;
 
 /** The five most basic scales, shown straight on the Scales screen; every
  *  other `SCALE_TYPES` row lives on the "More scales" page. */
 export const BASIC_SCALE_TYPE_IDS: readonly string[] = [
   'major', 'naturalMinor', 'minorPentatonic', 'majorPentatonic', 'blues',
+];
+
+/** How the "More scales" page groups everything outside the basic five.
+ *  `titleKey` doubles as the i18n lookup key. */
+export const MORE_SCALE_GROUPS: readonly { titleKey: string; ids: readonly string[] }[] = [
+  { titleKey: 'Modes', ids: ['dorian', 'phrygian', 'lydian', 'mixolydian', 'locrian'] },
+  { titleKey: 'Minor variations', ids: ['harmonicMinor', 'melodicMinor', 'hungarianMinor'] },
+  { titleKey: 'Blues & jazz', ids: ['majorBlues', 'lydianDominant', 'altered', 'halfWholeDiminished', 'wholeHalfDiminished', 'wholeTone'] },
+  { titleKey: 'World', ids: ['phrygianDominant', 'doubleHarmonic', 'hirajoshi'] },
 ];
 
 const BY_ID = new Map(SCALE_TYPES.map((s) => [s.id, s]));
@@ -118,14 +194,18 @@ export function scaleTypeById(id: string): ScaleTypeDef | undefined {
  *  octave), derived from `degrees` — never authored separately, so the
  *  formula shown to the learner (spec §1.4) can never drift from the
  *  semitone data the engine actually drills. `'W'` = 2 semitones, `'H'` = 1,
- *  `'W+H'` = 3 (a step-and-a-half, e.g. pentatonic/blues). */
-export type ScaleStep = 'W' | 'H' | 'W+H';
+ *  `'W+H'` = 3 (a step-and-a-half, e.g. pentatonic/blues), `'W+W'` = 4 (two
+ *  whole steps, e.g. Hirajoshi's 3→5 and b6→octave). */
+export type ScaleStep = 'W' | 'H' | 'W+H' | 'W+W';
+
+const STEP_BY_GAP: Record<number, ScaleStep> = { 1: 'H', 2: 'W', 3: 'W+H', 4: 'W+W' };
 
 export function stepPattern(scale: ScaleTypeDef): ScaleStep[] {
   const bounds = [0, ...scale.degrees, 12];
   return bounds.slice(1).map((n, i) => {
-    const gap = n - bounds[i];
-    return gap === 2 ? 'W' : gap === 1 ? 'H' : 'W+H';
+    const step = STEP_BY_GAP[n - bounds[i]];
+    if (!step) throw new Error(`stepPattern: unsupported ${n - bounds[i]}-semitone gap in ${scale.id}`);
+    return step;
   });
 }
 

@@ -61,9 +61,15 @@ const bass = INSTRUMENTS.bass;
 
 // ── Scale type table ─────────────────────────────────────────────────
 {
-  check('SCALE_TYPES holds the twelve basic scales, minor pentatonic first',
-    SCALE_TYPES.length === 12 && SCALE_TYPES[0].id === 'minorPentatonic' &&
-    new Set(SCALE_TYPES.map((s: { id: string }) => s.id)).size === 12);
+  check('SCALE_TYPES holds twenty-two scales with unique ids, minor pentatonic first',
+    SCALE_TYPES.length === 22 && SCALE_TYPES[0].id === 'minorPentatonic' &&
+    new Set(SCALE_TYPES.map((s: { id: string }) => s.id)).size === 22);
+  check('every scale type: degrees strictly ascend inside the octave, one label per degree',
+    SCALE_TYPES.every((s: { degrees: number[]; degreeLabels: string[] }) =>
+      s.degrees.length === s.degreeLabels.length &&
+      s.degrees.every((d, i) => d > (i === 0 ? 0 : s.degrees[i - 1]) && d < 12)));
+  check('every scale type: labels are unique within the scale',
+    SCALE_TYPES.every((s: { degreeLabels: string[] }) => new Set(s.degreeLabels).size === s.degreeLabels.length));
   const mp = scaleTypeById('minorPentatonic');
   check('minor pentatonic degrees are 3,5,7,10 (b3,4,5,b7)',
     !!mp && mp.degrees.join(',') === '3,5,7,10' &&
@@ -85,6 +91,12 @@ const bass = INSTRUMENTS.bass;
   const naturalMinorLike = { id: 'x', nameKey: 'x', degrees: [2, 3, 5, 7, 8, 10], degreeLabels: [] };
   check('a 7-note W-H-W-W-H-W-W formula (natural-minor shape) derives correctly',
     stepPattern(naturalMinorLike).join('-') === 'W-H-W-W-H-W-W');
+  check('hirajoshi derives its two-whole-step gaps as W+W',
+    stepPattern(scaleTypeById('hirajoshi')!).join('-') === 'W-H-W+W-H-W+W');
+  check('every shipped scale type has a step pattern (no unsupported gap)',
+    SCALE_TYPES.every((s: Parameters<typeof stepPattern>[0]) => {
+      try { return stepPattern(s).length === s.degrees.length + 1; } catch { return false; }
+    }));
 }
 
 // ── Position resolution — "lowest string" / "next string up", per instrument ─
