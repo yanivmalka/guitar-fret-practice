@@ -2,7 +2,7 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useTranslation } from '../i18n/useTranslation';
 import { can } from '../utils/features';
-import { dismissAd, isAdPending, subscribeAdPending } from '../utils/adPacing';
+import { dismissAd, isAdPending, isRoundActive, subscribeAdPending } from '../utils/adPacing';
 import { haptic, playClickSound } from '../utils/feedback';
 import { adSurface } from '../ads/config';
 import { hideNativeBanner, showNativeBanner } from '../ads/nativeBanner';
@@ -13,9 +13,10 @@ const ROOT = document.documentElement;
 
 /** The Free-tier ad strip.
  *
- *  When it shows is decided by `utils/adPacing` (after a random 1–3 rounds,
- *  finished or stopped part-way; gone as soon as the next round starts); who sees it is decided here
- *  through the capability map (`noAds` is a Pro feature). Mounted once, outside
+ *  When it shows is decided by `utils/adPacing` — never during a drill; for a
+ *  guest on every browsing screen, with no close button; for a signed-in Free
+ *  user from app launch and then after every random 1–3 rounds. Who sees it is
+ *  decided here through the capability map (`noAds` is a Pro feature). Mounted once, outside
  *  <App>, so it overlays every browsing screen without each one knowing.
  *
  *  What fills it depends on the platform (`ads/config.ts`):
@@ -27,9 +28,11 @@ export default function AdBanner() {
   const { t } = useTranslation();
   const auth = useAuth();
   const pending = useSyncExternalStore(subscribeAdPending, isAdPending);
+  const roundActive = useSyncExternalStore(subscribeAdPending, isRoundActive);
+  const isGuest = !auth.user;
   // While the entitlement is still resolving a paying user reads as Free, so
   // hold the strip back until we actually know.
-  const visible = pending && !auth.loading && !can('noAds', auth.tier);
+  const visible = !roundActive && (isGuest || pending) && !auth.loading && !can('noAds', auth.tier);
 
   // Reserve room at the bottom so the strip never covers a control.
   useEffect(() => {
@@ -56,14 +59,16 @@ export default function AdBanner() {
       {SURFACE === 'adsense'
         ? <AdSenseSlot />
         : <span className="ad-strip__text">{t('Your ad could be here. Go Pro to remove ads.')}</span>}
-      <button
-        type="button"
-        className="ad-strip__close"
-        aria-label={t('Close ad')}
-        onClick={() => { playClickSound(); haptic.tap(); dismissAd(); }}
-      >
-        ×
-      </button>
+      {!isGuest && (
+        <button
+          type="button"
+          className="ad-strip__close"
+          aria-label={t('Close ad')}
+          onClick={() => { playClickSound(); haptic.tap(); dismissAd(); }}
+        >
+          ×
+        </button>
+      )}
     </div>
   );
 }

@@ -87,6 +87,7 @@ import { LeaderboardPanel } from './components/LeaderboardPanel';
 import { BadgeGrid } from './components/BadgeGrid';
 import { UpgradeCard } from './components/UpgradeCard';
 import { can, PRO_ONLY_INSTRUMENTS } from './utils/features';
+import { setDrillHold } from './utils/adPacing';
 import { GuestMergePrompt } from './components/GuestMergePrompt';
 import { useAppNavigation } from './hooks/useAppNavigation';
 import { useBackNavigation } from './hooks/useBackNavigation';
@@ -617,6 +618,10 @@ export default function App() {
   // appearance — no all-time mastery overlay, dots shown — instead of flashing
   // the at-rest page look for the three seconds before the first question.
   const boardLive = gameActive || countdown !== null;
+  // The count-in and the Auto Advance gap are still "in a drill": keep the ad
+  // strip down through them so it never flashes between rounds.
+  const drillHold = countdown !== null || pendingAutoAdvance;
+  useEffect(() => { setDrillHold(drillHold); }, [drillHold]);
 
   // The end-of-round badge reveal list. Owned here rather than inside
   // useRoundEndCelebrations because useBackNavigation consumes it and the

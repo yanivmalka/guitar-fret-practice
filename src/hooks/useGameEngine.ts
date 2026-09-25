@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { notes, getCofNotes, getCorrectCofNote, getValidFrets, notesMatch, displayNote } from '../utils/music';
 import type { AccidentalMode, OrderMode, HistoryEntry } from '../utils/music';
 import type { ScoreResult } from './useScoring';
@@ -890,6 +890,9 @@ export function useGameEngine(
     markPlayed();
     setTimeout(isByNote ? nextByNote : next, 100);
   }, [nextByNote, next, resetSession, markPlayed]);
+
+  // Leaving the screen mid-round ends the round as far as the ad strip goes.
+  useEffect(() => () => { if (runningRef.current || pausedRef.current) noteRoundEnded(); }, []);
 
   const stop = useCallback(() => {
     // A round stopped part-way still counts toward the ad pacing.

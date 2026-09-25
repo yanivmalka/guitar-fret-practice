@@ -221,6 +221,9 @@ export function useReadingEngine<F extends string, T extends ReadingItem>({
     nextQuestion(mySession);
   }, [reset, beginRun, timeLimit, questionCount, notesPerQuestion, nextQuestion]);
 
+  // Leaving the screen mid-round ends the round as far as the ad strip goes.
+  useEffect(() => () => { if (runningRef.current) noteRoundEnded(); }, []);
+
   const stop = useCallback(() => {
     // A round stopped part-way still counts toward the ad pacing.
     if (runningRef.current) noteRoundEnded();
