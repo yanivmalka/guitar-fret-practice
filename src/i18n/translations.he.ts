@@ -159,6 +159,9 @@ export const he: Record<string, string> = {
   'Downloading the language…': 'מוריד את השפה…',
   'Could not download the language. Check your connection and try again.': 'לא ניתן היה להוריד את השפה. בדוק את החיבור ונסה שוב.',
   'Left-handed': 'שמאלי',
+  'Seasonal background': 'רקע עונתי',
+  'Light seasonal decorations behind the app: snowflakes in winter, anemones in spring, sunflowers in summer, falling leaves in autumn. They follow the season above. Off keeps the background plain.':
+    'קישוטים עדינים לפי העונה מאחורי האפליקציה: פתיתי שלג בחורף, כלניות באביב, חמניות בקיץ ועלי שלכת בסתיו. הם הולכים לפי העונה שנבחרה למעלה. כבוי משאיר רקע נקי.',
   'Button depth': 'נפח לכפתורים',
   'Gives the buttons a raised, 3D look: a light rim on top, a solid edge underneath, and they sink a little when pressed. Off keeps them flat.': 'נותן לכפתורים מראה תלת-ממדי בולט: קו בהיר למעלה, קצה מלא למטה, והם שוקעים מעט כשלוחצים עליהם. כבוי משאיר אותם שטוחים.',
   'Mirrors the app for a left-handed player: the fretboard flips (nut on the right), and the menu, Quick Access and back buttons move to the left. Independent of language — it stays mirrored in Hebrew too.':

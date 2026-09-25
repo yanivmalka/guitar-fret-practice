@@ -162,6 +162,9 @@ export const it: Record<string, string> = {
   'Downloading the language…': 'Download della lingua…',
   'Could not download the language. Check your connection and try again.': 'Impossibile scaricare la lingua. Controlla la connessione e riprova.',
   'Left-handed': 'Mancino',
+  'Seasonal background': 'Sfondo stagionale',
+  'Light seasonal decorations behind the app: snowflakes in winter, anemones in spring, sunflowers in summer, falling leaves in autumn. They follow the season above. Off keeps the background plain.':
+    'Decorazioni leggere di stagione dietro l’app: fiocchi di neve in inverno, anemoni in primavera, girasoli in estate e foglie che cadono in autunno. Seguono la stagione scelta sopra. Disattivato lascia lo sfondo semplice.',
   'Button depth': 'Rilievo dei pulsanti',
   'Gives the buttons a raised, 3D look: a light rim on top, a solid edge underneath, and they sink a little when pressed. Off keeps them flat.':
     'Dà ai pulsanti un aspetto in rilievo, 3D: un bordo chiaro sopra, un bordo pieno sotto, e si abbassano un po’ quando li premi. Disattivo li lascia piatti.',

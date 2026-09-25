@@ -162,6 +162,9 @@ export const es: Record<string, string> = {
   'Downloading the language…': 'Descargando el idioma…',
   'Could not download the language. Check your connection and try again.': 'No se pudo descargar el idioma. Revisa tu conexión e inténtalo de nuevo.',
   'Left-handed': 'Zurdo',
+  'Seasonal background': 'Fondo de temporada',
+  'Light seasonal decorations behind the app: snowflakes in winter, anemones in spring, sunflowers in summer, falling leaves in autumn. They follow the season above. Off keeps the background plain.':
+    'Decoraciones suaves de temporada detrás de la app: copos de nieve en invierno, anémonas en primavera, girasoles en verano y hojas cayendo en otoño. Siguen la estación elegida arriba. Desactivado deja el fondo liso.',
   'Button depth': 'Relieve de los botones',
   'Gives the buttons a raised, 3D look: a light rim on top, a solid edge underneath, and they sink a little when pressed. Off keeps them flat.':
     'Da a los botones un aspecto en relieve, en 3D: un borde claro arriba, un canto sólido abajo, y se hunden un poco al pulsarlos. Desactivado los deja planos.',

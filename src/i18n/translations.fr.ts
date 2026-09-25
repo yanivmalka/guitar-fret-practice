@@ -164,6 +164,9 @@ export const fr: Record<string, string> = {
   'Downloading the language…': 'Téléchargement de la langue…',
   'Could not download the language. Check your connection and try again.': 'Impossible de télécharger la langue. Vérifie ta connexion et réessaie.',
   'Left-handed': 'Gaucher',
+  'Seasonal background': 'Fond de saison',
+  'Light seasonal decorations behind the app: snowflakes in winter, anemones in spring, sunflowers in summer, falling leaves in autumn. They follow the season above. Off keeps the background plain.':
+    'Décorations légères de saison derrière l’appli : flocons de neige en hiver, anémones au printemps, tournesols en été et feuilles qui tombent en automne. Elles suivent la saison choisie plus haut. Désactivé laisse le fond uni.',
   'Button depth': 'Relief des boutons',
   'Gives the buttons a raised, 3D look: a light rim on top, a solid edge underneath, and they sink a little when pressed. Off keeps them flat.':
     'Donne aux boutons un aspect en relief, en 3D : un liseré clair en haut, un bord plein en dessous, et ils s’enfoncent un peu quand on appuie. Désactivé les garde plats.',

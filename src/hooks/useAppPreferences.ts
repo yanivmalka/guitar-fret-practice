@@ -144,6 +144,16 @@ export function useAppPreferences() {
     setButtonDepthState(v);
     saveSetting('pref_buttonDepth', v);
   }, []);
+  // The light seasonal backdrop (snow / anemones / sunflowers / leaves) drawn
+  // behind the app for the season in effect. On by default; the CSS keys off
+  // `data-deco` on <html>. Persists internally, like setTheme.
+  const [seasonDeco, setSeasonDecoState] = useState<boolean>(
+    () => loadSetting<boolean>('pref_seasonDeco', true),
+  );
+  const setSeasonDeco = useCallback((v: boolean) => {
+    setSeasonDecoState(v);
+    saveSetting('pref_seasonDeco', v);
+  }, []);
   // Extra ✓/• glyphs drawn over the Stats-screen fretboard heatmap cells, on
   // top of colour, so the "known" / "needs work" levels read for red/green
   // colour-blindness. Off by default — colour alone is enough for most
@@ -173,6 +183,7 @@ export function useAppPreferences() {
     season, seasonPref, setSeason,
     leftHanded, setLeftHanded,
     buttonDepth, setButtonDepth,
+    seasonDeco, setSeasonDeco,
     colorblindHeat, setColorblindHeat,
   };
 }

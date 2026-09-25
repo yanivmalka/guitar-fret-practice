@@ -140,6 +140,13 @@ html[data-theme^="autumn-"] #root::after {
   background-image: var(--deco-leaves-small);
 }
 
+/* Settings → General → Seasonal background: Off (`data-deco` on <html>). */
+html[data-deco="off"] #root::before,
+html[data-deco="off"] #root::after {
+  content: none;
+  animation: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   #root::before,
   #root::after {

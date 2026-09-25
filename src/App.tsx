@@ -32,6 +32,7 @@ import { loadSetting, saveSetting } from './utils/settings';
 import { useThemeEffect } from './hooks/useThemeEffect';
 import { useHandednessEffect } from './hooks/useHandednessEffect';
 import { useButtonDepthEffect } from './hooks/useButtonDepthEffect';
+import { useSeasonDecoEffect } from './hooks/useSeasonDecoEffect';
 import { useFeedbackModeEffect } from './hooks/useFeedbackModeEffect';
 import { useBootReadyEvent } from './hooks/useBootReadyEvent';
 import { useAutoPauseOnBackground } from './hooks/useAutoPauseOnBackground';
@@ -310,6 +311,7 @@ export default function App() {
     season, seasonPref, setSeason,
     leftHanded, setLeftHanded,
     buttonDepth, setButtonDepth,
+    seasonDeco, setSeasonDeco,
     colorblindHeat, setColorblindHeat,
   } = useAppPreferences();
   useEffect(() => { setAudioNoteVolume(noteVolume); }, [noteVolume]);
@@ -333,6 +335,7 @@ export default function App() {
   useThemeEffect(season, theme);
   useHandednessEffect(leftHanded);
   useButtonDepthEffect(buttonDepth);
+  useSeasonDecoEffect(seasonDeco);
 
   useBootReadyEvent(auth.loading, auth.entitlementLoading);
 
@@ -889,6 +892,8 @@ export default function App() {
           setLeftHanded={setLeftHanded}
           buttonDepth={buttonDepth}
           setButtonDepth={setButtonDepth}
+          seasonDeco={seasonDeco}
+          setSeasonDeco={setSeasonDeco}
           colorblindHeat={colorblindHeat}
           setColorblindHeat={setColorblindHeat}
         />

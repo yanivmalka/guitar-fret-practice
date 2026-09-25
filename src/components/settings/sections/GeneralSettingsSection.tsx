@@ -86,6 +86,8 @@ export interface GeneralSettingsSectionProps {
   setLeftHanded: (v: boolean) => void;
   buttonDepth: boolean;
   setButtonDepth: (v: boolean) => void;
+  seasonDeco: boolean;
+  setSeasonDeco: (v: boolean) => void;
   colorblindHeat: boolean;
   setColorblindHeat: (v: boolean) => void;
 }
@@ -96,7 +98,7 @@ export default function GeneralSettingsSection({
   isAdmin,
   voiceEnginePref, pickVoiceEngine, voiceProfileStat, setSettingsOpen,
   setShowVoiceCalibration, showMastery, setShowMastery, masteryWindow, setMasteryWindow,
-  leftHanded, setLeftHanded, buttonDepth, setButtonDepth, colorblindHeat, setColorblindHeat,
+  leftHanded, setLeftHanded, buttonDepth, setButtonDepth, seasonDeco, setSeasonDeco, colorblindHeat, setColorblindHeat,
 }: GeneralSettingsSectionProps) {
   // Progress of a switch to a language whose dictionary is still downloading.
   const { languageLoad } = useTranslation();
@@ -187,6 +189,20 @@ export default function GeneralSettingsSection({
           setMode={setTheme}
           season={season}
           setSeason={setSeason}
+        />
+      </SettingCard>
+      <SettingCard
+        label={t('Seasonal background')}
+        help={t('Light seasonal decorations behind the app: snowflakes in winter, anemones in spring, sunflowers in summer, falling leaves in autumn. They follow the season above. Off keeps the background plain.')}
+      >
+        <SegmentedControl
+          ariaLabel={t('Seasonal background')}
+          value={seasonDeco ? 'on' : 'off'}
+          options={[
+            { value: 'on', label: t('On') },
+            { value: 'off', label: t('Off') },
+          ]}
+          onChange={(v) => { setSeasonDeco(v === 'on'); }}
         />
       </SettingCard>
       <SettingCard
