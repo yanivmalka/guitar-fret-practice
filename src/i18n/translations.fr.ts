@@ -45,6 +45,7 @@ export const fr: Record<string, string> = {
   'Written as': 'Écrites en',
   "Display only — the drill itself doesn't change.":
     'Affichage uniquement — l’exercice ne change pas.',
+  'Solfège (Do Re Mi)': 'Solfège (Do Ré Mi)',
   'Letters (A, B, C…) or solfège syllables (Do, Re, Mi…).':
     'Lettres (A, B, C…) ou syllabes de solfège (Do, Ré, Mi…).',
   'A sharp (♯) is a half-step higher; a flat (♭) is a half-step lower. The same pitch can be written either way — C♯ and D♭ are one note. Pick which sign you see.':

@@ -11,7 +11,7 @@ import {
   getAvailableStringCounts, getAvailableFretCounts, getAvailableGuitarTypes,
   getAvailableMandolinFretCounts, getAvailableUkuleleSizes, getUkuleleVariant, getAvailableBanjoTypes, getBanjoVariant, getUkuleleTuning,
 } from '../../../utils/instruments';
-import type { AccidentalMode, NotationMode } from '../../../utils/music';
+import { solfegeSample, type AccidentalMode, type NotationMode } from '../../../utils/music';
 
 /**
  * The "Playing" drawer section body (instrument picker + note-name notation +
@@ -289,7 +289,7 @@ export default function PlayingSection({
         }
       >
         <div className="pick-row" role="group" aria-label={t('Note names')}>
-          {([['alpha', 'A B C'], ['solfege', 'Do Re Mi']] as const).map(([val, label]) => (
+          {([['alpha', 'A B C'], ['solfege', solfegeSample()]] as const).map(([val, label]) => (
             <button
               key={val}
               type="button"

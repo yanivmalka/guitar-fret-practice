@@ -1,6 +1,6 @@
 import type { SelectorState, Difficulty } from '../hooks/useSelector';
 import type { AccidentalMode, OrderMode, NotationMode } from '../utils/music';
-import { displayNote } from '../utils/music';
+import { displayNote, solfegeSample } from '../utils/music';
 import type { InstrumentConfig } from '../utils/instruments';
 import { playClickSound, playToggleOnSound, playToggleOffSound } from '../utils/feedback';
 import { useTranslation } from '../i18n/useTranslation';
@@ -165,7 +165,7 @@ export default function SelectorPanel({
         <button
           className={`order-chip${notation === 'solfege' ? ' order-chip-active' : ''}`}
           onClick={() => onNotationChange('solfege')}
-        >Do Re Mi</button>
+        >{solfegeSample()}</button>
       </div>
     );
   }

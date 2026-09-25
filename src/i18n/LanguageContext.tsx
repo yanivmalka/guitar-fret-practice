@@ -3,6 +3,7 @@ import { loadSetting, saveSetting } from '../utils/settings';
 import { isLang, translate, type Lang } from './translations';
 import { LanguageContext } from './context';
 import { detectLanguage } from '../utils/region';
+import { setSolfegeLanguage } from '../utils/music';
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   // First launch (no stored choice): open in the language of the player's
@@ -20,6 +21,9 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLangState(l);
     saveSetting('pref_language', l);
   };
+  // Set before the children render so every note label this render draws
+  // already uses the language's solfège spelling. Idempotent.
+  setSolfegeLanguage(lang);
   const t = (source: string) => translate(lang, source);
   return (
     <LanguageContext.Provider value={{ lang, setLang, t }}>
