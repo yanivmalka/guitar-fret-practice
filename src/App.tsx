@@ -31,6 +31,7 @@ import { withClick as click } from './utils/withClick';
 import { loadSetting, saveSetting } from './utils/settings';
 import { useThemeEffect } from './hooks/useThemeEffect';
 import { useHandednessEffect } from './hooks/useHandednessEffect';
+import { useButtonDepthEffect } from './hooks/useButtonDepthEffect';
 import { useFeedbackModeEffect } from './hooks/useFeedbackModeEffect';
 import { useBootReadyEvent } from './hooks/useBootReadyEvent';
 import { useAutoPauseOnBackground } from './hooks/useAutoPauseOnBackground';
@@ -306,6 +307,7 @@ export default function App() {
     theme, setTheme,
     season, setSeason,
     leftHanded, setLeftHanded,
+    buttonDepth, setButtonDepth,
     colorblindHeat, setColorblindHeat,
   } = useAppPreferences();
   useEffect(() => { setAudioNoteVolume(noteVolume); }, [noteVolume]);
@@ -328,6 +330,7 @@ export default function App() {
   const silentMode = feedbackMode !== 'sound';
   useThemeEffect(season, theme);
   useHandednessEffect(leftHanded);
+  useButtonDepthEffect(buttonDepth);
 
   useBootReadyEvent(auth.loading, auth.entitlementLoading);
 
@@ -880,6 +883,8 @@ export default function App() {
           setMasteryWindow={setMasteryWindow}
           leftHanded={leftHanded}
           setLeftHanded={setLeftHanded}
+          buttonDepth={buttonDepth}
+          setButtonDepth={setButtonDepth}
           colorblindHeat={colorblindHeat}
           setColorblindHeat={setColorblindHeat}
         />

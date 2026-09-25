@@ -83,6 +83,8 @@ export interface GeneralSettingsSectionProps {
   setMasteryWindow: (w: MasteryWindow) => void;
   leftHanded: boolean;
   setLeftHanded: (v: boolean) => void;
+  buttonDepth: boolean;
+  setButtonDepth: (v: boolean) => void;
   colorblindHeat: boolean;
   setColorblindHeat: (v: boolean) => void;
 }
@@ -93,7 +95,7 @@ export default function GeneralSettingsSection({
   isAdmin,
   voiceEnginePref, pickVoiceEngine, voiceProfileStat, setSettingsOpen,
   setShowVoiceCalibration, showMastery, setShowMastery, masteryWindow, setMasteryWindow,
-  leftHanded, setLeftHanded, colorblindHeat, setColorblindHeat,
+  leftHanded, setLeftHanded, buttonDepth, setButtonDepth, colorblindHeat, setColorblindHeat,
 }: GeneralSettingsSectionProps) {
   const todayStr = localDayStr(new Date());
   // Which sub-control of the "Mastery time window" card is visible. Seeded from
@@ -182,6 +184,20 @@ export default function GeneralSettingsSection({
           setMode={setTheme}
           season={season}
           setSeason={setSeason}
+        />
+      </SettingCard>
+      <SettingCard
+        label={t('Button depth')}
+        help={t('Gives the buttons a raised, 3D look: a light rim on top, a solid edge underneath, and they sink a little when pressed. Off keeps them flat.')}
+      >
+        <SegmentedControl
+          ariaLabel={t('Button depth')}
+          value={buttonDepth ? 'on' : 'off'}
+          options={[
+            { value: 'on', label: t('On') },
+            { value: 'off', label: t('Off') },
+          ]}
+          onChange={(v) => { setButtonDepth(v === 'on'); }}
         />
       </SettingCard>
       <SettingCard label={t('Language')}>

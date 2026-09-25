@@ -79,6 +79,18 @@
      night palette; the light 'day' palettes override it a step darker than
      their near-white --bg-1 so the drawer reads as a surface, not a glare. */
   --menu-bg: var(--bg-1);
+
+  /* "Raised" button look (top highlight + hard bottom edge). Translucent
+     white / black so they sit on any palette's surface without retinting it;
+     the light 'day' modes override them just below. */
+  --btn-lift-hi: rgba(255, 255, 255, 0.14);
+  --btn-lift-edge: rgba(0, 0, 0, 0.5);
+}
+
+[data-theme$='-day'],
+[data-theme='day'] {
+  --btn-lift-hi: rgba(255, 255, 255, 0.8);
+  --btn-lift-edge: rgba(0, 0, 0, 0.2);
 }
 
 /* ────────────────────────────────────────────────────────────────

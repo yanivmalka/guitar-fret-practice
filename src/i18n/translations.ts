@@ -165,6 +165,8 @@ const he: Record<string, string> = {
   'Badges': 'תגים',
   'Language': 'שפה',
   'Left-handed': 'שמאלי',
+  'Button depth': 'נפח לכפתורים',
+  'Gives the buttons a raised, 3D look: a light rim on top, a solid edge underneath, and they sink a little when pressed. Off keeps them flat.': 'נותן לכפתורים מראה תלת-ממדי בולט: קו בהיר למעלה, קצה מלא למטה, והם שוקעים מעט כשלוחצים עליהם. כבוי משאיר אותם שטוחים.',
   'Mirrors the app for a left-handed player: the fretboard flips (nut on the right), and the menu, Quick Access and back buttons move to the left. Independent of language — it stays mirrored in Hebrew too.':
     'הופך את האפליקציה כמראה עבור מנגן שמאלי: הצוואר מתהפך (האוכף מימין), והתפריט, הגישה המהירה וכפתורי החזרה עוברים לצד שמאל. בלתי תלוי בשפה — נשאר הפוך גם בעברית.',
   'Colour-blind heatmap markers': 'סימוני מפת חום לעיוורי צבעים',

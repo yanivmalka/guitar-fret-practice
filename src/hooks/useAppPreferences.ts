@@ -78,6 +78,16 @@ export function useAppPreferences() {
     setLeftHandedState(v);
     saveSetting('pref_leftHanded', v);
   }, []);
+  // "Raised" 3D look on the app's buttons (top rim + hard bottom edge, pressed
+  // on tap). On by default; the CSS keys off `data-depth` on <html>.
+  // Persists internally, like setTheme.
+  const [buttonDepth, setButtonDepthState] = useState<boolean>(
+    () => loadSetting<boolean>('pref_buttonDepth', true),
+  );
+  const setButtonDepth = useCallback((v: boolean) => {
+    setButtonDepthState(v);
+    saveSetting('pref_buttonDepth', v);
+  }, []);
   // Extra ✓/• glyphs drawn over the Stats-screen fretboard heatmap cells, on
   // top of colour, so the "known" / "needs work" levels read for red/green
   // colour-blindness. Off by default — colour alone is enough for most
@@ -106,6 +116,7 @@ export function useAppPreferences() {
     theme, setTheme,
     season, setSeason,
     leftHanded, setLeftHanded,
+    buttonDepth, setButtonDepth,
     colorblindHeat, setColorblindHeat,
   };
 }
