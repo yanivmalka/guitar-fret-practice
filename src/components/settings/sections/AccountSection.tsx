@@ -7,6 +7,8 @@ import { verror } from '../../../utils/debugLog';
 import type { AuthState } from '../../../hooks/useAuth';
 import type { Lang } from '../../../i18n/translations';
 
+const PRIVACY_POLICY_URL = 'https://yanivmalka.github.io/guitar-fret-practice/privacy.html';
+
 /**
  * The "Account" drawer section body: sign-in / sign-out, the plan tile, the
  * pinned-badge shelf, admin-only account tools and the build-info footer.
@@ -177,6 +179,17 @@ export default function AccountSection({
       {/* About the app + live community counts (registered accounts, users /
           guests active right now). Self-contained — does its own fetching. */}
       <AboutCard />
+      {/* Public privacy policy (static page in public/). Absolute URL on
+          purpose: the Android build serves the app from a relative base, so a
+          relative link would navigate the WebView away from the app. */}
+      <a
+        className="account-privacy-link"
+        href={PRIVACY_POLICY_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {t('Privacy policy')}
+      </a>
       {/* App version — moved here from the bottom of the main screen so the
           footer stays clean; this is the one place it now lives. */}
       <div className="build-info account-build-info">

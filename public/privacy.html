@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy Policy · מדיניות פרטיות — Fretboard Practice</title>
+  <meta name="description" content="Privacy policy for the Fretboard Practice app · מדיניות הפרטיות של אפליקציית Fretboard Practice" />
+  <style>
+    :root { --bg:#1a1a2e; --fg:#e8e8f0; --muted:#a8a8c0; --card:#232342; --accent:#7cc4ff; --line:#34345a; }
+    @media (prefers-color-scheme: light) {
+      :root { --bg:#f6f6fb; --fg:#1d1d33; --muted:#55556e; --card:#ffffff; --accent:#1a5fb4; --line:#d8d8e6; }
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+    h1 { font-size: 1.6rem; margin: 8px 0 4px; }
+    h2 { font-size: 1.15rem; margin: 28px 0 8px; }
+    p, li { color: var(--fg); }
+    .meta { color: var(--muted); font-size: .9rem; }
+    a { color: var(--accent); }
+    ul { padding-inline-start: 1.3rem; }
+    li { margin: 4px 0; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 4px 16px 16px; margin-top: 16px; }
+    .switch { display:flex; gap:8px; margin-bottom: 8px; }
+    .switch button { background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 999px; padding: 6px 16px; font: inherit; cursor: pointer; }
+    .switch button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+<main>
+  <div class="switch" role="group" aria-label="Language / שפה">
+    <button type="button" data-lang="he" aria-pressed="true">עברית</button>
+    <button type="button" data-lang="en" aria-pressed="false">English</button>
+  </div>
+
+  <!-- ───────────────────────── עברית ───────────────────────── -->
+  <section id="he" lang="he" dir="rtl">
+    <h1>מדיניות פרטיות</h1>
+    <p class="meta">אפליקציית Fretboard Practice (תרגול לוח הצוואר בגיטרה ובבס) · עודכן לאחרונה: 25 בספטמבר 2026</p>
+    <p>המסמך מסביר איזה מידע האפליקציה שומרת עליך, לשם מה, ומה אפשר לעשות איתו. האפליקציה בנויה כך שאפשר להשתמש בה במלואה, ללא חשבון וללא שליחת נתוני תרגול לשרת.</p>
+
+    <div class="card">
+      <h2>1. שימוש כאורח (ללא התחברות)</h2>
+      <ul>
+        <li>ההיסטוריה, השיאים האישיים, ההגדרות, התגים וההתקדמות נשמרים <strong>רק במכשיר שלך</strong> (באחסון המקומי של הדפדפן או של האפליקציה).</li>
+        <li>אנחנו לא יכולים לראות את הנתונים האלה, ומחיקת נתוני האתר או הסרת האפליקציה מוחקת אותם.</li>
+        <li>גם אורחים נספרים במונה "משתמשים פעילים עכשיו". לצורך זה נשלחת לשרת הודעה אנונימית בלבד ("אורח מחובר"), ללא זיהוי וללא נתוני תרגול, והיא נעלמת עם סגירת האפליקציה.</li>
+        <li>אם התחברת בעבר וסירבת לצרף לחשבון את התרגול שנעשה כאורח, ייתכן שרשומות התרגול האלה (תו, סריג, מיתר, זמן, נכון או שגוי) נשמרו בשרת בצורה אנונימית, בלי קשר לחשבון כלשהו.</li>
+      </ul>
+
+      <h2>2. התחברות עם Google</h2>
+      <p>ההתחברות היא אופציונלית ומשמשת לגיבוי ולשחזור בין מכשירים. בהתחברות אנחנו מקבלים מ-Google את כתובת הדוא"ל, השם ותמונת הפרופיל. הסיסמה שלך לא מגיעה אלינו.</p>
+      <p>לאחר ההתחברות מגובים בשרת (Supabase) הנתונים הבאים, המשויכים לחשבון שלך:</p>
+      <ul>
+        <li>היסטוריית התשובות והשיאים האישיים (כולל מחיקות שביצעת, כדי שיישארו מחוקות בכל המכשירים).</li>
+        <li>ההגדרות וההעדפות (למשל שפה, ערכת נושא, בחירות התרגול).</li>
+        <li>תגים שהרווחת, התקדמות במשחק, ומצב הלמידה (לוח חזרות, מסלול, תרגילי אינטרוולים, סולמות, חמשה וטאבים).</li>
+        <li>הרשאות המנוי שלך (חינמי, Pro או Premium).</li>
+        <li>פרופיל הקול האישי, אם יצרת אחד. יש לשים לב שנשמרים מאפיינים מספריים של ההקלטות (MFCC), ולא קובצי שמע.</li>
+      </ul>
+
+      <h2>3. מה שגלוי לאחרים</h2>
+      <ul>
+        <li><strong>לוח המובילים:</strong> אם תשתתף, יוצגו לכולם שם התצוגה שלך, הניקוד (XP), מספר השאלות והדיוק שלך.</li>
+        <li><strong>לוח המשוב:</strong> הודעה שתשלח נשמרת עם שמך וכתובת הדוא"ל שלך, ורק מנהלי האפליקציה יכולים לקרוא אותה.</li>
+        <li><strong>מונה המשתמשים:</strong> מוצג לכולם מספר כללי של חשבונות רשומים ושל משתמשים פעילים כרגע, ולא מי הם.</li>
+      </ul>
+
+      <h2>4. מיקרופון וזיהוי קולי</h2>
+      <p>האפליקציה מבקשת גישה למיקרופון רק אם בחרת לענות בקול (או ליצור פרופיל קול). ההקלטה משמשת לזיהוי התשובה בלבד ואינה נשמרת כקובץ שמע.</p>
+      <ul>
+        <li>במצב "אישי" או "כללי" הזיהוי מתבצע <strong>במכשיר</strong>.</li>
+        <li>במצב אוטומטי, הדפדפן או מערכת ההפעלה עשויים להשתמש בשירות זיהוי דיבור משלהם (למשל של Google ב-Chrome ובאנדרואיד). האודיו נשלח אז לספק הזה ומטופל לפי מדיניות הפרטיות שלו, לא שלנו.</li>
+      </ul>
+
+      <h2>5. פרסומות</h2>
+      <p>בתוכנית החינמית מוצג פס פרסומת. המנויים Pro ו-Premium אינם רואים פרסומות.</p>
+      <ul>
+        <li>באנדרואיד ובאייפון הפרסומות מסופקות על ידי Google AdMob, ובאתר על ידי Google AdSense. Google עשויה לאסוף מזהה פרסום ונתוני שימוש כדי להציג ולמדוד פרסומות.</li>
+        <li>לפני הצגת פרסומות מוצגת לך בקשת הסכמה לפי הדין החל (באיחוד האירופי ובבריטניה). באייפון תתבקש גם רשות מעקב. אפשר לשנות את הבחירה בכל עת.</li>
+        <li>פרטים נוספים: <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">כיצד Google משתמשת בנתונים</a>.</li>
+      </ul>
+
+      <h2>6. שירותים חיצוניים נוספים</h2>
+      <ul>
+        <li><strong>Supabase</strong> — אחסון הנתונים של משתמשים מחוברים.</li>
+        <li><strong>Google</strong> — התחברות, ופרסומות כמתואר לעיל.</li>
+        <li><strong>GitHub Pages</strong> — האחסון של גרסת האתר.</li>
+        <li><strong>מאגר צלילי הגיטרה</strong> (gleitz.github.io) — משם נטענים צלילי הדגימה. הבקשות כוללות כתובת IP כמו בכל אתר.</li>
+      </ul>
+      <p>אנחנו לא מוכרים מידע אישי, ולא משתמשים בו לשום מטרה זולת הפעלת האפליקציה כפי שמתואר כאן.</p>
+
+      <h2>7. הזכויות שלך</h2>
+      <ul>
+        <li><strong>יציאה:</strong> התנתקות מסירה מהמכשיר את הקשר לחשבון. הנתונים המקומיים נשארים בו.</li>
+        <li><strong>מחיקה:</strong> אפשר לבקש מחיקה מלאה של החשבון וכל הנתונים המשויכים אליו בפנייה בכתובת שלמטה. נטפל בבקשה בתוך זמן סביר, ולכל היותר 30 יום.</li>
+        <li><strong>עיון, תיקון והעתק:</strong> אפשר לבקש עותק של הנתונים שנשמרו עליך ולתקן אותם.</li>
+        <li><strong>מחיקה במכשיר:</strong> מחיקת נתוני האתר או הסרת האפליקציה מוחקת את כל מה שנשמר מקומית.</li>
+      </ul>
+
+      <h2>8. ילדים</h2>
+      <p>האפליקציה אינה מיועדת לילדים מתחת לגיל 13 ואיננו אוספים ביודעין מידע עליהם. אם נודע לך שילד נרשם, פנה אלינו ונמחק את הנתונים.</p>
+
+      <h2>9. אבטחה ושמירת מידע</h2>
+      <p>התקשורת עם השרת מוצפנת, וגישה לנתונים בשרת מוגבלת בכללי הרשאה כך שכל משתמש מחובר רואה ומעדכן רק את הנתונים שלו (פרט לנתונים הציבוריים שבסעיף 3). אנחנו שומרים את הנתונים כל עוד החשבון קיים, ומוחקים אותם כשהחשבון נמחק.</p>
+
+      <h2>10. שינויים במדיניות</h2>
+      <p>נעדכן את המסמך כשהאפליקציה משתנה, ותאריך העדכון בראש הדף יתעדכן. בשינוי מהותי נציג הודעה באפליקציה.</p>
+
+      <h2>11. יצירת קשר</h2>
+      <p>לשאלות ולבקשות בנושא פרטיות (כולל בקשת מחיקה), היכנסו לאפליקציה, התחברו ושלחו הודעה דרך לוח המשוב. לתשומת לבך, אנחנו עובדים על הוספת כתובת דוא"ל ייעודית, והיא תפורסם כאן.</p>
+    </div>
+  </section>
+
+  <!-- ───────────────────────── English ───────────────────────── -->
+  <section id="en" lang="en" dir="ltr" hidden>
+    <h1>Privacy Policy</h1>
+    <p class="meta">Fretboard Practice app (guitar and bass fretboard drills) · Last updated: 25 September 2026</p>
+    <p>This page explains what information the app keeps about you, why, and what you can do with it. The app is designed so you can use all of it without an account and without sending any practice data to a server.</p>
+
+    <div class="card">
+      <h2>1. Using the app as a guest (not signed in)</h2>
+      <ul>
+        <li>Your history, personal bests, settings, badges and progress are stored <strong>only on your device</strong> (in the browser's or the app's local storage).</li>
+        <li>We cannot see this data. Clearing site data or uninstalling the app deletes it.</li>
+        <li>Guests are also counted in the "people using the app right now" counter. For this, an anonymous message ("a guest is connected") is sent to the server, with no identity and no practice data, and it disappears when you close the app.</li>
+        <li>If you signed in earlier and declined to attach your guest practice to your account, those practice records (note, fret, string, time, right or wrong) may have been stored on the server anonymously, not linked to any account.</li>
+      </ul>
+
+      <h2>2. Signing in with Google</h2>
+      <p>Signing in is optional and is used to back up and restore your data across devices. When you sign in we receive your email address, name and profile picture from Google. We never receive your Google password.</p>
+      <p>Once signed in, the following is backed up on our server (Supabase) and tied to your account:</p>
+      <ul>
+        <li>Your answer history and personal bests (including deletions you made, so they stay deleted on every device).</li>
+        <li>Your settings and preferences (for example language, theme and practice picks).</li>
+        <li>Badges you earned, game progress, and learning state (review schedule, learning path, intervals, scales, staff and tab progress).</li>
+        <li>Your plan (Free, Pro or Premium).</li>
+        <li>Your personal voice profile, if you created one. Only numeric features of the recordings (MFCC) are stored, not audio files.</li>
+      </ul>
+
+      <h2>3. What other people can see</h2>
+      <ul>
+        <li><strong>Leaderboard:</strong> if you take part, your display name, score (XP), number of questions and accuracy are visible to everyone.</li>
+        <li><strong>Feedback board:</strong> a message you send is stored with your name and email, and only the app's admins can read it.</li>
+        <li><strong>User counter:</strong> everyone sees a general count of registered accounts and of people active right now, not who they are.</li>
+      </ul>
+
+      <h2>4. Microphone and voice recognition</h2>
+      <p>The app asks for microphone access only if you choose to answer by voice (or to build a voice profile). Audio is used to recognise your answer and is not saved as an audio file.</p>
+      <ul>
+        <li>With the "Personal" or "General" engine, recognition runs <strong>on your device</strong>.</li>
+        <li>With the automatic engine, your browser or operating system may use its own speech-recognition service (for example Google's in Chrome and on Android). The audio is then sent to that provider and handled under its privacy policy, not ours.</li>
+      </ul>
+
+      <h2>5. Advertising</h2>
+      <p>The free plan shows an ad strip. Pro and Premium subscribers see no ads.</p>
+      <ul>
+        <li>On Android and iPhone ads come from Google AdMob; on the web, from Google AdSense. Google may collect an advertising ID and usage data to show and measure ads.</li>
+        <li>Before ads are shown you are asked for consent where the law requires it (in the EU and UK). On iPhone you are also asked for tracking permission. You can change your choice at any time.</li>
+        <li>More information: <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">How Google uses data</a>.</li>
+      </ul>
+
+      <h2>6. Other third-party services</h2>
+      <ul>
+        <li><strong>Supabase</strong> — stores data for signed-in users.</li>
+        <li><strong>Google</strong> — sign-in, and ads as described above.</li>
+        <li><strong>GitHub Pages</strong> — hosts the web version.</li>
+        <li><strong>Guitar sample library</strong> (gleitz.github.io) — the note sounds are loaded from there. As with any website, those requests include your IP address.</li>
+      </ul>
+      <p>We do not sell personal information, and we use it only to run the app as described here.</p>
+
+      <h2>7. Your rights</h2>
+      <ul>
+        <li><strong>Sign out:</strong> signing out disconnects the device from your account. Local data stays on the device.</li>
+        <li><strong>Deletion:</strong> you can ask us to delete your account and all data tied to it using the contact below. We will handle the request within a reasonable time, and no later than 30 days.</li>
+        <li><strong>Access, correction and a copy:</strong> you can ask for a copy of the data we hold about you and to have it corrected.</li>
+        <li><strong>On your device:</strong> clearing site data or uninstalling the app deletes everything stored locally.</li>
+      </ul>
+
+      <h2>8. Children</h2>
+      <p>The app is not directed at children under 13 and we do not knowingly collect information about them. If you learn that a child has signed up, contact us and we will delete the data.</p>
+
+      <h2>9. Security and retention</h2>
+      <p>Communication with the server is encrypted, and access to server data is restricted by permission rules so that each signed-in user can read and change only their own data (apart from the public data in section 3). We keep data for as long as the account exists and delete it when the account is deleted.</p>
+
+      <h2>10. Changes to this policy</h2>
+      <p>We will update this page when the app changes and the date at the top will change with it. For a material change we will show a notice in the app.</p>
+
+      <h2>11. Contact</h2>
+      <p>For privacy questions and requests (including a deletion request), open the app, sign in and send a message through the feedback board. We are setting up a dedicated email address and will publish it here.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+  (function () {
+    var buttons = document.querySelectorAll('.switch button');
+    function show(lang) {
+      document.getElementById('he').hidden = lang !== 'he';
+      document.getElementById('en').hidden = lang !== 'en';
+      document.documentElement.lang = lang;
+      document.documentElement.dir = lang === 'he' ? 'rtl' : 'ltr';
+      for (var i = 0; i < buttons.length; i++) {
+        buttons[i].setAttribute('aria-pressed', String(buttons[i].getAttribute('data-lang') === lang));
+      }
+    }
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].addEventListener('click', function (e) { show(e.currentTarget.getAttribute('data-lang')); });
+    }
+    var q = /[?&]lang=(he|en)/.exec(location.search);
+    var pref = q ? q[1] : ((navigator.language || 'he').slice(0, 2) === 'he' ? 'he' : 'en');
+    show(pref);
+  })();
+</script>
+</body>
+</html>

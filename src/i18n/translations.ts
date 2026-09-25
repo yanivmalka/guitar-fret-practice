@@ -218,6 +218,7 @@ const he: Record<string, string> = {
   'Pause': 'השהה',
   'Stop': 'עצור',
   'Refresh': 'רענן',
+  'Privacy policy': 'מדיניות פרטיות',
 
   'QUESTIONS': 'שאלות',
   'streak': 'רצף',
