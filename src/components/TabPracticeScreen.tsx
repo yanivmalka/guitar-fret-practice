@@ -9,12 +9,18 @@
 // Self-contained like Staff reading: it runs the shared reading engine
 // (`useReadingEngine`) and owns its start / running / summary states, plus a
 // Progress tab. Every answer folds into the tab lane of the learning state
-// (`tabSrs` / `tabHistory` / `tabDaily`), which steers which positions come
-// next, and is pushed to the cloud like the rest of the learning blob.
+// (`tabSrs` / `tabHistory` / `tabDaily`), which steers what comes next, and
+// is pushed to the cloud like the rest of the learning blob.
 //
-// Four exercises (name the note / find it on the neck / write it in tab /
-// read a riff), four fret ranges, and natural notes only or every note. Note
-// names follow the app-wide sharps/flats and notation settings.
+// Three topics, each with its own exercises:
+//   • single notes — name the note / find it on the neck / write it in tab /
+//                    read a riff (Slice 1);
+//   • chords       — name the chord a column spells / play it on the neck;
+//   • techniques   — say what a symbol means (h, p, /, \, b, ~, x, PM) /
+//                    name the note heard at its end (Slice 2).
+// Four fret ranges and natural notes only or every note apply to all of
+// them. Note and chord names follow the app-wide sharps/flats and notation
+// settings.
 //
 // The tab is drawn the way every real tab is — thinnest string on the top
 // line — while the neck board keeps the app's lowest-string-on-top layout.
@@ -28,8 +34,15 @@ import {
   buildTabPool, buildTabRiff, pickTabQuestion, tabBottomFret, tabNameOptions, tabTopFret,
   TAB_RANGES, type TabPoolItem, type TabRange,
 } from '../learning/tabDrill';
-import { buildTabBoard } from '../learning/tabMastery';
+import {
+  buildTabChordPool, chordQualitiesFor, chordsRootInBass, chordShapeLabel, CHORD_SUFFIX,
+  type ChordQuality, type TabChordItem,
+} from '../learning/tabChords';
+import { buildTechniqueQuestion, tabTechniquePool, type TabTechniqueItem } from '../learning/tabTechniques';
+import { tabTechniqueItemId, type TabTechnique } from '../learning/tabItem';
+import { buildTabBoard, tabItemStatuses } from '../learning/tabMastery';
 import type { SrsMap } from '../learning/srs';
+import type { StaffPosition } from '../learning/staffDrill';
 import { pitchClassName } from '../utils/staff';
 import {
   loadLearningState, saveLearningStateLocal, getInstrumentState, withInstrumentState, recordTabAnswer,
@@ -38,13 +51,14 @@ import {
 import { cloudPushLearning } from '../learning/learningSync';
 import TabNotation, { type TabNote } from './TabNotation';
 import StaffNeckBoard from './StaffNeckBoard';
-import TabProgressBoard from './TabProgressBoard';
+import TabProgressBoard, { TabStatusList } from './TabProgressBoard';
 import IntervalChoiceRow from './IntervalChoiceRow';
 import { ProGate } from './ProGate';
 import { useTranslation } from '../i18n/useTranslation';
 import { displayNote, type AccidentalMode, type NotationMode } from '../utils/music';
 import { loadSetting, saveSetting } from '../utils/settings';
 import { playClickSound, haptic } from '../utils/feedback';
+import { playChordStrum, playNoteGlide, playNoteSequence, playNoteSingle } from '../utils/audio';
 
 interface Props {
   instrument: InstrumentConfig;
@@ -57,27 +71,83 @@ interface Props {
 }
 
 type TabExercise = TabForm;
-type TabQuestion = ReadingQuestion<TabPoolItem>;
+type TabTopic = 'notes' | 'chords' | 'techniques';
+type TabItem = TabPoolItem | TabChordItem | TabTechniqueItem;
+type TabQuestion = ReadingQuestion<TabItem>;
 
-const EXERCISES: readonly TabExercise[] = ['nameNote', 'findOnNeck', 'writeTab', 'readRiff'];
-const QUESTION_COUNT: Record<TabExercise, number> = { nameNote: 12, findOnNeck: 12, writeTab: 12, readRiff: 6 };
-const NOTES_PER_QUESTION: Record<TabExercise, number> = { nameNote: 1, findOnNeck: 1, writeTab: 1, readRiff: 5 };
-/** Seconds per note. */
-const TIME_LIMIT: Record<TabExercise, number> = { nameNote: 10, findOnNeck: 12, writeTab: 20, readRiff: 8 };
+const TOPICS: readonly TabTopic[] = ['notes', 'chords', 'techniques'];
+const TOPIC_EXERCISES: Record<TabTopic, readonly TabExercise[]> = {
+  notes: ['nameNote', 'findOnNeck', 'writeTab', 'readRiff'],
+  chords: ['nameChord', 'playChord'],
+  techniques: ['nameTechnique', 'techniqueNote'],
+};
+const topicOf = (e: TabExercise): TabTopic =>
+  TOPICS.find((t) => TOPIC_EXERCISES[t].includes(e)) ?? 'notes';
+
+const QUESTION_COUNT: Record<TabExercise, number> = {
+  nameNote: 12, findOnNeck: 12, writeTab: 12, readRiff: 6,
+  nameChord: 10, playChord: 8, nameTechnique: 10, techniqueNote: 10,
+};
+const NOTES_PER_QUESTION: Record<TabExercise, number> = {
+  nameNote: 1, findOnNeck: 1, writeTab: 1, readRiff: 5,
+  nameChord: 1, playChord: 1, nameTechnique: 1, techniqueNote: 1,
+};
+/** Seconds per note (per chord / per symbol). */
+const TIME_LIMIT: Record<TabExercise, number> = {
+  nameNote: 10, findOnNeck: 12, writeTab: 20, readRiff: 8,
+  nameChord: 15, playChord: 30, nameTechnique: 12, techniqueNote: 12,
+};
 
 // English literal = i18n key (app convention).
+const TOPIC_LABEL: Record<TabTopic, string> = {
+  notes: 'Single notes',
+  chords: 'Chords',
+  techniques: 'Techniques',
+};
 const EXERCISE_LABEL: Record<TabExercise, string> = {
   nameNote: 'Name the note',
   findOnNeck: 'Find it on the neck',
   writeTab: 'Write it in tab',
   readRiff: 'Read a riff',
+  nameChord: 'Name the chord',
+  playChord: 'Play the chord',
+  nameTechnique: 'What does it mean?',
+  techniqueNote: 'Which note do you hear at the end?',
 };
 const EXERCISE_HELP: Record<TabExercise, string> = {
   nameNote: 'A number is written on one line of the tab. Name the note it plays — you will hear it after you answer.',
   findOnNeck: 'A number is written on one line of the tab. Tap that exact place on the neck: the line is the string, the number is the fret.',
   writeTab: 'A place on the neck is marked. Tap the tab line of its string, pick the fret number, then press Check.',
   readRiff: 'A short riff is written in the tab. Name its notes one after another — at the end you will hear it.',
+  nameChord: 'A chord is written in the tab: the numbers in one column are played together, and a line with no number is not played. Name the chord — you will hear it after you answer.',
+  playChord: 'A chord is written in the tab. Tap every place it plays on the neck, one per string, leave the strings with no number alone, then press Check.',
+  nameTechnique: 'A playing technique is written in the tab. Say what the symbol means — you will hear it after you answer.',
+  techniqueNote: 'A playing technique is written in the tab. Name the note that sounds at the end of it.',
 };
+const TECHNIQUE_LABEL: Record<TabTechnique, string> = {
+  hammerOn: 'Hammer-on',
+  pullOff: 'Pull-off',
+  slideUp: 'Slide up',
+  slideDown: 'Slide down',
+  bend: 'Bend',
+  vibrato: 'Vibrato',
+  mutedNote: 'Muted note',
+  palmMute: 'Palm mute',
+};
+const TECHNIQUE_SYMBOL: Record<TabTechnique, string> = {
+  hammerOn: 'h', pullOff: 'p', slideUp: '/', slideDown: '\\', bend: 'b', vibrato: '~', mutedNote: 'x', palmMute: 'PM',
+};
+const TECHNIQUE_HELP: Record<TabTechnique, string> = {
+  hammerOn: 'Hammer-on: pick the first note, then press the higher fret down hard without picking again.',
+  pullOff: 'Pull-off: pick the first note, then pull that finger off so the lower fret sounds, without picking again.',
+  slideUp: 'Slide up: pick the first note and slide the same finger up the string to the second fret.',
+  slideDown: 'Slide down: pick the first note and slide the same finger down the string to the second fret.',
+  bend: 'Bend: pick the note and push the string sideways until it sounds as high as the fret in the second number.',
+  vibrato: 'Vibrato: let the note ring and shake its pitch slightly by moving the string.',
+  mutedNote: 'Muted note: touch the string without pressing it down and pick — a short click with no pitch.',
+  palmMute: 'Palm mute: rest the side of the picking hand on the strings by the bridge, for a short, muffled sound.',
+};
+const QUALITY_LABEL: Record<ChordQuality, string> = { major: 'Major', minor: 'Minor', dom7: '7', power: '5' };
 const FIXED_RANGE_LABEL: Record<Exclude<TabRange, 'high'>, string> = {
   open: 'Frets 0–3',
   low: 'Frets 0–5',
@@ -89,18 +159,53 @@ function loadOneOf<T extends string>(key: string, allowed: readonly T[], fallbac
   return (allowed as readonly string[]).includes(raw) ? (raw as T) : fallback;
 }
 
+const samePlace = (a: StaffPosition, b: StaffPosition) => a.string === b.string && a.fret === b.fret;
+
+/** Play a technique the way it is written. */
+function playTechnique(it: TabTechniqueItem) {
+  const { string, from, to } = it;
+  switch (it.technique) {
+    case 'hammerOn':
+    case 'pullOff':
+      if (to != null) void playNoteSequence(string, [from, to], 520);
+      return;
+    case 'slideUp':
+    case 'slideDown':
+      if (to != null) void playNoteGlide(string, from, to, 200, 160);
+      return;
+    case 'bend':
+      if (to != null) void playNoteGlide(string, from, to, 180, 260);
+      return;
+    case 'vibrato':
+    case 'palmMute':
+      void playNoteSingle(string, from);
+      return;
+    case 'mutedNote':
+      return;
+  }
+}
+
 interface Written { string: number | null; fret: number | null }
+interface ChordPick { root?: string; quality?: ChordQuality }
 
 export default function TabPracticeScreen({ instrument, accidental, notation, showMenuButton = true, onOpenMenu }: Props) {
   const { t, lang } = useTranslation();
   const [finished, setFinished] = useState(false);
   const [tab, setTab] = useState<'practice' | 'progress'>('practice');
-  const [exercise, setExerciseState] = useState<TabExercise>(() => loadOneOf('tab_exercise', EXERCISES, 'nameNote'));
+  const [exercise, setExerciseState] = useState<TabExercise>(() => loadOneOf(
+    'tab_exercise',
+    TOPICS.flatMap((tp) => TOPIC_EXERCISES[tp]),
+    'nameNote',
+  ));
+  const topic = topicOf(exercise);
   const [range, setRangeState] = useState<TabRange>(() => loadOneOf('tab_range', TAB_RANGES, 'open'));
   const [naturalsOnly, setNaturalsOnlyState] = useState<boolean>(() => loadSetting<boolean>('tab_naturalsOnly', true) !== false);
-  // What the learner has written so far ("Write it in tab"), tagged with the
-  // question it belongs to so a new question starts with a clean tab.
+  // What the learner has entered for the current question, tagged with the
+  // question it belongs to so a new question starts clean: a note written
+  // in the tab, a chord name being picked, the places of a chord played.
   const [written, setWritten] = useState<{ q: TabQuestion; w: Written } | null>(null);
+  const [chordPick, setChordPick] = useState<{ q: TabQuestion; p: ChordPick } | null>(null);
+  const [played, setPlayed] = useState<{ q: TabQuestion; places: StaffPosition[] } | null>(null);
   // Bumped on every recorded answer and on a cloud reconcile, so the daily
   // goal and the Progress board re-read the learning state.
   const [now, setNow] = useState(() => Date.now());
@@ -112,14 +217,20 @@ export default function TabPracticeScreen({ instrument, accidental, notation, sh
 
   const topFret = tabTopFret(range, instrument.maxFret);
   const bottomFret = tabBottomFret(range, instrument.maxFret);
+  const inst = useMemo(
+    () => ({ openMidi: instrument.openMidi, maxFret: instrument.maxFret, minFrets: instrument.minFrets }),
+    [instrument.openMidi, instrument.maxFret, instrument.minFrets],
+  );
 
-  const pool = useMemo(
-    () => buildTabPool(
-      { openMidi: instrument.openMidi, maxFret: instrument.maxFret, minFrets: instrument.minFrets },
-      range,
-      naturalsOnly,
-    ),
-    [instrument.openMidi, instrument.maxFret, instrument.minFrets, range, naturalsOnly],
+  const pool = useMemo(() => buildTabPool(inst, range, naturalsOnly), [inst, range, naturalsOnly]);
+  const chordPool = useMemo(
+    () => buildTabChordPool(inst, instrument.id, range, naturalsOnly),
+    [inst, instrument.id, range, naturalsOnly],
+  );
+  const qualities = chordQualitiesFor(instrument.id);
+  const techniques = useMemo(
+    () => tabTechniquePool(inst, range, exercise === 'techniqueNote'),
+    [inst, range, exercise],
   );
 
   const instState = useMemo(
@@ -140,8 +251,8 @@ export default function TabPracticeScreen({ instrument, accidental, notation, sh
   const recordAnswer = useCallback((a: ReadingAnswer<TabExercise>) => {
     const ts = Date.now();
     const state = loadLearningState(ts);
-    const inst = getInstrumentState(state, instrument.id, ts);
-    const next = recordTabAnswer(inst, a.itemId, a.form, a.correct, a.seconds, ts);
+    const st = getInstrumentState(state, instrument.id, ts);
+    const next = recordTabAnswer(st, a.itemId, a.form, a.correct, a.seconds, ts);
     saveLearningStateLocal(withInstrumentState(state, instrument.id, next));
     // A no-op for a guest / offline; the reconcile merges per item.
     cloudPushLearning();
@@ -149,14 +260,27 @@ export default function TabPracticeScreen({ instrument, accidental, notation, sh
   }, [instrument.id]);
 
   const notesPerQuestion = NOTES_PER_QUESTION[exercise];
-  const pickItems = useCallback((srs: SrsMap, previous: TabPoolItem | null, ts: number) => {
+  const pickItems = useCallback((srs: SrsMap, previous: TabItem | null, ts: number): TabItem[] => {
     const previousId = previous?.itemId ?? null;
+    if (topic === 'chords') {
+      return [pickTabQuestion(chordPool, srs, previousId, ts)].filter((q): q is TabChordItem => q != null);
+    }
+    if (topic === 'techniques') {
+      const entries = techniques.map((tech) => ({ itemId: tabTechniqueItemId(tech), tech }));
+      const pick = pickTabQuestion(entries, srs, previousId, ts);
+      if (!pick) return [];
+      const naturals = naturalsOnly && exercise === 'techniqueNote';
+      const q = buildTechniqueQuestion(inst, range, pick.tech, naturals)
+        ?? buildTechniqueQuestion(inst, range, pick.tech, false);
+      return q ? [q] : [];
+    }
+    const notes = pool;
     return notesPerQuestion > 1
-      ? buildTabRiff(pool, srs, notesPerQuestion, previousId, ts)
-      : [pickTabQuestion(pool, srs, previousId, ts)].filter((q): q is TabPoolItem => q != null);
-  }, [pool, notesPerQuestion]);
+      ? buildTabRiff(notes, srs, notesPerQuestion, previousId, ts)
+      : [pickTabQuestion(notes, srs, previousId, ts)].filter((q): q is TabPoolItem => q != null);
+  }, [topic, exercise, chordPool, techniques, naturalsOnly, inst, range, pool, notesPerQuestion]);
 
-  const engine = useReadingEngine({
+  const engine = useReadingEngine<TabExercise, TabItem>({
     exercise,
     pickItems,
     openMidi: instrument.openMidi,
@@ -176,6 +300,8 @@ export default function TabPracticeScreen({ instrument, accidental, notation, sh
     if (!question || answered) return;
     setWritten({ q: question, w: { ...current, ...patch } });
   };
+  const pickedChord: ChordPick = chordPick && chordPick.q === question ? chordPick.p : {};
+  const playedPlaces: StaffPosition[] = played && played.q === question ? played.places : [];
 
   const pick = (fn: () => void) => {
     if (running) return;
@@ -183,7 +309,15 @@ export default function TabPracticeScreen({ instrument, accidental, notation, sh
     fn();
     setFinished(false);
   };
-  const setExercise = (e: TabExercise) => pick(() => { setExerciseState(e); saveSetting('tab_exercise', e); });
+  const setExercise = (e: TabExercise) => pick(() => {
+    setExerciseState(e);
+    saveSetting('tab_exercise', e);
+    saveSetting(`tab_exercise_${topicOf(e)}`, e);
+  });
+  const setTopic = (tp: TabTopic) => {
+    if (tp === topic) return;
+    setExercise(loadOneOf(`tab_exercise_${tp}`, TOPIC_EXERCISES[tp], TOPIC_EXERCISES[tp][0]));
+  };
   const setRange = (r: TabRange) => pick(() => { setRangeState(r); saveSetting('tab_range', r); });
   const setNaturalsOnly = (v: boolean) => pick(() => { setNaturalsOnlyState(v); saveSetting('tab_naturalsOnly', v); });
 
@@ -194,6 +328,9 @@ export default function TabPracticeScreen({ instrument, accidental, notation, sh
   };
 
   const nameOf = (midi: number) => displayNote(pitchClassName(midi), accidental, notation);
+  const chordLabel = (c: Pick<TabChordItem, 'rootPc' | 'quality'>) =>
+    `${displayNote(pitchClassName(c.rootPc), accidental, notation)}${CHORD_SUFFIX[c.quality]}`;
+  const techniqueLabel = (tech: TabTechnique) => `${TECHNIQUE_SYMBOL[tech]} · ${t(TECHNIQUE_LABEL[tech])}`;
   const stringNames = Array.from(
     { length: instrument.stringCount },
     (_, i) => displayNote(instrument.notes[i]?.[0] ?? '', accidental, notation),
@@ -210,26 +347,44 @@ export default function TabPracticeScreen({ instrument, accidental, notation, sh
 
   // ── The tab for the current question ────────────────────────────────
   const items = question?.items ?? [];
+  const first = items[0];
   const single = items.length === 1;
   const singleCorrect = single && results[0]?.correct === true;
+  const chord = first?.kind === 'chord' ? first : null;
+  const technique = first?.kind === 'technique' ? first : null;
+  const liveState = !answered ? 'live' : singleCorrect ? 'correct' : 'wrong';
 
   let tabNotes: TabNote[] = [];
   if (exercise === 'writeTab') {
     if (current.string != null) {
-      tabNotes.push({ string: current.string, fret: current.fret, state: !answered ? 'ghost' : singleCorrect ? 'correct' : 'wrong' });
+      tabNotes.push({
+        cells: [{ string: current.string, text: current.fret == null ? '?' : String(current.fret) }],
+        state: !answered ? 'ghost' : singleCorrect ? 'correct' : 'wrong',
+      });
     }
-    if (answered && !singleCorrect && items[0]) {
-      tabNotes.push({ string: items[0].string, fret: items[0].fret, state: 'correct' });
+    if (answered && !singleCorrect && first?.kind === 'note') {
+      tabNotes.push({ cells: [{ string: first.string, text: String(first.fret) }], state: 'correct' });
     }
+  } else if (chord) {
+    tabNotes = [{
+      cells: chord.frets.flatMap((f, i) => (f == null ? [] : [{ string: i + 1, text: String(f) }])),
+      state: liveState,
+    }];
+  } else if (technique) {
+    tabNotes = [{
+      cells: [{ string: technique.string, text: technique.text }],
+      above: technique.above,
+      state: liveState,
+    }];
   } else {
-    tabNotes = items.map((it, i) => {
+    tabNotes = items.flatMap((it, i) => {
+      if (it.kind !== 'note') return [];
       const r = results[i];
-      return {
-        string: it.string,
-        fret: it.fret,
+      return [{
+        cells: [{ string: it.string, text: String(it.fret) }],
         state: r ? (r.correct ? 'correct' : 'wrong') : !answered && !single && i === cursor ? 'current' : 'live',
         label: !single && r ? nameOf(it.midi) : undefined,
-      };
+      } as TabNote];
     });
   }
 
@@ -240,6 +395,59 @@ export default function TabPracticeScreen({ instrument, accidental, notation, sh
     playClickSound();
     engine.answerPosition(current.string, current.fret);
   };
+
+  // ── Chords ───────────────────────────────────────────────────────────
+  const chooseChord = (patch: ChordPick) => {
+    if (!question || !chord || answered) return;
+    const next: ChordPick = { ...pickedChord, ...patch };
+    if (qualities.length === 1) next.quality = qualities[0];
+    setChordPick({ q: question, p: next });
+    if (next.root != null && next.quality != null) {
+      const correct = next.root === pitchClassName(chord.rootPc) && next.quality === chord.quality;
+      void playChordStrum(chord.positions);
+      engine.answerWith(correct, `${next.root}|${next.quality}`);
+    }
+  };
+  const tapChordPlace = (string: number, fret: number) => {
+    if (!question || answered) return;
+    void playNoteSingle(string, fret);
+    const exists = playedPlaces.some((p) => p.string === string && p.fret === fret);
+    // One place per string: a new tap on a string replaces its old one.
+    const places = exists
+      ? playedPlaces.filter((p) => !(p.string === string && p.fret === fret))
+      : [...playedPlaces.filter((p) => p.string !== string), { string, fret }];
+    setPlayed({ q: question, places });
+  };
+  const checkChord = () => {
+    if (!chord || answered || playedPlaces.length === 0) return;
+    playClickSound();
+    const correct = playedPlaces.length === chord.positions.length
+      && chord.positions.every((p) => playedPlaces.some((q) => samePlace(p, q)));
+    void playChordStrum(chord.positions);
+    engine.answerWith(correct);
+  };
+
+  // ── Techniques ───────────────────────────────────────────────────────
+  const chooseTechnique = (value: string) => {
+    if (!technique || answered) return;
+    playTechnique(technique);
+    engine.answerWith(value === technique.technique, value);
+  };
+  const chooseTechniqueNote = (value: string) => {
+    if (!technique || answered) return;
+    playTechnique(technique);
+    engine.answerWith(value === pitchClassName(technique.midi), value);
+  };
+
+  // ── Progress ─────────────────────────────────────────────────────────
+  const chordStatuses = useMemo(
+    () => tabItemStatuses(chordPool.map((c) => c.itemId), instState.tabSrs, instState.tabHistory, now),
+    [chordPool, instState, now],
+  );
+  const techniqueStatuses = useMemo(
+    () => tabItemStatuses(techniques.map(tabTechniqueItemId), instState.tabSrs, instState.tabHistory, now),
+    [techniques, instState, now],
+  );
 
   const goalPct = dailyGoal.target > 0 ? Math.min(100, Math.round((dailyGoal.completed / dailyGoal.target) * 100)) : 0;
   const goalDone = dailyGoal.completed >= dailyGoal.target;
@@ -256,6 +464,17 @@ export default function TabPracticeScreen({ instrument, accidental, notation, sh
 
   const riffScore = results.filter((r) => r?.correct).length;
   const orientationHelp = t('In a tab the top line is the thinnest, highest string and the bottom line the thickest — upside down from the neck in this app, where the thickest string is on top.');
+  const unavailable = topic === 'chords' && chordPool.length === 0;
+  const pickedParts = (results[0]?.picked ?? '').split('|');
+
+  let answerText: React.ReactNode = null;
+  if (answered && first) {
+    const mark = singleCorrect ? '✓ ' : '✗ ';
+    if (!single) answerText = <>{riffScore === items.length ? '✓ ' : ''}{riffScore}/{items.length}</>;
+    else if (chord) answerText = <>{mark}<bdi dir="ltr">{chordLabel(chord)}</bdi></>;
+    else if (technique && exercise === 'nameTechnique') answerText = <>{mark}{t(TECHNIQUE_LABEL[technique.technique])}</>;
+    else answerText = <>{mark}{nameOf(first.midi)}</>;
+  }
 
   return (
     <div className="app settings-page lp-page interval-home">
@@ -301,9 +520,27 @@ export default function TabPracticeScreen({ instrument, accidental, notation, sh
               </div>
             )}
 
+            {!running && (
+              <div className="set-card scale-position-switcher" role="group" aria-label={t('Topic')}>
+                <span className="set-card-label">{t('Topic')}</span>
+                <div className="scale-position-row">
+                  {TOPICS.map((tp) => (
+                    <button
+                      key={tp}
+                      type="button"
+                      className={`set-card-btn${topic === tp ? ' set-card-btn-primary' : ''}`}
+                      onClick={() => setTopic(tp)}
+                    >
+                      {t(TOPIC_LABEL[tp])}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {!running && tab === 'practice' && (
               <div className="set-card scale-exercise-switcher staff-exercise-switcher" role="group" aria-label={t('Exercise')}>
-                {EXERCISES.map((e) => (
+                {TOPIC_EXERCISES[topic].map((e) => (
                   <button
                     key={e}
                     type="button"
@@ -358,26 +595,61 @@ export default function TabPracticeScreen({ instrument, accidental, notation, sh
 
             {!running && tab === 'progress' && (
               <div className="set-card">
-                <TabProgressBoard
-                  items={boardItems}
-                  bottomFret={bottomFret}
-                  topFret={topFret}
-                  noteTable={instrument.notes}
-                  stringCount={instrument.stringCount}
-                  accidental={accidental}
-                  notation={notation}
-                />
+                {topic === 'notes' && (
+                  <TabProgressBoard
+                    items={boardItems}
+                    bottomFret={bottomFret}
+                    topFret={topFret}
+                    noteTable={instrument.notes}
+                    stringCount={instrument.stringCount}
+                    accidental={accidental}
+                    notation={notation}
+                  />
+                )}
+                {topic === 'chords' && (unavailable
+                  ? <p className="set-card-help">{t('Chords in tab are not available for this instrument yet.')}</p>
+                  : (
+                    <TabStatusList
+                      heading={t('Chords mastered')}
+                      items={chordPool.map((c, i) => ({
+                        key: c.itemId,
+                        label: chordLabel(c),
+                        sub: chordShapeLabel(c),
+                        status: chordStatuses[i].status,
+                      }))}
+                    />
+                  ))}
+                {topic === 'techniques' && (
+                  <TabStatusList
+                    heading={t('Symbols mastered')}
+                    items={techniques.map((tech, i) => ({
+                      key: tech,
+                      label: TECHNIQUE_SYMBOL[tech],
+                      sub: t(TECHNIQUE_LABEL[tech]),
+                      status: techniqueStatuses[i].status,
+                    }))}
+                  />
+                )}
               </div>
             )}
 
             {!running && tab === 'practice' && !finished && (
               <div className="set-card">
                 <p className="set-card-help">{t(EXERCISE_HELP[exercise])}</p>
+                {topic === 'chords' && !unavailable && chordsRootInBass(instrument.id) && (
+                  <p className="set-card-help">{t('The lowest note of these chords is the root, the note the chord is named after.')}</p>
+                )}
                 <p className="set-card-help">{orientationHelp}</p>
-                {goalBar}
-                <button type="button" className="set-card-btn set-card-btn-primary" onClick={startSession}>
-                  {t('Start')}
-                </button>
+                {unavailable ? (
+                  <p className="set-card-help">{t('Chords in tab are not available for this instrument yet.')}</p>
+                ) : (
+                  <>
+                    {goalBar}
+                    <button type="button" className="set-card-btn set-card-btn-primary" onClick={startSession}>
+                      {t('Start')}
+                    </button>
+                  </>
+                )}
               </div>
             )}
 
@@ -416,11 +688,13 @@ export default function TabPracticeScreen({ instrument, accidental, notation, sh
                 />
 
                 {/* Always rendered, so the answer appearing never shifts the board. */}
-                <p className="staff-answer" aria-live="polite">
-                  {answered && (single
-                    ? <>{singleCorrect ? '✓ ' : '✗ '}{nameOf(items[0].midi)}</>
-                    : <>{riffScore === items.length ? '✓ ' : ''}{riffScore}/{items.length}</>)}
-                </p>
+                <p className="staff-answer" aria-live="polite">{answerText}</p>
+
+                {technique && answered && (
+                  <p className="set-card-help tab-technique-help">
+                    <bdi dir="ltr">{technique.text}</bdi> — {t(TECHNIQUE_HELP[technique.technique])}
+                  </p>
+                )}
 
                 {exercise === 'writeTab' && (
                   <>
@@ -458,25 +732,111 @@ export default function TabPracticeScreen({ instrument, accidental, notation, sh
                       label: displayNote(n, accidental, notation),
                     }))}
                     onSelect={engine.selectName}
-                    correct={single && answered ? pitchClassName(items[0].midi) : null}
+                    correct={single && answered && first ? pitchClassName(first.midi) : null}
                     wrong={single && results[0]?.picked != null && !singleCorrect ? results[0].picked : null}
                     disabled={answered}
                     dir={lang === 'he' ? 'rtl' : undefined}
                   />
                 )}
 
-                {exercise === 'findOnNeck' && (
+                {exercise === 'findOnNeck' && first && (
                   <StaffNeckBoard
                     bottomFret={bottomFret}
                     topFret={topFret}
                     noteTable={instrument.notes}
                     stringCount={instrument.stringCount}
                     minFrets={instrument.minFrets}
-                    reveal={answered ? items[0].positions : null}
+                    reveal={answered ? first.positions : null}
                     tapped={engine.tapped}
                     accidental={accidental}
                     notation={notation}
                     onTap={engine.tapPosition}
+                  />
+                )}
+
+                {exercise === 'nameChord' && chord && (
+                  <>
+                    <IntervalChoiceRow
+                      variant="note"
+                      options={tabNameOptions(naturalsOnly).map((n) => ({
+                        value: n,
+                        label: displayNote(n, accidental, notation),
+                      }))}
+                      onSelect={(v) => chooseChord({ root: v })}
+                      correct={answered ? pitchClassName(chord.rootPc) : null}
+                      selected={answered ? null : pickedChord.root ?? null}
+                      wrong={answered && pickedParts[0] && pickedParts[0] !== pitchClassName(chord.rootPc) ? pickedParts[0] : null}
+                      disabled={answered}
+                      dir={lang === 'he' ? 'rtl' : undefined}
+                    />
+                    {qualities.length > 1 && (
+                      <IntervalChoiceRow
+                        variant="interval"
+                        options={qualities.map((q) => ({ value: q, label: t(QUALITY_LABEL[q]) }))}
+                        onSelect={(v) => chooseChord({ quality: v as ChordQuality })}
+                        correct={answered ? chord.quality : null}
+                        selected={answered ? null : pickedChord.quality ?? null}
+                        wrong={answered && pickedParts[1] && pickedParts[1] !== chord.quality ? pickedParts[1] : null}
+                        disabled={answered}
+                        dir={lang === 'he' ? 'rtl' : undefined}
+                      />
+                    )}
+                  </>
+                )}
+
+                {exercise === 'playChord' && chord && (
+                  <>
+                    <StaffNeckBoard
+                      bottomFret={bottomFret}
+                      topFret={topFret}
+                      noteTable={instrument.notes}
+                      stringCount={instrument.stringCount}
+                      minFrets={instrument.minFrets}
+                      reveal={answered ? chord.positions : null}
+                      tapped={null}
+                      selected={answered ? [] : playedPlaces}
+                      wrong={answered ? playedPlaces.filter((p) => !chord.positions.some((q) => samePlace(p, q))) : []}
+                      accidental={accidental}
+                      notation={notation}
+                      onTap={tapChordPlace}
+                    />
+                    <div className="staff-place-controls">
+                      <button
+                        type="button"
+                        className="set-card-btn set-card-btn-primary"
+                        onClick={checkChord}
+                        disabled={answered || playedPlaces.length === 0}
+                      >
+                        {t('Check')}
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {exercise === 'nameTechnique' && technique && (
+                  <IntervalChoiceRow
+                    variant="scale"
+                    options={techniques.map((tech) => ({ value: tech, label: techniqueLabel(tech) }))}
+                    onSelect={chooseTechnique}
+                    correct={answered ? technique.technique : null}
+                    wrong={answered && results[0]?.picked != null && !singleCorrect ? results[0].picked : null}
+                    disabled={answered}
+                    dir={lang === 'he' ? 'rtl' : undefined}
+                  />
+                )}
+
+                {exercise === 'techniqueNote' && technique && (
+                  <IntervalChoiceRow
+                    variant="note"
+                    options={tabNameOptions(naturalsOnly).map((n) => ({
+                      value: n,
+                      label: displayNote(n, accidental, notation),
+                    }))}
+                    onSelect={chooseTechniqueNote}
+                    correct={answered ? pitchClassName(technique.midi) : null}
+                    wrong={answered && results[0]?.picked != null && !singleCorrect ? results[0].picked : null}
+                    disabled={answered}
+                    dir={lang === 'he' ? 'rtl' : undefined}
                   />
                 )}
 

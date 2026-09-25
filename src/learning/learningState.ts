@@ -47,7 +47,7 @@ import {
 import { noteItemId } from './noteItem';
 import { parseScaleItemId } from './scaleItem';
 import { parseStaffItemId } from './staffItem';
-import { parseTabItemId } from './tabItem';
+import { isValidTabItemId } from './tabItem';
 import {
   emptyPathProgress,
   normalizePathProgress,
@@ -151,13 +151,19 @@ export interface StaffHistoryRow {
   createdAt: number;
 }
 
-export type TabForm = 'nameNote' | 'findOnNeck' | 'writeTab' | 'readRiff';
-const TAB_FORMS: readonly TabForm[] = ['nameNote', 'findOnNeck', 'writeTab', 'readRiff'];
+export type TabForm =
+  | 'nameNote' | 'findOnNeck' | 'writeTab' | 'readRiff'
+  // Slice 2: chords and technique symbols (tab-reading-spec.md §13)
+  | 'nameChord' | 'playChord' | 'nameTechnique' | 'techniqueNote';
+const TAB_FORMS: readonly TabForm[] = [
+  'nameNote', 'findOnNeck', 'writeTab', 'readRiff', 'nameChord', 'playChord', 'nameTechnique', 'techniqueNote',
+];
 
 /** One recorded tab-reading answer (tab-reading-spec.md §8). Never merged
  *  into note/interval/scale/staff history, mastery, badges or the leaderboard. */
 export interface TabHistoryRow {
-  /** `tab:<string>:<fret>` — the tab position this answer reviews. */
+  /** `tab:<string>:<fret>`, `tab:chord:<frets>` or `tab:tech:<technique>` —
+   *  the tab item this answer reviews. */
   itemId: string;
   /** Which exercise produced the answer (§6). */
   form: TabForm;
@@ -407,7 +413,7 @@ export function normalizeTabHistory(raw: unknown): TabHistoryRow[] {
     if (v == null || typeof v !== 'object') continue;
     const r = v as Record<string, unknown>;
     const itemId = typeof r.itemId === 'string' ? r.itemId : '';
-    if (parseTabItemId(itemId) == null) continue;
+    if (!isValidTabItemId(itemId)) continue;
     const createdAt =
       typeof r.createdAt === 'number' && Number.isFinite(r.createdAt) && r.createdAt > 0
         ? Math.round(r.createdAt)

@@ -48,3 +48,34 @@
   color: #1a1a1a;
 }
 .tab-board-notStarted { color: var(--text-2); }
+/* Slice 2: palm mute written above the tab, the meaning of a technique
+   after the answer, and the Progress tiles for chords and symbols. */
+.tab-above { font-family: inherit; }
+.tab-technique-help { text-align: center; }
+.tab-status-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 6px;
+}
+.tab-status-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  border-radius: 10px;
+  border: 1px solid var(--surface-border);
+}
+/* Not started keeps the plain surface; the other two take the status
+   colour from .tab-board-* above. */
+.tab-status-tile.tab-board-notStarted { background: var(--bg-2); }
+.tab-status-label {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+.tab-status-sub {
+  font-size: 0.7rem;
+  font-weight: 700;
+  opacity: 0.85;
+  text-align: center;
+}

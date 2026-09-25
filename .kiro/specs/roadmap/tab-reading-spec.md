@@ -1,10 +1,11 @@
 # Tab Reading — Design Specification
 
-Status: **Slice 1 built and shipped (2026-09-25).** The product owner asked to
-add tab reading; Claude proposed the domain, its four exercises and a
-two-slice split, and the owner approved it as proposed ("מתאים. התחל ביצוע"),
-including the orientation decision in §3. Slice 2 (chords and technique
-symbols) is still open (§12).
+Status: **Slices 1 and 2 built and shipped (2026-09-25).** The product owner
+asked to add tab reading; Claude proposed the domain, its four exercises and
+a two-slice split, and the owner approved it as proposed ("מתאים. התחל
+ביצוע"), including the orientation decision in §3. The owner then asked for
+Slice 2 ("המשך לשלב השני") — chords and technique symbols, §13. What is still
+open is in §12.
 
 ## 0. Foundational principle
 
@@ -145,13 +146,87 @@ written). With `onPickString` a tap selects the nearest line. CSS:
 
 ## 12. Still open
 
-1. **Chords** — several numbers stacked in one column; name the chord / find
-   the shape.
-2. **Technique symbols** — hammer-on (h), pull-off (p), slide (/ \), bend
-   (b), vibrato (~), muted note (x), palm mute (PM): read the symbol and say
-   what to do.
-3. **Rhythm** — tabs usually omit it; a later step could pair tab with the
+1. **Mandolin tab has eight lines.** The app models the mandolin as eight
+   separate strings, so its tab shows eight lines; real mandolin tab has four
+   (one per pair). Fixing it means modelling courses app-wide; until then
+   chords are not offered on the mandolin (§13.1).
+2. **More chord kinds** — major 7, minor 7, sus, slash chords; strummed
+   rhythm patterns written under a chord.
+3. **More symbols** — release bends (7b9r7), half bends, harmonics (<12>),
+   tapping (t), let ring.
+4. **Rhythm** — tabs usually omit it; a later step could pair tab with the
    staff's rhythm.
-4. **Play what you read** — answer a riff by playing it (pitch detection).
-5. **Teacher integration** — a planned "today's tab" session with a "why
+5. **Play what you read** — answer a riff by playing it (pitch detection).
+6. **Teacher integration** — a planned "today's tab" session with a "why
    these?" list.
+
+## 13. Slice 2 — chords and technique symbols
+
+The screen gets a **Topic** switch — *Single notes* (Slice 1), *Chords*,
+*Techniques* — and each topic its own exercises. Range and the notes setting
+apply to all three; everything records into the same tab lane (`tabSrs`,
+`tabHistory`, `tabDaily`), with the forms `nameChord` / `playChord` /
+`nameTechnique` / `techniqueNote`. The Progress tab follows the topic.
+
+### 13.1 Chords (`src/learning/tabChords.ts`)
+
+- **Name the chord** — a column of numbers; pick the root and the kind
+  (major / minor / 7 / 5); the answer is judged once both are picked, and the
+  chord is strummed. On bass only power chords exist, so only the root is
+  asked.
+- **Play the chord** — tap every place it plays on the neck, one per string
+  (a new tap on a string replaces the old one), then Check. After the answer
+  the right places are green and wrong taps red.
+
+The shapes are **found in the instrument's own tuning**, not typed in: root on
+the bass string, every string tuned higher played with no gap, every chord
+note present (a seventh chord may drop its fifth), at most a four-fret
+stretch and four fingers (a barre counts as one). Two rules keep the shapes
+the ones players actually use: a shape with an open string stays within the
+first three frets (C = x32010, never B = x21402), and a shape with no open
+string has its root at the lowest fret (B = 799877, never 764447). One
+voicing per root, kind and bass string (the three lowest-tuned strings). On
+ukulele, whose chords are not root-in-bass (G = 0232), all four strings play
+and the root may be anywhere. Kinds per instrument: guitar all four, bass
+power chords, ukulele and banjo major / minor / 7 (banjo's drone string
+left out), mandolin none (§12.1). Items: `tab:chord:<frets low→high>`.
+
+### 13.2 Technique symbols (`src/learning/tabTechniques.ts`)
+
+Eight symbols: `5h7` hammer-on, `7p5` pull-off, `5/7` slide up, `7\5`
+slide down, `7b9` bend (a whole step; the second number is the pitch it
+reaches), `7~` vibrato, `x` muted note, and PM written above the tab.
+
+- **What does it mean?** — pick the technique's name; after the answer a
+  one-line explanation of how to play it, and its sound.
+- **Which note do you hear at the end?** — name the note the technique ends
+  on (the muted note, which has no pitch, is left out).
+
+The item is the symbol (`tab:tech:<technique>`); each question writes it on a
+fresh string and fret inside the range (with *Natural notes only*, the note
+it ends on is natural).
+
+### 13.3 Sound (`src/utils/audio.ts`)
+
+`playChordStrum` strums the places low to high, all ringing together;
+`playNoteGlide` glides a sampled note's pitch for slides and bends (the
+synthesized mandolin and baritone ukulele play the two notes instead).
+Hammer-ons and pull-offs play the two notes in quick succession.
+
+### 13.4 Shared pieces touched
+
+`useReadingEngine.answerWith` (an answer the screen judged), a neutral
+`selected` state on `IntervalChoiceRow` (a two-part answer shows its first
+part without green or red), `selected` / `wrong` lists on `StaffNeckBoard`,
+and `TabNotation` columns that hold several cells (a chord) or a label above
+(PM).
+
+### 13.5 Verification
+
+`scripts/check-tabs.mts` additionally checks the open guitar shapes, barre
+shapes, ukulele shapes and bass power chords by name; that every chord on
+every instrument and range sounds only and all of its notes with the root in
+the bass, stays in range and round-trips its id; each symbol's writing,
+direction, range and end note; and the new forms. Live (Playwright, English
+and Hebrew): both chord exercises, both technique exercises, both Progress
+lists, no console errors, answers recorded with the new forms.

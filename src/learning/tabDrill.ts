@@ -21,6 +21,7 @@ export const tabTopFret = staffTopFret;
 export const tabBottomFret = staffBottomFret;
 
 export interface TabPoolItem {
+  kind: 'note';
   itemId: string;
   /** 1-based string number, 1 = highest-pitched (the tab's top line). */
   string: number;
@@ -45,7 +46,7 @@ export function buildTabPool(inst: StaffInstrument, range: TabRange, naturalsOnl
     for (let fret = from; fret <= top; fret++) {
       const midi = open + fret;
       if (naturalsOnly && !NATURAL_PCS.has(midi % 12)) continue;
-      out.push({ itemId: tabItemId(string, fret), string, fret, midi, positions: [{ string, fret }] });
+      out.push({ kind: 'note', itemId: tabItemId(string, fret), string, fret, midi, positions: [{ string, fret }] });
     }
   });
   return out;
@@ -63,7 +64,7 @@ export function tabNameOptions(naturalsOnly: boolean): string[] {
   return out;
 }
 
-function srsWeight(p: TabPoolItem, srs: SrsMap, now: number): number {
+function srsWeight(p: { itemId: string }, srs: SrsMap, now: number): number {
   const item = srs[p.itemId];
   if (!item) return 3;
   return item.dueAt <= now ? 4 : 1;
@@ -80,17 +81,17 @@ function weightedPick<T>(items: readonly T[], weights: readonly number[], rng: (
 }
 
 /**
- * Pick the next position. Weighted toward what the schedule wants: a due
- * position weighs 4, a never-seen one 3, anything else 1. Never repeats the
- * previous position while the pool has another to offer.
+ * Pick the next item — a position, a chord or a technique. Weighted toward
+ * what the schedule wants: a due item weighs 4, a never-seen one 3, anything
+ * else 1. Never repeats the previous item while the pool has another to offer.
  */
-export function pickTabQuestion(
-  pool: readonly TabPoolItem[],
+export function pickTabQuestion<T extends { itemId: string }>(
+  pool: readonly T[],
   srs: SrsMap,
   previousId: string | null,
   now: number,
   rng: () => number = Math.random,
-): TabPoolItem | null {
+): T | null {
   const candidates = pool.length > 1 ? pool.filter((p) => p.itemId !== previousId) : [...pool];
   if (candidates.length === 0) return null;
   return weightedPick(candidates, candidates.map((p) => srsWeight(p, srs, now)), rng);

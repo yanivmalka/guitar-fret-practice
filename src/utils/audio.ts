@@ -562,6 +562,76 @@ export async function playNoteSequence(stringNum: number, frets: number[], total
   soundEndTime = Date.now() + totalMs;
 }
 
+/** Strum several places at once (a chord read off a tab): each note starts
+ *  `gapMs` after the one before and all of them ring together. */
+export async function playChordStrum(places: readonly { string: number; fret: number }[], gapMs = 35) {
+  if (_silent || places.length === 0) return;
+  stopPlayback();
+  const ctx = getCtx();
+  if (ctx.state === 'suspended') await ctx.resume();
+  const dur = 1.2;
+  const midis = places.map((p) => openMidi[p.string - 1] + p.fret);
+  const buffers = synthKind === 'none' ? await Promise.all(midis.map((m) => loadSample(m))) : [];
+  midis.forEach((midi, i) => {
+    const offset = (i * gapMs) / 1000;
+    if (synthKind === 'mandolin' || synthKind === 'ukuleleBaritone') {
+      const nodes = synthKind === 'mandolin'
+        ? synthesizeMandolinPluck(ctx, masterOut(ctx), midi, offset, dur, 0.45)
+        : synthesizeUkuleleBaritonePluck(ctx, masterOut(ctx), midi, offset, dur, 0.45);
+      activeSources.push(...nodes);
+      return;
+    }
+    const buffer = buffers[i];
+    if (!buffer) return;
+    const src = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    src.buffer = buffer;
+    src.playbackRate.value = pitchRatio(midi);
+    src.connect(gain);
+    gain.connect(masterOut(ctx));
+    gain.gain.setValueAtTime(0.45, ctx.currentTime + offset);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + offset + dur);
+    src.start(ctx.currentTime + offset);
+    src.stop(ctx.currentTime + offset + dur);
+    activeSources.push(src);
+  });
+  soundEndTime = Date.now() + (midis.length * gapMs) + dur * 1000;
+}
+
+/** One picked note that glides to another fret on the same string — a slide
+ *  or a bend read off a tab. The sampled instruments glide the pitch after
+ *  `holdMs`; the synthesized ones play the two notes one after the other. */
+export async function playNoteGlide(stringNum: number, fromFret: number, toFret: number, holdMs = 220, glideMs = 180) {
+  if (_silent) return;
+  if (synthKind !== 'none') {
+    await playNoteSequence(stringNum, [fromFret, toFret], 2 * (holdMs + glideMs));
+    return;
+  }
+  stopPlayback();
+  const ctx = getCtx();
+  if (ctx.state === 'suspended') await ctx.resume();
+  const from = openMidi[stringNum - 1] + fromFret;
+  const to = openMidi[stringNum - 1] + toFret;
+  const buffer = await loadSample(from);
+  if (!buffer) return;
+  const dur = (holdMs + glideMs) / 1000 + 0.6;
+  const src = ctx.createBufferSource();
+  const gain = ctx.createGain();
+  src.buffer = buffer;
+  const startRate = pitchRatio(from);
+  const t0 = ctx.currentTime;
+  src.playbackRate.setValueAtTime(startRate, t0 + holdMs / 1000);
+  src.playbackRate.linearRampToValueAtTime(startRate * 2 ** ((to - from) / 12), t0 + (holdMs + glideMs) / 1000);
+  src.connect(gain);
+  gain.connect(masterOut(ctx));
+  gain.gain.setValueAtTime(0.8, t0);
+  gain.gain.exponentialRampToValueAtTime(0.01, t0 + dur);
+  src.start(t0);
+  src.stop(t0 + dur);
+  activeSources.push(src);
+  soundEndTime = Date.now() + dur * 1000;
+}
+
 export async function preloadAllSamples(): Promise<void> {
   if (synthKind !== 'none') return;
   const promises: Promise<unknown>[] = [];

@@ -10,7 +10,9 @@
 //   • in writing  — a place on the neck is marked (`markPosition`) and the
 //                   learner writes it: on the staff (`answerPitch`) or in
 //                   the tab (`answerPosition`);
-//   • a phrase    — several notes in a row, each named in order.
+//   • a phrase    — several notes in a row, each named in order;
+//   • judged by the screen — a chord named or played, a technique read
+//                   (`answerWith`): the screen decides and plays the sound.
 // A sibling of `useScaleChipEngine`, not a branch of the shared
 // `useGameEngine`: the prompt is written notation, not a fret or a note name.
 // What differs between the domains — which items a question holds — comes in
@@ -309,9 +311,15 @@ export function useReadingEngine<F extends string, T extends ReadingItem>({
     resolve(pos != null && pos.string === string && pos.fret === fret);
   }, [resolve]);
 
+  /** An answer the screen judged itself (it also plays the sound). */
+  const answerWith = useCallback((correct: boolean, picked?: string) => {
+    if (!runningRef.current || answeredRef.current || !questionRef.current) return;
+    resolve(correct, picked != null ? { picked } : {});
+  }, [resolve]);
+
   return {
     running, question, cursor, results, tapped, answered,
     questionNumber, questionCount, questionTime, questionStart,
-    session, start, stop, selectName, tapPosition, answerPitch, answerPosition,
+    session, start, stop, selectName, tapPosition, answerPitch, answerPosition, answerWith,
   };
 }

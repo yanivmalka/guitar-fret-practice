@@ -8,6 +8,10 @@
 // Drawn as the app's own neck (lowest string on top, ScaleOrderBoard's grid
 // and its left-handed mirroring), not as a tab: it shows where on the
 // instrument the reading is solid.
+//
+// `TabStatusList` is the same idea for chords and technique symbols
+// (tab-reading-spec.md §13), which have no single place on the neck: one
+// tile per chord shape or symbol.
 
 import type { TabBoardItem, TabStatus } from '../learning/tabMastery';
 import { displayNote, activeDotFrets, type AccidentalMode, type NotationMode } from '../utils/music';
@@ -82,6 +86,40 @@ export default function TabProgressBoard({
             <span key={f} className={`scale-order-fret${dots.has(f) ? ' staff-neck-dot' : ''}`}>{f}</span>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** The Progress tab for chords and technique symbols: one tile per item —
+ *  its name and, under it, the shape or symbol's meaning — coloured by the
+ *  same three statuses as the neck board. */
+export function TabStatusList({ heading, items }: {
+  heading: string;
+  items: readonly { key: string; label: string; sub: string; status: TabStatus }[];
+}) {
+  const { t } = useTranslation();
+  if (items.length === 0) return null;
+  const count = (s: TabStatus) => items.filter((i) => i.status === s).length;
+  return (
+    <div className="staff-board">
+      <p className="set-card-help">
+        {heading}: {count('mastered')}/{items.length}
+      </p>
+      <div className="staff-board-legend">
+        {(['mastered', 'learning', 'notStarted'] as const).map((s) => (
+          <span key={s} className={`staff-board-key staff-board-key-${s}`}>
+            {t(STATUS_LABEL[s])} · {count(s)}
+          </span>
+        ))}
+      </div>
+      <div className="tab-status-list">
+        {items.map((it) => (
+          <span key={it.key} className={`tab-status-tile tab-board-${it.status}`}>
+            <bdi className="tab-status-label" dir="ltr">{it.label}</bdi>
+            <span className="tab-status-sub">{it.sub}</span>
+          </span>
+        ))}
       </div>
     </div>
   );

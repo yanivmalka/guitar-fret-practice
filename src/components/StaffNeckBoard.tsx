@@ -29,6 +29,10 @@ interface Props {
   tapped: (StaffPosition & { correct: boolean }) | null;
   /** The place the question points at ("Where is it written?"). */
   marked?: StaffPosition | null;
+  /** Places the learner has picked so far (a chord being played). */
+  selected?: readonly StaffPosition[];
+  /** Picked places that turned out wrong (after a chord is checked). */
+  wrong?: readonly StaffPosition[];
   accidental: AccidentalMode;
   notation: NotationMode;
   /** Omitted ⇒ a read-only board. */
@@ -36,8 +40,11 @@ interface Props {
 }
 
 export default function StaffNeckBoard({
-  bottomFret = 0, topFret, noteTable, stringCount, minFrets, reveal, tapped, marked, accidental, notation, onTap,
+  bottomFret = 0, topFret, noteTable, stringCount, minFrets, reveal, tapped, marked, selected, wrong, accidental,
+  notation, onTap,
 }: Props) {
+  const has = (list: readonly StaffPosition[] | undefined, s: number, f: number) =>
+    list?.some((p) => p.string === s && p.fret === f) ?? false;
   const frets: number[] = [];
   for (let f = bottomFret; f <= topFret; f++) frets.push(f);
   const strings = Array.from({ length: stringCount }, (_, i) => stringCount - i);
@@ -63,6 +70,8 @@ export default function StaffNeckBoard({
             if (isRevealed(s, f)) cls += ' scale-order-tile-found';
             if (tapped && !tapped.correct && tapped.string === s && tapped.fret === f) cls += ' scale-order-tile-wrong';
             if (marked && marked.string === s && marked.fret === f) cls += ' staff-neck-marked';
+            if (has(selected, s, f)) cls += ' staff-neck-selected';
+            if (has(wrong, s, f)) cls += ' scale-order-tile-wrong';
             if (!onTap) return <span key={f} className={cls} />;
             return (
               <button

@@ -10,9 +10,12 @@
 --
 --   "guitar": {
 --     ...0012-0017 keys, unchanged...
---     "tabSrs":     { "tab:<string>:<fret>": { SrsItem } },   -- merged per item
+--     "tabSrs":     { "<tab item id>": { SrsItem } },          -- merged per item
+--                   -- ids: tab:<string>:<fret>, tab:chord:<frets low->high,
+--                   -- x = not played>, tab:tech:<technique>
 --     "tabHistory": [ { itemId, form, correct, seconds, createdAt } ],
---                   -- form: nameNote | findOnNeck | writeTab | readRiff;
+--                   -- form: nameNote | findOnNeck | writeTab | readRiff |
+--                   -- nameChord | playChord | nameTechnique | techniqueNote;
 --                   -- union by (createdAt, itemId, form), newest 300 kept
 --     "tabDaily":   { "dateISO": "YYYY-MM-DD", "target": 12, "completed": 5 }
 --                   -- same day: max of each field; different days: later wins

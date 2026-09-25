@@ -1,8 +1,10 @@
 // ── TabNotation — fret numbers written on tab lines ──────────────────────
 //
 // tab-reading-spec.md §10. A small self-contained SVG: one line per string,
-// the word TAB at the start, the open-string names on the left, and one fret
-// number or a short riff of them, each written on its string's line.
+// the word TAB at the start, the open-string names on the left, and a few
+// columns of writing: one fret number, a riff of them, a chord (numbers
+// stacked in one column, played together) or a technique (`5h7`, `7b9`, `x`,
+// with PM written above the tab).
 //
 // Orientation follows every real tab, NOT the app's necks: the top line is
 // string 1, the thinnest and highest-pitched, and the lowest string is the
@@ -22,13 +24,15 @@ import type { PointerEvent } from 'react';
 export type TabNoteState =
   | 'live' | 'current' | 'correct' | 'wrong' | 'ghost';
 
+/** One column of writing. */
 export interface TabNote {
-  /** 1-based string, 1 = the top line. */
-  string: number;
-  /** The number written; `null` = the line is chosen but no number yet. */
-  fret: number | null;
+  /** What is written on which line (1-based string, 1 = the top line). One
+   *  cell for a note or a technique, several for a chord. */
+  cells: readonly { string: number; text: string }[];
+  /** Written above the tab over this column (palm mute: "PM"). */
+  above?: string;
   state?: TabNoteState;
-  /** Text under the note (its name, once answered). */
+  /** Text under the column (its name, once answered). */
   label?: string;
 }
 
@@ -49,7 +53,8 @@ interface Props {
 }
 
 const LINE_GAP = 16;
-const TOP = 14;
+const PAD_TOP = 14;
+const ABOVE_ROW = 16;
 const LABEL_ROW = 20;
 const NAME_X = 12;
 const LINE_START = 24;
@@ -58,17 +63,21 @@ export default function TabNotation({
   stringNames, notes, endBar = false, slots = 1, selectedString = null, label, onPickString,
 }: Props) {
   const count = stringNames.length;
+  const TOP = PAD_TOP + (notes.some((n) => n.above != null) ? ABOVE_ROW : 0);
   const yOf = (s: number) => TOP + (s - 1) * LINE_GAP;
   const hasLabels = notes.some((n) => n.label != null);
-  const tabHeight = TOP * 2 + (count - 1) * LINE_GAP;
+  const tabHeight = TOP + PAD_TOP + (count - 1) * LINE_GAP;
   const height = tabHeight + (hasLabels ? LABEL_ROW : 0);
 
   const noteStart = 78;
   const slotCount = Math.max(slots, notes.length, 1);
   const single = slotCount === 1;
+  // Wider columns when a technique is written (`10h12` needs the room).
+  const longest = Math.max(1, ...notes.flatMap((n) => n.cells.map((c) => c.text.length)));
+  const step = Math.max(40, longest * 9 + 14);
   const xs = single
     ? [140]
-    : Array.from({ length: slotCount }, (_, i) => noteStart + i * 40);
+    : Array.from({ length: slotCount }, (_, i) => noteStart + i * step);
   const width = single ? 220 : xs[xs.length - 1] + 40;
 
   const pick = (e: PointerEvent<SVGSVGElement>) => {
@@ -130,15 +139,25 @@ export default function TabNotation({
       )}
       {notes.map((n, i) => {
         const x = xs[i];
-        const y = yOf(n.string);
-        const text = n.fret == null ? '?' : String(n.fret);
-        const w = text.length > 1 ? 20 : 13;
         return (
           <g key={i} className={`tab-note staff-note-${n.state ?? 'live'}`}>
-            <rect x={x - w / 2} y={y - 8} width={w} height={16} rx="3" className="tab-num-bg" />
-            <text x={x} y={y + 5} fontSize="15" fontWeight="800" textAnchor="middle" fill="currentColor">
-              {text}
-            </text>
+            {n.above != null && (
+              <text x={x} y={PAD_TOP + 2} fontSize="12" fontWeight="800" textAnchor="middle" fill="currentColor" className="tab-above">
+                {n.above}
+              </text>
+            )}
+            {n.cells.map((c) => {
+              const y = yOf(c.string);
+              const w = c.text.length * 9 + 4;
+              return (
+                <g key={c.string}>
+                  <rect x={x - w / 2} y={y - 8} width={w} height={16} rx="3" className="tab-num-bg" />
+                  <text x={x} y={y + 5} fontSize="15" fontWeight="800" textAnchor="middle" fill="currentColor">
+                    {c.text}
+                  </text>
+                </g>
+              );
+            })}
             {n.label != null && (
               <text
                 x={x}

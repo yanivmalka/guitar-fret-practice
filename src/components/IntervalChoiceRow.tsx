@@ -35,12 +35,15 @@ interface Props {
    *  wrong. Both null while the question is live. */
   correct?: string | null;
   wrong?: string | null;
+  /** A pick made but not yet judged (an answer given in two parts, like a
+   *  chord's root and quality). Neutral, never green or red. */
+  selected?: string | null;
   disabled?: boolean;
   dir?: 'rtl';
 }
 
 export default function IntervalChoiceRow({
-  variant, options, onSelect, correct, wrong, disabled, dir,
+  variant, options, onSelect, correct, wrong, selected, disabled, dir,
 }: Props) {
   return (
     <div
@@ -52,6 +55,7 @@ export default function IntervalChoiceRow({
         const state =
           correct === o.value ? ' is-correct'
           : wrong === o.value ? ' is-wrong'
+          : selected === o.value ? ' is-selected'
           : '';
         return (
           <button

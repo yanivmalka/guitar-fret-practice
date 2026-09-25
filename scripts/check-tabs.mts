@@ -12,6 +12,11 @@
 //   • the progress board's statuses, the separate tabDaily goal, the merge
 //     and normalisation of the new fields (and that they never touch the
 //     staff or note lanes)
+//   • Slice 2 — chords: the familiar open shapes are found (guitar, ukulele,
+//     bass power chords), every chord sounds exactly its notes with the root
+//     where it should be, movable shapes hold the root at the lowest fret,
+//     ids round-trip; techniques: how each symbol is written, its frets stay
+//     in range, the note it ends on, and the new forms survive normalisation
 
 import { register } from 'node:module';
 
@@ -31,7 +36,13 @@ register(
   import.meta.url,
 );
 
-const { tabItemId, parseTabItemId } = await import('../src/learning/tabItem.ts');
+const {
+  tabItemId, parseTabItemId, parseTabChordItemId, parseTabTechniqueItemId, isValidTabItemId, TAB_TECHNIQUES,
+} = await import('../src/learning/tabItem.ts');
+const {
+  buildTabChordPool, chordName, chordShapeLabel, chordQualitiesFor, chordsRootInBass,
+} = await import('../src/learning/tabChords.ts');
+const { buildTechniqueQuestion, tabTechniquePool } = await import('../src/learning/tabTechniques.ts');
 const {
   buildTabPool, pickTabQuestion, buildTabRiff, tabNameOptions, RIFF_MAX_STRING_STEP, RIFF_MAX_FRET_STEP,
 } = await import('../src/learning/tabDrill.ts');
@@ -151,6 +162,108 @@ check(dueHits > 2000 * 2 / openPool.length, `due place favoured (${dueHits}/2000
   eq(junk.instruments.guitar.tabHistory.length, 1, 'rows with a foreign id or form are dropped');
   const old = normalizeLearningState({ version: 1, instruments: { guitar: { srs: {} } } }, t0);
   eq([Object.keys(old.instruments.guitar.tabSrs).length, old.instruments.guitar.tabHistory.length, old.instruments.guitar.tabDaily.target], [0, 0, 12], 'an older blob gets empty tab fields');
+}
+
+// ── Slice 2: chords ────────────────────────────────────────────────────
+const QUALITY_PCS: Record<string, number[]> = { major: [0, 4, 7], minor: [0, 3, 7], dom7: [0, 4, 7, 10], power: [0, 7] };
+const shapesOf = (id: string, range: 'open' | 'low' | 'twelve' | 'high', naturals = true) => {
+  const inst = (INSTRUMENTS as Record<string, Inst>)[id];
+  return new Map(buildTabChordPool(inst, id as never, range, naturals).map((c) => [chordShapeLabel(c), chordName(c)]));
+};
+{
+  const g = shapesOf('guitar', 'open');
+  for (const [shape, name] of [
+    ['x32010', 'C'], ['320003', 'G'], ['xx0232', 'D'], ['x02220', 'A'], ['022100', 'E'],
+    ['x02210', 'Am'], ['022000', 'Em'], ['xx0231', 'Dm'], ['x32310', 'C7'], ['320001', 'G7'],
+    ['x02020', 'A7'], ['020100', 'E7'], ['xx0212', 'D7'], ['x21202', 'B7'], ['022xxx', 'E5'], ['x022xx', 'A5'],
+  ]) eq(g.get(shape), name, `guitar open shape ${shape}`);
+  const hi = shapesOf('guitar', 'twelve');
+  for (const [shape, name] of [['799877', 'B'], ['x24442', 'B'], ['577655', 'A'], ['x24432', 'Bm'], ['577555', 'Am']]) {
+    eq(hi.get(shape), name, `guitar barre shape ${shape}`);
+  }
+  check(!hi.has('764447') && !hi.has('x21402'), 'no odd mixed voicings');
+  const uke = shapesOf('ukulele', 'open');
+  for (const [shape, name] of [['0003', 'C'], ['2010', 'F'], ['0232', 'G'], ['2000', 'Am'], ['0212', 'G7'], ['0100', 'A7']]) {
+    eq(uke.get(shape), name, `ukulele shape ${shape}`);
+  }
+  const bass = shapesOf('bass', 'low');
+  check([...bass.values()].every((n) => n.endsWith('5')), 'bass tab offers power chords only');
+  eq(bass.get('022x'), 'E5', 'bass E5');
+  eq(chordQualitiesFor('mandolin'), [], 'no chords on the eight-string mandolin model');
+}
+for (const inst of Object.values(INSTRUMENTS) as Inst[]) {
+  for (const range of ['open', 'low', 'twelve', 'high'] as const) {
+    const top = range === 'open' ? 3 : range === 'low' ? 5 : range === 'twelve' ? 12 : inst.maxFret;
+    for (const c of buildTabChordPool(inst, inst.id as never, range, false)) {
+      const want = new Set(QUALITY_PCS[c.quality].map((i) => (c.rootPc + i) % 12));
+      const heard = c.positions.map((p) => inst.openMidi[p.string - 1] + p.fret);
+      const got = new Set(heard.map((m) => m % 12));
+      check([...got].every((pc) => want.has(pc)), `${inst.id} ${range} ${chordName(c)} sounds only its notes`);
+      // Every note is there — a seventh chord may leave out its fifth.
+      check([...want].every((pc) => got.has(pc) || (c.quality === 'dom7' && pc === (c.rootPc + 7) % 12)), `${inst.id} ${range} ${chordName(c)} sounds all its notes`);
+      check(Math.min(...heard) === c.midi, `${inst.id} chord midi is its lowest note`);
+      if (chordsRootInBass(inst.id as never)) check(c.midi % 12 === c.rootPc, `${inst.id} ${chordName(c)} root in the bass`);
+      const fretted = c.positions.map((p) => p.fret).filter((f) => f > 0);
+      if (fretted.length) check(Math.max(...fretted) - Math.min(...fretted) <= 3, `${inst.id} chord spans at most four frets`);
+      for (const p of c.positions) {
+        check(p.fret <= Math.min(inst.maxFret, top), 'chord inside the range');
+        check(range !== 'high' || p.fret >= 12, 'high-range chord from fret 12');
+        check((inst.minFrets?.[p.string - 1] ?? 0) === 0, 'no chord on a drone string');
+      }
+      eq(parseTabChordItemId(c.itemId), [...c.frets].reverse(), `${inst.id} chord id round-trips`);
+      check(isValidTabItemId(c.itemId), 'chord id is a valid tab id');
+    }
+  }
+}
+eq(parseTabChordItemId('tab:chord:x.3.2.0.1.0'), [null, 3, 2, 0, 1, 0], 'parse a chord id');
+eq(parseTabChordItemId('tab:chord:x.x'), null, 'a chord with nothing played is rejected');
+eq(parseTabChordItemId('tab:chord:3.y'), null, 'a bad fret is rejected');
+
+// ── Slice 2: techniques ────────────────────────────────────────────────
+const TECH_TEXT: Record<string, RegExp> = {
+  hammerOn: /^\d+h\d+$/, pullOff: /^\d+p\d+$/, slideUp: /^\d+\/\d+$/, slideDown: /^\d+\\\d+$/,
+  bend: /^\d+b\d+$/, vibrato: /^\d+~$/, mutedNote: /^x$/, palmMute: /^\d+$/,
+};
+for (const inst of Object.values(INSTRUMENTS) as Inst[]) {
+  for (const range of ['open', 'low', 'twelve', 'high'] as const) {
+    const pool = tabTechniquePool(inst, range, false);
+    check(pool.length >= 6, `${inst.id} ${range} has room for most symbols (${pool.length})`);
+    check(!tabTechniquePool(inst, range, true).includes('mutedNote'), 'the muted note has no pitch to name');
+    for (const tech of pool) {
+      for (let i = 0; i < 20; i++) {
+        const q = buildTechniqueQuestion(inst, range, tech, false);
+        if (!q) { check(false, `${inst.id} ${range} ${tech} question`); continue; }
+        eq(parseTabTechniqueItemId(q.itemId), tech, 'technique id');
+        const end = q.to ?? q.from;
+        if (tech !== 'mutedNote') check(q.midi === inst.openMidi[q.string - 1] + end, `${tech} ends on its second note`);
+        const lo = range === 'high' ? 12 : 0;
+        if (tech !== 'mutedNote') check(q.from >= lo && q.from >= (inst.minFrets?.[q.string - 1] ?? 0), `${tech} starts inside the range`);
+        check(TECH_TEXT[tech].test(q.text), `${tech} written as ${q.text}`);
+        if (tech === 'hammerOn' || tech === 'slideUp') check((q.to ?? 0) > q.from, `${tech} goes up`);
+        if (tech === 'pullOff' || tech === 'slideDown') check((q.to ?? 99) < q.from, `${tech} goes down`);
+        if (tech === 'bend') eq(q.to, q.from + 2, 'a bend reaches a whole step up');
+        if (tech === 'palmMute') eq(q.above, 'PM', 'palm mute is written above');
+      }
+    }
+  }
+}
+{
+  const g = (INSTRUMENTS as Record<string, Inst>).guitar;
+  for (let i = 0; i < 50; i++) {
+    const q = buildTechniqueQuestion(g, 'open', 'hammerOn', true);
+    check(q != null && NATURALS.has(q.midi % 12), 'naturals only: the note at the end is natural');
+  }
+  eq(TAB_TECHNIQUES.length, 8, 'eight symbols');
+  const t0 = Date.UTC(2026, 8, 25, 10);
+  let st = emptyInstrumentState(t0);
+  st = recordTabAnswer(st, 'tab:chord:x.3.2.0.1.0', 'nameChord', true, 2, t0);
+  st = recordTabAnswer(st, 'tab:chord:x.3.2.0.1.0', 'playChord', false, 9, t0 + 1);
+  st = recordTabAnswer(st, 'tab:tech:bend', 'nameTechnique', true, 1, t0 + 2);
+  st = recordTabAnswer(st, 'tab:tech:slideUp', 'techniqueNote', true, 1, t0 + 3);
+  const round = normalizeLearningState(JSON.parse(JSON.stringify({ version: 1, instruments: { guitar: st } })), t0 + 10);
+  eq(round.instruments.guitar.tabHistory.map((r: { form: string }) => r.form), ['nameChord', 'playChord', 'nameTechnique', 'techniqueNote'], 'Slice 2 forms survive normalisation');
+  eq(Object.keys(round.instruments.guitar.tabSrs).sort(), ['tab:chord:x.3.2.0.1.0', 'tab:tech:bend', 'tab:tech:slideUp'], 'chord and technique items in the tab schedule');
+  eq(round.instruments.guitar.tabDaily.completed, 4, 'chords and techniques tick the tab goal');
 }
 
 if (failures) { console.error(`${failures} failure(s)`); process.exit(1); }
