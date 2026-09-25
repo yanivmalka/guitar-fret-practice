@@ -1208,6 +1208,22 @@ const he: Record<string, string> = {
   'Custom range': 'טווח מותאם',
   'Keep as is': 'השאר כמו שזה',
   'Set fret range': 'הגדר טווח סריגים',
+
+  // Staff reading (StaffPracticeScreen). The two exercise names reuse the
+  // Intervals keys 'Name the note' / 'Find it on the neck' above.
+  'A note is written on the staff. Pick its name — you will hear it after you answer.': 'תו כתוב על החמשה. בחרו את שמו — אחרי התשובה תשמעו אותו.',
+  'A note is written on the staff. Tap a place on the neck that plays it — any string counts. Afterwards every place that plays it is shown.': 'תו כתוב על החמשה. הקישו על מקום בצוואר שמנגן אותו — כל מיתר נחשב. אחר כך יוצגו כל המקומות שבהם הוא נמצא.',
+  'Range': 'טווח',
+  'Frets 0–3': 'סריגים \u20660–3\u2069',
+  'Frets 0–5': 'סריגים \u20660–5\u2069',
+  'Frets 0–12': 'סריגים \u20660–12\u2069',
+  'Natural notes only': 'תווים טבעיים בלבד',
+  'With sharps and flats': 'עם דיאזים ובמולים',
+  'Bass music is written in the bass clef, one octave above how it sounds.': 'תווים לבס נכתבים במפתח פה, אוקטבה אחת מעל הצליל שנשמע.',
+  'Music for this instrument is written in the treble clef, one octave above how it sounds — the small 8 under the clef says so.': 'תווים לכלי הזה נכתבים במפתח סול, אוקטבה אחת מעל הצליל שנשמע — ה־8 הקטן מתחת למפתח מציין זאת.',
+  'Music for this instrument is written in the treble clef, at the pitch it sounds.': 'תווים לכלי הזה נכתבים במפתח סול, בגובה הצליל שנשמע.',
+  'Practise reading notes on the staff and finding them on the neck': 'תרגלו קריאת תווים על החמשה ומציאתם על הצוואר',
+  'A note on the staff': 'תו על החמשה',
 };
 
 const dictionaries: Record<Lang, Record<string, string>> = { en: {}, he };

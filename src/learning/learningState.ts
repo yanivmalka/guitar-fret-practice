@@ -25,6 +25,10 @@
 //                        to localStorage today exactly like every other field
 //                        here, they just don't survive a sign-out/reinstall
 //                        until that wiring lands)
+//   • staffSrs        — written-pitch item id → SrsItem (Staff reading, its own
+//                        lane — staff-reading-spec.md §8)
+//   • staffHistory    — a capped ring buffer of staff-reading answers — LOCAL
+//                        ONLY, exactly like `scaleSrs`/`scaleHistory` above
 //   • updatedAt
 //
 // This module is pure model + persistence. It does NOT import the sync layer
@@ -40,6 +44,7 @@ import {
 } from './srs';
 import { noteItemId } from './noteItem';
 import { parseScaleItemId } from './scaleItem';
+import { parseStaffItemId } from './staffItem';
 import {
   emptyPathProgress,
   normalizePathProgress,
@@ -67,6 +72,9 @@ export const INTERVAL_HISTORY_CAP = 200;
 // Same idea, scale domain (scales-learning-spec.md §10.3 / §15.2). Local-only
 // for now — see the `InstrumentLearningState` header note above.
 export const SCALE_HISTORY_CAP = 200;
+
+// Same idea, staff-reading domain (staff-reading-spec.md §8). Local-only.
+export const STAFF_HISTORY_CAP = 200;
 
 export interface DailyGoal {
   /** Local calendar day, `YYYY-MM-DD`. */
@@ -115,6 +123,18 @@ export interface ScaleHistoryRow {
   createdAt: number;
 }
 
+/** One recorded staff-reading answer (staff-reading-spec.md §8). Never merged
+ *  into note/interval/scale history, mastery, badges or the leaderboard. */
+export interface StaffHistoryRow {
+  /** `staff:<midi>` — the written pitch this answer reviews. */
+  itemId: string;
+  /** Which exercise produced the answer (§6). */
+  form: 'nameNote' | 'findOnNeck';
+  correct: boolean;
+  seconds: number;
+  createdAt: number;
+}
+
 export interface InstrumentLearningState {
   srs: SrsMap;
   /** Leitner schedule for interval *qualities* (P4). A separate map from `srs`
@@ -147,6 +167,12 @@ export interface InstrumentLearningState {
    *  only for now — see this interface's header note. Absent in a pre-P5
    *  blob ⇒ `[]`. */
   scaleHistory: ScaleHistoryRow[];
+  /** Leitner schedule for written pitches (Staff reading). A separate map so
+   *  no other domain ever sees staff ids. Absent in an older blob ⇒ `{}`. */
+  staffSrs: SrsMap;
+  /** Capped (`STAFF_HISTORY_CAP`) ring buffer of staff-reading answers. Local
+   *  only, like `scaleHistory`. Absent in an older blob ⇒ `[]`. */
+  staffHistory: StaffHistoryRow[];
   /** Epoch ms of the last Teacher answer, for merge tie-breaking. */
   lastAnswerAt: number;
   /** ISO timestamp of the last change. */
@@ -181,6 +207,8 @@ export function emptyInstrumentState(now: number): InstrumentLearningState {
     path: emptyPathProgress(),
     scaleSrs: {},
     scaleHistory: [],
+    staffSrs: {},
+    staffHistory: [],
     lastAnswerAt: 0,
     updatedAt: new Date(now).toISOString(),
   };
@@ -295,6 +323,35 @@ export function normalizeScaleHistory(raw: unknown): ScaleHistoryRow[] {
     : rows;
 }
 
+/** Coerce untrusted storage input into a valid `StaffHistoryRow[]`. Mirrors
+ *  `normalizeScaleHistory`. */
+export function normalizeStaffHistory(raw: unknown): StaffHistoryRow[] {
+  if (!Array.isArray(raw)) return [];
+  const rows: StaffHistoryRow[] = [];
+  for (const v of raw) {
+    if (v == null || typeof v !== 'object') continue;
+    const r = v as Record<string, unknown>;
+    const itemId = typeof r.itemId === 'string' ? r.itemId : '';
+    if (parseStaffItemId(itemId) == null) continue;
+    const createdAt =
+      typeof r.createdAt === 'number' && Number.isFinite(r.createdAt) && r.createdAt > 0
+        ? Math.round(r.createdAt)
+        : NaN;
+    if (!Number.isFinite(createdAt)) continue;
+    const form = r.form === 'nameNote' || r.form === 'findOnNeck' ? r.form : null;
+    if (form == null) continue;
+    const seconds =
+      typeof r.seconds === 'number' && Number.isFinite(r.seconds) && r.seconds >= 0
+        ? r.seconds
+        : 0;
+    rows.push({ itemId, form, correct: r.correct === true, seconds, createdAt });
+  }
+  rows.sort((a, b) => a.createdAt - b.createdAt);
+  return rows.length > STAFF_HISTORY_CAP
+    ? rows.slice(rows.length - STAFF_HISTORY_CAP)
+    : rows;
+}
+
 export function normalizeInstrumentState(
   raw: unknown,
   now: number,
@@ -320,6 +377,8 @@ export function normalizeInstrumentState(
     path: normalizePathProgress(r.path),
     scaleSrs: readSrsMap(r.scaleSrs),
     scaleHistory: normalizeScaleHistory(r.scaleHistory),
+    staffSrs: readSrsMap(r.staffSrs),
+    staffHistory: normalizeStaffHistory(r.staffHistory),
     lastAnswerAt:
       typeof r.lastAnswerAt === 'number' && Number.isFinite(r.lastAnswerAt)
         ? r.lastAnswerAt
@@ -438,6 +497,8 @@ export function recordTeacherAnswer(
     path: st.path,
     scaleSrs: st.scaleSrs,
     scaleHistory: st.scaleHistory,
+    staffSrs: st.staffSrs,
+    staffHistory: st.staffHistory,
     lastAnswerAt: now,
     updatedAt: new Date(now).toISOString(),
   };
@@ -468,6 +529,8 @@ export function recordPracticeAnswer(
     path: st.path,
     scaleSrs: st.scaleSrs,
     scaleHistory: st.scaleHistory,
+    staffSrs: st.staffSrs,
+    staffHistory: st.staffHistory,
     lastAnswerAt: now,
     updatedAt: new Date(now).toISOString(),
   };
@@ -603,6 +666,42 @@ export function recordScaleAnswer(
   };
 }
 
+// ── Apply one staff-reading answer (Premium only) ──────────────────────
+//
+// The staff-domain sibling of `recordScaleAnswer`: folds the written pitch
+// into `staffSrs` and appends a capped row to `staffHistory`. Every other
+// domain's fields are left as they are. Pure.
+export function recordStaffAnswer(
+  st: InstrumentLearningState,
+  itemId: string,
+  form: StaffHistoryRow['form'],
+  correct: boolean,
+  seconds: number,
+  now: number,
+): InstrumentLearningState {
+  const srsItem = getOrCreate(st.staffSrs, itemId, now);
+  const nextItem = reviewSrsItem(srsItem, correct, now);
+  const row: StaffHistoryRow = {
+    itemId,
+    form,
+    correct,
+    seconds: Number.isFinite(seconds) && seconds >= 0 ? seconds : 0,
+    createdAt: now,
+  };
+  const history = [...st.staffHistory, row];
+  return {
+    ...st,
+    staffSrs: { ...st.staffSrs, [itemId]: nextItem },
+    staffHistory:
+      history.length > STAFF_HISTORY_CAP
+        ? history.slice(history.length - STAFF_HISTORY_CAP)
+        : history,
+    daily: rollDailyGoal(st.daily, now, st.daily.target),
+    lastAnswerAt: now,
+    updatedAt: new Date(now).toISOString(),
+  };
+}
+
 // ── Fold Learning Path checkpoint stars (Premium only) ────────────────
 //
 // Monotonic per checkpoint (see `pathProgress.foldCheckpointStars`). Returns
@@ -687,6 +786,25 @@ export function mergeScaleHistory(
     : out;
 }
 
+/** Merge two staff-history buffers. Mirrors `mergeScaleHistory`. */
+export function mergeStaffHistory(
+  a: StaffHistoryRow[],
+  b: StaffHistoryRow[],
+): StaffHistoryRow[] {
+  const seen = new Set<string>();
+  const out: StaffHistoryRow[] = [];
+  for (const row of [...a, ...b]) {
+    const key = `${row.createdAt}|${row.itemId}|${row.form}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+  }
+  out.sort((x, y) => x.createdAt - y.createdAt);
+  return out.length > STAFF_HISTORY_CAP
+    ? out.slice(out.length - STAFF_HISTORY_CAP)
+    : out;
+}
+
 export function mergeInstrumentState(
   a: InstrumentLearningState,
   b: InstrumentLearningState,
@@ -703,6 +821,8 @@ export function mergeInstrumentState(
     path: mergePathProgress(a.path, b.path),
     scaleSrs: mergeSrsMaps(a.scaleSrs ?? {}, b.scaleSrs ?? {}),
     scaleHistory: mergeScaleHistory(a.scaleHistory ?? [], b.scaleHistory ?? []),
+    staffSrs: mergeSrsMaps(a.staffSrs ?? {}, b.staffSrs ?? {}),
+    staffHistory: mergeStaffHistory(a.staffHistory ?? [], b.staffHistory ?? []),
     lastAnswerAt: Math.max(a.lastAnswerAt, b.lastAnswerAt),
     updatedAt: a.updatedAt >= b.updatedAt ? a.updatedAt : b.updatedAt,
   };

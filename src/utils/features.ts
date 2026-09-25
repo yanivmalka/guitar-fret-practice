@@ -28,11 +28,15 @@ export type Feature =
                            // (P4, first slice): "what is a 5th above G" /
                            // "tap a M6 above this fret", with its own interval
                            // SRS schedule. The second learning domain.
-  | 'scaleDrill';          // The scale training drill and its entry card
+  | 'scaleDrill'           // The scale training drill and its entry card
                            // (P5 scales half, first slice): "build the scale"
                            // on a multi-string board, with its own scale SRS
                            // schedule. A sibling of intervalDrill, not a layer
                            // on top of it — see scales-learning-spec.md.
+  | 'staffReading';        // Staff reading: a note written on the staff →
+                           // name it / find it on the neck, with its own
+                           // staff SRS schedule. Its own domain, independent
+                           // of the others — see staff-reading-spec.md.
 
 const MIN_TIER: Record<Feature, Tier> = {
   historyBeyond7Days: 'pro',
@@ -47,6 +51,7 @@ const MIN_TIER: Record<Feature, Tier> = {
   learningPath:       'premium',
   intervalDrill:      'premium',
   scaleDrill:         'premium',
+  staffReading:       'premium',
 };
 // `fretRange` gates the precise "from fret N to fret M" window control that
 // lives in Settings → Playing (its "Precise fret range" toggle + two-handle

@@ -52,6 +52,7 @@ import LearningPathScreen from './components/LearningPathScreen';
 import DailyPracticeScreen from './components/DailyPracticeScreen';
 import IntervalPracticeScreen from './components/IntervalPracticeScreen';
 import ScalePracticeScreen from './components/ScalePracticeScreen';
+import StaffPracticeScreen from './components/StaffPracticeScreen';
 import LearnHub from './components/LearnHub';
 import TunerScreen from './components/TunerScreen';
 import { useLearning } from './hooks/useLearning';
@@ -775,6 +776,7 @@ export default function App() {
           canDaily={can('premiumTeacher', auth.tier)}
           canIntervals={can('intervalDrill', auth.tier)}
           canScales={can('scaleDrill', auth.tier)}
+          canStaff={can('staffReading', auth.tier)}
           showGame={import.meta.env.DEV || auth.admin}
           showRoadmap={import.meta.env.DEV || auth.admin}
           onPick={(d) => {
@@ -1204,6 +1206,32 @@ export default function App() {
     return (
       <>
         <ScalePracticeScreen
+          instrument={instrument}
+          accidental={accidental}
+          notation={notation}
+          showMenuButton={!settingsOpen}
+          onOpenMenu={() => { setDrawerSection(null); setSettingsOpen(true); }}
+        />
+        {settingsOpen && drawerSection === null && (
+          <SettingsDrawerNav
+            sections={settingsSections}
+            lang={lang}
+            t={t}
+            setSettingsOpen={setSettingsOpen}
+            setDrawerSection={setDrawerSection}
+          />
+        )}
+      </>
+    );
+  }
+
+  // The Staff reading page — a self-contained second home screen, exactly like
+  // the Scales branch above (its own engine, no DrillConfig handed back).
+  if (activeDomain === 'staff' && can('staffReading', auth.tier)
+      && onboardingDone && !gameActive && !gameEnded) {
+    return (
+      <>
+        <StaffPracticeScreen
           instrument={instrument}
           accidental={accidental}
           notation={notation}

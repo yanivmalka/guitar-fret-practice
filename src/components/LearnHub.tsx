@@ -3,10 +3,11 @@
 // A single hamburger-drawer sub-page (settingsSections id 'learn') that lays
 // out every learning domain as a tile, so the drawer keeps one row instead of
 // a long list. 'notes' is the Selector (always open); 'daily', 'intervals'
-// and 'scales' are Premium — a tile the user's tier can't reach shows a lock
-// and opens the upgrade page. Chords / Staff reading are still inert
-// "coming soon" tiles (premium-product-plan.md §9 P5–P7); the scales half of
-// P5 has its own live entry now (scales-learning-spec.md). The Game tile is
+// 'scales' and 'staff' are Premium — a tile the user's tier can't reach shows
+// a lock and opens the upgrade page. Chords is still an inert "coming soon"
+// tile (premium-product-plan.md §9 P5–P7); the scales half of P5 has its own
+// live entry now (scales-learning-spec.md), and so does Staff reading
+// (staff-reading-spec.md). The Game tile is
 // the sole entry point into the Game layer, but only for dev/admin
 // (`showGame`) — everyone else
 // still sees it as "coming soon". The Tuner tile is a live entry point for
@@ -19,13 +20,14 @@
 import { useTranslation } from '../i18n/useTranslation';
 import { playClickSound, haptic } from '../utils/feedback';
 
-export type LearnDomain = 'notes' | 'daily' | 'intervals' | 'scales';
+export type LearnDomain = 'notes' | 'daily' | 'intervals' | 'scales' | 'staff';
 
 interface Props {
   activeDomain: LearnDomain;
   canDaily: boolean;
   canIntervals: boolean;
   canScales: boolean;
+  canStaff: boolean;
   /** Dev/admin only: the Game tile is a live entry point, not "coming soon". */
   showGame: boolean;
   /** Dev/admin only: render the inert "coming soon" roadmap tiles at all. */
@@ -64,6 +66,7 @@ export default function LearnHub({
   canDaily,
   canIntervals,
   canScales,
+  canStaff,
   showGame,
   showRoadmap,
   onPick,
@@ -78,6 +81,7 @@ export default function LearnHub({
     { kind: 'open', id: 'notes', emoji: '🎵', label: 'Notes', locked: false },
     { kind: 'open', id: 'intervals', emoji: '🎸', label: 'Intervals', locked: !canIntervals },
     { kind: 'open', id: 'scales', emoji: '🎼', label: 'Scales', locked: !canScales },
+    { kind: 'open', id: 'staff', emoji: '📖', label: 'Staff reading', locked: !canStaff },
     // Free for every tier — a tuner is a generic utility, not part of the
     // adaptive Premium teaching system the other domains belong to.
     { kind: 'action', emoji: '🎛️', label: 'Tuner', onSelect: onOpenTuner },
@@ -86,7 +90,6 @@ export default function LearnHub({
     ...(showRoadmap
       ? ([
           { kind: 'soon', emoji: '🎹', label: 'Chords' },
-          { kind: 'soon', emoji: '📖', label: 'Staff reading' },
         ] as SoonTile[])
       : []),
     ...(showGame

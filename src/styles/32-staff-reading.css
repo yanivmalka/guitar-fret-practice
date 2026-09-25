@@ -1,0 +1,54 @@
+/* Staff reading (staff-reading-spec.md §9) — the written-note card
+   (StaffNotation.tsx) and the blank neck board of "Find it on the neck"
+   (StaffNeckBoard.tsx, which borrows ScaleOrderBoard's grid from
+   30-scale-board.css). */
+.staff-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.staff-svg {
+  display: block;
+  width: 100%;
+  max-width: 340px;
+  margin: 0 auto;
+  color: var(--text-0);
+  background: var(--bg-1);
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+}
+.staff-line,
+.staff-ledger {
+  stroke: currentColor;
+  stroke-width: 1.2;
+}
+.staff-ledger { stroke-width: 1.6; }
+.staff-stem {
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+.staff-note-correct .staff-note { color: var(--success); }
+.staff-note-wrong .staff-note { color: var(--danger); }
+.staff-answer {
+  margin: 0;
+  min-height: 1.6em;
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-0);
+}
+/* The blank tap tiles: no note names, so a lighter, even surface. */
+.staff-neck-tile { background: var(--bg-2); }
+/* After the answer: every place that plays the note, and a wrong tap. */
+.staff-neck-tile.scale-order-tile-found {
+  background: color-mix(in srgb, var(--success) 55%, var(--bg-1));
+  box-shadow: inset 0 0 0 2px var(--success);
+}
+.staff-neck-tile.scale-order-tile-wrong { background: var(--danger); }
+.staff-neck-tile:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+/* The open-string column reads as the nut. */
+.staff-neck-open { border-inline-end: 3px solid var(--text-2); }
+.staff-neck-dot { color: var(--text-0); font-weight: 800; }

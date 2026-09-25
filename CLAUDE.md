@@ -20,7 +20,7 @@ Three entitlement tiers: **Free**, **Pro**, **Premium** (`free < pro < premium`;
 - `npm run preview` — serve the production build locally
 - `npm run gen:icons` — regenerate PWA/app icons from `assets/note-mark.png` into `public/`
 
-There is no test suite/runner configured in this repo. Instead, `scripts/check-*.mts` are hand-run diagnostics that assert an invariant of one subsystem (`check-intervals`, `check-learning`, `check-learning-path`, `check-game-curriculum`, `check-game-progress`, `check-game-sync`, `check-candidates`, `check-candidate-rendering`, `check-tiering-db`, `eval-voice`). Run one with `node --experimental-strip-types scripts/<name>.mts`. They are never part of a build.
+There is no test suite/runner configured in this repo. Instead, `scripts/check-*.mts` are hand-run diagnostics that assert an invariant of one subsystem (`check-intervals`, `check-learning`, `check-learning-path`, `check-game-curriculum`, `check-game-progress`, `check-game-sync`, `check-candidates`, `check-candidate-rendering`, `check-tiering-db`, `check-staff`, `eval-voice`). Run one with `node --experimental-strip-types scripts/<name>.mts`. They are never part of a build.
 
 ### Supabase env
 
@@ -71,11 +71,12 @@ A separate progression layer (**not** unified with Practice's Auto Advance curri
 
 ### Premium Teacher & Learn area — `src/learning/`, `src/hooks/useLearning.ts`
 
-An adaptive layer that sits *alongside* the Selector (a Premium user can ignore it and free-drill). Reached from the "Learn" drawer page (`LearnHub.tsx`, `LearnDomain` = `'notes' | 'daily' | 'intervals'`).
+An adaptive layer that sits *alongside* the Selector (a Premium user can ignore it and free-drill). Reached from the "Learn" drawer page (`LearnHub.tsx`, `LearnDomain` = `'notes' | 'daily' | 'intervals' | 'scales' | 'staff'`).
 
 - **Notes (P2)** — `weakness.ts` (which `(string,fret)` positions need work, read from the same `HistoryEntry` rows — it does **not** replace `src/utils/mastery.ts`, which still owns the fretboard overlay), `srs.ts` (a small transparent Leitner scheduler), `planner.ts` (emits a `DrillConfig` with `candidates` = the chosen positions). Everything keys on `noteItemId` = `"<string>:<fret>"` (deliberately notes-only, no generic cross-domain `Item` type).
 - **Learning Path (P3)** — `path.ts` / `pathProgress.ts`: a fixed ordered sequence of checkpoints, each a neck region scored by "% of its positions mastered" against three tiers. Reuses **only** the threshold math from `src/game/stageResult.ts`, not the World/Stage/GameProgress framing.
 - **Intervals (P4)** — `src/utils/intervals.ts` (pure interval theory: semitones ⇄ note name) plus a parallel learning set (`intervalCurriculum.ts`, `intervalPlanner.ts`, `intervalWeakness.ts`, `intervalMastery.ts`, `intervalDrill.ts`) keyed on `interval:<n>`. Two exercises (identify the interval / find the target note) in both directions, its own SRS lane, no path screen.
+- **Staff reading** — `src/utils/staff.ts` (pure staff theory: clef + octave shift per instrument, staff position, ledger lines), `src/learning/staffItem.ts` / `staffDrill.ts` (items keyed `staff:<midi>`, pool per fret range, SRS-weighted picker), `useStaffEngine` + `StaffPracticeScreen` (self-contained like Scales: name the written note / find it on the neck). `StaffNotation.tsx` draws the staff as SVG paths (no music font) and is never mirrored by left-handed mode. See `.kiro/specs/roadmap/staff-reading-spec.md`.
 - **Persistence** — `learningState.ts` holds one `localStorage['learningState']` blob: instrument id → `{ srs, intervalSrs, daily, intervalDaily, intervalHistory, path, updatedAt }`. `learningSync.ts` reconciles it to `public.user_learning_state` — **per-item SRS merge** (`mergeSrsItem`), never last-writer-wins, so a review on another device is never lost. Fires a `learning-synced` window event on change. `useLearning()` is inert for non-Premium users.
 
 ### Auth & tiering
@@ -84,7 +85,7 @@ An adaptive layer that sits *alongside* the Selector (a Premium user can ignore 
 
 **Tiering** (`.kiro/specs/free-pro-tiering/design.md`, `.kiro/specs/roadmap/premium-product-plan.md`):
 - `src/utils/entitlement.ts` — reads `public.entitlements`. No row = Free; `tier` in `('pro','premium')` with null/future `expires_at` = that tier. `TIER_RANK` + `tierAtLeast(tier, min)` are the single source of tier comparison. Fail **open** on a read error (fall back to the `entitlementCache:<uid>` localStorage copy), fail **closed** on an absent row. Written server-side only (`grant-pro.mts`), except the admin self-serve toggle from migration `0010` (`setOwnEntitlement`).
-- `src/utils/features.ts` — the capability map. `can(feature, tier)` / `minTier(feature)` are the **only** place tiers are compared; never branch on `tier`/`isPro` elsewhere. Pro: `historyBeyond7Days`, `masteryMaps`, `allPersonalBests`, `fretRange`, `multiStringFull`, `voiceProfile`. Premium: `premiumTeacher`, `learningPath`, `intervalDrill`. Free on every tier by design: cloud sync + multi-device restore, leaderboard, badges, the current-combination personal best, and the 0–12 / 12–max fret half-picker.
+- `src/utils/features.ts` — the capability map. `can(feature, tier)` / `minTier(feature)` are the **only** place tiers are compared; never branch on `tier`/`isPro` elsewhere. Pro: `historyBeyond7Days`, `masteryMaps`, `allPersonalBests`, `fretRange`, `multiStringFull`, `voiceProfile`. Premium: `premiumTeacher`, `learningPath`, `intervalDrill`, `scaleDrill`, `staffReading`. Free on every tier by design: cloud sync + multi-device restore, leaderboard, badges, the current-combination personal best, and the 0–12 / 12–max fret half-picker.
 - `src/components/ProGate.tsx` — the presentational lock (`overlay` / `replace` / `inline-badge`), labels itself "Pro" vs "Premium" via `minTier`. It enforces nothing security-sensitive; the real gate is the entitlement row + the host component's own logic.
 - Free-tier limits are **view filters, never data cuts** — e.g. a Free user still records, syncs and restores full history, but the Stats screen only *shows* the trailing `FREE_HISTORY_DAYS` (7).
 - Dev-only: `devSimulateTier` (`'off' | 'pro' | 'premium'`) forces the effective tier with no DB change; constant-folded away in a production bundle.
@@ -121,4 +122,4 @@ One module per data type, all local-first + best-effort; guests never enter any 
 - A cloud-sync module reads/writes its own localStorage key directly and stays independent of its model module (as `badgeSync` is of `badges`), to avoid import cycles; it signals a mounted view with a `*-synced` window event rather than forcing a reload.
 - New user-facing copy needs a Hebrew entry in `src/i18n/translations.ts`.
 - New CSS goes in the matching numbered partial under `src/styles/`.
-- `.kiro/specs/` holds design docs (`free-pro-tiering`, `roadmap/premium-product-plan.md`, `roadmap/intervals-learning-spec.md`, `roadmap/notes-system-map.md`, `roadmap/product-wishlist.md`, `simplified-nav`, `custom-stage-nav`); `.kiro/steering/` holds older overview notes that are partly stale — prefer this file and the source.
+- `.kiro/specs/` holds design docs (`free-pro-tiering`, `roadmap/premium-product-plan.md`, `roadmap/intervals-learning-spec.md`, `roadmap/scales-learning-spec.md`, `roadmap/staff-reading-spec.md`, `roadmap/notes-system-map.md`, `roadmap/product-wishlist.md`, `simplified-nav`, `custom-stage-nav`); `.kiro/steering/` holds older overview notes that are partly stale — prefer this file and the source.
