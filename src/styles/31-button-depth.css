@@ -1,11 +1,10 @@
 /* ── Button depth — the raised, chunky-button look ───────────────────
-   (Rim + inner bottom shade + hard outer edge; the inner shade is what keeps
-   it visible on the dark themes.)
    Switched by the "Button depth" setting via `data-depth` on <html>
    (see useButtonDepthEffect).
-     • a light rim along the top edge (inset),
-     • a hard, un-blurred edge 3px underneath,
-     • on press the button sinks 2px and the edge shrinks.
+     • a light rim along the top edge,
+     • ONE darker band along the bottom lip, inside the button (nothing is
+       drawn outside it, so nothing can be clipped by a parent),
+     • on press the button sinks 2px and the band thins.
    Uses `box-shadow`, never `filter: drop-shadow` — a drop-shadow follows
    the rendered pixels, so on a translucent button it also shadows the
    label and blurs the text. The whole rule sits in `:where()` (zero
@@ -29,7 +28,7 @@
   .desc-question-btn, .desc-question-btn-bottom,
   .play-btn, .pro-cta, .ap-tile
 ) {
-  box-shadow: inset 0 1px 0 var(--btn-lift-hi), inset 0 -3px 0 var(--btn-lift-shade), 0 3px 0 var(--btn-lift-edge);
+  box-shadow: inset 0 1px 0 var(--btn-lift-hi), inset 0 -4px 0 var(--btn-lift-shade);
   transition: box-shadow 0.08s, transform 0.08s;
 }
 :where(:root[data-depth='on']) :where(
@@ -48,7 +47,7 @@
   .play-btn, .pro-cta, .ap-tile
 ):active:not(:disabled) {
   transform: translateY(var(--depth-press, 2px));
-  box-shadow: inset 0 1px 0 var(--btn-lift-hi), inset 0 -1px 0 var(--btn-lift-shade), 0 1px 0 var(--btn-lift-edge);
+  box-shadow: inset 0 1px 0 var(--btn-lift-hi), inset 0 -1px 0 var(--btn-lift-shade);
 }
 @media (prefers-reduced-motion: reduce) {
   :root { --depth-press: 0px; }
@@ -60,21 +59,16 @@
   .set-card-btn-primary, .teacher-btn-primary, .tn-btn-primary,
   .mic-btn-primary, .pro-cta, .vcal-finish
 ) {
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45), inset 0 -3px 0 var(--btn-lift-shade), 0 3px 0 var(--btn-lift-edge);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45), inset 0 -4px 0 var(--btn-lift-shade);
 }
 
 /* The Appearance tiles' selected state carries its own ring, which the
    zero-specificity rule above deliberately yields to — so restate the ring
-   together with the edge. */
+   together with the bottom band. */
 :root[data-depth='on'] .ap-tile-on {
-  box-shadow: 0 0 0 1px var(--accent), inset 0 -3px 0 var(--btn-lift-shade), 0 3px 0 var(--btn-lift-edge);
+  box-shadow: 0 0 0 1px var(--accent), inset 0 -4px 0 var(--btn-lift-shade);
 }
 
-/* .mode-order-col clips its overflow (it animates its width closed), which
-   sliced the chips' bottom edge off. Give the visible column room for it. */
-:root[data-depth='on'] .mode-order-col.mode-order-show {
-  padding-bottom: 4px;
-}
 
 /* Keep the pressed state of the accent-filled buttons above (they come later
    in the file, so their rest shadow would otherwise win over :active). */
@@ -82,5 +76,5 @@
   .set-card-btn-primary, .teacher-btn-primary, .tn-btn-primary,
   .mic-btn-primary, .pro-cta, .vcal-finish
 ):active:not(:disabled) {
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 0 var(--btn-lift-shade), 0 1px 0 var(--btn-lift-edge);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 0 var(--btn-lift-shade);
 }
