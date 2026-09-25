@@ -73,9 +73,19 @@ const BRAZIL_ZONE = new RegExp(
   + '|Cuiaba|Campo_Grande|Santarem|Belem|Araguaina|Fortaleza|Recife|Maceio|Bahia|Noronha))$',
 );
 
+// France with its overseas departments and territories, plus Monaco and the
+// legacy Quebec alias. Belgium, Switzerland, Luxembourg and today's Quebec
+// zone (America/Toronto, shared with Ontario) are multilingual, so they stay
+// on English rather than guessing.
+const FRENCH_ZONE = new RegExp(
+  '^(Europe/(Paris|Monaco)|America/(Montreal|Martinique|Guadeloupe|Cayenne|Miquelon|St_Barthelemy|Marigot)'
+  + '|Indian/(Reunion|Mayotte)|Pacific/(Tahiti|Noumea|Wallis|Marquesas|Gambier))$',
+);
+
 export function detectLanguage(tz: string = detectTimeZone()): Lang {
   if (HEBREW_ZONES.has(tz)) return 'he';
   if (SPANISH_ZONE.test(tz)) return 'es';
   if (BRAZIL_ZONE.test(tz)) return 'pt-BR';
+  if (FRENCH_ZONE.test(tz)) return 'fr';
   return 'en';
 }

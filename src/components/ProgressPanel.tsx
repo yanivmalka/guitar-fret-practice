@@ -540,6 +540,8 @@ export default function ProgressPanel({
           ? `${t('across every')} ${t('settings combination')} de ${t(instrument.label).toLowerCase()}`
           : lang === 'pt-BR'
           ? `${t('across every')} ${t('settings combination')} do ${t(instrument.label).toLowerCase()}`
+          : lang === 'fr'
+          ? `${t('across every')} ${t('settings combination')} de ${t(instrument.label).toLowerCase()}`
           : `${t('across every')} ${lang === 'he' ? t(instrument.label) : instrument.label.toLowerCase()} ${t('settings combination')}`}
         {windowed && ` · ${t('Last 7 days')}`}
       </p>

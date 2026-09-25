@@ -5,23 +5,25 @@
 
 import { es } from './translations.es.ts';
 import { ptBR } from './translations.ptBR.ts';
+import { fr } from './translations.fr.ts';
 
-export type Lang = 'en' | 'he' | 'es' | 'pt-BR';
+export type Lang = 'en' | 'he' | 'es' | 'pt-BR' | 'fr';
 
 export const LANGUAGES: Array<{ value: Lang; label: string }> = [
   { value: 'en', label: 'English' },
   { value: 'he', label: 'עברית' },
   { value: 'es', label: 'Español' },
   { value: 'pt-BR', label: 'Português (Brasil)' },
+  { value: 'fr', label: 'Français' },
 ];
 
 export function isLang(value: unknown): value is Lang {
-  return value === 'en' || value === 'he' || value === 'es' || value === 'pt-BR';
+  return value === 'en' || value === 'he' || value === 'es' || value === 'pt-BR' || value === 'fr';
 }
 
 // BCP-47 locale for dates shown in the active language.
 export function dateLocale(lang: Lang): string {
-  return lang === 'he' ? 'he-IL' : lang === 'es' ? 'es-ES' : lang === 'pt-BR' ? 'pt-BR' : 'en-GB';
+  return lang === 'he' ? 'he-IL' : lang === 'es' ? 'es-ES' : lang === 'pt-BR' ? 'pt-BR' : lang === 'fr' ? 'fr-FR' : 'en-GB';
 }
 
 const he: Record<string, string> = {
@@ -1320,7 +1322,7 @@ const he: Record<string, string> = {
   'Palm mute: rest the side of the picking hand on the strings by the bridge, for a short, muffled sound.': 'פאלם־מיוט: מניחים את צד כף היד הפורטת על המיתרים ליד הגשר, לצליל קצר ועמום.',
 };
 
-const dictionaries: Record<Lang, Record<string, string>> = { en: {}, he, es, 'pt-BR': ptBR };
+const dictionaries: Record<Lang, Record<string, string>> = { en: {}, he, es, 'pt-BR': ptBR, fr };
 
 export function translate(lang: Lang, source: string): string {
   if (lang === 'en') return source;

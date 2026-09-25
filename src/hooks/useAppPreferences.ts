@@ -15,7 +15,7 @@ import type { Lang } from '../i18n/translations';
 type AnswerMode = 'tap' | 'voice' | 'guitar';
 
 function defaultNotation(lang: Lang): NotationMode {
-  return lang === 'es' || lang === 'pt-BR' ? 'solfege' : 'alpha';
+  return lang === 'es' || lang === 'pt-BR' || lang === 'fr' ? 'solfege' : 'alpha';
 }
 
 // Global display / behaviour preferences, each backed by its own `pref_*`
@@ -27,7 +27,7 @@ function defaultNotation(lang: Lang): NotationMode {
 export function useAppPreferences() {
   const [byString, setByString] = useState(() => loadSetting('pref_byString', true));
   // Until the player picks note names themselves, they follow the language:
-  // Spanish and Portuguese readers learn Do-Re-Mi, everyone else A-B-C. An explicit pick
+  // Spanish, Portuguese and French readers learn Do-Re-Mi, everyone else A-B-C. An explicit pick
   // (stored `pref_notation`) always wins.
   const { lang } = useTranslation();
   const [notationPick, setNotation] = useState<NotationMode | null>(
