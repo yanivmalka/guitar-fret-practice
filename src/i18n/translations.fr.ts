@@ -856,4 +856,446 @@ export const fr: Record<string, string> = {
   'Tighten (raise pitch)': 'Tends (monte la hauteur)',
   'Loosen (lower pitch)': 'Détends (baisse la hauteur)',
   '~{pct}% of the audible threshold': '~{pct} % du seuil audible',
+
+  // ── Stage 2b: the Premium Learn areas (Teacher, Learning Path, intervals,
+  // scales, staff and tab reading) and the admin / dev-panel copy ─────────
+  // Admin-only account tools and the dev debug panel
+  'Admin: plan on your account': 'Admin : formule de ton compte',
+  'Sets the plan on your own account only (Free, Pro or Premium). Writes to the entitlements table and syncs across your devices.':
+    'Change la formule de ton propre compte uniquement (Gratuit, Pro ou Premium). Écrit dans la table des droits et se synchronise sur tes appareils.',
+  'Simulate tier (dev only — no DB change)':
+    'Simuler une formule (dev uniquement — aucune modification de la base)',
+  'Admin: view the app as': 'Admin : voir l’app en tant que',
+  'Hides every admin-only control so you see exactly what a regular user sees. Switch back here any time — this is a local view change only and does not change what your account can do.':
+    'Masque toutes les commandes réservées aux administrateurs pour que tu voies exactement ce que voit un utilisateur normal. Reviens ici à tout moment — c’est seulement un changement d’affichage local, qui ne change pas ce que ton compte peut faire.',
+  'Regular user': 'Utilisateur normal',
+  // Premium Teacher — the Today card
+  'Teacher': 'Professeur',
+  'Today with your Teacher': 'Aujourd’hui avec ton Professeur',
+  'Recommended': 'Recommandé',
+  'positions': 'positions',
+  "Today's goal is done": 'Objectif du jour atteint',
+  'one more round?': 'encore une manche ?',
+  'Daily goal': 'Objectif quotidien',
+  "Start today's practice": 'Commencer l’entraînement du jour',
+  'Practise my weak spots': 'Travailler mes points faibles',
+  'No weak spots yet — keep practising and the Teacher will find them.':
+    'Pas encore de points faibles — continue à t’entraîner et le Professeur les trouvera.',
+  'Why these?': 'Pourquoi celles-ci ?',
+  'Hide why': 'Masquer le pourquoi',
+  'due for review': 'à réviser',
+  'weak spots': 'points faibles',
+  'to reinforce': 'à renforcer',
+  'new ground': 'nouveau terrain',
+  'a fresh set to get started': 'une nouvelle série pour commencer',
+  'often missed': 'souvent ratée',
+  'slow to recall': 'lente à retrouver',
+  'recent slips': 'erreurs récentes',
+  'reinforcement': 'renforcement',
+  'not practised much': 'peu travaillée',
+  'review': 'révision',
+  // Premium Learning Path — the Path screen
+  'Learning Path': 'Parcours d’apprentissage',
+  'View your Learning Path': 'Voir ton parcours d’apprentissage',
+  'Follow a guided path from single notes onward': 'Suis un parcours guidé à partir de notes isolées',
+  'A guided journey through the fretboard. Practise from the Selector whenever you like — your answers still move you along this path.':
+    'Un voyage guidé sur le manche. Entraîne-toi depuis le sélecteur quand tu veux — tes réponses te font quand même avancer sur ce parcours.',
+  'Practise toward this checkpoint': 'S’entraîner pour cette étape',
+  'This is your next step.': 'C’est ta prochaine étape.',
+  'Every checkpoint mastered — keep it sharp.': 'Toutes les étapes maîtrisées — garde la main.',
+  'mastered': 'maîtrisé',
+  'Locked': 'Verrouillé',
+  // Premium interval training — the P4 interval drill
+  'Interval training': 'Entraînement aux intervalles',
+  'Hear and find the distance between two notes.': 'Entends et trouve la distance entre deux notes.',
+  'intervals tracked': 'intervalles suivis',
+  '1 interval tracked': '1 intervalle suivi',
+  'Answer form': 'Forme de réponse',
+  'Find it on the neck': 'La trouver sur le manche',
+  'Name the note': 'Nommer la note',
+  'Start interval practice': 'Commencer l’entraînement aux intervalles',
+  'above': 'au-dessus de',
+  // Premium scale training
+  'Scale training': 'Entraînement aux gammes',
+  'Practise building scale shapes on the neck':
+    'Entraîne-toi à construire des formes de gammes sur le manche',
+  'Rows of notes fall down the screen, one lane per string. Only the first note of the scale is lit — tap it, and the distance in tones to the next note appears on it. Find that next note before its row falls off, bottom row first — a run up or down the scale, as the arrow on the banner shows. Every note you tap plays its sound.':
+    'Des rangées de notes descendent à l’écran, un couloir par corde. Seule la première note de la gamme est allumée — touche-la, et la distance en tons jusqu’à la note suivante s’affiche dessus. Trouve cette note suivante avant que sa rangée ne sorte de l’écran, en commençant par la rangée du bas — une montée ou une descente de la gamme, comme l’indique la flèche du bandeau. Chaque note touchée joue son son.',
+  'Tones to the next note': 'Tons jusqu’à la note suivante',
+  'The next note is on another string': 'La note suivante est sur une autre corde',
+  'Frets to the next note': 'Cases jusqu’à la note suivante',
+  'Distance shown in': 'Distance en',
+  'Tones': 'Tons',
+  'A half tone is one fret, a whole tone is two.': 'Un demi-ton fait une case, un ton entier deux.',
+  'Question': 'Question',
+  'Scale': 'Gamme',
+  'Session complete!': 'Session terminée !',
+  'Practice again': 'S’entraîner encore',
+  'Build the scale': 'Construis la gamme',
+  'Tap the scale in order': 'Touche la gamme dans l’ordre',
+  'A section of the neck is shown with every note of the scale lit. Tap them in order to play the scale: start on the root (gold ring), go to one end of the section, then to the other end, and back to the root — up first or down first, as the arrow shows.':
+    'Une section du manche s’affiche avec toutes les notes de la gamme allumées. Touche-les dans l’ordre pour jouer la gamme : commence sur la fondamentale (anneau doré), va jusqu’à un bout de la section, puis jusqu’à l’autre, et reviens à la fondamentale — en montant d’abord ou en descendant d’abord, comme l’indique la flèche.',
+  'Learning mode': 'Mode d’apprentissage',
+  'Play on my own': 'Jouer seul',
+  'Watch, then play': 'Regarder, puis jouer',
+  'The app plays each scale first, lighting its notes one by one — then you play it after.':
+    'L’app joue d’abord chaque gamme en allumant ses notes une à une — puis c’est à toi de la jouer.',
+  'Watch and listen…': 'Regarde et écoute…',
+  'Your turn — play it back': 'À toi — rejoue-la',
+  'Identify the scale': 'Identifie la gamme',
+  'Name the degree': 'Nomme le degré',
+  'The app plays the scale up or down. Pick which scale you heard.':
+    'L’app joue la gamme en montant ou en descendant. Choisis quelle gamme tu as entendue.',
+  'The app shows a scale, a root and a degree. Pick the note that matches.':
+    'L’app affiche une gamme, une fondamentale et un degré. Choisis la note qui correspond.',
+  '🔊 hear it again': '🔊 réécouter',
+  'Minor Pentatonic': 'Pentatonique mineure',
+  'Major': 'Majeur',
+  'Natural Minor': 'Mineure naturelle',
+  'Major Pentatonic': 'Pentatonique majeure',
+  'Blues': 'Blues',
+  'Harmonic Minor': 'Mineure harmonique',
+  'Melodic Minor': 'Mineure mélodique',
+  'Dorian': 'Dorien',
+  'Phrygian': 'Phrygien',
+  'Lydian': 'Lydien',
+  'Mixolydian': 'Mixolydien',
+  'Locrian': 'Locrien',
+  'Phrygian Dominant (Hijaz)': 'Phrygien dominant (Hijaz)',
+  'Major Blues': 'Blues majeur',
+  'Half-Whole Diminished': 'Diminuée demi-ton/ton',
+  'Whole-Half Diminished': 'Diminuée ton/demi-ton',
+  'Whole Tone': 'Par tons',
+  'Lydian Dominant (Acoustic)': 'Lydien dominant (acoustique)',
+  'Altered (Super Locrian)': 'Altérée (superlocrien)',
+  'Double Harmonic (Arabic)': 'Double harmonique (arabe)',
+  'Hungarian Minor (Gypsy Minor)': 'Mineure hongroise (tzigane)',
+  'Hirajoshi': 'Hirajoshi',
+  'All scales': 'Toutes les gammes',
+  'More scales': 'Plus de gammes',
+  'Modes': 'Modes',
+  'Minor variations': 'Variantes mineures',
+  'Blues & jazz': 'Blues et jazz',
+  'World': 'Du monde',
+  'Other': 'Autres',
+  // "?" explanations on the More scales page (src/utils/scaleBlurbs.ts)
+  "Each number is a note's place in the scale, counted from the starting note (1).":
+    'Chaque nombre est la place d’une note dans la gamme, en comptant à partir de la note de départ (1).',
+  'Pick a starting note to see the scale on it:': 'Choisis une note de départ pour y voir la gamme :',
+  'Highlighted numbers differ from the major scale: b means one fret lower, # means one fret higher.':
+    'Les nombres en surbrillance diffèrent de la gamme majeure : b veut dire une case plus bas, # une case plus haut.',
+  'Like natural minor, but with a major 6th instead of a flat 6th. It sounds minor yet lighter and more open — common in funk, jazz and rock.':
+    'Comme la mineure naturelle, mais avec une 6te majeure au lieu d’une 6te bémol. Elle sonne mineure, mais plus légère et plus ouverte — courante en funk, en jazz et en rock.',
+  'Like natural minor, but the 2nd note sits just one fret above the root. It sounds dark and tense, with a Spanish flavour — common in flamenco and metal.':
+    'Comme la mineure naturelle, mais la 2de note n’est qu’à une case au-dessus de la fondamentale. Elle sonne sombre et tendue, avec une saveur espagnole — courante dans le flamenco et le metal.',
+  'Like the major scale, but with a raised 4th. It sounds bright, dreamy and floating — common in film music.':
+    'Comme la gamme majeure, mais avec une 4te augmentée. Elle sonne lumineuse, rêveuse et flottante — courante dans la musique de film.',
+  'Like the major scale, but with a flat 7th. It sounds relaxed and bluesy — common in rock, blues and folk.':
+    'Comme la gamme majeure, mais avec une 7e bémol. Elle sonne détendue et bluesy — courante en rock, en blues et en folk.',
+  'The most unstable of the modes: it has both a flat 2nd and a flat 5th. It is rarely used as a home key and mostly heard over half-diminished chords.':
+    'Le plus instable des modes : il a à la fois une 2de bémol et une 5te bémol. Il sert rarement de tonalité principale et s’entend surtout sur des accords demi-diminués.',
+  'Natural minor with a raised 7th, so the 7th sits one fret below the root. That gives a strong pull back home and a dramatic, classical sound.':
+    'La mineure naturelle avec une 7e haussée, qui se retrouve une case sous la fondamentale. Cela crée une forte attraction vers la tonique et un son dramatique et classique.',
+  'A minor scale (flat 3rd) that keeps the major 6th and 7th. It sounds smooth and jazzy.':
+    'Une gamme mineure (3ce bémol) qui garde la 6te et la 7e majeures. Elle sonne douce et jazzy.',
+  'Harmonic minor with a raised 4th. It has two wide gaps of a step and a half, which gives it a dramatic, exotic sound.':
+    'La mineure harmonique avec une 4te haussée. Elle a deux grands écarts d’un ton et demi, qui lui donnent un son dramatique et exotique.',
+  'The major pentatonic scale plus the flat 3rd "blue note". It sounds sunny, with a country and blues feel.':
+    'La pentatonique majeure plus la « blue note » de 3ce bémol. Elle sonne ensoleillée, avec une couleur country et blues.',
+  'A major scale with a raised 4th and a flat 7th. It sounds bright but bluesy, and jazz players use it over dominant 7th chords.':
+    'Une gamme majeure avec une 4te haussée et une 7e bémol. Elle sonne lumineuse mais bluesy, et les jazzmen l’utilisent sur les accords de septième de dominante.',
+  'It bends every colour note of a dominant chord: it has both a flat and a raised 2nd, and both a flat and a raised 5th. It sounds very tense, and is played right before resolving to the next chord.':
+    'Elle altère chaque note de couleur d’un accord de dominante : elle a une 2de bémol et une 2de haussée, une 5te bémol et une 5te haussée. Elle sonne très tendue et se joue juste avant de résoudre sur l’accord suivant.',
+  'Eight notes, alternating a half step and a whole step. It is symmetrical and tense, and jazz players use it over dominant 7th chords.':
+    'Huit notes, en alternant demi-ton et ton. Elle est symétrique et tendue, et les jazzmen l’utilisent sur les accords de septième de dominante.',
+  'Eight notes, alternating a whole step and a half step. It is symmetrical, and is used over diminished chords.':
+    'Huit notes, en alternant ton et demi-ton. Elle est symétrique et s’utilise sur les accords diminués.',
+  'Six notes, every step a whole tone. With no half steps it has no clear home note, so it sounds dreamy and floating.':
+    'Six notes, chaque pas d’un ton entier. Sans demi-tons, elle n’a pas de note de repos claire, d’où son côté rêveur et flottant.',
+  'Phrygian with a major 3rd. It is the classic Middle-Eastern sound, common in flamenco, klezmer and Arabic music.':
+    'Le phrygien avec une 3ce majeure. C’est le son oriental classique, courant dans le flamenco, le klezmer et la musique arabe.',
+  'A major-sounding scale with a flat 2nd and a flat 6th, so it has two gaps of a step and a half. It has a rich Middle-Eastern flavour.':
+    'Une gamme au son majeur avec une 2de et une 6te bémols, d’où deux écarts d’un ton et demi. Elle a une riche saveur orientale.',
+  'A five-note Japanese scale with wide gaps between its notes. It sounds sparse and haunting, like a koto.':
+    'Une gamme japonaise de cinq notes aux larges écarts. Elle sonne dépouillée et envoûtante, comme un koto.',
+  'The scale behind most pop, folk and classical music. It sounds bright and happy, and every other scale is easiest to understand by comparing it to this one.':
+    'La gamme derrière la plupart de la pop, du folk et de la musique classique. Elle sonne lumineuse et joyeuse, et toutes les autres gammes se comprennent plus facilement en les comparant à elle.',
+  'The basic minor scale. Compared to major, its 3rd, 6th and 7th are one fret lower, which gives it a sad, serious sound.':
+    'La gamme mineure de base. Par rapport à la majeure, ses 3ce, 6te et 7e sont une case plus bas, ce qui lui donne un son triste et grave.',
+  'Five notes: the minor scale without its 2nd and 6th. It is the most common scale for rock and blues solos, and easy to play because it has no awkward notes.':
+    'Cinq notes : la gamme mineure sans sa 2de ni sa 6te. C’est la gamme la plus courante pour les solos de rock et de blues, et elle est facile à jouer car elle n’a pas de notes délicates.',
+  'Five notes: the major scale without its 4th and 7th. It sounds sweet and open, and is common in country, pop and rock solos.':
+    'Cinq notes : la gamme majeure sans sa 4te ni sa 7e. Elle sonne douce et ouverte, et est courante dans les solos de country, de pop et de rock.',
+  'The minor pentatonic scale plus one extra "blue note", the flat 5th, which adds a gritty, bluesy tension.':
+    'La pentatonique mineure plus une « blue note » supplémentaire, la 5te bémol, qui ajoute une tension rugueuse et bluesy.',
+  'Degree': 'Degré',
+  'Root': 'Fondamentale',
+  'Position': 'Position',
+  'All positions': 'Toutes les positions',
+  'Box': 'Motif',
+  'One position selected — difficulty is focused.':
+    'Une position choisie — la difficulté se concentre dessus.',
+  // Scale progress board
+  'Practice': 'Entraînement',
+  'Progress': 'Progrès',
+  'Scales mastered': 'Gammes maîtrisées',
+  'No scales shipped yet.': 'Aucune gamme disponible pour l’instant.',
+  // Intervals Learning — exercises, questions and interval names
+  'Identify the interval': 'Identifier l’intervalle',
+  'Find the note': 'Trouver la note',
+  'Find on the neck': 'Trouver sur le manche',
+  'Which interval did you hear?': 'Quel intervalle as-tu entendu ?',
+  'Hear it again': 'Réécouter',
+  'below': 'en dessous de',
+  'above the marked note': 'au-dessus de la note marquée',
+  'below the marked note': 'en dessous de la note marquée',
+  'A note is marked on the neck — tap the note that completes the interval.':
+    'Une note est marquée sur le manche — touche la note qui complète l’intervalle.',
+  'Silent mode is on — this exercise needs sound.':
+    'Le mode silencieux est activé — cet exercice a besoin de son.',
+  'Silent mode is on — “Identify the interval” needs sound.':
+    'Le mode silencieux est activé — « Identifier l’intervalle » a besoin de son.',
+  'Minor 2nd': 'Seconde mineure',
+  'Major 2nd': 'Seconde majeure',
+  'Minor 3rd': 'Tierce mineure',
+  'Major 3rd': 'Tierce majeure',
+  'Perfect 4th': 'Quarte juste',
+  'Tritone': 'Triton',
+  'Perfect 5th': 'Quinte juste',
+  'Minor 6th': 'Sixte mineure',
+  'Major 6th': 'Sixte majeure',
+  'Minor 7th': 'Septième mineure',
+  'Major 7th': 'Septième majeure',
+  // Intervals Learning — curriculum group names
+  'Perfect 4th & 5th': 'Quarte et quinte justes',
+  'Major & minor 3rds': 'Tierces majeure et mineure',
+  'Whole & half steps': 'Tons et demi-tons',
+  'Major & minor 6ths': 'Sixtes majeure et mineure',
+  'Major & minor 7ths': 'Septièmes majeure et mineure',
+  'The tritone': 'Le triton',
+  'All intervals': 'Tous les intervalles',
+  // Intervals Learning — per-quality educational copy
+  'One semitone — the smallest step, two adjacent frets; a tense, grinding sound.':
+    'Un demi-ton — le plus petit pas, deux cases voisines ; un son tendu et grinçant.',
+  'One semitone narrower than a major 2nd — clashing and unstable where the major 2nd sounds like a plain step.':
+    'Un demi-ton plus étroite que la seconde majeure — elle frotte et reste instable, là où la seconde majeure sonne comme un simple pas.',
+  'The pull of a leading tone up to the tonic; the clash inside a tone cluster.':
+    'L’attraction de la sensible vers la tonique ; le frottement au cœur d’un cluster.',
+  'Two semitones — a whole step; the plain next note of a scale.':
+    'Deux demi-tons — un ton entier ; la note suivante toute simple d’une gamme.',
+  'One semitone wider than a minor 2nd and one narrower than a minor 3rd — a plain step, neither harsh nor sweet.':
+    'Un demi-ton plus large que la seconde mineure et un de moins que la tierce mineure — un simple pas, ni dur ni doux.',
+  'The step between most neighbouring scale degrees.':
+    'Le pas entre la plupart des degrés voisins d’une gamme.',
+  'Three semitones — the minor colour; a small, slightly sad-sounding gap.':
+    'Trois demi-tons — la couleur mineure ; un petit écart un peu triste.',
+  'One semitone narrower than a major 3rd — that single semitone is what makes a chord sound minor instead of major.':
+    'Un demi-ton plus étroite que la tierce majeure — c’est ce seul demi-ton qui rend un accord mineur plutôt que majeur.',
+  'The third of a minor chord.': 'La tierce d’un accord mineur.',
+  'Four semitones — the major colour; a bright, open, happy-sounding gap.':
+    'Quatre demi-tons — la couleur majeure ; un écart lumineux, ouvert et joyeux.',
+  'One semitone wider than a minor 3rd and one narrower than a perfect 4th — bright where the minor 3rd sounds sad.':
+    'Un demi-ton plus large que la tierce mineure et un de moins que la quarte juste — lumineuse là où la tierce mineure sonne triste.',
+  'The bright third of a major chord.': 'La tierce lumineuse d’un accord majeur.',
+  'Five semitones — a strong, stable, slightly hollow consonance.':
+    'Cinq demi-tons — une consonance forte, stable et un peu creuse.',
+  'One semitone wider than a major 3rd and one narrower than a tritone — settled and resolved where the tritone is tense.':
+    'Un demi-ton plus large que la tierce majeure et un de moins que le triton — posée et résolue là où le triton est tendu.',
+  'The sound of standard guitar tuning; root to fourth of a suspended chord.':
+    'Le son de l’accordage standard de la guitare ; de la fondamentale à la quarte d’un accord suspendu.',
+  'Six semitones — exactly half an octave; a tense, restless, unresolved sound.':
+    'Six demi-tons — exactement une demi-octave ; un son tendu, agité et non résolu.',
+  'One semitone wider than a perfect 4th and one narrower than a perfect 5th — tense and unresolved where both perfects sound stable.':
+    'Un demi-ton de plus que la quarte juste et un de moins que la quinte juste — tendu et non résolu là où les deux justes sonnent stables.',
+  'The blue note; the gap inside a dominant 7th chord that wants to resolve.':
+    'La blue note ; l’écart au cœur d’un accord de septième de dominante qui veut se résoudre.',
+  'Seven semitones — the most stable interval after the octave; the power-chord sound.':
+    'Sept demi-tons — l’intervalle le plus stable après l’octave ; le son du power chord.',
+  'One semitone wider than a tritone — solid and at rest where the tritone is tense.':
+    'Un demi-ton de plus que le triton — solide et au repos là où le triton est tendu.',
+  'Root to fifth of almost every chord; the power-chord shape.':
+    'De la fondamentale à la quinte de presque tous les accords ; la forme du power chord.',
+  'Eight semitones — a wide, wistful interval; a major 3rd turned upside down.':
+    'Huit demi-tons — un intervalle large et nostalgique ; une tierce majeure renversée.',
+  'One semitone narrower than a major 6th — darker and more longing than the major 6th.':
+    'Un demi-ton plus étroite que la sixte majeure — plus sombre et plus nostalgique qu’elle.',
+  'The top of a first-inversion major chord; root to the minor 6th degree.':
+    'Le haut d’un accord majeur en premier renversement ; de la fondamentale au 6e degré mineur.',
+  'Nine semitones — a wide, warm, sweet interval; a minor 3rd turned upside down.':
+    'Neuf demi-tons — un intervalle large, chaleureux et doux ; une tierce mineure renversée.',
+  'One semitone wider than a minor 6th and one narrower than a minor 7th — brighter and sweeter than either.':
+    'Un demi-ton plus large que la sixte mineure et un de moins que la septième mineure — plus lumineuse et plus douce que les deux.',
+  'The added note of a 6th chord; root to the sixth degree of a major scale.':
+    'La note ajoutée d’un accord de sixte ; de la fondamentale au sixième degré de la gamme majeure.',
+  'Ten semitones — a wide, bluesy interval that leans forward and wants to resolve.':
+    'Dix demi-tons — un intervalle large et bluesy qui pousse vers l’avant et veut se résoudre.',
+  'One semitone narrower than a major 7th and one wider than a major 6th — restless where the major 7th sounds sharp and the major 6th sounds settled.':
+    'Un demi-ton plus étroite que la septième majeure et un de plus que la sixte majeure — agitée là où la septième majeure sonne aiguë et la sixte majeure posée.',
+  'The interval that makes a dominant 7th chord want to resolve.':
+    'L’intervalle qui donne envie à un accord de septième de dominante de se résoudre.',
+  'Eleven semitones — one short of the octave; a sharp, shimmering, almost-there sound.':
+    'Onze demi-tons — un de moins que l’octave ; un son aigu, scintillant, presque arrivé.',
+  'One semitone wider than a minor 7th and one narrower than the octave — it strains up toward the octave where the minor 7th sits lower and bluesier.':
+    'Un demi-ton plus large que la septième mineure et un de moins que l’octave — elle tire vers l’octave là où la septième mineure reste plus basse et plus bluesy.',
+  'The bright, jazzy top of a major 7th chord.':
+    'Le sommet lumineux et jazzy d’un accord de septième majeure.',
+  // Intervals Learning — progress board and Stats section
+  'not started': 'pas commencé',
+  'learning': 'en cours',
+  'currently learning': 'en cours d’apprentissage',
+  'In the system': 'Dans le système',
+  'Started': 'Commencés',
+  'Needs work': 'À travailler',
+  'Accuracy': 'Précision',
+  'Avg. time': 'Temps moyen',
+  // Intervals Learning — the Interval Today card
+  "Today's intervals": 'Les intervalles du jour',
+  'intervals': 'intervalles',
+  'new': 'à découvrir',
+  'to tell apart': 'à distinguer',
+  'Practise my weak intervals': 'Travailler mes intervalles faibles',
+  'No weak intervals yet — keep practising and the Teacher will find them.':
+    'Pas encore d’intervalles faibles — continue à t’entraîner et le Professeur les trouvera.',
+  'broadening': 'élargissement',
+  // Intervals Learning — the Interval Selector controls
+  'Exercise': 'Exercice',
+  'Interval selection': 'Choix des intervalles',
+  'Difficulty': 'Difficulté',
+  'Direction': 'Direction',
+  'One interval': 'Un intervalle',
+  'A group': 'Un groupe',
+  'All learned': 'Tous ceux appris',
+  'All 11': 'Les 11',
+  'Fall speed': 'Vitesse de chute',
+  'Slow': 'Lente',
+  'Fast': 'Rapide',
+  'Focused': 'Ciblé',
+  'Mixed': 'Mélangé',
+  'Ascending': 'Ascendant',
+  'Descending': 'Descendant',
+  'Both': 'Les deux',
+  'Pick more than one interval to mix': 'Choisis plus d’un intervalle pour mélanger',
+  'Practising:': 'Au programme :',
+  "You'll hear two notes. Pick the interval between them.":
+    'Tu vas entendre deux notes. Choisis l’intervalle entre elles.',
+  "You'll see a note and an interval. Pick the note that far above it.":
+    'Tu vas voir une note et un intervalle. Choisis la note située à cette distance au-dessus.',
+  // Intervals Learning — inline educational content
+  'About this interval': 'À propos de cet intervalle',
+  'semitones': 'demi-tons',
+  // Staff reading (StaffPracticeScreen)
+  'A note is written on the staff. Pick its name — you will hear it after you answer.':
+    'Une note est écrite sur la portée. Choisis son nom — tu l’entendras après avoir répondu.',
+  'A note is written on the staff. Tap a place on the neck that plays it — any string counts. Afterwards every place that plays it is shown.':
+    'Une note est écrite sur la portée. Touche un endroit du manche qui la joue — n’importe quelle corde compte. Ensuite, tous les endroits qui la jouent s’affichent.',
+  'Range': 'Étendue',
+  'Frets 0–3': 'Cases 0–3',
+  'Frets 0–5': 'Cases 0–5',
+  'Frets 0–12': 'Cases 0–12',
+  'Natural notes only': 'Notes naturelles uniquement',
+  'With sharps and flats': 'Avec dièses et bémols',
+  'Bass music is written in the bass clef, one octave above how it sounds.':
+    'La musique pour basse s’écrit en clé de fa, une octave au-dessus de ce qui sonne.',
+  'Music for this instrument is written in the treble clef, one octave above how it sounds — the small 8 under the clef says so.':
+    'La musique pour cet instrument s’écrit en clé de sol, une octave au-dessus de ce qui sonne — le petit 8 sous la clé l’indique.',
+  'Music for this instrument is written in the treble clef, at the pitch it sounds.':
+    'La musique pour cet instrument s’écrit en clé de sol, à la hauteur où elle sonne.',
+  'Practise reading notes on the staff and finding them on the neck':
+    'Entraîne-toi à lire les notes sur la portée et à les trouver sur le manche',
+  'A note on the staff': 'Une note sur la portée',
+  'Where is it written?': 'Où est-elle écrite ?',
+  'Read a phrase': 'Lire une phrase',
+  'A place on the neck is marked. Tap the staff where that note is written, fine-tune with the arrows, then press Check.':
+    'Un endroit du manche est marqué. Touche la portée là où cette note est écrite, ajuste avec les flèches, puis appuie sur Vérifier.',
+  'A short phrase is written on the staff. Name its notes one after another — at the end you will hear it.':
+    'Une courte phrase est écrite sur la portée. Nomme ses notes l’une après l’autre — à la fin, tu l’entendras.',
+  'Key signature': 'Armure',
+  'The signs at the start of the staff hold for every note on that letter, unless a note carries its own sign.':
+    'Les signes au début de la portée valent pour toutes les notes de ce nom, sauf si une note porte son propre signe.',
+  'Notes of the key only': 'Notes de la tonalité uniquement',
+  'With accidentals': 'Avec altérations',
+  'Phrase': 'Phrase',
+  'Tap the staff where the note is written': 'Touche la portée là où la note est écrite',
+  'Up': 'Monter',
+  'Down': 'Descendre',
+  'Check': 'Vérifier',
+  'Notes mastered': 'Notes maîtrisées',
+  'Your progress on the staff': 'Ta progression sur la portée',
+  "Today's staff reading": 'La lecture de partition du jour',
+  'Read a round of notes on the staff — the notes that are due come first.':
+    'Lis une manche de notes sur la portée — celles à réviser passent en premier.',
+  'Open staff reading': 'Ouvrir la lecture de partition',
+  // Tab reading (TabPracticeScreen)
+  'Tab reading': 'Lecture de tablature',
+  'Write it in tab': 'L’écrire en tablature',
+  'Read a riff': 'Lire un riff',
+  'A number is written on one line of the tab. Name the note it plays — you will hear it after you answer.':
+    'Un nombre est écrit sur une ligne de la tablature. Nomme la note qu’il joue — tu l’entendras après avoir répondu.',
+  'A number is written on one line of the tab. Tap that exact place on the neck: the line is the string, the number is the fret.':
+    'Un nombre est écrit sur une ligne de la tablature. Touche exactement cet endroit du manche : la ligne est la corde, le nombre est la case.',
+  'A place on the neck is marked. Tap the tab line of its string, pick the fret number, then press Check.':
+    'Un endroit du manche est marqué. Touche la ligne de tablature de sa corde, choisis le numéro de case, puis appuie sur Vérifier.',
+  'A short riff is written in the tab. Name its notes one after another — at the end you will hear it.':
+    'Un court riff est écrit en tablature. Nomme ses notes l’une après l’autre — à la fin, tu l’entendras.',
+  'In a tab the top line is the thinnest, highest string and the bottom line the thickest — upside down from the neck in this app, where the thickest string is on top.':
+    'Dans une tablature, la ligne du haut est la corde la plus fine et la plus aiguë, et celle du bas la plus grosse — à l’inverse du manche de cette app, où la corde la plus grosse est en haut.',
+  'Practise reading tabs and finding every number on the neck':
+    'Entraîne-toi à lire des tablatures et à trouver chaque nombre sur le manche',
+  'Riff': 'Riff',
+  'Tap the tab line of the string': 'Touche la ligne de tablature de la corde',
+  'A number on the tab': 'Un nombre sur la tablature',
+  'Fret': 'Case',
+  'Places mastered': 'Endroits maîtrisés',
+  'Your progress on the neck': 'Ta progression sur le manche',
+  "Today's tab reading": 'La lecture de tablature du jour',
+  'Read a round of tab — the places that are due come first.':
+    'Lis une manche de tablature — les endroits à réviser passent en premier.',
+  'Open tab reading': 'Ouvrir la lecture de tablature',
+  // Tab reading, Slice 2: chords and technique symbols
+  'Topic': 'Thème',
+  'Single notes': 'Notes isolées',
+  'Techniques': 'Techniques',
+  'Name the chord': 'Nommer l’accord',
+  'Play the chord': 'Jouer l’accord',
+  'What does it mean?': 'Qu’est-ce que ça veut dire ?',
+  'Which note do you hear at the end?': 'Quelle note entends-tu à la fin ?',
+  'A chord is written in the tab: the numbers in one column are played together, and a line with no number is not played. Name the chord — you will hear it after you answer.':
+    'Un accord est écrit en tablature : les nombres d’une même colonne se jouent ensemble, et une ligne sans nombre ne se joue pas. Nomme l’accord — tu l’entendras après avoir répondu.',
+  'A chord is written in the tab. Tap every place it plays on the neck, one per string, leave the strings with no number alone, then press Check.':
+    'Un accord est écrit en tablature. Touche chaque endroit qu’il joue sur le manche, un par corde, laisse les cordes sans nombre, puis appuie sur Vérifier.',
+  'A playing technique is written in the tab. Say what the symbol means — you will hear it after you answer.':
+    'Une technique de jeu est écrite en tablature. Dis ce que le symbole veut dire — tu l’entendras après avoir répondu.',
+  'A playing technique is written in the tab. Name the note that sounds at the end of it.':
+    'Une technique de jeu est écrite en tablature. Nomme la note qui sonne à la fin.',
+  'The lowest note of these chords is the root, the note the chord is named after.':
+    'La note la plus grave de ces accords est la fondamentale, la note qui donne son nom à l’accord.',
+  'Chords in tab are not available for this instrument yet.':
+    'Les accords en tablature ne sont pas encore disponibles pour cet instrument.',
+  'Chords mastered': 'Accords maîtrisés',
+  'Symbols mastered': 'Symboles maîtrisés',
+  'Minor': 'Mineur',
+  'Hammer-on': 'Hammer-on',
+  'Pull-off': 'Pull-off',
+  'Slide up': 'Slide ascendant',
+  'Slide down': 'Slide descendant',
+  'Bend': 'Bend',
+  'Vibrato': 'Vibrato',
+  'Muted note': 'Note étouffée',
+  'Palm mute': 'Palm mute',
+  'Hammer-on: pick the first note, then press the higher fret down hard without picking again.':
+    'Hammer-on : joue la première note, puis frappe fort la case plus haute sans rejouer la corde.',
+  'Pull-off: pick the first note, then pull that finger off so the lower fret sounds, without picking again.':
+    'Pull-off : joue la première note, puis retire ce doigt en accrochant la corde pour faire sonner la case plus basse, sans rejouer la corde.',
+  'Slide up: pick the first note and slide the same finger up the string to the second fret.':
+    'Slide ascendant : joue la première note et fais glisser le même doigt vers le haut de la corde jusqu’à la seconde case.',
+  'Slide down: pick the first note and slide the same finger down the string to the second fret.':
+    'Slide descendant : joue la première note et fais glisser le même doigt vers le bas de la corde jusqu’à la seconde case.',
+  'Bend: pick the note and push the string sideways until it sounds as high as the fret in the second number.':
+    'Bend : joue la note et pousse la corde sur le côté jusqu’à ce qu’elle sonne aussi haut que la case du second nombre.',
+  'Vibrato: let the note ring and shake its pitch slightly by moving the string.':
+    'Vibrato : laisse sonner la note et fais légèrement varier sa hauteur en bougeant la corde.',
+  'Muted note: touch the string without pressing it down and pick — a short click with no pitch.':
+    'Note étouffée : effleure la corde sans appuyer et joue-la — un clic bref sans hauteur.',
+  'Palm mute: rest the side of the picking hand on the strings by the bridge, for a short, muffled sound.':
+    'Palm mute : pose le tranchant de la main qui joue sur les cordes près du chevalet, pour un son bref et étouffé.',
 };
