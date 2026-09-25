@@ -6,7 +6,7 @@
 // `can('staffReading', tier)` and it is wrapped in <ProGate> as a second line
 // of defence.
 //
-// Self-contained like Scales: it runs its own engine (`useStaffEngine`) and
+// Self-contained like Scales: it runs the shared reading engine (`useReadingEngine`) and
 // owns its start / running / summary states, plus a Progress tab. Every
 // answer folds into the staff lane of the learning state (`staffSrs` /
 // `staffHistory` / `staffDaily`), which steers which notes come next, and is
@@ -20,10 +20,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { InstrumentConfig } from '../utils/instruments';
-import { useStaffEngine, type StaffAnswer, type StaffExercise, type StaffQuestion } from '../hooks/useStaffEngine';
+import { useReadingEngine, type ReadingAnswer, type ReadingQuestion } from '../hooks/useReadingEngine';
 import {
-  buildStaffPool, staffBottomFret, staffNameOptions, staffTopFret, STAFF_RANGES, type StaffRange,
+  buildStaffPhrase, buildStaffPool, pickStaffQuestion, staffBottomFret, staffNameOptions, staffTopFret,
+  STAFF_RANGES, type StaffPoolItem, type StaffRange,
 } from '../learning/staffDrill';
+import type { SrsMap } from '../learning/srs';
 import { buildStaffBoard } from '../learning/staffMastery';
 import {
   KEY_IDS, keyAccidentalCount, keySignaturePositions, keySpelling, passageSigns, pitchClassName,
@@ -31,7 +33,7 @@ import {
 } from '../utils/staff';
 import {
   loadLearningState, saveLearningStateLocal, getInstrumentState, withInstrumentState, recordStaffAnswer,
-  rollDailyGoal,
+  rollDailyGoal, type StaffForm,
 } from '../learning/learningState';
 import { cloudPushLearning } from '../learning/learningSync';
 import StaffNotation, { type StaffNote } from './StaffNotation';
@@ -53,6 +55,9 @@ interface Props {
   /** Open the hamburger drawer (the host owns the drawer state + nav). */
   onOpenMenu: () => void;
 }
+
+type StaffExercise = StaffForm;
+type StaffQuestion = ReadingQuestion<StaffPoolItem>;
 
 const EXERCISES: readonly StaffExercise[] = ['nameNote', 'findOnNeck', 'findOnStaff', 'readPhrase'];
 const QUESTION_COUNT: Record<StaffExercise, number> = { nameNote: 12, findOnNeck: 12, findOnStaff: 12, readPhrase: 6 };
@@ -152,7 +157,7 @@ export default function StaffPracticeScreen({ instrument, accidental, notation, 
     return getInstrumentState(loadLearningState(ts), instrument.id, ts).staffSrs;
   }, [instrument.id]);
 
-  const recordAnswer = useCallback((a: StaffAnswer) => {
+  const recordAnswer = useCallback((a: ReadingAnswer<StaffExercise>) => {
     const ts = Date.now();
     const state = loadLearningState(ts);
     const inst = getInstrumentState(state, instrument.id, ts);
@@ -163,13 +168,22 @@ export default function StaffPracticeScreen({ instrument, accidental, notation, 
     setNow(ts);
   }, [instrument.id]);
 
-  const engine = useStaffEngine({
+  const notesPerQuestion = NOTES_PER_QUESTION[exercise];
+  const pickItems = useCallback((srs: SrsMap, previous: StaffPoolItem | null, ts: number) => {
+    const previousMidi = previous?.midi ?? null;
+    return notesPerQuestion > 1
+      ? buildStaffPhrase(pool, srs, notesPerQuestion, previousMidi, ts)
+      : [pickStaffQuestion(pool, srs, previousMidi, ts)].filter((q): q is StaffPoolItem => q != null);
+  }, [pool, notesPerQuestion]);
+
+  const engine = useReadingEngine({
     exercise,
-    pool,
+    pickItems,
     openMidi: instrument.openMidi,
     questionCount: QUESTION_COUNT[exercise],
-    notesPerQuestion: NOTES_PER_QUESTION[exercise],
+    notesPerQuestion,
     timeLimit: TIME_LIMIT[exercise],
+    markPosition: exercise === 'findOnStaff',
     getSrs,
     onComplete: () => setFinished(true),
     onAnswer: recordAnswer,
@@ -257,7 +271,7 @@ export default function StaffPracticeScreen({ instrument, accidental, notation, 
   const checkPlacement = () => {
     if (!placement) return;
     playClickSound();
-    engine.placeOnStaff(writtenMidiAt(placement.position, spec.clef, placement.sign, keyId) - spec.writtenShift);
+    engine.answerPitch(writtenMidiAt(placement.position, spec.clef, placement.sign, keyId) - spec.writtenShift);
   };
   const signChoices: Exclude<StaffSign, ''>[] = keyId === 'C' ? ['#', 'b'] : ['#', 'b', 'n'];
 

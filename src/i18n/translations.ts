@@ -1242,6 +1242,27 @@ const he: Record<string, string> = {
   "Today's staff reading": 'קריאת תווים היום',
   'Read a round of notes on the staff — the notes that are due come first.': 'קראו סבב תווים על החמשה — התווים שהגיע זמנם לחזרה באים ראשונים.',
   'Open staff reading': 'לקריאת תווים',
+
+  // Tab reading (TabPracticeScreen). 'Name the note', 'Find it on the neck',
+  // the range / notes chips and the board statuses reuse the keys above.
+  'Tab reading': 'קריאת טאבים',
+  'Write it in tab': 'לכתוב בטאב',
+  'Read a riff': 'קריאת ריף',
+  'A number is written on one line of the tab. Name the note it plays — you will hear it after you answer.': 'מספר כתוב על אחד מקווי הטאב. בחרו את שם התו שהוא מנגן — אחרי התשובה תשמעו אותו.',
+  'A number is written on one line of the tab. Tap that exact place on the neck: the line is the string, the number is the fret.': 'מספר כתוב על אחד מקווי הטאב. הקישו בדיוק על המקום הזה בצוואר: הקו הוא המיתר, והמספר הוא הסריג.',
+  'A place on the neck is marked. Tap the tab line of its string, pick the fret number, then press Check.': 'מקום על הצוואר מסומן. הקישו על קו הטאב של המיתר שלו, בחרו את מספר הסריג ולחצו על "בדיקה".',
+  'A short riff is written in the tab. Name its notes one after another — at the end you will hear it.': 'ריף קצר כתוב בטאב. בחרו את שמות התווים שלו אחד אחרי השני — בסוף תשמעו אותו.',
+  'In a tab the top line is the thinnest, highest string and the bottom line the thickest — upside down from the neck in this app, where the thickest string is on top.': 'בטאב הקו העליון הוא המיתר הדק והגבוה ביותר, והקו התחתון הוא העבה ביותר — הפוך מהצוואר באפליקציה, שבו המיתר העבה נמצא למעלה.',
+  'Practise reading tabs and finding every number on the neck': 'תרגלו קריאת טאבים ומציאת כל מספר על הצוואר',
+  'Riff': 'ריף',
+  'Tap the tab line of the string': 'הקישו על קו הטאב של המיתר',
+  'A number on the tab': 'מספר בטאב',
+  'Fret': 'סריג',
+  'Places mastered': 'מקומות בשליטה',
+  'Your progress on the neck': 'ההתקדמות שלך על הצוואר',
+  "Today's tab reading": 'קריאת טאבים היום',
+  'Read a round of tab — the places that are due come first.': 'קראו סבב טאבים — המקומות שהגיע זמנם לחזרה באים ראשונים.',
+  'Open tab reading': 'לקריאת טאבים',
 };
 
 const dictionaries: Record<Lang, Record<string, string>> = { en: {}, he };

@@ -112,11 +112,14 @@ questions, the open position stays compact and the high range gets room for
 its ledger lines (up to 6–7 on guitar and bass at the top fret — checked in
 `scripts/check-staff.mts`).
 
-## 6. Exercises (`src/hooks/useStaffEngine.ts`)
+## 6. Exercises (`src/hooks/useReadingEngine.ts`)
 
 One small dedicated engine, a sibling of `useScaleChipEngine` (the prompt is a
 written pitch and "find it" wants an exact pitch, not a pitch class, so the
-shared `useGameEngine` does not fit). A question holds one note or a phrase;
+shared `useGameEngine` does not fit). Originally `useStaffEngine`; since Tab
+reading it is `useReadingEngine`, shared by both reading domains — the
+screen passes the question picker, and "Where is it written?" answers
+through `answerPitch` (tab-reading-spec.md §6). A question holds one note or a phrase;
 **each note is its own answer** (its own SRS review, history row and score),
 and the question ends when every note is answered or the time runs out
 (every unanswered note then counts as missed). The usual `useScoring`

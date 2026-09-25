@@ -25,10 +25,12 @@
 //   • staffHistory    — a capped ring buffer of staff-reading answers
 //   • staffDaily      — today's staff-reading goal (its own record, like
 //                        `intervalDaily`, never the note `daily`)
+//   • tabSrs / tabHistory / tabDaily — the Tab reading lane, the same three
+//                        pieces again (tab-reading-spec.md §8)
 //
 // Every field above rides the same synced blob (`learningSync.ts`): the
-// scale and staff fields are merged per item like the rest, and the scale and
-// staff screens trigger the cloud push after each answer.
+// scale, staff and tab fields are merged per item like the rest, and the
+// scale, staff and tab screens trigger the cloud push after each answer.
 //   • updatedAt
 //
 // This module is pure model + persistence. It does NOT import the sync layer
@@ -45,6 +47,7 @@ import {
 import { noteItemId } from './noteItem';
 import { parseScaleItemId } from './scaleItem';
 import { parseStaffItemId } from './staffItem';
+import { parseTabItemId } from './tabItem';
 import {
   emptyPathProgress,
   normalizePathProgress,
@@ -79,6 +82,12 @@ export const STAFF_HISTORY_CAP = 300;
 // One staff-reading session of single notes is 12 questions; the daily goal
 // is "do one session" (staff-reading-spec.md §8).
 export const DEFAULT_STAFF_DAILY_TARGET = 12;
+
+// Same again for Tab reading (tab-reading-spec.md §8): one riff session
+// records a row per note (6 riffs × 5 notes), and the daily goal is one
+// session of single notes.
+export const TAB_HISTORY_CAP = 300;
+export const DEFAULT_TAB_DAILY_TARGET = 12;
 
 export interface DailyGoal {
   /** Local calendar day, `YYYY-MM-DD`. */
@@ -142,6 +151,21 @@ export interface StaffHistoryRow {
   createdAt: number;
 }
 
+export type TabForm = 'nameNote' | 'findOnNeck' | 'writeTab' | 'readRiff';
+const TAB_FORMS: readonly TabForm[] = ['nameNote', 'findOnNeck', 'writeTab', 'readRiff'];
+
+/** One recorded tab-reading answer (tab-reading-spec.md §8). Never merged
+ *  into note/interval/scale/staff history, mastery, badges or the leaderboard. */
+export interface TabHistoryRow {
+  /** `tab:<string>:<fret>` — the tab position this answer reviews. */
+  itemId: string;
+  /** Which exercise produced the answer (§6). */
+  form: TabForm;
+  correct: boolean;
+  seconds: number;
+  createdAt: number;
+}
+
 export interface InstrumentLearningState {
   srs: SrsMap;
   /** Leitner schedule for interval *qualities* (P4). A separate map from `srs`
@@ -182,6 +206,15 @@ export interface InstrumentLearningState {
   /** Today's staff-reading goal — its own record, like `intervalDaily`.
    *  Absent in an older blob ⇒ a fresh goal for today. */
   staffDaily: DailyGoal;
+  /** Leitner schedule for tab positions (Tab reading). A separate map so no
+   *  other domain ever sees tab ids. Absent in an older blob ⇒ `{}`. */
+  tabSrs: SrsMap;
+  /** Capped (`TAB_HISTORY_CAP`) ring buffer of tab-reading answers.
+   *  Absent in an older blob ⇒ `[]`. */
+  tabHistory: TabHistoryRow[];
+  /** Today's tab-reading goal — its own record, like `staffDaily`.
+   *  Absent in an older blob ⇒ a fresh goal for today. */
+  tabDaily: DailyGoal;
   /** Epoch ms of the last Teacher answer, for merge tie-breaking. */
   lastAnswerAt: number;
   /** ISO timestamp of the last change. */
@@ -219,6 +252,9 @@ export function emptyInstrumentState(now: number): InstrumentLearningState {
     staffSrs: {},
     staffHistory: [],
     staffDaily: freshDaily(now, DEFAULT_STAFF_DAILY_TARGET),
+    tabSrs: {},
+    tabHistory: [],
+    tabDaily: freshDaily(now, DEFAULT_TAB_DAILY_TARGET),
     lastAnswerAt: 0,
     updatedAt: new Date(now).toISOString(),
   };
@@ -362,6 +398,35 @@ export function normalizeStaffHistory(raw: unknown): StaffHistoryRow[] {
     : rows;
 }
 
+/** Coerce untrusted storage input into a valid `TabHistoryRow[]`. Mirrors
+ *  `normalizeStaffHistory`. */
+export function normalizeTabHistory(raw: unknown): TabHistoryRow[] {
+  if (!Array.isArray(raw)) return [];
+  const rows: TabHistoryRow[] = [];
+  for (const v of raw) {
+    if (v == null || typeof v !== 'object') continue;
+    const r = v as Record<string, unknown>;
+    const itemId = typeof r.itemId === 'string' ? r.itemId : '';
+    if (parseTabItemId(itemId) == null) continue;
+    const createdAt =
+      typeof r.createdAt === 'number' && Number.isFinite(r.createdAt) && r.createdAt > 0
+        ? Math.round(r.createdAt)
+        : NaN;
+    if (!Number.isFinite(createdAt)) continue;
+    const form = TAB_FORMS.find((f) => f === r.form);
+    if (form == null) continue;
+    const seconds =
+      typeof r.seconds === 'number' && Number.isFinite(r.seconds) && r.seconds >= 0
+        ? r.seconds
+        : 0;
+    rows.push({ itemId, form, correct: r.correct === true, seconds, createdAt });
+  }
+  rows.sort((a, b) => a.createdAt - b.createdAt);
+  return rows.length > TAB_HISTORY_CAP
+    ? rows.slice(rows.length - TAB_HISTORY_CAP)
+    : rows;
+}
+
 export function normalizeInstrumentState(
   raw: unknown,
   now: number,
@@ -390,6 +455,9 @@ export function normalizeInstrumentState(
     staffSrs: readSrsMap(r.staffSrs),
     staffHistory: normalizeStaffHistory(r.staffHistory),
     staffDaily: normalizeDaily(r.staffDaily, now, DEFAULT_STAFF_DAILY_TARGET),
+    tabSrs: readSrsMap(r.tabSrs),
+    tabHistory: normalizeTabHistory(r.tabHistory),
+    tabDaily: normalizeDaily(r.tabDaily, now, DEFAULT_TAB_DAILY_TARGET),
     lastAnswerAt:
       typeof r.lastAnswerAt === 'number' && Number.isFinite(r.lastAnswerAt)
         ? r.lastAnswerAt
@@ -511,6 +579,9 @@ export function recordTeacherAnswer(
     staffSrs: st.staffSrs,
     staffHistory: st.staffHistory,
     staffDaily: st.staffDaily,
+    tabSrs: st.tabSrs,
+    tabHistory: st.tabHistory,
+    tabDaily: st.tabDaily,
     lastAnswerAt: now,
     updatedAt: new Date(now).toISOString(),
   };
@@ -544,6 +615,9 @@ export function recordPracticeAnswer(
     staffSrs: st.staffSrs,
     staffHistory: st.staffHistory,
     staffDaily: st.staffDaily,
+    tabSrs: st.tabSrs,
+    tabHistory: st.tabHistory,
+    tabDaily: st.tabDaily,
     lastAnswerAt: now,
     updatedAt: new Date(now).toISOString(),
   };
@@ -719,6 +793,45 @@ export function recordStaffAnswer(
   };
 }
 
+// ── Apply one tab-reading answer (Premium only) ────────────────────────
+//
+// The tab-domain sibling of `recordStaffAnswer`: folds the tab position into
+// `tabSrs`, appends a capped row to `tabHistory` and ticks the SEPARATE
+// `tabDaily` goal. Every other domain's fields are left as they are (the
+// note `daily` is only rolled to today). Pure.
+export function recordTabAnswer(
+  st: InstrumentLearningState,
+  itemId: string,
+  form: TabHistoryRow['form'],
+  correct: boolean,
+  seconds: number,
+  now: number,
+): InstrumentLearningState {
+  const srsItem = getOrCreate(st.tabSrs, itemId, now);
+  const tabDaily = rollDailyGoal(st.tabDaily, now, st.tabDaily.target);
+  const nextItem = reviewSrsItem(srsItem, correct, now);
+  const row: TabHistoryRow = {
+    itemId,
+    form,
+    correct,
+    seconds: Number.isFinite(seconds) && seconds >= 0 ? seconds : 0,
+    createdAt: now,
+  };
+  const history = [...st.tabHistory, row];
+  return {
+    ...st,
+    tabSrs: { ...st.tabSrs, [itemId]: nextItem },
+    tabHistory:
+      history.length > TAB_HISTORY_CAP
+        ? history.slice(history.length - TAB_HISTORY_CAP)
+        : history,
+    tabDaily: { ...tabDaily, completed: tabDaily.completed + 1 },
+    daily: rollDailyGoal(st.daily, now, st.daily.target),
+    lastAnswerAt: now,
+    updatedAt: new Date(now).toISOString(),
+  };
+}
+
 // ── Fold Learning Path checkpoint stars (Premium only) ────────────────
 //
 // Monotonic per checkpoint (see `pathProgress.foldCheckpointStars`). Returns
@@ -803,6 +916,25 @@ export function mergeScaleHistory(
     : out;
 }
 
+/** Merge two tab-history buffers. Mirrors `mergeStaffHistory`. */
+export function mergeTabHistory(
+  a: TabHistoryRow[],
+  b: TabHistoryRow[],
+): TabHistoryRow[] {
+  const seen = new Set<string>();
+  const out: TabHistoryRow[] = [];
+  for (const row of [...a, ...b]) {
+    const key = `${row.createdAt}|${row.itemId}|${row.form}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+  }
+  out.sort((x, y) => x.createdAt - y.createdAt);
+  return out.length > TAB_HISTORY_CAP
+    ? out.slice(out.length - TAB_HISTORY_CAP)
+    : out;
+}
+
 /** Merge two staff-history buffers. Mirrors `mergeScaleHistory`. */
 export function mergeStaffHistory(
   a: StaffHistoryRow[],
@@ -843,6 +975,12 @@ export function mergeInstrumentState(
     staffDaily: mergeDailyGoal(
       a.staffDaily ?? freshDaily(0, DEFAULT_STAFF_DAILY_TARGET),
       b.staffDaily ?? freshDaily(0, DEFAULT_STAFF_DAILY_TARGET),
+    ),
+    tabSrs: mergeSrsMaps(a.tabSrs ?? {}, b.tabSrs ?? {}),
+    tabHistory: mergeTabHistory(a.tabHistory ?? [], b.tabHistory ?? []),
+    tabDaily: mergeDailyGoal(
+      a.tabDaily ?? freshDaily(0, DEFAULT_TAB_DAILY_TARGET),
+      b.tabDaily ?? freshDaily(0, DEFAULT_TAB_DAILY_TARGET),
     ),
     lastAnswerAt: Math.max(a.lastAnswerAt, b.lastAnswerAt),
     updatedAt: a.updatedAt >= b.updatedAt ? a.updatedAt : b.updatedAt,

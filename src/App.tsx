@@ -53,6 +53,7 @@ import DailyPracticeScreen from './components/DailyPracticeScreen';
 import IntervalPracticeScreen from './components/IntervalPracticeScreen';
 import ScalePracticeScreen from './components/ScalePracticeScreen';
 import StaffPracticeScreen from './components/StaffPracticeScreen';
+import TabPracticeScreen from './components/TabPracticeScreen';
 import LearnHub from './components/LearnHub';
 import TunerScreen from './components/TunerScreen';
 import { useLearning } from './hooks/useLearning';
@@ -777,6 +778,7 @@ export default function App() {
           canIntervals={can('intervalDrill', auth.tier)}
           canScales={can('scaleDrill', auth.tier)}
           canStaff={can('staffReading', auth.tier)}
+          canTabs={can('tabReading', auth.tier)}
           showGame={import.meta.env.DEV || auth.admin}
           showRoadmap={import.meta.env.DEV || auth.admin}
           onPick={(d) => {
@@ -1117,6 +1119,8 @@ export default function App() {
           intervalGoalComplete={learning.intervalGoalComplete}
           canStaff={can('staffReading', auth.tier)}
           onOpenStaff={() => setActiveDomain('staff')}
+          canTabs={can('tabReading', auth.tier)}
+          onOpenTabs={() => setActiveDomain('tabs')}
           busy={gameActive || countdown !== null}
           onStart={(plan) => setTeacherPlan(plan)}
           onStartIntervalPlan={(exercise, kind) => {
@@ -1234,6 +1238,31 @@ export default function App() {
     return (
       <>
         <StaffPracticeScreen
+          instrument={instrument}
+          accidental={accidental}
+          notation={notation}
+          showMenuButton={!settingsOpen}
+          onOpenMenu={() => { setDrawerSection(null); setSettingsOpen(true); }}
+        />
+        {settingsOpen && drawerSection === null && (
+          <SettingsDrawerNav
+            sections={settingsSections}
+            lang={lang}
+            t={t}
+            setSettingsOpen={setSettingsOpen}
+            setDrawerSection={setDrawerSection}
+          />
+        )}
+      </>
+    );
+  }
+
+  // The Tab reading page — the same self-contained treatment as Staff reading.
+  if (activeDomain === 'tabs' && can('tabReading', auth.tier)
+      && onboardingDone && !gameActive && !gameEnded) {
+    return (
+      <>
+        <TabPracticeScreen
           instrument={instrument}
           accidental={accidental}
           notation={notation}

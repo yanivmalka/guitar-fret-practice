@@ -33,10 +33,14 @@ export type Feature =
                            // on a multi-string board, with its own scale SRS
                            // schedule. A sibling of intervalDrill, not a layer
                            // on top of it — see scales-learning-spec.md.
-  | 'staffReading';        // Staff reading: a note written on the staff →
+  | 'staffReading'         // Staff reading: a note written on the staff →
                            // name it / find it on the neck, with its own
                            // staff SRS schedule. Its own domain, independent
                            // of the others — see staff-reading-spec.md.
+  | 'tabReading';          // Tab reading: a fret number on a tab line →
+                           // name it / find that place / write it / read a
+                           // riff, with its own tab SRS schedule. Its own
+                           // domain — see tab-reading-spec.md.
 
 const MIN_TIER: Record<Feature, Tier> = {
   historyBeyond7Days: 'pro',
@@ -52,6 +56,7 @@ const MIN_TIER: Record<Feature, Tier> = {
   intervalDrill:      'premium',
   scaleDrill:         'premium',
   staffReading:       'premium',
+  tabReading:         'premium',
 };
 // `fretRange` gates the precise "from fret N to fret M" window control that
 // lives in Settings → Playing (its "Precise fret range" toggle + two-handle

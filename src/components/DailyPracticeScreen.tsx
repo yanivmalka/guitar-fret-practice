@@ -5,7 +5,8 @@
 // same page-replacing treatment as Stats / the Learning Path), instead of a
 // card stacked on the home screen: the notes Teacher's Today card and — when
 // the user also has the interval tier — the guided "Today's intervals" card,
-// and — with Staff reading — the staff goal card (each domain its own card).
+// and — with Staff reading and Tab reading — their goal cards (each domain its
+// own card).
 // Anything daily-plan-shaped belongs here; the Intervals tab is left as just
 // the free Interval Selector. Premium-only: the host mounts it behind
 // `can('premiumTeacher', tier)` and it is wrapped in <ProGate> as a second
@@ -21,6 +22,7 @@ import type { IntervalExercise } from '../utils/intervals';
 import TodayCard from './TodayCard';
 import IntervalTodayCard from './IntervalTodayCard';
 import StaffTodayCard from './StaffTodayCard';
+import TabTodayCard from './TabTodayCard';
 import { ProGate } from './ProGate';
 import { Chevron } from './Chevron';
 import { useTranslation } from '../i18n/useTranslation';
@@ -47,6 +49,10 @@ interface Props {
   canStaff: boolean;
   /** Open the Staff reading page. */
   onOpenStaff: () => void;
+  /** Whether to show the tab-reading goal card (Tab reading tier). */
+  canTabs: boolean;
+  /** Open the Tab reading page. */
+  onOpenTabs: () => void;
   /** Disable the actions while a session is starting / running. */
   busy?: boolean;
   onStart: (plan: TeacherPlan) => void;
@@ -73,6 +79,8 @@ export default function DailyPracticeScreen({
   intervalGoalComplete,
   canStaff,
   onOpenStaff,
+  canTabs,
+  onOpenTabs,
   busy,
   onStart,
   onStartIntervalPlan,
@@ -135,6 +143,9 @@ export default function DailyPracticeScreen({
             )}
             {canStaff && (
               <StaffTodayCard instrumentId={instrument.id} busy={busy} onOpen={onOpenStaff} />
+            )}
+            {canTabs && (
+              <TabTodayCard instrumentId={instrument.id} busy={busy} onOpen={onOpenTabs} />
             )}
           </ProGate>
         </div>

@@ -1,0 +1,25 @@
+-- Tab reading learning state (tab-reading-spec.md §8).
+--
+-- NO DDL. Like 0017's scale and staff keys, the tab fields live inside the
+-- SAME per-user JSONB blob that 0012_user_learning_state.sql created
+-- (public.user_learning_state.data), and ride its existing reconcile
+-- (pull -> merge -> write-back -> upsert in src/learning/learningSync.ts):
+-- no new table, RLS policy or bootstrap path.
+--
+-- Extended per-instrument shape (see src/learning/learningState.ts):
+--
+--   "guitar": {
+--     ...0012-0017 keys, unchanged...
+--     "tabSrs":     { "tab:<string>:<fret>": { SrsItem } },   -- merged per item
+--     "tabHistory": [ { itemId, form, correct, seconds, createdAt } ],
+--                   -- form: nameNote | findOnNeck | writeTab | readRiff;
+--                   -- union by (createdAt, itemId, form), newest 300 kept
+--     "tabDaily":   { "dateISO": "YYYY-MM-DD", "target": 12, "completed": 5 }
+--                   -- same day: max of each field; different days: later wins
+--   }
+--
+-- The Tab reading screen pushes the blob after every answer, so its progress
+-- survives a sign-out, a reinstall and a second device.
+--
+-- Nothing to run. This file documents the blob change so the migration
+-- sequence stays a complete record of the schema's shape over time.

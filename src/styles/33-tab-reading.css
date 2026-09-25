@@ -1,0 +1,50 @@
+/* Tab reading (tab-reading-spec.md §10) — the tab card (TabNotation.tsx,
+   which reuses the staff card's box, line and note-state classes from
+   32-staff-reading.css), the fret-number row of "Write it in tab", and the
+   Progress board's status tiles (TabProgressBoard.tsx, on ScaleOrderBoard's
+   grid from 30-scale-board.css). */
+.tab-string-name {
+  fill: var(--text-2);
+  font-family: inherit;
+}
+.tab-clef {
+  fill: var(--text-2);
+  font-family: inherit;
+}
+/* The knock-out behind a number, so the line does not run through it. */
+.tab-num-bg { fill: var(--bg-1); }
+.tab-note text { font-family: inherit; }
+/* "Write it in tab": the line being written on. */
+.tab-line-selected {
+  stroke: var(--accent);
+  stroke-width: 2.6;
+}
+.tab-fret-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+.tab-fret-row .tab-fret-btn {
+  min-width: 40px;
+  padding-inline: 6px;
+  font-variant-numeric: tabular-nums;
+}
+/* Progress board: each tab position coloured by its status. */
+.tab-board-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+.tab-board-mastered {
+  background: var(--heat-known-cell);
+  /* The known-cell green is mid-to-dark in every theme; amber is light. */
+  color: #fff;
+}
+.tab-board-learning {
+  background: var(--heat-needs-work);
+  color: #1a1a1a;
+}
+.tab-board-notStarted { color: var(--text-2); }

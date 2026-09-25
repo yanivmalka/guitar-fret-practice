@@ -1,15 +1,20 @@
-// ── useStaffEngine — the Staff reading drill runner ──────────────────────
+// ── useReadingEngine — the drill runner for the reading domains ───────────
 //
-// staff-reading-spec.md §6. One small dedicated engine for every exercise:
-//   • nameNote    — a note is written on the staff; pick its name from a chip row.
-//   • findOnNeck  — a note is written on the staff; tap a place on the neck that
-//                   plays it (any string — every matching place counts).
-//   • findOnStaff — a place on the neck is marked; put the note where it is
-//                   written on the staff.
-//   • readPhrase  — a short phrase is written; name its notes in order.
-// A sibling of `useScaleChipEngine`, not a branch of the shared `useGameEngine`:
-// the prompt is a written pitch, not a fret or a note name, and the answer to
-// "find it" is an exact pitch rather than a pitch class.
+// staff-reading-spec.md §6, tab-reading-spec.md §6. One small engine shared
+// by Staff reading and Tab reading: a written prompt (a note on the staff, a
+// number on a tab line) is read and answered one of four ways —
+//   • by name     — pick the note's name from a chip row (`selectName`);
+//   • on the neck — tap a place on the neck (`tapPosition`): any place that
+//                   plays the pitch (staff), or exactly the written place
+//                   (tab, `exactPosition`);
+//   • in writing  — a place on the neck is marked (`markPosition`) and the
+//                   learner writes it: on the staff (`answerPitch`) or in
+//                   the tab (`answerPosition`);
+//   • a phrase    — several notes in a row, each named in order.
+// A sibling of `useScaleChipEngine`, not a branch of the shared
+// `useGameEngine`: the prompt is written notation, not a fret or a note name.
+// What differs between the domains — which items a question holds — comes in
+// through `pickItems`; the running, timing, scoring and recording are one.
 //
 // A question holds one note, or a phrase of several; each note is its own
 // answer (its own SRS review, its own score), and the question is over once
@@ -19,67 +24,80 @@
 // surface. Timer refs, not state, back the countdown (CLAUDE.md "Conventions").
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  buildStaffPhrase, pickStaffQuestion, type StaffPoolItem, type StaffPosition,
-} from '../learning/staffDrill';
+import type { StaffPosition } from '../learning/staffDrill';
 import type { SrsMap } from '../learning/srs';
-import type { StaffForm } from '../learning/learningState';
 import { pitchClassName } from '../utils/staff';
 import { playNoteSingle, beep } from '../utils/audio';
 import { haptic, playCorrectChime } from '../utils/feedback';
 import { useScoring } from './useScoring';
 
-export type StaffExercise = StaffForm;
-
-export interface StaffAnswer {
+/** What a reading question is made of: one reviewable item that sounds a
+ *  pitch and lives at one or more places on the neck. */
+export interface ReadingItem {
   itemId: string;
-  form: StaffExercise;
+  /** Sounding pitch. */
+  midi: number;
+  /** Every place (inside the range) that plays it; `[0]` is the one played
+   *  back. A tab item has exactly one — the written place. */
+  positions: StaffPosition[];
+}
+
+export interface ReadingAnswer<F extends string> {
+  itemId: string;
+  form: F;
   correct: boolean;
   seconds: number;
 }
 
-export interface StaffQuestion {
+export interface ReadingQuestion<T extends ReadingItem> {
   /** One note, or the notes of a phrase in reading order. */
-  items: StaffPoolItem[];
-  /** findOnStaff: the place on the neck the question points at. */
+  items: T[];
+  /** The place on the neck the question points at (the "write it" exercises). */
   marked: StaffPosition | null;
 }
 
-export interface StaffNoteResult {
+export interface ReadingNoteResult {
   correct: boolean;
-  /** nameNote / readPhrase: the chip picked (absent on a timeout). */
+  /** Named answers: the chip picked (absent on a timeout). */
   picked?: string;
 }
 
-export interface StaffEngineOptions {
-  exercise: StaffExercise;
-  pool: StaffPoolItem[];
+export interface ReadingEngineOptions<F extends string, T extends ReadingItem> {
+  exercise: F;
+  /** The items of the next question — one, or a phrase. `previous` is the
+   *  last item of the question before, so a picker can avoid repeating it. */
+  pickItems: (srs: SrsMap, previous: T | null, now: number) => T[];
   /** MIDI of each open string, `[0]` = string 1 (the highest-pitched). */
   openMidi: readonly number[];
   questionCount: number;
-  /** Notes per question — above 1 only for readPhrase. */
+  /** Notes per question — above 1 only for a phrase (used for scoring). */
   notesPerQuestion: number;
   /** Seconds per note. */
   timeLimit: number;
+  /** Mark one of the first item's places on the neck (the "write it" exercises). */
+  markPosition: boolean;
+  /** A neck tap must be the item's own place, not merely the same pitch (tab). */
+  exactPosition?: boolean;
   /** Read fresh on every pick, so the answers of this session steer the rest of it. */
   getSrs: () => SrsMap;
   onComplete?: () => void;
-  onAnswer?: (answer: StaffAnswer) => void;
+  onAnswer?: (answer: ReadingAnswer<F>) => void;
 }
 
 const PHRASE_NOTE_GAP_MS = 420;
 
-export function useStaffEngine({
-  exercise, pool, openMidi, questionCount, notesPerQuestion, timeLimit, getSrs, onComplete, onAnswer,
-}: StaffEngineOptions) {
+export function useReadingEngine<F extends string, T extends ReadingItem>({
+  exercise, pickItems, openMidi, questionCount, notesPerQuestion, timeLimit, markPosition, exactPosition = false,
+  getSrs, onComplete, onAnswer,
+}: ReadingEngineOptions<F, T>) {
   const { session, reset, beginRun, onCorrect, onWrong, onTimeout, getQuestionTime } = useScoring();
 
   const [running, setRunning] = useState(false);
-  const [question, setQuestion] = useState<StaffQuestion | null>(null);
+  const [question, setQuestion] = useState<ReadingQuestion<T> | null>(null);
   /** Index of the note being answered (a phrase moves it along). */
   const [cursor, setCursor] = useState(0);
-  const [results, setResults] = useState<(StaffNoteResult | null)[]>([]);
-  /** findOnNeck: the place tapped, and whether it was right. */
+  const [results, setResults] = useState<(ReadingNoteResult | null)[]>([]);
+  /** A neck tap: the place tapped, and whether it was right. */
   const [tapped, setTapped] = useState<(StaffPosition & { correct: boolean }) | null>(null);
   const [answered, setAnswered] = useState(false);
   const [questionNumber, setQuestionNumber] = useState(0);
@@ -90,9 +108,9 @@ export function useStaffEngine({
   const sessionRef = useRef(0);
   const countRef = useRef(0);
   const answeredRef = useRef(false);
-  const questionRef = useRef<StaffQuestion | null>(null);
+  const questionRef = useRef<ReadingQuestion<T> | null>(null);
   const cursorRef = useRef(0);
-  const resultsRef = useRef<(StaffNoteResult | null)[]>([]);
+  const resultsRef = useRef<(ReadingNoteResult | null)[]>([]);
   /** When the current note became the one to answer. */
   const noteStartRef = useRef(0);
   const noteTimeRef = useRef(timeLimit);
@@ -121,13 +139,13 @@ export function useStaffEngine({
     }, delay);
   }, []);
 
-  const setResultsBoth = useCallback((next: (StaffNoteResult | null)[]) => {
+  const setResultsBoth = useCallback((next: (ReadingNoteResult | null)[]) => {
     resultsRef.current = next;
     setResults(next);
   }, []);
 
   /** Play a phrase back note by note, so the learner hears what they read. */
-  const playPhrase = useCallback((items: readonly StaffPoolItem[], mySession: number) => {
+  const playPhrase = useCallback((items: readonly T[], mySession: number) => {
     items.forEach((it, i) => {
       setTimeout(() => {
         const pos = it.positions[0];
@@ -139,18 +157,13 @@ export function useStaffEngine({
   const nextQuestion = useCallback((mySession: number) => {
     if (!runningRef.current || sessionRef.current !== mySession) return;
     if (countRef.current >= questionCount) { finish(); return; }
-    const srs = getSrsRef.current();
-    const now = Date.now();
     const prev = questionRef.current;
-    const previousMidi = prev ? prev.items[prev.items.length - 1].midi : null;
-    const items = notesPerQuestion > 1
-      ? buildStaffPhrase(pool, srs, notesPerQuestion, previousMidi, now)
-      : [pickStaffQuestion(pool, srs, previousMidi, now)].filter((q): q is StaffPoolItem => q != null);
+    const items = pickItems(getSrsRef.current(), prev ? prev.items[prev.items.length - 1] : null, Date.now());
     if (items.length === 0) { finish(); return; }
-    const marked = exercise === 'findOnStaff'
+    const marked = markPosition
       ? items[0].positions[Math.floor(Math.random() * items[0].positions.length)] ?? null
       : null;
-    const q: StaffQuestion = { items, marked };
+    const q: ReadingQuestion<T> = { items, marked };
 
     countRef.current += 1;
     setQuestionNumber(countRef.current);
@@ -188,7 +201,7 @@ export function useStaffEngine({
       if (items.length > 1) playPhrase(items, mySession);
       scheduleNext(mySession, items.length > 1 ? 1800 + items.length * PHRASE_NOTE_GAP_MS : 1800);
     }, total * 1000);
-  }, [exercise, pool, questionCount, notesPerQuestion, getQuestionTime, timeLimit, onTimeout, finish, clearCountdown, scheduleNext, setResultsBoth, playPhrase]);
+  }, [exercise, pickItems, markPosition, questionCount, getQuestionTime, timeLimit, onTimeout, finish, clearCountdown, scheduleNext, setResultsBoth, playPhrase]);
   useEffect(() => { nextQuestionRef.current = nextQuestion; }, [nextQuestion]);
 
   const start = useCallback(() => {
@@ -211,7 +224,7 @@ export function useStaffEngine({
   }, [clearCountdown]);
 
   /** Answer the note under the cursor: score, record, feedback, move on. */
-  const resolve = useCallback((correct: boolean, extra: Omit<StaffNoteResult, 'correct'> = {}) => {
+  const resolve = useCallback((correct: boolean, extra: Omit<ReadingNoteResult, 'correct'> = {}) => {
     const q = questionRef.current;
     if (!q) return;
     const i = cursorRef.current;
@@ -251,7 +264,7 @@ export function useStaffEngine({
     }
   }, [exercise, clearCountdown, onCorrect, onWrong, scheduleNext, setResultsBoth, playPhrase]);
 
-  /** nameNote / readPhrase: a chip was picked for the current note. */
+  /** A name chip was picked for the current note. */
   const selectName = useCallback((value: string) => {
     const q = questionRef.current;
     if (!runningRef.current || answeredRef.current || !q) return;
@@ -265,18 +278,21 @@ export function useStaffEngine({
     resolve(value === pitchClassName(item.midi), { picked: value });
   }, [resolve]);
 
-  /** findOnNeck: a place on the neck was tapped. */
+  /** A place on the neck was tapped for the (single) written note. */
   const tapPosition = useCallback((string: number, fret: number) => {
     const q = questionRef.current;
     void playNoteSingle(string, fret);
     if (!runningRef.current || answeredRef.current || !q) return;
-    const correct = (openMidi[string - 1] ?? NaN) + fret === q.items[0].midi;
+    const item = q.items[0];
+    const correct = exactPosition
+      ? item.positions.some((p) => p.string === string && p.fret === fret)
+      : (openMidi[string - 1] ?? NaN) + fret === item.midi;
     setTapped({ string, fret, correct });
     resolve(correct);
-  }, [openMidi, resolve]);
+  }, [openMidi, exactPosition, resolve]);
 
-  /** findOnStaff: the learner committed a note on the staff (its sounding pitch). */
-  const placeOnStaff = useCallback((soundingMidi: number) => {
+  /** The learner wrote the marked note on the staff (its sounding pitch). */
+  const answerPitch = useCallback((soundingMidi: number) => {
     const q = questionRef.current;
     if (!runningRef.current || answeredRef.current || !q) return;
     const pos = q.marked ?? q.items[0].positions[0];
@@ -284,9 +300,18 @@ export function useStaffEngine({
     resolve(soundingMidi === q.items[0].midi);
   }, [resolve]);
 
+  /** The learner wrote the marked note in the tab (a line and a number). */
+  const answerPosition = useCallback((string: number, fret: number) => {
+    const q = questionRef.current;
+    if (!runningRef.current || answeredRef.current || !q) return;
+    const pos = q.marked ?? q.items[0].positions[0];
+    if (pos) void playNoteSingle(pos.string, pos.fret);
+    resolve(pos != null && pos.string === string && pos.fret === fret);
+  }, [resolve]);
+
   return {
     running, question, cursor, results, tapped, answered,
     questionNumber, questionCount, questionTime, questionStart,
-    session, start, stop, selectName, tapPosition, placeOnStaff,
+    session, start, stop, selectName, tapPosition, answerPitch, answerPosition,
   };
 }
