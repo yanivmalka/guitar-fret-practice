@@ -51,7 +51,7 @@ export default function AdBanner() {
     return () => { void hideNativeBanner(); ROOT.style.removeProperty('--ad-strip-h'); };
   }, [visible]);
 
-  // Native: while the banner stays up, swap in a new ad every random 35–60 s.
+  // Native: while the banner stays up, swap in a new ad every random 60–90 s.
   // Never while the app is in the background — no ad requests with the screen off.
   useEffect(() => {
     if (SURFACE !== 'native' || !visible) return;

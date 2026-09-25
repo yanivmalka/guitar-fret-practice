@@ -37,12 +37,12 @@ export function nativeBannerId(): { adId: string; isTesting: boolean } {
   return { adId: platform === 'ios' ? TEST_BANNER_IOS : TEST_BANNER_ANDROID, isTesting: true };
 }
 
-/** The native banner is swapped for a new ad after a random 35–60 s while it
+/** The native banner is swapped for a new ad after a random 60–90 s while it
  *  stays up (product owner). Native only: AdSense forbids refreshing an ad
  *  unit without a user action, so the web strip never auto-refreshes. Set the
  *  AdMob ad unit's own "Automatic refresh" to Disabled so the two don't stack. */
-export const NATIVE_REFRESH_MIN_MS = 35_000;
-export const NATIVE_REFRESH_MAX_MS = 60_000;
+export const NATIVE_REFRESH_MIN_MS = 60_000;
+export const NATIVE_REFRESH_MAX_MS = 90_000;
 
 /** Which surface renders the ad on this platform. */
 export function adSurface(): AdSurface {
