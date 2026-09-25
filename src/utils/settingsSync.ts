@@ -39,6 +39,8 @@ const SYNCED_KEYS = new Set([
   // Staff / Tab reading screen picks (each validated on read by loadOneOf).
   'staff_exercise', 'staff_range', 'staff_key', 'staff_naturalsOnly',
   'tab_exercise', 'tab_range', 'tab_naturalsOnly',
+  // The last exercise picked in each Tab reading topic (also via loadOneOf).
+  'tab_exercise_notes', 'tab_exercise_chords', 'tab_exercise_techniques',
 ]);
 // `ssel_` = every Scales screen pick (scale, exercise, direction, position,
 // fall speed, info-bubble root, ...).
