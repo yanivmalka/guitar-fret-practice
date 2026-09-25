@@ -286,3 +286,96 @@
   width: auto;
   text-align: start;
 }
+
+/* ScaleOrderBoard — "Tap the scale in order": a still neck section, one row
+   per string (highest on top), one column per fret of the box, every note of
+   the scale lit. Pinned `dir="ltr"`; only the left-handed setting mirrors it
+   (27-left-handed.css). See src/components/ScaleOrderBoard.tsx. */
+.scale-order-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.scale-order-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.scale-order-title {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-0);
+}
+.scale-order-board {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.scale-order-row {
+  display: grid;
+  grid-template-columns: 2em repeat(var(--order-frets, 5), minmax(0, 1fr));
+  gap: 4px;
+  align-items: center;
+}
+.scale-order-string {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-2);
+  text-align: center;
+}
+/* A dim tile: a note of the section that isn't in the scale. */
+.scale-order-tile {
+  position: relative;
+  height: clamp(38px, 10vw, 52px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  background: var(--bg-1);
+  color: var(--text-0);
+  font-weight: 800;
+  font-size: clamp(0.8rem, 3.6vw, 1rem);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: background 0.12s, color 0.12s;
+}
+.scale-order-tile-lit {
+  background: color-mix(in srgb, var(--accent) 30%, var(--bg-2));
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.scale-order-tile-root {
+  box-shadow: inset 0 0 0 3px var(--gold);
+}
+.scale-order-tile-found {
+  background: color-mix(in srgb, var(--success) 40%, var(--bg-1));
+}
+/* Found, but a wrong tap landed while it was being looked for. */
+.scale-order-tile-slip {
+  outline: 3px dashed var(--gold);
+  outline-offset: -5px;
+}
+.scale-order-tile-wrong {
+  background: var(--danger);
+  color: #fff;
+  box-shadow: none;
+}
+/* Its number in the run, in the corner of a found note. */
+.scale-order-step {
+  position: absolute;
+  top: 2px;
+  inset-inline-end: 4px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--text-1);
+}
+.scale-order-fret {
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-2);
+}

@@ -32,11 +32,11 @@ const SHIPPED_SCALE_TYPE_IDS: readonly string[] = ['minorPentatonic', 'major'];
 /** Which scale(s) a session draws from: one scale type id, or every shipped one. */
 export type ScaleChoice = 'all' | string;
 
-export type ScaleExercise = 'buildScale' | ScaleChipExercise;
+export type ScaleExercise = 'buildScale' | 'orderScale' | ScaleChipExercise;
 export type ScalePositionMode = 'one' | 'all';
 export type ScaleDifficulty = 'focused' | 'mixed' | 'full';
 
-const EXERCISES: readonly ScaleExercise[] = ['buildScale', 'identifyScale', 'nameDegree'];
+const EXERCISES: readonly ScaleExercise[] = ['buildScale', 'orderScale', 'identifyScale', 'nameDegree'];
 const POSITION_MODES: readonly ScalePositionMode[] = ['one', 'all'];
 const DIFFICULTIES: readonly ScaleDifficulty[] = ['focused', 'mixed', 'full'];
 const DIRECTIONS: readonly ScaleDirection[] = ['up', 'down', 'both'];

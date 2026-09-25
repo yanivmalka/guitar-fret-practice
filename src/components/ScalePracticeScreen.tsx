@@ -9,7 +9,8 @@
 // Unlike Intervals, this screen does NOT hand a `DrillConfig` back to the
 // host's shared `useGameEngine` — every exercise runs on its own dedicated
 // engine (`useScaleFallEngine` for Exercise A — full-screen Piano Tiles, see
-// its header comment — `useScaleChipEngine` for B and C — see
+// its header comment — `useScaleOrderEngine` for "Tap the scale in order",
+// `useScaleChipEngine` for B and C — see
 // their header comments for why: the shared engine's byNote flow can't
 // answer a multi-string, multi-note-name shape, and Scales is already a
 // sibling domain with its own everything, scales-learning-spec.md §0). So
@@ -29,6 +30,7 @@ import { useCallback, useMemo, useState } from 'react';
 import type { InstrumentConfig } from '../utils/instruments';
 import { useScaleFallEngine, type ScaleFallAnswer } from '../hooks/useScaleFallEngine';
 import { useScaleChipEngine, type ScaleChipAnswer } from '../hooks/useScaleChipEngine';
+import { useScaleOrderEngine, type ScaleOrderAnswer } from '../hooks/useScaleOrderEngine';
 import { useScaleSelector, FALL_SPEED_LEVELS, DISTANCE_UNITS } from '../hooks/useScaleSelector';
 import { scaleTypeById, SCALE_TYPES } from '../utils/scales';
 import { scaleItemId } from '../learning/scaleItem';
@@ -36,6 +38,7 @@ import { buildScalePool, type ScaleQuestion } from '../learning/scaleDrill';
 import { buildScaleBoard } from '../learning/scaleMastery';
 import { loadLearningState, saveLearningStateLocal, getInstrumentState, withInstrumentState, recordScaleAnswer } from '../learning/learningState';
 import ScaleFallBoard from './ScaleFallBoard';
+import ScaleOrderBoard from './ScaleOrderBoard';
 import ScaleProgressBoard from './ScaleProgressBoard';
 import IntervalChoiceRow from './IntervalChoiceRow';
 import { ProGate } from './ProGate';
@@ -82,7 +85,7 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
   // cloud wiring is a later increment). Score used to be thrown away when
   // the screen closed (Session 2 plan step 3's own framing); it no longer is.
   const recordAnswer = useCallback(
-    (itemId: string, form: 'buildScale' | 'identifyScale' | 'nameDegree', correct: boolean, seconds: number) => {
+    (itemId: string, form: 'buildScale' | 'orderScale' | 'identifyScale' | 'nameDegree', correct: boolean, seconds: number) => {
       const ts = Date.now();
       const state = loadLearningState(ts);
       const inst = getInstrumentState(state, instrument.id, ts);
@@ -132,7 +135,7 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
     `${t(scaleTypeById(q.scaleTypeId)?.nameKey ?? q.scaleTypeId)} · ${displayNote(q.rootName, accidental, notation)} · ${t('Box')} ${q.positionIndex} ${q.direction === 'down' ? '↓' : '↑'}`;
 
   const chipEngine = useScaleChipEngine({
-    exercise: exercise === 'buildScale' ? 'identifyScale' : exercise,
+    exercise: exercise === 'nameDegree' ? 'nameDegree' : 'identifyScale',
     instrument: chipInstrument,
     pool,
     questionCount: chipEnvelope.questionCount,
@@ -145,12 +148,30 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
       recordAnswer(scaleItemId(a.scaleTypeId, a.positionIndex), a.form, a.correct, a.seconds),
   });
 
-  const running = exercise === 'buildScale' ? buildEngine.running : chipEngine.running;
+  // "Tap the scale in order": a still box with every note lit, tapped in the
+  // run's order. No clock per scale; a note tapped within `noteTime` of the
+  // previous one still earns the speed bonus.
+  const orderEngine = useScaleOrderEngine({
+    instrument: fallInstrument,
+    pool,
+    questionCount: buildEnvelope.questionCount,
+    noteTime: Math.max(2, buildEnvelope.timeLimit / 4),
+    naturalsOnly: buildEnvelope.naturalsOnlyRoot,
+    direction: sel.direction,
+    onComplete: () => setFinished(true),
+    onAnswer: (a: ScaleOrderAnswer) =>
+      recordAnswer(scaleItemId(a.scaleTypeId, a.positionIndex), 'orderScale', a.correct, a.seconds),
+  });
+
+  const running = exercise === 'buildScale' ? buildEngine.running
+    : exercise === 'orderScale' ? orderEngine.running
+    : chipEngine.running;
 
   const startSession = () => {
     playClickSound(); haptic.tap();
     setFinished(false);
     if (exercise === 'buildScale') buildEngine.start();
+    else if (exercise === 'orderScale') orderEngine.start();
     else chipEngine.start();
   };
 
@@ -161,7 +182,9 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
     setFinished(false);
   };
 
-  const score = exercise === 'buildScale' ? buildEngine.session.score : chipEngine.session.score;
+  const score = exercise === 'buildScale' ? buildEngine.session.score
+    : exercise === 'orderScale' ? orderEngine.session.score
+    : chipEngine.session.score;
 
   return (
     <div className="app settings-page lp-page interval-home">
@@ -221,6 +244,13 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
                   onClick={() => pickExercise('buildScale')}
                 >
                   {t('Build the scale')}
+                </button>
+                <button
+                  type="button"
+                  className={`set-card-btn${exercise === 'orderScale' ? ' set-card-btn-primary' : ''}`}
+                  onClick={() => pickExercise('orderScale')}
+                >
+                  {t('Tap the scale in order')}
                 </button>
                 <button
                   type="button"
@@ -391,6 +421,16 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
                 </button>
               </div>
             )}
+            {!running && tab === 'practice' && !finished && exercise === 'orderScale' && (
+              <div className="set-card">
+                <p className="set-card-help">
+                  {t('A section of the neck is shown with every note of the scale lit. Tap them in order to play the scale — up from its lowest note or down from its highest, as the arrow shows.')}
+                </p>
+                <button type="button" className="set-card-btn set-card-btn-primary" onClick={startSession}>
+                  {t('Start')}
+                </button>
+              </div>
+            )}
             {!running && tab === 'practice' && !finished && exercise === 'identifyScale' && (
               <div className="set-card">
                 <p className="set-card-help">
@@ -443,6 +483,37 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
                 exitLabel={t('Stop')}
                 uiDir={lang === 'he' ? 'rtl' : undefined}
               />
+            )}
+
+            {orderEngine.running && orderEngine.question && orderEngine.board && (
+              <div className="set-card scale-order-card">
+                <div className="scale-order-header">
+                  <span className="scale-order-title">{scaleLabel(orderEngine.question)}</span>
+                  <span className="set-card-help">
+                    {t('Scale')} {orderEngine.questionNumber} / {orderEngine.questionCount}
+                    {' · '}{t('Score')}: {orderEngine.session.score}
+                  </span>
+                </div>
+                <ScaleOrderBoard
+                  board={orderEngine.board}
+                  step={orderEngine.step}
+                  slips={orderEngine.slips}
+                  wrongTile={orderEngine.wrongTile}
+                  rootName={orderEngine.question.rootName}
+                  noteTable={instrument.notes}
+                  stringCount={instrument.stringCount}
+                  accidental={accidental}
+                  notation={notation}
+                  onTap={orderEngine.tap}
+                />
+                <button
+                  type="button"
+                  className="set-card-btn"
+                  onClick={() => { playClickSound(); haptic.tap(); orderEngine.stop(); }}
+                >
+                  {t('Stop')}
+                </button>
+              </div>
             )}
 
             {chipEngine.running && chipEngine.question && exercise === 'identifyScale' && (

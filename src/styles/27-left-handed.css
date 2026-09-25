@@ -17,6 +17,10 @@
 [data-hand="left"] .scale-fall-row,
 [data-hand="left"] .scale-fall-lanes { direction: rtl; }
 
+/* The Scales still box ("Tap the scale in order") runs frets left to right;
+   left-handed puts the low frets on the right. */
+[data-hand="left"] .scale-order-row { direction: rtl; }
+
 /* The little SVG necks — the Selector's 0-12 / 12-max half-picker, its
    in-play mini neck, and the Settings fret-range neck. A single flip
    mirrors every string, fret line, inlay dot and the nut; the text

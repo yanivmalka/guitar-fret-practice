@@ -106,7 +106,7 @@ export interface ScaleHistoryRow {
   /** `scale:<type>:<position>` — the item this answer reviews. */
   itemId: string;
   /** Which exercise produced the answer (§8). */
-  form: 'buildScale' | 'identifyScale' | 'nameDegree';
+  form: 'buildScale' | 'orderScale' | 'identifyScale' | 'nameDegree';
   /** A timeout folds in here as `false`, matching the SRS treatment. */
   correct: boolean;
   /** Seconds taken; `0` when unknown. */
@@ -279,7 +279,7 @@ export function normalizeScaleHistory(raw: unknown): ScaleHistoryRow[] {
         : NaN;
     if (!Number.isFinite(createdAt)) continue;
     const form =
-      r.form === 'buildScale' || r.form === 'identifyScale' || r.form === 'nameDegree'
+      r.form === 'buildScale' || r.form === 'orderScale' || r.form === 'identifyScale' || r.form === 'nameDegree'
         ? r.form
         : null;
     if (form == null) continue;

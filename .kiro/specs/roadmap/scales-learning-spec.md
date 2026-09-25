@@ -7,6 +7,35 @@ document was drafted by mirroring the shipped Intervals Learning domain
 (§0–§3 below explain how) so it could be reviewed against a concrete
 precedent rather than from a blank page.
 
+## Session 6 (2026-09-25) — a fourth exercise, "Tap the scale in order"
+
+The product owner asked for **one more** scales exercise, in addition to the
+existing three (not a replacement): a section of the neck, divided into
+strings and frets, with every note of the scale lit; the learner taps them
+in the right order to build the scale.
+
+- `src/learning/scaleOrder.ts` (pure) — `buildOrderBoard` lays one
+  `ScaleQuestion` (from the unchanged `pickScaleQuestion`) out as a still
+  board: the section spans the shape's frets, and each shape tile is keyed
+  to its step in `scaleRun`'s order (so the Direction tiles apply as-is). A
+  pitch held on two strings is one step; either tile answers it. Checked by
+  `scripts/check-scale-order.mts`.
+- `src/hooks/useScaleOrderEngine.ts` — no falling, no countdown. A tap on
+  the next step's tile is a hit (plays, turns green, shows its number in the
+  run); any other tile — a lit note out of order or a dim non-scale note —
+  plays, flashes red, penalises, and slips the step being looked for. One
+  scale is one SRS answer judged by Exercise A's `isScaleCorrect`. History
+  rows carry the new form `'orderScale'`.
+- `src/components/ScaleOrderBoard.tsx` — one row per string, the highest
+  string on top (box-diagram / tab reading), frets left to right with their
+  numbers underneath, inline in the screen's card (not a full-screen
+  overlay). Pinned `dir="ltr"`, mirrored only by the left-handed setting.
+  The tonic keeps a gold ring.
+
+Verified live (Playwright, 400×860, zero console errors) in English and in
+Hebrew + left-handed: the board renders, a wrong tap flashes, a full run
+records an `orderScale` row in `scaleHistory` and moves to the next scale.
+
 ## Session 5 correction (2026-09-24) — Exercise A is full-screen Piano Tiles
 
 **This overrides the "Session 3 correction" below. Read it before touching

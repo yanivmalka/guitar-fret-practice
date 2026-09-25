@@ -860,6 +860,9 @@ const he: Record<string, string> = {
   'Session complete!': 'הסשן הושלם!',
   'Practice again': 'תרגלו שוב',
   'Build the scale': 'בנו את הסולם',
+  'Tap the scale in order': 'הקישו את הסולם לפי הסדר',
+  'A section of the neck is shown with every note of the scale lit. Tap them in order to play the scale — up from its lowest note or down from its highest, as the arrow shows.':
+    'מוצג מקטע של הצוואר ובו כל תווי הסולם מוארים. הקישו עליהם לפי הסדר כדי לנגן את הסולם — עולה מהתו הנמוך ביותר או יורד מהגבוה ביותר, לפי החץ.',
   'Identify the scale': 'זהו את הסולם',
   'Name the degree': 'ציינו את הדרגה',
   'The app plays the scale up or down. Pick which scale you heard.':
