@@ -129,6 +129,12 @@ for (const [label, inst] of [['guitar', guitar], ['bass', bass]] as const) {
     if (!inRoot) { bad = true; break; }
   }
   check(`${label}: 200 random picks always return a non-empty shape including the root`, !bad);
+  let cut = '';
+  for (let i = 0; i < 400 && !cut; i++) {
+    const q = pickScaleQuestion(buildScalePool(['minorPentatonic', 'major'], inst.stringCount), inst.notes, inst.stringCount, inst.maxFret);
+    if (q && q.rootFret + 3 > inst.maxFret) cut = `root at fret ${q.rootFret} of ${inst.maxFret}`;
+  }
+  check(`${label}: the whole box always fits on the neck (never cut off at the last fret)`, cut === '', cut);
   check(`${label}: both positions eventually get picked over 200 draws`, anyPos2);
 }
 

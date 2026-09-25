@@ -91,14 +91,16 @@ export function pickScaleQuestion(
       .find((p) => p.positionIndex === item.positionIndex);
     if (!position) continue;
     const lo = Math.max(0, -position.window.from);
-    if (lo > maxFret) continue;
+    const hi = maxFret - position.window.to;
+    if (lo > hi) continue;
     const row = noteTable[position.rootString - 1];
     if (!row) continue;
-    // Every root fret in [lo, maxFret] keeps the window on the fretboard
-    // (shapeAtRoot only rejects a negative low edge; a high edge past the
-    // instrument's last fret is simply clamped by shapeAtRoot itself).
+    // Every root fret in [lo, hi] keeps the whole window on the fretboard.
+    // A root higher up would leave the box cut off at the last fret (e.g. G at
+    // fret 22 showing only frets 21–22), a scale with notes missing — the
+    // same root always fits lower down the neck instead.
     let candidateFrets = shuffled(
-      Array.from({ length: maxFret - lo + 1 }, (_, i) => lo + i), rng,
+      Array.from({ length: hi - lo + 1 }, (_, i) => lo + i), rng,
     );
     if (naturalsOnly) {
       const naturals = candidateFrets.filter((f) => isNaturalName(row[f] ?? ''));
