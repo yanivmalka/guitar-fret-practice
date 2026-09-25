@@ -201,9 +201,9 @@
           } catch (e) {}
           var attr = season + '-' + mode;
           root.dataset.theme = attr;
-          try {
-            if (JSON.parse(localStorage.getItem('pref_seasonDeco') || 'true') === false) root.dataset.deco = 'off';
-          } catch (e) {}
+          // The seasonal backdrop is Pro and the tier is not known yet, so it
+          // starts off; App turns it on once the entitlement has loaded.
+          root.dataset.deco = 'off';
           var bg = THEME_BG[attr] || THEME_BG['winter-dark'];
           root.style.setProperty('--boot-splash-bg', bg);
           var themeColor = document.querySelector('meta[name="theme-color"]');

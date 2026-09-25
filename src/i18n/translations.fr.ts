@@ -165,6 +165,7 @@ export const fr: Record<string, string> = {
   'Could not download the language. Check your connection and try again.': 'Impossible de télécharger la langue. Vérifie ta connexion et réessaie.',
   'Left-handed': 'Gaucher',
   'Seasonal background': 'Fond de saison',
+  'Snowflakes, anemones, sunflowers or falling leaves behind the app, following the season': 'Flocons de neige, anémones, tournesols ou feuilles qui tombent derrière l’appli, au fil des saisons',
   'Light seasonal decorations behind the app: snowflakes in winter, anemones in spring, sunflowers in summer, falling leaves in autumn. They follow the season above. Off keeps the background plain.':
     'Décorations légères de saison derrière l’appli : flocons de neige en hiver, anémones au printemps, tournesols en été et feuilles qui tombent en automne. Elles suivent la saison choisie plus haut. Désactivé laisse le fond uni.',
   'Button depth': 'Relief des boutons',

@@ -336,7 +336,12 @@ export default function App() {
   useThemeEffect(season, theme);
   useHandednessEffect(leftHanded);
   useButtonDepthEffect(buttonDepth);
-  useSeasonDecoEffect(seasonDeco);
+  // The seasonal backdrop is Pro. This is the real gate (the Settings card's
+  // ProGate is presentation only): kept off until the entitlement is known, so
+  // a Free player never sees it flash in behind the boot splash.
+  useSeasonDecoEffect(
+    seasonDeco && !auth.loading && !auth.entitlementLoading && can('seasonalBackdrop', auth.tier),
+  );
 
   useBootReadyEvent(auth.loading, auth.entitlementLoading);
 

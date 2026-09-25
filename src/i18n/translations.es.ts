@@ -163,6 +163,7 @@ export const es: Record<string, string> = {
   'Could not download the language. Check your connection and try again.': 'No se pudo descargar el idioma. Revisa tu conexión e inténtalo de nuevo.',
   'Left-handed': 'Zurdo',
   'Seasonal background': 'Fondo de temporada',
+  'Snowflakes, anemones, sunflowers or falling leaves behind the app, following the season': 'Copos de nieve, anémonas, girasoles u hojas que caen detrás de la app, según la estación',
   'Light seasonal decorations behind the app: snowflakes in winter, anemones in spring, sunflowers in summer, falling leaves in autumn. They follow the season above. Off keeps the background plain.':
     'Decoraciones suaves de temporada detrás de la app: copos de nieve en invierno, anémonas en primavera, girasoles en verano y hojas cayendo en otoño. Siguen la estación elegida arriba. Desactivado deja el fondo liso.',
   'Button depth': 'Relieve de los botones',

@@ -160,6 +160,7 @@ export const he: Record<string, string> = {
   'Could not download the language. Check your connection and try again.': 'לא ניתן היה להוריד את השפה. בדוק את החיבור ונסה שוב.',
   'Left-handed': 'שמאלי',
   'Seasonal background': 'רקע עונתי',
+  'Snowflakes, anemones, sunflowers or falling leaves behind the app, following the season': 'פתיתי שלג, כלניות, חמניות או עלי שלכת ברקע האפליקציה, לפי העונה',
   'Light seasonal decorations behind the app: snowflakes in winter, anemones in spring, sunflowers in summer, falling leaves in autumn. They follow the season above. Off keeps the background plain.':
     'קישוטים עדינים לפי העונה מאחורי האפליקציה: פתיתי שלג בחורף, כלניות באביב, חמניות בקיץ ועלי שלכת בסתיו. הם הולכים לפי העונה שנבחרה למעלה. כבוי משאיר רקע נקי.',
   'Button depth': 'נפח לכפתורים',

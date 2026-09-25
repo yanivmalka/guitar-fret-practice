@@ -15,6 +15,7 @@ export type Feature =
   | 'voiceProfile'         // personal voice profile + calibration
   | 'extraInstruments'     // mandolin / banjo / ukulele — everything past guitar & bass
   | 'noAds'                // future: suppress Free-tier ads
+  | 'seasonalBackdrop'     // the snow / flowers / leaves layer behind the app
   | 'premiumTeacher'       // The adaptive "Teacher" surface: the Today card
                            // beside the Selector, weak-spot targeting, Leitner
                            // SRS review and the daily practice goal (P2, notes
@@ -51,6 +52,7 @@ const MIN_TIER: Record<Feature, Tier> = {
   voiceProfile:       'pro',
   extraInstruments:   'pro',
   noAds:              'pro',
+  seasonalBackdrop:   'pro',
   premiumTeacher:     'premium',
   learningPath:       'premium',
   intervalDrill:      'premium',

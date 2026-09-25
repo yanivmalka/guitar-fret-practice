@@ -165,6 +165,7 @@ export const ptBR: Record<string, string> = {
   'Could not download the language. Check your connection and try again.': 'Não foi possível baixar o idioma. Verifique sua conexão e tente de novo.',
   'Left-handed': 'Canhoto',
   'Seasonal background': 'Fundo da estação',
+  'Snowflakes, anemones, sunflowers or falling leaves behind the app, following the season': 'Flocos de neve, anêmonas, girassóis ou folhas caindo atrás do app, de acordo com a estação',
   'Light seasonal decorations behind the app: snowflakes in winter, anemones in spring, sunflowers in summer, falling leaves in autumn. They follow the season above. Off keeps the background plain.':
     'Decorações leves da estação atrás do app: flocos de neve no inverno, anêmonas na primavera, girassóis no verão e folhas caindo no outono. Seguem a estação escolhida acima. Desligado deixa o fundo liso.',
   'Button depth': 'Relevo dos botões',

@@ -191,20 +191,26 @@ export default function GeneralSettingsSection({
           setSeason={setSeason}
         />
       </SettingCard>
-      <SettingCard
-        label={t('Seasonal background')}
-        help={t('Light seasonal decorations behind the app: snowflakes in winter, anemones in spring, sunflowers in summer, falling leaves in autumn. They follow the season above. Off keeps the background plain.')}
+      <ProGate
+        feature="seasonalBackdrop"
+        variant="replace"
+        pitch={t('Snowflakes, anemones, sunflowers or falling leaves behind the app, following the season')}
       >
-        <SegmentedControl
-          ariaLabel={t('Seasonal background')}
-          value={seasonDeco ? 'on' : 'off'}
-          options={[
-            { value: 'on', label: t('On') },
-            { value: 'off', label: t('Off') },
-          ]}
-          onChange={(v) => { setSeasonDeco(v === 'on'); }}
-        />
-      </SettingCard>
+        <SettingCard
+          label={t('Seasonal background')}
+          help={t('Light seasonal decorations behind the app: snowflakes in winter, anemones in spring, sunflowers in summer, falling leaves in autumn. They follow the season above. Off keeps the background plain.')}
+        >
+          <SegmentedControl
+            ariaLabel={t('Seasonal background')}
+            value={seasonDeco ? 'on' : 'off'}
+            options={[
+              { value: 'on', label: t('On') },
+              { value: 'off', label: t('Off') },
+            ]}
+            onChange={(v) => { setSeasonDeco(v === 'on'); }}
+          />
+        </SettingCard>
+      </ProGate>
       <SettingCard
         label={t('Button depth')}
         help={t('Gives the buttons a raised, 3D look: a light rim on top, a solid edge underneath, and they sink a little when pressed. Off keeps them flat.')}
