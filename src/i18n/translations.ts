@@ -911,7 +911,7 @@ const he: Record<string, string> = {
   // "?" explanations on the More scales page (src/utils/scaleBlurbs.ts).
   "Each number is a note's place in the scale, counted from the starting note (1).":
     'כל מספר הוא מקומו של תו בסולם, כשסופרים מתו ההתחלה (1).',
-  'Example, starting on the note': 'לדוגמה, כשמתחילים מהתו',
+  'Pick a starting note to see the scale on it:': 'בחרו תו התחלה כדי לראות את הסולם עליו:',
   'Highlighted numbers differ from the major scale: b means one fret lower, # means one fret higher.':
     'המספרים המודגשים שונים מהסולם המז\'ורי: b פירושו סריג אחד נמוך יותר, ו-# פירושו סריג אחד גבוה יותר.',
   'Like natural minor, but with a major 6th instead of a flat 6th. It sounds minor yet lighter and more open — common in funk, jazz and rock.':

@@ -83,7 +83,7 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
   useEffect(() => {
     if (infoScaleId === null) return;
     const close = (e: PointerEvent) => {
-      if (!(e.target as Element | null)?.closest?.('.scale-more-info')) setInfoScaleId(null);
+      if (!(e.target as Element | null)?.closest?.('.scale-more-info, .scale-info-bubble')) setInfoScaleId(null);
     };
     document.addEventListener('pointerdown', close);
     return () => document.removeEventListener('pointerdown', close);
@@ -263,7 +263,7 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
                         )}
                       </div>
                       {blurb && infoOpen && (
-                        <div className="mode-card-info-bubble" role="status" aria-live="polite">
+                        <div className="mode-card-info-bubble scale-info-bubble" role="status" aria-live="polite">
                           <ScaleInfoBody scaleTypeId={id} accidental={accidental} notation={notation} />
                         </div>
                       )}
@@ -406,7 +406,7 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
                   )}
                 </div>
                 {basicInfoType && SCALE_BLURBS[basicInfoType.id] && (
-                  <div className="mode-card-info-bubble" role="status" aria-live="polite">
+                  <div className="mode-card-info-bubble scale-info-bubble" role="status" aria-live="polite">
                     <ScaleInfoBody scaleTypeId={basicInfoType.id} accidental={accidental} notation={notation} />
                   </div>
                 )}

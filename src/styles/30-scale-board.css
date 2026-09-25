@@ -514,3 +514,30 @@
   color: var(--accent);
   opacity: 1;
 }
+.scale-info-bubble {
+  pointer-events: auto;
+}
+.scale-info-roots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.scale-info-root {
+  min-width: 28px;
+  padding: 4px 6px;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-1);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.scale-info-root-active {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--accent-ink);
+}
