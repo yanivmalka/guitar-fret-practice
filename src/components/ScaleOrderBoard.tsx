@@ -3,8 +3,9 @@
 // One row per string (the lowest string on top, like every other neck in the
 // app), one column per fret of the box, fret numbers underneath. Every
 // note of the scale is lit; the learner taps them in the order of the run.
-// A found note turns green and shows its number in the run; the scale's tonic
-// keeps a gold ring. In learning mode the note the app is playing right now
+// The notes outside the scale show their names too, dimmed, so the learner
+// sees the whole section of the neck. A found note turns green and shows its
+// number in the run; the scale's tonic keeps a gold ring. In learning mode the note the app is playing right now
 // is lit brighter and numbered, so the learner can follow the run.
 //
 // The grid carries `dir="ltr"` permanently — Hebrew changes text direction
@@ -75,7 +76,7 @@ export default function ScaleOrderBoard({
                 className={cls}
                 onClick={() => onTap(s, f)}
               >
-                {lit && <span className="scale-order-note">{displayNote(name, accidental, notation)}</span>}
+                <span className="scale-order-note">{displayNote(name, accidental, notation)}</span>
                 {(found || demoing) && <span className="scale-order-step">{tileStep + 1}</span>}
               </button>
             );
