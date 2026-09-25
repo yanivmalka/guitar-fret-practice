@@ -112,7 +112,7 @@ One module per data type, all local-first + best-effort; guests never enter any 
 
 ### i18n
 
-`src/i18n/` — a lightweight in-house system, no library. The **English source string is the lookup key**: call sites wrap literals in `t('English text')`; missing entries (and English) fall back to the literal. Hebrew (`he`) is the only translated locale and is a full **RTL** translation — new user-facing strings need a `he` entry in `translations.ts`, and new layout must work in both directions (see the direction-driven chevrons / nav rows). Some deeper Game/stage keys are intentionally rendered raw for now.
+`src/i18n/` — a lightweight in-house system, no library. The **English source string is the lookup key**: call sites wrap literals in `t('English text')`; missing entries (and English) fall back to the literal. Hebrew (`he`) is a full **RTL** translation; Spanish (`es`, `translations.es.ts`) is LTR and partial — it lands in stages (see the wishlist), so a new string needs a `he` entry and, when it belongs to an already-translated Spanish screen, an `es` entry too. Anything that switches on `lang` must handle all three (`isLang`, `dateLocale`); Spanish defaults note names to Do-Re-Mi, and new layout must work in both directions (see the direction-driven chevrons / nav rows). Some deeper Game/stage keys are intentionally rendered raw for now.
 
 ## Conventions
 

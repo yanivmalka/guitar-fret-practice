@@ -1,4 +1,5 @@
 import { useTranslation } from '../i18n/useTranslation';
+import { dateLocale } from '../i18n/translations';
 import { useEntitlement } from '../hooks/useEntitlement';
 
 /**
@@ -49,7 +50,7 @@ export function UpgradeCard({ pitch }: { pitch?: string }) {
     if (!entitlement.expiresAt) return t('It does not expire.');
     const d = new Date(entitlement.expiresAt);
     if (Number.isNaN(d.getTime())) return t('It does not expire.');
-    const date = d.toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-GB', {
+    const date = d.toLocaleDateString(dateLocale(lang), {
       day: 'numeric', month: 'long', year: 'numeric',
     });
     return `${t('Access runs until')} ${date}.`;

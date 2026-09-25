@@ -51,10 +51,23 @@ export function resolveSeason(
   return pick && pickedIn === actual ? pick : actual;
 }
 
-// Time zones mapped to the (only) translated locale. English is everywhere
-// else, which is also the fallback for an unreadable time zone.
+// Time zones mapped to the translated locales. English is everywhere else,
+// which is also the fallback for an unreadable time zone.
 const HEBREW_ZONES = new Set(['Asia/Jerusalem', 'Asia/Tel_Aviv', 'Israel']);
 
+// Spain and the Spanish-speaking Americas (plus Equatorial Guinea).
+const SPANISH_ZONE = new RegExp(
+  '^(Europe/Madrid|Atlantic/Canary|Africa/Ceuta|Africa/Malabo|Pacific/Galapagos|Pacific/Easter'
+  + '|America/(Argentina/.+|Buenos_Aires|Cordoba|Mendoza|Catamarca|Jujuy'
+  + '|Mexico_City|Cancun|Merida|Monterrey|Matamoros|Chihuahua|Ciudad_Juarez|Ojinaga'
+  + '|Mazatlan|Bahia_Banderas|Hermosillo|Tijuana|Ensenada'
+  + '|Guatemala|El_Salvador|Tegucigalpa|Managua|Costa_Rica|Panama'
+  + '|Havana|Santo_Domingo|Puerto_Rico|Bogota|Caracas|Guayaquil|Lima|La_Paz'
+  + '|Santiago|Punta_Arenas|Asuncion|Montevideo))$',
+);
+
 export function detectLanguage(tz: string = detectTimeZone()): Lang {
-  return HEBREW_ZONES.has(tz) ? 'he' : 'en';
+  if (HEBREW_ZONES.has(tz)) return 'he';
+  if (SPANISH_ZONE.test(tz)) return 'es';
+  return 'en';
 }

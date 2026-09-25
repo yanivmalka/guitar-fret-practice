@@ -3,12 +3,24 @@
 // separate key namespace. Missing entries (and English itself) fall back to
 // the original string untouched.
 
-export type Lang = 'en' | 'he';
+import { es } from './translations.es.ts';
+
+export type Lang = 'en' | 'he' | 'es';
 
 export const LANGUAGES: Array<{ value: Lang; label: string }> = [
   { value: 'en', label: 'English' },
   { value: 'he', label: 'עברית' },
+  { value: 'es', label: 'Español' },
 ];
+
+export function isLang(value: unknown): value is Lang {
+  return value === 'en' || value === 'he' || value === 'es';
+}
+
+// BCP-47 locale for dates shown in the active language.
+export function dateLocale(lang: Lang): string {
+  return lang === 'he' ? 'he-IL' : lang === 'es' ? 'es-ES' : 'en-GB';
+}
 
 const he: Record<string, string> = {
   // Instrument / title
@@ -1306,7 +1318,7 @@ const he: Record<string, string> = {
   'Palm mute: rest the side of the picking hand on the strings by the bridge, for a short, muffled sound.': 'פאלם־מיוט: מניחים את צד כף היד הפורטת על המיתרים ליד הגשר, לצליל קצר ועמום.',
 };
 
-const dictionaries: Record<Lang, Record<string, string>> = { en: {}, he };
+const dictionaries: Record<Lang, Record<string, string>> = { en: {}, he, es };
 
 export function translate(lang: Lang, source: string): string {
   if (lang === 'en') return source;

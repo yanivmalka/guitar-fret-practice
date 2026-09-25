@@ -5,7 +5,7 @@ import { withClick as click } from '../../../utils/withClick';
 import { setOwnEntitlement } from '../../../utils/entitlement';
 import { verror } from '../../../utils/debugLog';
 import type { AuthState } from '../../../hooks/useAuth';
-import type { Lang } from '../../../i18n/translations';
+import { dateLocale, type Lang } from '../../../i18n/translations';
 
 const PRIVACY_POLICY_URL = 'https://yanivmalka.github.io/guitar-fret-practice/privacy.html';
 
@@ -53,7 +53,7 @@ export default function AccountSection({
               </span>
               {auth.user.created_at && (
                 <span className="account-member-since">
-                  {t('Member since')} {new Date(auth.user.created_at).toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-GB', {
+                  {t('Member since')} {new Date(auth.user.created_at).toLocaleDateString(dateLocale(lang), {
                     day: 'numeric', month: 'long', year: 'numeric',
                   })}
                 </span>

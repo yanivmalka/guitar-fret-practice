@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { loadSetting, saveSetting } from '../utils/settings';
-import { translate, type Lang } from './translations';
+import { isLang, translate, type Lang } from './translations';
 import { LanguageContext } from './context';
 import { detectLanguage } from '../utils/region';
 
@@ -11,7 +11,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   // chose on another device — sign-in adopts the cloud copy on a fresh device.
   const [lang, setLangState] = useState<Lang>(() => {
     const stored = loadSetting<Lang | null>('pref_language', null);
-    if (stored === 'en' || stored === 'he') return stored;
+    if (isLang(stored)) return stored;
     const guess = detectLanguage();
     try { localStorage.setItem('pref_language', JSON.stringify(guess)); } catch { /* ignore */ }
     return guess;

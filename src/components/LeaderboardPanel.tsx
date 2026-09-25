@@ -271,6 +271,12 @@ export function LeaderboardPanel({
               זהו אותו סך מצטבר שמופיע במסך הסטטיסטיקות. בונוסים על מהירות ורצף מעלים את הניקוד שלך
               במשחק, לא את נקודות הניסיון.
             </>
+          ) : lang === 'es' ? (
+            <>
+              1&nbsp;XP por cada respuesta correcta, sumada en toda tu práctica de{' '}
+              {t(instrument.label).toLowerCase()} — el mismo total histórico que ves en Estadísticas. Las
+              bonificaciones por velocidad y racha suben tu puntuación en el juego, no tu XP.
+            </>
           ) : (
             <>
               1&nbsp;XP for every correct answer, added up across all your {instrument.label.toLowerCase()}{' '}

@@ -536,7 +536,9 @@ export default function ProgressPanel({
         </div>
       )}
       <p className="sp2-scope-cap">
-        {`${t('across every')} ${lang === 'he' ? t(instrument.label) : instrument.label.toLowerCase()} ${t('settings combination')}`}
+        {lang === 'es'
+          ? `${t('across every')} ${t('settings combination')} de ${t(instrument.label).toLowerCase()}`
+          : `${t('across every')} ${lang === 'he' ? t(instrument.label) : instrument.label.toLowerCase()} ${t('settings combination')}`}
         {windowed && ` · ${t('Last 7 days')}`}
       </p>
 

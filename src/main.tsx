@@ -6,6 +6,7 @@ import App from './App'
 import { LanguageProvider } from './i18n/LanguageContext'
 import AdBanner from './components/AdBanner'
 import { detectLanguage } from './utils/region'
+import { isLang, type Lang } from './i18n/translations'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -52,17 +53,19 @@ createRoot(document.getElementById('root')!).render(
   // well under a second; the cap only covers the case where it never comes.
   const HANDOVER_WAIT_MS = 3000
 
-  const lang: 'he' | 'en' = (() => {
+  const lang: Lang = (() => {
     try {
       const stored = localStorage.getItem('pref_language')
       // First launch: the provider has not stored its regional guess yet.
-      return stored === null ? detectLanguage() : JSON.parse(stored) === 'he' ? 'he' : 'en'
+      if (stored === null) return detectLanguage()
+      const parsed: unknown = JSON.parse(stored)
+      return isLang(parsed) ? parsed : 'en'
     } catch { return 'en' }
   })()
   const COPY = {
-    slow: { he: 'עדיין טוען…', en: 'Still loading…' },
-    crash: { he: 'האפליקציה נתקלה בשגיאה בטעינה.', en: 'The app hit an error while loading.' },
-    retry: { he: 'נסה שוב', en: 'Try again' },
+    slow: { he: 'עדיין טוען…', en: 'Still loading…', es: 'Todavía cargando…' },
+    crash: { he: 'האפליקציה נתקלה בשגיאה בטעינה.', en: 'The app hit an error while loading.', es: 'La app tuvo un error al cargar.' },
+    retry: { he: 'נסה שוב', en: 'Try again', es: 'Reintentar' },
   } as const
   const say = (k: keyof typeof COPY) => COPY[k][lang]
 

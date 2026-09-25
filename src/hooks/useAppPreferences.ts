@@ -9,8 +9,14 @@ import { currentSeason, resolveSeason } from '../utils/region';
 import { NOTE_VOLUME_DEFAULT } from '../utils/audio';
 import type { FeedbackMode } from '../utils/feedback';
 import { DEFAULT_MASTERY_WINDOW, type MasteryWindow } from '../utils/mastery';
+import { useTranslation } from '../i18n/useTranslation';
+import type { Lang } from '../i18n/translations';
 
 type AnswerMode = 'tap' | 'voice' | 'guitar';
+
+function defaultNotation(lang: Lang): NotationMode {
+  return lang === 'es' ? 'solfege' : 'alpha';
+}
 
 // Global display / behaviour preferences, each backed by its own `pref_*`
 // localStorage key (read once at mount, exactly as before). The setters are the
@@ -20,7 +26,14 @@ type AnswerMode = 'tap' | 'voice' | 'guitar';
 // derivedSettings via an effect + clamp in App.
 export function useAppPreferences() {
   const [byString, setByString] = useState(() => loadSetting('pref_byString', true));
-  const [notation, setNotation] = useState<NotationMode>(() => loadSetting('pref_notation', 'alpha'));
+  // Until the player picks note names themselves, they follow the language:
+  // Spanish readers learn Do-Re-Mi, everyone else A-B-C. An explicit pick
+  // (stored `pref_notation`) always wins.
+  const { lang } = useTranslation();
+  const [notationPick, setNotation] = useState<NotationMode | null>(
+    () => loadSetting<NotationMode | null>('pref_notation', null),
+  );
+  const notation = notationPick ?? defaultNotation(lang);
   // Which spelling the enharmonic notes are shown with everywhere the player
   // reads a note (question, note wheel, feedback line). Display-only — answer
   // matching stays enharmonic-agnostic via `notesMatch`.

@@ -11,6 +11,7 @@ import { Chevron } from './Chevron';
 import type { CelebratedBadge } from './BadgeCelebration';
 import { playClickSound, haptic } from '../utils/feedback';
 import { useTranslation } from '../i18n/useTranslation';
+import { dateLocale } from '../i18n/translations';
 
 function higherTier(a: Tier | null, b: Tier | null): Tier | null {
   if (!a) return b;
@@ -190,7 +191,7 @@ function BadgeTile({
   const blurb = rawBlurb ? localise(rawBlurb, def, instrument, t) : '';
   const tierWord = (tr: Tier) => t(TIER_LABEL[tr]);
   const earnedDate = when
-    ? new Date(when).toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-GB', {
+    ? new Date(when).toLocaleDateString(dateLocale(lang), {
         day: 'numeric', month: 'short', year: 'numeric',
       })
     : t('Earned');
