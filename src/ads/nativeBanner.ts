@@ -43,6 +43,7 @@ function prepare() {
 // re-checks it and takes the banner straight back down if the user has moved on.
 let wanted = false;
 let shown = false;
+let refreshing = false;
 let sizeHandle: { remove: () => Promise<void> } | null = null;
 
 async function removeIfUp(): Promise<void> {
@@ -65,7 +66,12 @@ export async function showNativeBanner(onHeight: (px: number) => void): Promise<
     if (!canRequest || !wanted) return;
     const { AdMob, BannerAdPluginEvents, BannerAdPosition, BannerAdSize } = mod;
     sizeHandle?.remove().catch(() => {});
-    sizeHandle = await AdMob.addListener(BannerAdPluginEvents.SizeChanged, (s) => onHeight(s.height));
+    sizeHandle = await AdMob.addListener(BannerAdPluginEvents.SizeChanged, (s) => {
+      // A refresh drops the old banner before the new one lands; keep the
+      // reserved room instead of letting the page jump down and back up.
+      if (refreshing && s.height <= 0) return;
+      onHeight(s.height);
+    });
     if (!wanted) return;
     const { adId, isTesting } = nativeBannerId();
     shown = true;
@@ -80,6 +86,32 @@ export async function showNativeBanner(onHeight: (px: number) => void): Promise<
   } catch (err) {
     console.warn('[ads] native banner failed', err);
     onHeight(0);
+  }
+}
+
+/** Swap the banner that is up for a freshly requested one (a new ad). No-op
+ *  when none is up or the caller no longer wants one. */
+export async function refreshNativeBanner(): Promise<void> {
+  if (!shown || !wanted || refreshing) return;
+  refreshing = true;
+  try {
+    const { mod } = await prepare();
+    const { AdMob, BannerAdPosition, BannerAdSize } = mod;
+    await AdMob.removeBanner();
+    if (!wanted) { shown = false; return; }
+    const { adId, isTesting } = nativeBannerId();
+    await AdMob.showBanner({
+      adId,
+      isTesting,
+      adSize: BannerAdSize.ADAPTIVE_BANNER,
+      position: BannerAdPosition.BOTTOM_CENTER,
+      margin: 0,
+    });
+    if (!wanted) void removeIfUp();
+  } catch (err) {
+    console.warn('[ads] native banner refresh failed', err);
+  } finally {
+    refreshing = false;
   }
 }
 

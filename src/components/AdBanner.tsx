@@ -4,8 +4,8 @@ import { useTranslation } from '../i18n/useTranslation';
 import { can } from '../utils/features';
 import { dismissAd, isAdPending, isRoundActive, subscribeAdPending } from '../utils/adPacing';
 import { haptic, playClickSound } from '../utils/feedback';
-import { adSurface } from '../ads/config';
-import { hideNativeBanner, showNativeBanner } from '../ads/nativeBanner';
+import { adSurface, NATIVE_REFRESH_MAX_MS, NATIVE_REFRESH_MIN_MS } from '../ads/config';
+import { hideNativeBanner, refreshNativeBanner, showNativeBanner } from '../ads/nativeBanner';
 import AdSenseSlot from '../ads/AdSenseSlot';
 
 const SURFACE = adSurface();
@@ -49,6 +49,22 @@ export default function AdBanner() {
       else ROOT.style.removeProperty('--ad-strip-h');
     });
     return () => { void hideNativeBanner(); ROOT.style.removeProperty('--ad-strip-h'); };
+  }, [visible]);
+
+  // Native: while the banner stays up, swap in a new ad every random 35–60 s.
+  // Never while the app is in the background — no ad requests with the screen off.
+  useEffect(() => {
+    if (SURFACE !== 'native' || !visible) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      const ms = NATIVE_REFRESH_MIN_MS + Math.random() * (NATIVE_REFRESH_MAX_MS - NATIVE_REFRESH_MIN_MS);
+      timer = setTimeout(() => {
+        if (document.visibilityState === 'visible') void refreshNativeBanner();
+        schedule();
+      }, ms);
+    };
+    schedule();
+    return () => clearTimeout(timer);
   }, [visible]);
 
   if (!visible || SURFACE === 'native') return null;
