@@ -383,7 +383,7 @@ export default function ScalePracticeScreen({ instrument, accidental, notation, 
                         {chip}
                         <button
                           type="button"
-                          className={`scale-more-info scale-chip-info${infoOpen ? ' scale-more-info-open' : ''}`}
+                          className={`scale-more-info${infoOpen ? ' scale-more-info-open' : ''}`}
                           aria-label={t('How this works')}
                           title={t('How this works')}
                           aria-expanded={infoOpen}

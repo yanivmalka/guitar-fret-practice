@@ -415,39 +415,50 @@
 }
 .scale-more-row {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   gap: 8px;
 }
 .scale-more-row .scale-more-btn {
   flex: 1;
   min-width: 0;
 }
+/* The "?" is the same small round badge as .mode-card-info on the notes mode
+   cards; the ::after widens the tap area without growing the circle. */
 .scale-more-info {
+  position: relative;
   flex: none;
-  width: 42px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--border-soft);
-  border-radius: 12px;
+  border-radius: 50%;
   background: transparent;
   color: var(--accent);
   font: inherit;
-  font-size: 0.95rem;
-  font-weight: 800;
+  font-size: 11px;
+  font-weight: bold;
+  line-height: 1;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
   -webkit-tap-highlight-color: transparent;
+}
+.scale-more-info::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
 }
 .scale-more-info:hover,
 .scale-more-info-open {
   border-color: var(--accent);
   background: rgba(var(--accent-rgb), 0.1);
 }
+
 /* Main-screen scale chip with its "?" attached; the pair wraps as one unit. */
 .scale-chip-group {
   display: inline-flex;
-  align-items: stretch;
-  gap: 4px;
-}
-.scale-chip-info {
-  width: 34px;
-  border-radius: 12px;
+  align-items: center;
+  gap: 6px;
 }
