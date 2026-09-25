@@ -39,7 +39,7 @@ import {
 import { playNoteSingle, beep } from '../utils/audio';
 import { haptic, playCorrectChime } from '../utils/feedback';
 import { useScoring } from './useScoring';
-import { noteRoundCompleted, noteRoundStarted } from '../utils/adPacing';
+import { noteRoundEnded, noteRoundStarted } from '../utils/adPacing';
 
 /** Milliseconds a wrong tap stays red. */
 const WRONG_FLASH_MS = 350;
@@ -204,7 +204,7 @@ export function useScaleFallEngine({
         runningRef.current = false;
         setRunning(false);
         clearTimers();
-        noteRoundCompleted();
+        noteRoundEnded();
         onCompleteRef.current?.();
       }, FINISH_DELAY_MS);
     }
@@ -241,6 +241,8 @@ export function useScaleFallEngine({
   useEffect(() => { frameRef.current = frame; }, [frame]);
 
   const stop = useCallback(() => {
+    // A round stopped part-way still counts toward the ad pacing.
+    if (runningRef.current) noteRoundEnded();
     sessionRef.current += 1;
     runningRef.current = false;
     setRunning(false);

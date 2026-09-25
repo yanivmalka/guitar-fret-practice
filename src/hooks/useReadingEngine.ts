@@ -32,7 +32,7 @@ import { pitchClassName } from '../utils/staff';
 import { playNoteSingle, beep } from '../utils/audio';
 import { haptic, playCorrectChime } from '../utils/feedback';
 import { useScoring } from './useScoring';
-import { noteRoundCompleted, noteRoundStarted } from '../utils/adPacing';
+import { noteRoundEnded, noteRoundStarted } from '../utils/adPacing';
 
 /** What a reading question is made of: one reviewable item that sounds a
  *  pitch and lives at one or more places on the neck. */
@@ -133,7 +133,7 @@ export function useReadingEngine<F extends string, T extends ReadingItem>({
   const finish = useCallback(() => {
     setRunning(false); runningRef.current = false;
     clearCountdown();
-    noteRoundCompleted();
+    noteRoundEnded();
     onComplete?.();
   }, [clearCountdown, onComplete]);
 
@@ -222,6 +222,8 @@ export function useReadingEngine<F extends string, T extends ReadingItem>({
   }, [reset, beginRun, timeLimit, questionCount, notesPerQuestion, nextQuestion]);
 
   const stop = useCallback(() => {
+    // A round stopped part-way still counts toward the ad pacing.
+    if (runningRef.current) noteRoundEnded();
     sessionRef.current += 1;
     runningRef.current = false;
     setRunning(false);

@@ -14,7 +14,7 @@ import { intervalItemId } from '../learning/intervalItem';
 import { playNote, playNoteSingle, playNoteSequence, stopPlayback, beep, isSoundPlaying, soundRemainingMs, pauseAudioContext, resumeAudioContext } from '../utils/audio';
 import { haptic, playCorrectChime, correctChimeRemainingMs, showFloatingText } from '../utils/feedback';
 import { vlog, verror } from '../utils/debugLog';
-import { noteRoundCompleted, noteRoundStarted } from '../utils/adPacing';
+import { noteRoundEnded, noteRoundStarted } from '../utils/adPacing';
 
 export interface GameSettings {
   guitarString: number;
@@ -472,7 +472,7 @@ export function useGameEngine(
     if (!runningRef.current || countRef.current >= maxQuestionsRef.current) {
       const completedNaturally = runningRef.current && countRef.current >= maxQuestionsRef.current;
       setRunning(false); runningRef.current = false;
-      if (completedNaturally) { noteRoundCompleted(); onComplete?.(); }
+      if (completedNaturally) { noteRoundEnded(); onComplete?.(); }
       return;
     }
     const mySession = sessionRef.current;
@@ -681,7 +681,7 @@ export function useGameEngine(
     if (!runningRef.current || countRef.current >= maxQuestionsRef.current) {
       const completedNaturally = runningRef.current && countRef.current >= maxQuestionsRef.current;
       setRunning(false); runningRef.current = false;
-      if (completedNaturally) { noteRoundCompleted(); onComplete?.(); }
+      if (completedNaturally) { noteRoundEnded(); onComplete?.(); }
       return;
     }
     const mySession = sessionRef.current;
@@ -892,6 +892,8 @@ export function useGameEngine(
   }, [nextByNote, next, resetSession, markPlayed]);
 
   const stop = useCallback(() => {
+    // A round stopped part-way still counts toward the ad pacing.
+    if (runningRef.current || pausedRef.current) noteRoundEnded();
     clearTimers();
     if (advanceTimeoutRef.current) { clearTimeout(advanceTimeoutRef.current); advanceTimeoutRef.current = null; }
     advanceMetaRef.current = null;

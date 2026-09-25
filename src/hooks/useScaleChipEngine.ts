@@ -21,7 +21,7 @@ import {
 import { playNoteSequence, beep } from '../utils/audio';
 import { haptic, playCorrectChime } from '../utils/feedback';
 import { useScoring } from './useScoring';
-import { noteRoundCompleted, noteRoundStarted } from '../utils/adPacing';
+import { noteRoundEnded, noteRoundStarted } from '../utils/adPacing';
 
 export type ScaleChipExercise = 'identifyScale' | 'nameDegree';
 
@@ -98,7 +98,7 @@ export function useScaleChipEngine({
   const finish = useCallback(() => {
     setRunning(false); runningRef.current = false;
     clearCountdown();
-    noteRoundCompleted();
+    noteRoundEnded();
     onComplete?.();
   }, [clearCountdown, onComplete]);
 
@@ -157,6 +157,8 @@ export function useScaleChipEngine({
   }, [reset, beginRun, timeLimit, questionCount, nextQuestion]);
 
   const stop = useCallback(() => {
+    // A round stopped part-way still counts toward the ad pacing.
+    if (runningRef.current) noteRoundEnded();
     sessionRef.current += 1;
     runningRef.current = false;
     setRunning(false);

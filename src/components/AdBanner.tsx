@@ -13,8 +13,8 @@ const ROOT = document.documentElement;
 
 /** The Free-tier ad strip.
  *
- *  When it shows is decided by `utils/adPacing` (after a random 1–5 finished
- *  rounds, gone as soon as the next round starts); who sees it is decided here
+ *  When it shows is decided by `utils/adPacing` (after a random 1–3 rounds,
+ *  finished or stopped part-way; gone as soon as the next round starts); who sees it is decided here
  *  through the capability map (`noAds` is a Pro feature). Mounted once, outside
  *  <App>, so it overlays every browsing screen without each one knowing.
  *

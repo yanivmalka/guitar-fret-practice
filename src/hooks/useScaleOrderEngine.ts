@@ -28,7 +28,7 @@ import { isScaleCorrect } from '../learning/scaleFall';
 import { playNoteSingle } from '../utils/audio';
 import { haptic, playCorrectChime } from '../utils/feedback';
 import { useScoring } from './useScoring';
-import { noteRoundCompleted, noteRoundStarted } from '../utils/adPacing';
+import { noteRoundEnded, noteRoundStarted } from '../utils/adPacing';
 
 /** Milliseconds a wrong tap stays red. */
 const WRONG_FLASH_MS = 350;
@@ -121,7 +121,7 @@ export function useScaleOrderEngine({
     runningRef.current = false;
     setRunning(false);
     clearTimers();
-    noteRoundCompleted();
+    noteRoundEnded();
     onCompleteRef.current?.();
   }, [clearTimers]);
 
@@ -184,6 +184,8 @@ export function useScaleOrderEngine({
   }, [clearTimers, reset, beginRun, noteTime, questionCount, nextQuestion]);
 
   const stop = useCallback(() => {
+    // A round stopped part-way still counts toward the ad pacing.
+    if (runningRef.current) noteRoundEnded();
     sessionRef.current += 1;
     runningRef.current = false;
     setRunning(false);
